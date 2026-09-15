@@ -17,8 +17,8 @@ function canonical(value) {
   if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
   return JSON.stringify(value);
 }
-function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aftergrid-review-'"));
+function fixture(t, prefix = 'aftergrid-review-') {
+  const root = mkdtempSync(join(tmpdir(), prefix));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   cpSync(join(ROOT, 'fixtures/instance/analytics'), join(root, 'analytics'), { recursive: true });
   const dir = join(root, 'analytics/findings', SLUG);
@@ -57,7 +57,7 @@ function invalid(result, message) {
 }
 
 test('artifact verification clearly reports that it did not execute SQL', t => {
-  const f = fixture(t); const r = f.run();
+  const f = fixture(t); f.pin(); const r = f.run();
   assert.equal(r.status, 0, r.stderr + r.stdout);
   assert.equal(JSON.parse(r.stdout).executionAvailability, 'artifact_only');
 });
@@ -107,6 +107,11 @@ test('a malformed Check is an error, never a pass or intentional abstention', t 
   const f = fixture(t); writeFileSync(join(f.dir, f.manifest.checks[0].path), 'select true as pass union all select false as pass');
   const r = f.run('build');
   assert.notEqual(r.status, 0, 'build must fail on a malformed two-row Check');
+  assert.match(r.stderr + r.stdout, /exactly one row|check_shape/i);
+});
+test('SQL loading works in project paths containing an apostrophe', t => {
+  const f = fixture(t, "aftergrid-review-'"); const r = f.run('build');
+  assert.equal(r.status, 0, r.stderr + r.stdout);
 });
 test('SQL cannot read undeclared local files', t => {
   const f = fixture(t); const sentinel = join(f.root, 'review-sentinel.txt'); writeFileSync(sentinel, 'only disposable test content');
