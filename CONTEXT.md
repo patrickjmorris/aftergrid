@@ -21,7 +21,7 @@ The document an Analysis produces: Claims, tables and charts, with every number 
 _Avoid_: memo, report, result, insight, readout
 
 **Claim**:
-One assertion in a Finding, stated as a sentence and backed by at least one chart or table whose numbers are traced. Every Claim declares its type: descriptive, associational or causal; its comparison, population and window; and a tolerance within which a later value still supports it.
+One assertion in a Finding, stated as a sentence; a numeric Claim is backed by at least one chart or table whose numbers are traced. Every Claim declares its type: descriptive, associational or causal; its comparison, population and window; and a Recheck policy.
 _Avoid_: insight, takeaway, point, key finding
 
 **Variant**:
@@ -47,15 +47,19 @@ A traceable calculation used inside an Analysis that is not an approved Metric d
 _Avoid_: ad-hoc metric, scratch metric
 
 **Golden Question**:
-A Question with a known-true answer, used to evaluate that the Engine and an Instance still agree.
+A reference case: a Question with an expected answer within tolerances, or an expected abstention, used to evaluate that the Engine and an Instance still agree.
 _Avoid_: eval case, test question
+
+**Recheck policy**:
+The declared way a Claim is re-tested on Revisit: the proposition it asserts (predicate, threshold, direction), the comparison method, the evidence it reads, its minimum data, and its window policy; or an explicit statement that it cannot be evaluated automatically and why. A Recheck yields holds, contradicted, insufficient data, or not comparable.
+_Avoid_: tolerance (alone), threshold (alone), alert rule
 
 **Decision record**:
 An entry stating who decided, what action or deliberate inaction was taken, why, when, what would trigger a Revisit, and the eventual outcome. It cites a Finding; merging a Finding does not create one.
 _Avoid_: outcome, verdict
 
 **Revisit**:
-The operation that refreshes a merged Finding's Snapshot, reruns its Analysis, compares each Claim to its reviewed value within tolerance, evaluates the Question's falsifier, and produces a new revision saying whether the decision still holds. Always reviewed by an Operator, never an automatic verdict.
+The operation that refreshes a merged Finding's Snapshot as new retained inputs, reruns its Analysis, evaluates each Claim's Recheck policy and the Question's falsifier, and produces a new revision reporting each Claim as holds, contradicted, insufficient data or not comparable. Whether a Decision still holds is the decision owner's judgement, never inferred by the Engine.
 _Avoid_: refresh (the data step only), re-run, monitor, alert
 
 **Decision log**:
@@ -84,11 +88,11 @@ _Avoid_: stakeholder, consumer, end user, audience
 
 - A **Question** has many **Analyses**; each **Analysis** produces one **Finding**
 - A chart in a **Finding** is the surviving **Variant** for its **Claim**
-- A **Finding** is made of **Claims**; each **Claim** is headed by a sentence and backed by a chart or table
+- A **Finding** is made of **Claims**; each **Claim** is headed by a sentence, and a numeric **Claim** is backed by a chart or table
 - A **Finding** is publishable only when its **Checks** pass, its **Metric definitions** are approved, and its method review is recorded; these are shown as separate facts, never one badge
 - An **Analysis** runs against one **Snapshot**
 - Every number in a **Finding** resolves from an evidence reference: query execution, **Snapshot**, and a **Metric definition** or **Diagnostic calculation**
 - A **Decision record** cites a **Finding** and enters the **Decision log**; merging a **Finding** does not create one
 - A **Revisit** of a **Finding** tests every **Decision record** that cites it
 - A **Golden Question** is a **Question** whose **Finding** is already known
-- The **Engine** operates on an **Instance**; the **Operator** owns both, the **Reader** sees only **Findings**
+- The **Engine** operates on an **Instance**; the **Operator** owns both; the **Reader** understands, inspects and follows up on **Findings** without SQL
