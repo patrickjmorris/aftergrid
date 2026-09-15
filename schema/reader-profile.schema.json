@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftergrid.dev/schema/reader-profile/0.1.0",
+  "title": "aftergrid Reader profile",
+  "description": "One named Reader profile. Lives in the Instance readers file; the Reader reviewer adopts it. The Engine ships one profile with id `generic` as the fallback.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "label", "role", "data_literacy", "reads_on", "decisions", "cares_about", "will_misread"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "label": { "type": "string", "minLength": 1, "description": "Short human label, e.g. 'Non-technical product owner'." },
+    "role": { "type": "string", "minLength": 1, "description": "What they do and what they are responsible for." },
+    "data_literacy": {
+      "type": "string",
+      "enum": ["none", "reads_charts", "reads_tables", "writes_sql"],
+      "description": "Highest level assumed. none: plain sentences only. reads_charts: one simple chart per point. reads_tables: small tables fine. writes_sql: never a Reader profile in v0; use for Operator reviewers only."
+    },
+    "reads_on": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["phone", "laptop", "print"] } },
+    "time_budget_minutes": { "type": "integer", "minimum": 1, "description": "How long they will spend before deciding. Drives how much sits above the fold." },
+    "decisions": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Decisions this Reader makes with Findings." },
+    "cares_about": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "will_misread": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Known misreadings to write against, e.g. 'treats a correlation as a cause', 'reads a rate without asking for the denominator'." },
+    "vocabulary": {
+      "type": "object",
+      "description": "Words to use and words to avoid, in their language.",
+      "additionalProperties": false,
+      "properties": {
+        "use": { "type": "array", "items": { "type": "string" } },
+        "avoid": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

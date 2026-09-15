@@ -1,0 +1,1991 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftergrid.dev/schema/finding-manifest/0.1.0",
+  "title": "aftergrid Finding manifest",
+  "description": "The manifest.yaml of one Finding directory. Every data-bearing value shown to a Reader resolves through this file. Prose lives in memo.md; this file holds identities, bindings, policies and attestations. See docs/contracts/finding-manifest.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "finding",
+    "owner",
+    "reader",
+    "question",
+    "snapshot",
+    "definitions",
+    "queries",
+    "executions",
+    "results",
+    "derived",
+    "external_sources",
+    "claims",
+    "charts",
+    "tables",
+    "checks",
+    "reviews",
+    "attestations",
+    "export_policy",
+    "coverage",
+    "renderer",
+    "content_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0",
+      "description": "Manifest schema version. Bumped when a field's meaning changes; check refuses unknown versions."
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "slug",
+        "title",
+        "state",
+        "outcome",
+        "generated_at",
+        "canonical_location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/finding_id"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Immutable once attested. A refresh, revisit or content change yields revision+1."
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Display title. Not the Answer; not data-bearing."
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "needs_input",
+            "complete"
+          ],
+          "description": "Authoring state. draft: created by `new finding`, evidence may be incomplete. needs_input: paused on a named human input (see needs_input). complete: every required section, Claim and evidence reference is present; check can evaluate evidence validity. State is separate from outcome and from publication readiness."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "answered",
+            "inconclusive",
+            "insufficient_data",
+            "needs_reframing"
+          ],
+          "description": "What the Analysis concluded. pending only while state is draft or needs_input. insufficient_data, inconclusive and needs_reframing are valid complete outcomes."
+        },
+        "generated_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "When this revision's content was last produced. Volatile: excluded from the content digest."
+        },
+        "canonical_location": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where newer revisions can be found (repository path or URL). A downloaded render cannot discover supersession by itself; it points here."
+        },
+        "supersedes": {
+          "$ref": "#/$defs/finding_revision_ref"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/finding_revision_ref"
+        },
+        "needs_input": {
+          "type": "array",
+          "description": "Present and non-empty only when state is needs_input. Each item names what is missing and who owns it. Never a placeholder answer.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "description",
+              "owner"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "clarification",
+                  "definition_approval",
+                  "provisional_signoff",
+                  "data_access",
+                  "other"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Person or role who can resolve it."
+              },
+              "requested_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "needs_input"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "needs_input"
+            ],
+            "properties": {
+              "needs_input": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "complete"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "answered",
+                  "inconclusive",
+                  "insufficient_data",
+                  "needs_reframing"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "draft",
+                  "needs_input"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "const": "pending"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "contact"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contact": {
+          "type": "string",
+          "format": "email",
+          "description": "Target of the Reader's single 'question or flag this' action. Rendered as a mailto and as copyable text."
+        }
+      }
+    },
+    "reader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile"
+      ],
+      "properties": {
+        "profile": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id",
+              "description": "Id of a profile in the Instance readers file."
+            },
+            {
+              "const": "generic",
+              "description": "Generic fallback profile shipped with the Engine."
+            }
+          ]
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "raw_ask",
+        "state",
+        "decision",
+        "primary_comparison"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "raw_ask": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The ask as originally phrased. Kept verbatim."
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "resolved",
+            "unresolved",
+            "not_answerable"
+          ],
+          "description": "resolved: decision, metric, population, window and falsifier are all sharpened. unresolved: sharpening incomplete; the missing parts are listed in unresolved. not_answerable: the Operator judged the ask cannot be answered as posed (needs_reframing Findings)."
+        },
+        "decision": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision this Question informs, as a sentence."
+        },
+        "metric": {
+          "$ref": "#/$defs/definition_ref"
+        },
+        "population": {
+          "type": "string",
+          "minLength": 1
+        },
+        "window": {
+          "$ref": "#/$defs/window"
+        },
+        "primary_comparison": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pre-registered comparison, stated before any cuts. Exploratory cuts are labelled as such in Claims."
+        },
+        "falsifier": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "check_id",
+                "expected_outcome",
+                "statement"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "check"
+                },
+                "check_id": {
+                  "$ref": "#/$defs/id"
+                },
+                "expected_outcome": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "fail"
+                  ],
+                  "description": "Outcome the Check must produce for the Finding's Answer to still stand."
+                },
+                "statement": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Plain-language: what observation would show the Answer wrong."
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason",
+                "owner"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "not_evaluable"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Who decides when or whether a falsifier can be written."
+                }
+              }
+            }
+          ]
+        },
+        "unresolved": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "decision",
+              "metric",
+              "population",
+              "window",
+              "falsifier",
+              "reader"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "resolved"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "metric",
+              "population",
+              "window",
+              "falsifier"
+            ],
+            "properties": {
+              "falsifier": {
+                "properties": {
+                  "kind": {
+                    "const": "check"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unresolved",
+                  "not_answerable"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "unresolved"
+            ],
+            "properties": {
+              "unresolved": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "inputs",
+        "guarantees"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "kind",
+              "path",
+              "content_hash",
+              "captured_at",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "duckdb_file",
+                  "extract"
+                ],
+                "description": "duckdb_file: an immutable DuckDB database. extract: a bounded table extract (CSV or Parquet) captured from a source."
+              },
+              "path": {
+                "$ref": "#/$defs/relpath"
+              },
+              "content_hash": {
+                "$ref": "#/$defs/hash"
+              },
+              "captured_at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "adapter",
+                  "method"
+                ],
+                "properties": {
+                  "adapter": {
+                    "type": "string",
+                    "enum": [
+                      "duckdb",
+                      "postgres",
+                      "synthetic"
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "How the input was captured, honestly: e.g. 'generator seed 42', 'REPEATABLE READ extract of 3 tables', 'manual CSV export, not a durable snapshot'."
+                  },
+                  "tables": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "consistency": {
+                    "type": "string",
+                    "enum": [
+                      "single_transaction",
+                      "per_table",
+                      "unknown"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "guarantees": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "artifact_replay",
+              "analysis_rerun"
+            ]
+          },
+          "description": "Which guarantees this Finding holds. Empty means 'not reproducible' and the render says so."
+        },
+        "drift_fingerprints": {
+          "type": "array",
+          "description": "Optional drift signal over declared live dependencies. Never a reproducibility claim.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "table",
+              "fingerprint",
+              "taken_at"
+            ],
+            "properties": {
+              "table": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "type": "string"
+              },
+              "taken_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            }
+          }
+        }
+      }
+    },
+    "definitions": {
+      "type": "array",
+      "description": "Every Metric definition or Diagnostic calculation this Finding cites, pinned by version and content hash.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "kind",
+          "lifecycle",
+          "path",
+          "content_hash"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "diagnostic"
+            ]
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "approved",
+              "deprecated"
+            ],
+            "description": "Display only. Approval is the approval attestation, verified against the definition's own content hash."
+          },
+          "path": {
+            "$ref": "#/$defs/relpath",
+            "description": "Path relative to the Instance root."
+          },
+          "content_hash": {
+            "$ref": "#/$defs/hash"
+          },
+          "approval": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source",
+              "approver",
+              "date",
+              "content_hash"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/attestation_source"
+              },
+              "approver": {
+                "type": "string",
+                "minLength": 1
+              },
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "content_hash": {
+                "$ref": "#/$defs/hash",
+                "description": "Hash of the definition content that was approved. Must equal the definition's content_hash for the approval to count."
+              }
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "decision_metric",
+              "supporting"
+            ],
+            "description": "decision_metric: headlines a Claim the Decision rests on; requires kind metric and a verified approval for publication. supporting: allowed with any lifecycle; status is shown."
+          }
+        }
+      }
+    },
+    "queries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "content_hash",
+          "dialect"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "$ref": "#/$defs/relpath"
+          },
+          "content_hash": {
+            "$ref": "#/$defs/hash"
+          },
+          "dialect": {
+            "type": "string",
+            "enum": [
+              "duckdb",
+              "postgres"
+            ]
+          },
+          "purpose": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "executions": {
+      "type": "array",
+      "description": "One record per query run. An execution, not a filename, identifies a result.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "query_id",
+          "sql_hash",
+          "parameters",
+          "input_ids",
+          "definition_refs",
+          "result_id",
+          "result_hash",
+          "adapter",
+          "engine_version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "query_id": {
+            "$ref": "#/$defs/id"
+          },
+          "sql_hash": {
+            "$ref": "#/$defs/hash",
+            "description": "Hash of the SQL text as executed (after parameter binding templates, before binding values)."
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "analytical_timezone"
+            ],
+            "properties": {
+              "analytical_timezone": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "input_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "definition_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/definition_ref"
+            }
+          },
+          "result_id": {
+            "$ref": "#/$defs/id"
+          },
+          "result_hash": {
+            "$ref": "#/$defs/hash"
+          },
+          "adapter": {
+            "type": "string",
+            "enum": [
+              "duckdb",
+              "postgres"
+            ]
+          },
+          "engine_version": {
+            "type": "string",
+            "minLength": 1,
+            "description": "aftergrid version that ran it."
+          },
+          "executed_at": {
+            "$ref": "#/$defs/timestamp",
+            "description": "Volatile: excluded from the content digest."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "retained_rerun",
+              "capture"
+            ],
+            "description": "capture: first run against the source while capturing inputs. retained_rerun: run against retained inputs."
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "description": "Saved result sets. Referenced by id from memo, tables, charts and derived values.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "execution_id",
+          "path",
+          "row_key",
+          "columns",
+          "row_count",
+          "content_hash"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "execution_id": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "$ref": "#/$defs/relpath"
+          },
+          "row_key": {
+            "$ref": "#/$defs/column_name",
+            "description": "Column whose values are unique, stable row keys. References resolve by key, never by index."
+          },
+          "columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "type",
+                "unit"
+              ],
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/column_name"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "integer",
+                    "decimal",
+                    "text",
+                    "date",
+                    "timestamp",
+                    "boolean"
+                  ]
+                },
+                "unit": {
+                  "$ref": "#/$defs/unit"
+                },
+                "nullable": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "display": {
+                  "$ref": "#/$defs/display"
+                },
+                "definition_ref": {
+                  "$ref": "#/$defs/definition_ref",
+                  "description": "Definition this column's values are computed under, when it is a metric or diagnostic value."
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "row_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content_hash": {
+            "$ref": "#/$defs/hash"
+          },
+          "provisional": {
+            "type": "boolean",
+            "default": false,
+            "description": "True when any input was read under provisional access. Provisional results cannot be rendered for a Reader; the status propagates to derived values."
+          }
+        }
+      }
+    },
+    "derived": {
+      "type": "array",
+      "description": "Renderer-side derivations. Prefer SQL; use these only for display-time arithmetic over referenced operands.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "operation",
+          "operands",
+          "unit",
+          "on_zero_denominator",
+          "on_null"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "difference",
+              "ratio",
+              "percent_of",
+              "percent_change",
+              "sum"
+            ],
+            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... Operand order is positional."
+          },
+          "operands": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/value_ref"
+            }
+          },
+          "unit": {
+            "$ref": "#/$defs/unit"
+          },
+          "display": {
+            "$ref": "#/$defs/display"
+          },
+          "on_zero_denominator": {
+            "type": "string",
+            "enum": [
+              "not_available"
+            ],
+            "description": "Only defined behaviour: render as not available, never 0 or infinity."
+          },
+          "on_null": {
+            "type": "string",
+            "enum": [
+              "not_available"
+            ],
+            "description": "Any null operand yields not available."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "external_sources": {
+      "type": "array",
+      "description": "Typed values that do not come from a query: targets, assumptions, external references. Each names where it came from.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "value",
+          "unit",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "target",
+              "assumption",
+              "external_reference"
+            ]
+          },
+          "value": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "unit": {
+            "$ref": "#/$defs/unit"
+          },
+          "display": {
+            "$ref": "#/$defs/display"
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "description",
+              "date"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "document",
+                  "person",
+                  "policy",
+                  "url",
+                  "prior_finding"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim"
+      }
+    },
+    "charts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "claim_id",
+          "spec_path",
+          "result_id",
+          "title",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "claim_id": {
+            "$ref": "#/$defs/id"
+          },
+          "spec_path": {
+            "$ref": "#/$defs/relpath",
+            "description": "Vega-Lite spec in the validated subset. Data is bound by the renderer from result_id; the spec carries no data."
+          },
+          "result_id": {
+            "$ref": "#/$defs/id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "States the Claim. May contain reference tokens."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meaningful text alternative for the chart: what it shows and the takeaway. May contain reference tokens."
+          },
+          "variant_of": {
+            "$ref": "#/$defs/id",
+            "description": "Set on rejected Variants kept for the record; only charts without variant_of render."
+          }
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "claim_id",
+          "result_id",
+          "columns",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "claim_id": {
+            "$ref": "#/$defs/id"
+          },
+          "result_id": {
+            "$ref": "#/$defs/id"
+          },
+          "columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "label"
+              ],
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/column_name"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "row_keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/row_key"
+            },
+            "description": "Optional subset and order of rows to show. Absent: all rows in saved order."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "caption": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "path",
+          "content_hash",
+          "description",
+          "required",
+          "outcome"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "invariant",
+              "reconciliation",
+              "evidence_integrity",
+              "falsifier",
+              "minimum_data"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/relpath"
+          },
+          "content_hash": {
+            "$ref": "#/$defs/hash"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Required Checks must pass (or, for the falsifier, match expected_outcome) for evidence validity."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "not_run",
+              "error"
+            ],
+            "description": "Last recorded outcome. Artifact-verification mode reports not_run for SQL Checks it did not execute; it never reports pass on their behalf."
+          },
+          "executed_at": {
+            "$ref": "#/$defs/timestamp",
+            "description": "Volatile: excluded from the content digest."
+          },
+          "execution_id": {
+            "$ref": "#/$defs/id"
+          },
+          "expected_outcome": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail"
+            ],
+            "description": "Only for kind falsifier; mirrors question.falsifier.expected_outcome."
+          }
+        }
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "description": "Agent review records. They complete a draft; they are not publication approval.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "reviewer",
+          "date",
+          "content_digest",
+          "blocking",
+          "non_blocking"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "method",
+              "question",
+              "reader",
+              "visual"
+            ]
+          },
+          "reviewer": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Agent or person identifier plus model id where applicable."
+          },
+          "date": {
+            "$ref": "#/$defs/date"
+          },
+          "content_digest": {
+            "$ref": "#/$defs/hash",
+            "description": "Digest reviewed. A review whose digest differs from content_digest is stale."
+          },
+          "profile": {
+            "type": "string",
+            "description": "For reader reviews: the profile id adopted."
+          },
+          "blocking": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "non_blocking": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "attestations": {
+      "type": "array",
+      "description": "Human attestations bound to content_digest. Publication requires a current publication_approval whose source verifies against trusted Instance policy. Hashes prove binding, not identity; identity is verified at the source.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "source",
+          "attester",
+          "date",
+          "content_digest"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "publication_approval",
+              "method_review"
+            ]
+          },
+          "source": {
+            "$ref": "#/$defs/attestation_source"
+          },
+          "attester": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display value only. The trusted identity is the one the source verifies."
+          },
+          "date": {
+            "$ref": "#/$defs/date"
+          },
+          "content_digest": {
+            "$ref": "#/$defs/hash"
+          }
+        }
+      }
+    },
+    "export_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recipient_scope",
+        "granularity",
+        "allowed_fields",
+        "delivery"
+      ],
+      "properties": {
+        "recipient_scope": {
+          "type": "string",
+          "enum": [
+            "owner_only",
+            "named_readers",
+            "team",
+            "company"
+          ]
+        },
+        "granularity": {
+          "type": "string",
+          "enum": [
+            "aggregate_only",
+            "row_level"
+          ],
+          "description": "row_level is never allowed in a Reader render in v0; the field exists so the refusal is explicit."
+        },
+        "allowed_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/column_ref"
+          },
+          "description": "Result columns that may appear in the Reader payload, including hidden chart data. Anything not listed is projected out."
+        },
+        "delivery": {
+          "type": "string",
+          "enum": [
+            "html_file"
+          ]
+        },
+        "private_marker": {
+          "type": "string",
+          "description": "A sentinel string placed in private-only content; the render test asserts it is absent from HTML, SVG and embedded payloads."
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_from",
+        "data_to",
+        "description"
+      ],
+      "properties": {
+        "data_from": {
+          "$ref": "#/$defs/date"
+        },
+        "data_to": {
+          "$ref": "#/$defs/date"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plain words: what data this Finding covers and what it does not."
+        }
+      }
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "house_style_version"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pinned renderer version. Part of the content digest."
+        },
+        "house_style_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "content_digest": {
+      "$ref": "#/$defs/hash",
+      "description": "Digest over the envelope defined in docs/contracts/finding-manifest.md. Excludes itself, attestations, reviews, generated outputs and volatile timestamps."
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "description": "Restricted id charset: lowercase, digits, underscore. No dots or hyphens so reference separators are unambiguous."
+    },
+    "finding_id": {
+      "type": "string",
+      "pattern": "^fnd_[a-z0-9]{12}$"
+    },
+    "column_name": {
+      "$ref": "#/$defs/id"
+    },
+    "row_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$",
+      "description": "Row key value. Hyphens allowed (dates, slugs); dots are not."
+    },
+    "relpath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\./)[A-Za-z0-9_./-]+$",
+      "description": "Path relative to the Finding directory unless stated otherwise. No absolute paths, no parent traversal."
+    },
+    "hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "count",
+        "users",
+        "events",
+        "sessions",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "ratio",
+        "percent",
+        "percentage_points",
+        "currency_usd",
+        "text",
+        "date",
+        "unknown"
+      ],
+      "description": "Business unit from evidence or definition metadata, never inferred from SQL type. unknown is allowed and rendered as such."
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "integer",
+            "decimal",
+            "percent",
+            "percentage_points",
+            "currency_usd",
+            "text",
+            "date"
+          ]
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "thousands_separator": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "description": "Defined once per column or derived value; applied only at display, never before a derived calculation. A percent display of a ratio column multiplies by 100 at display."
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "timezone"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/date"
+        },
+        "end": {
+          "$ref": "#/$defs/date",
+          "description": "Inclusive."
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "definition_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "A definition reference always pins a version; the manifest's definitions list carries the content hash."
+    },
+    "finding_revision_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/finding_id"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "value_ref": {
+      "type": "string",
+      "pattern": "^(ref:[a-z][a-z0-9_]{0,63}\\.[A-Za-z0-9_-]{1,64}\\.[a-z][a-z0-9_]{0,63}|derived:[a-z][a-z0-9_]{0,63}|ext:[a-z][a-z0-9_]{0,63})$",
+      "description": "A reference without the {{ }} wrapper: ref:<result>.<row_key>.<column>, derived:<id>, or ext:<id>. Same grammar as memo tokens."
+    },
+    "column_ref": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}\\.[a-z][a-z0-9_]{0,63}$",
+      "description": "<result_id>.<column>"
+    },
+    "attestation_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "repository",
+            "pull_request",
+            "review_id",
+            "commit_sha"
+          ],
+          "properties": {
+            "type": {
+              "const": "github_pr_review"
+            },
+            "repository": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "pull_request": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "review_id": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "commit_sha": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$",
+              "description": "Exact analyzed commit. The review must be APPROVED, current and not dismissed at this SHA, by a login on the Instance's trusted allowlist. Verified through the API, never from this file alone."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "note"
+          ],
+          "properties": {
+            "type": {
+              "const": "unverified_note"
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "A note with no trusted source. Never counts toward publication readiness; kept so that a forged or informal approval is visible and rejected, not hidden."
+        }
+      ]
+    },
+    "recheck_policy": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "predicate",
+            "method",
+            "evidence",
+            "minimum_data",
+            "window_policy"
+          ],
+          "properties": {
+            "mode": {
+              "const": "automatic"
+            },
+            "predicate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "subject",
+                "operator",
+                "threshold",
+                "unit"
+              ],
+              "properties": {
+                "subject": {
+                  "$ref": "#/$defs/value_ref",
+                  "description": "The value the proposition is about."
+                },
+                "operator": {
+                  "type": "string",
+                  "enum": [
+                    "gte",
+                    "gt",
+                    "lte",
+                    "lt",
+                    "within",
+                    "outside"
+                  ],
+                  "description": "within/outside compare subject to baseline +/- tolerance."
+                },
+                "threshold": {
+                  "type": [
+                    "number",
+                    "string"
+                  ],
+                  "description": "A number, or a value_ref when the threshold is itself evidence (e.g. a baseline or an external target)."
+                },
+                "unit": {
+                  "$ref": "#/$defs/unit"
+                },
+                "tolerance": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Required for within/outside."
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "higher_is_better",
+                    "lower_is_better",
+                    "none"
+                  ]
+                }
+              }
+            },
+            "method": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "restate",
+                    "difference_in_proportions",
+                    "difference_in_means"
+                  ],
+                  "description": "Built-in comparison methods."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "ref",
+                    "version"
+                  ],
+                  "properties": {
+                    "ref": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "description": "Versioned reference to a method described in the Instance."
+                }
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/value_ref"
+              }
+            },
+            "baseline": {
+              "$ref": "#/$defs/value_ref",
+              "description": "Required when the predicate uses within/outside."
+            },
+            "minimum_data": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "subject",
+                "operator",
+                "threshold",
+                "unit"
+              ],
+              "properties": {
+                "subject": {
+                  "$ref": "#/$defs/value_ref"
+                },
+                "operator": {
+                  "type": "string",
+                  "enum": [
+                    "gte"
+                  ]
+                },
+                "threshold": {
+                  "type": "number"
+                },
+                "unit": {
+                  "$ref": "#/$defs/unit"
+                }
+              },
+              "description": "Below this the Recheck reports insufficient data rather than a result."
+            },
+            "window_policy": {
+              "type": "string",
+              "enum": [
+                "fixed_window",
+                "advancing_window"
+              ],
+              "description": "fixed_window: restate the same dates on refreshed data. advancing_window: shift the window forward by its own length, keeping the comparison shape."
+            },
+            "coverage": {
+              "type": "string",
+              "description": "Plain words: what the retained inputs must still cover for the comparison to apply."
+            },
+            "not_comparable_when": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Conditions under which the Recheck reports not comparable (definition or population change, method assumptions no longer hold)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "reason",
+            "owner"
+          ],
+          "properties": {
+            "mode": {
+              "const": "not_automatically_evaluable"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Who re-judges this Claim on Revisit."
+            },
+            "review_hint": {
+              "type": "string",
+              "description": "What a human should look at when re-judging."
+            }
+          }
+        }
+      ]
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "sentence",
+        "numeric",
+        "evidence",
+        "population",
+        "comparison",
+        "window",
+        "exclusions",
+        "limitations",
+        "recheck"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "descriptive",
+            "associational",
+            "causal"
+          ]
+        },
+        "sentence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The Claim as one sentence; the Evidence subsection heading. May contain reference tokens."
+        },
+        "numeric": {
+          "type": "boolean",
+          "description": "True when the Claim asserts a number. Numeric Claims require at least one chart or table and at least one evidence reference."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value_ref"
+          },
+          "description": "Every value the Claim rests on. Empty only for non-numeric Claims."
+        },
+        "chart_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "table_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "population": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who is counted, in plain words."
+        },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "description"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none",
+                "baseline_period",
+                "cohort_vs_cohort",
+                "variant_vs_control",
+                "target"
+              ]
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Compared with what, in plain words. For kind none: why no comparison is made."
+            },
+            "pre_registered": {
+              "type": "boolean",
+              "description": "Whether this comparison was the Question's primary comparison. Exploratory comparisons are labelled as such in the render."
+            }
+          }
+        },
+        "window": {
+          "$ref": "#/$defs/window"
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Who or what was left out, each as a sentence. Empty array means nothing excluded; say so in the memo."
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "material_caveat": {
+          "type": "string",
+          "description": "The one caveat that would change the conclusion, shown next to the Answer. Required on the Claim the Answer rests on."
+        },
+        "answer_bearing": {
+          "type": "boolean",
+          "default": false,
+          "description": "True for the Claim(s) the Answer sentence rests on."
+        },
+        "provisional": {
+          "type": "boolean",
+          "default": false,
+          "description": "Rests on provisional evidence; cannot be rendered for a Reader."
+        },
+        "recheck": {
+          "$ref": "#/$defs/recheck_policy"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "numeric": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidence": {
+                "minItems": 1
+              }
+            },
+            "anyOf": [
+              {
+                "required": [
+                  "chart_ids"
+                ],
+                "properties": {
+                  "chart_ids": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "required": [
+                  "table_ids"
+                ],
+                "properties": {
+                  "table_ids": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "answer_bearing"
+            ],
+            "properties": {
+              "answer_bearing": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "material_caveat"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "associational",
+                  "causal"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "comparison": {
+                "properties": {
+                  "kind": {
+                    "not": {
+                      "const": "none"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "finding": {
+            "properties": {
+              "state": {
+                "const": "complete"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "claims": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

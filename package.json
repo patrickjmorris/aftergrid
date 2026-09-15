@@ -1,0 +1,21 @@
+{
+  "name": "aftergrid",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source skills, Checks and a thin CLI for producing Findings. Pre-release; the CLI is not yet published.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "validate:fixtures": "node scripts/validate-fixtures.mjs",
+    "gen:fixtures": "node scripts/gen-fixture-data.mjs"
+  },
+  "devDependencies": {
+    "@duckdb/node-api": "1.5.5-r.5",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.6.0"
+  }
+}

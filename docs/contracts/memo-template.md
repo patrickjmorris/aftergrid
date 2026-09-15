@@ -1,0 +1,51 @@
+# Memo template
+
+`memo.md` is the canonical Finding text. Sections are fixed and in this order; `check` fails on a missing, extra or reordered section (category `template`). Reader-facing copy uses plain words; glossary terms may appear but are never required of the Reader.
+
+```markdown
+---
+finding: fnd_xxxxxxxxxxxx
+revision: 1
+---
+
+# <Title>
+
+## Answer
+One sentence. For an insufficient-data, inconclusive or needs-reframing outcome the sentence says so.
+Immediately after: the material caveat of the answer-bearing Claim, as its own sentence, marked with the
+`material_caveat` HTML comment marker so the render keeps them together.
+
+## Decision it informs
+One or two sentences: the decision, who owns it, what the options are.
+
+## Evidence
+### <Claim sentence>   <!-- claim: c1 -->
+For a numeric Claim: at least one chart or table whose title states the Claim, then the prose.
+Understand: who is counted, compared with what, over which period. Inspect: exclusions, calculation.
+### <Claim sentence>   <!-- claim: c2 -->
+...
+
+## How we checked
+Checks run and their outcomes; definitions used with lifecycle; Snapshot guarantees; agent reviews.
+Written as separate facts, never one badge.
+
+## What would change our mind
+The Question's falsifier in plain words (or why none can be written yet, and who owns that);
+each Claim's Recheck policy in plain words; the earliest date a re-check is meaningful.
+
+## Appendix
+Queries by id and path; result sets by id; retained inputs; anything an Operator needs to rerun.
+```
+
+## Rules `check` enforces
+
+- Front matter `finding` and `revision` match the manifest.
+- Section headings exactly: `Answer`, `Decision it informs`, `Evidence`, `How we checked`, `What would change our mind`, `Appendix`.
+- Every `### ` heading under Evidence carries a `<!-- claim: <id> -->` marker naming a manifest Claim; every manifest Claim has exactly one such subsection; heading text equals the Claim `sentence` after token resolution.
+- The Answer section contains the `<!-- material_caveat -->` marker followed by the answer-bearing Claim's `material_caveat` text.
+- Every numeral outside the allowed set in `docs/contracts/reference-grammar.md` is a token.
+- Chart and table placement: `<!-- chart: <id> -->` and `<!-- table: <id> -->` markers inside the owning Claim's subsection; the renderer replaces them. A numeric Claim's subsection contains at least one.
+
+## Rules a reviewer judges
+
+Answer-first ordering, one idea per Claim, Reader-level language, whether "doubled" or "caused" is earned by the evidence, whether the caveat is the one that matters. These are the Method, Question and Reader reviews, recorded in `reviews[]`, never a lint.

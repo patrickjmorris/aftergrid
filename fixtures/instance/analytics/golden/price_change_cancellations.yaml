@@ -1,0 +1,11 @@
+# Golden Question with an expected abstention.
+schema_version: 0.1.0
+id: price_change_cancellations
+raw_ask: Did the price increase on September 8 make more people cancel?
+expected:
+  outcome: insufficient_data
+  definition_ids: []
+  tables_read: [subscriptions]
+  reasoning: Only seven days of post-change data exist against a policy minimum of 28 days and 300 cancellations. The correct Finding says so and names the earliest date an answer is possible; it does not compare a partial week against prior weeks.
+constraints:
+  data_to: 2026-09-14

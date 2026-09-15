@@ -1,0 +1,20 @@
+# Golden Question: a reference case with an expected answer within tolerance.
+# Evaluated by the nightly eval (ag-nightly-eval-0dv); shape owned by ag-synthetic-golden-nightly-5vm.
+schema_version: 0.1.0
+id: onboarding_checklist_retention
+raw_ask: Did the onboarding checklist help new users come back?
+expected:
+  outcome: answered
+  definition_ids: [retained_7d]
+  tables_read: [users, events]
+  claims:
+    - subject: ref:retention_by_arm.checklist.retained_7d_rate
+      value: 0.348
+      tolerance: 0.02
+    - subject: ref:retention_by_arm.control.retained_7d_rate
+      value: 0.285
+      tolerance: 0.02
+  reasoning: Assignment was randomized by user id inside the experiment window, so a difference in retained_7d between arms is attributable to the checklist. The planted effect is on mobile only.
+constraints:
+  window: { start: 2026-06-01, end: 2026-07-12, timezone: America/New_York }
+  population: users who signed up inside the experiment window

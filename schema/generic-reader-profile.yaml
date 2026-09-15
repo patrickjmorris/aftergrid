@@ -1,0 +1,20 @@
+id: generic
+label: Generic non-data decision maker
+role: Makes a product or operating decision based on this Finding. Has no data training and no access to SQL.
+data_literacy: reads_charts
+reads_on: [phone, laptop]
+time_budget_minutes: 5
+decisions:
+  - whether to act on the Answer, wait, or ask for more
+cares_about:
+  - the Answer in one sentence
+  - the one caveat that would change it
+  - who is counted and compared with what
+will_misread:
+  - treats a correlation as a cause
+  - reads a rate without asking what it is a rate of
+  - reads a small or immature sample as a trend
+  - assumes a passed Check means the conclusion is right
+vocabulary:
+  use: [people, users, out of, compared with]
+  avoid: [denominator, cohort, statistically significant, p-value, confidence interval]

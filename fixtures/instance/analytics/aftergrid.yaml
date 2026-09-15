@@ -1,0 +1,20 @@
+# Synthetic fixture Instance for the aftergrid Engine. Fictional company "Loop" (a habit-tracking app).
+# Nothing here is real. Layout: docs/contracts/instance-layout.md
+schema_version: 0.1.0
+instance_root: analytics
+connection:
+  adapter: duckdb
+  duckdb:
+    # The fixture warehouse is CSV; the DuckDB adapter registers each file as a read-only view.
+    path: data
+    read_only: true
+publication:
+  repository: loop-example/analytics
+  trusted_approvers: [dana-okafor]
+  automation_login: loop-aftergrid-bot
+export_defaults:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+owner:
+  name: Dana Okafor
+  contact: dana@loop.example

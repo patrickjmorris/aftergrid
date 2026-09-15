@@ -1,0 +1,21 @@
+{
+  "result_id": "since_change",
+  "execution_id": "ex_cancellations_since_change",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "days_elapsed",
+    "cancellations",
+    "active_at_change",
+    "earliest_eligible_date"
+  ],
+  "rows": [
+    {
+      "period": "post",
+      "days_elapsed": 7,
+      "cancellations": 67,
+      "active_at_change": 887,
+      "earliest_eligible_date": "2026-10-05"
+    }
+  ]
+}
