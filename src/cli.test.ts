@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -47,15 +47,16 @@ test("new finding rejects bad slugs and unknown reader profiles", () => {
   assert.equal(newFinding({ slug: "ok-slug", reader: "product_owner", instanceDir: root, now: fixed }).errors.length, 0);
 });
 
-test("check on a fresh draft: schema ok, incomplete, evidence not evaluated, not ready, no invented approval", () => {
+test("check on a fresh draft: schema ok, incomplete, evidence valid for what exists, not ready, no invented approval", () => {
   const root = scratchInstance();
   newFinding({ slug: "draft-q", instanceDir: root, now: fixed });
   const r = check({ dir: join(root, "findings", "2026-09-15-draft-q") });
   assert.equal(r.syntax, "ok");
   assert.equal(r.content, "incomplete");
-  assert.equal(r.evidence, "not_evaluated");
+  assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
   assert.equal(r.sql_execution, "not_performed");
   assert.equal(r.readiness, "not_ready");
+  assert.ok(r.readiness_reasons.includes("not complete"));
   assert.ok(r.warnings.some((w) => w.category === "incomplete" && /no Claims/.test(w.message)));
   assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
 });
@@ -100,11 +101,28 @@ test("digest is order-independent and matches the contract shape", () => {
   assert.equal(toId("Why did it Drop?!"), "why_did_it_drop");
 });
 
-test("exemplar fixtures pass check syntax and are complete but never ready", () => {
+test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL not executed", () => {
   for (const f of ["2026-07-20-onboarding-checklist-retention", "2026-09-15-price-change-cancellations"]) {
     const r = check({ dir: new URL(`../fixtures/instance/analytics/findings/${f}/`, import.meta.url).pathname });
     assert.equal(r.syntax, "ok", JSON.stringify(r.errors));
     assert.equal(r.content, "complete");
+    assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
+    assert.equal(r.sql_execution, "not_performed");
     assert.equal(r.readiness, "not_ready");
   }
+});
+
+test("check fails an exemplar copy with a tampered result and a bad reference, with categories and locations", () => {
+  const src = new URL("../fixtures/instance/", import.meta.url).pathname;
+  const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
+  cpSync(src, root, { recursive: true });
+  const dir = join(root, "analytics", "findings", "2026-07-20-onboarding-checklist-retention");
+  const rp = join(dir, "results", "retention_by_arm.json");
+  writeFileSync(rp, readFileSync(rp, "utf8").replace('"retained": 217', '"retained": 317'));
+  writeFileSync(join(dir, "memo.md"), readFileSync(join(dir, "memo.md"), "utf8").replace("{{ref:retention_by_arm.control.retained}}", "{{ref:retention_by_arm.contrl.retained}}"));
+  const r = check({ dir });
+  assert.equal(r.evidence, "invalid");
+  const cats = new Set(r.errors.map((e) => e.category));
+  assert.ok(cats.has("hash_mismatch") && cats.has("unresolved_reference") && cats.has("digest"), [...cats].join(","));
+  assert.ok(r.errors.every((e) => e.location && e.message));
 });
