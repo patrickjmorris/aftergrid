@@ -49,7 +49,8 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/finding_id"
+          "$ref": "#/$defs/finding_id",
+          "description": "fnd_ plus 12 lowercase base-36 characters, minted once by `new finding`."
         },
         "revision": {
           "type": "integer",
@@ -239,9 +240,7 @@
       "required": [
         "id",
         "raw_ask",
-        "state",
-        "decision",
-        "primary_comparison"
+        "state"
       ],
       "properties": {
         "id": {
@@ -349,7 +348,8 @@
               "population",
               "window",
               "falsifier",
-              "reader"
+              "reader",
+              "primary_comparison"
             ]
           }
         }
@@ -365,10 +365,12 @@
           },
           "then": {
             "required": [
+              "decision",
               "metric",
               "population",
               "window",
-              "falsifier"
+              "falsifier",
+              "primary_comparison"
             ],
             "properties": {
               "falsifier": {
@@ -403,7 +405,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "The sharpened ask. A fresh draft carries only id, raw_ask and state unresolved; a resolved Question carries every part and an executable falsifier."
     },
     "snapshot": {
       "type": "object",

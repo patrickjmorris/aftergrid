@@ -11,6 +11,7 @@
 | Question state | `question.state` | `resolved`, `unresolved`, `not_answerable` | A resolved Question carries an executable falsifier. An unresolved or not-answerable one lists what is missing and never invents a falsifier. |
 | Evidence validity | `check` report | `valid`, `invalid`, `incomplete` | References resolve, hashes match, required Checks passed, definitions pinned. Not a field: computed. |
 | Execution availability | `check` report | `rerun`, `artifact_only` | Whether this invocation re-executed SQL Checks against retained inputs, or only verified saved evidence. Recorded outcomes from earlier runs are reported separately as history; an artifact-only run never turns them into a fresh pass. |
+| Content completeness | `check` report | `complete`, `incomplete` | Whether the Finding is `complete` and its memo written, or a draft with named missing pieces (unresolved Question parts, needs-input items, no Claims). Incomplete is not invalid. |
 | Publication readiness | `check` report | `ready`, `not_ready`, `unknown` | A current `publication_approval` attestation whose source verifies at the analyzed commit against the trusted allowlist. `unknown` when the source cannot be reached. Never a field an author sets. |
 
 A complete, evidence-valid `insufficient_data` Finding is a normal, good result. A `draft` can be rendered with a draft label. Nothing in the manifest lets an author claim readiness.

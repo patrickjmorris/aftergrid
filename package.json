@@ -6,17 +6,22 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.6"
   },
   "scripts": {
     "validate:fixtures": "node scripts/validate-fixtures.mjs",
     "gen:fixtures": "node scripts/gen-fixture-data.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs 'src/**/*.test.ts'",
+    "test:cli": "node --test 'src/**/*.test.ts'",
+    "cli": "node src/cli.ts"
   },
   "devDependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "yaml": "^2.6.0"
+  },
+  "bin": {
+    "aftergrid": "src/cli.ts"
   }
 }
