@@ -17,7 +17,7 @@ pnpm test                 # fixture regressions + CLI tests
 pnpm run validate:fixtures
 ```
 
-`check` reports separate facts: syntax, content completeness, evidence validity, whether SQL was executed, and publication readiness. It never reports readiness from the manifest alone.
+`check` reports separate facts: syntax, content completeness, evidence validity, whether SQL was executed, and publication readiness. It never reports readiness from the manifest alone. `check --mode rerun` re-executes the saved SQL and Checks on the retained inputs and reports any drift from the saved evidence.
 
 ## Layout
 

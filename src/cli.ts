@@ -19,8 +19,8 @@ Lifecycle:
   new finding   creates an explicitly incomplete draft with fresh ids; never overwrites an existing Finding.
   check         reports four separate facts: syntax, content completeness, evidence validity, publication readiness.
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
-                --mode rerun will re-execute recorded Checks against retained inputs; until the DuckDB adapter
-                bead lands it returns a structured not_implemented error and exit code 3.
+                --mode rerun re-executes every recorded query and Check against the retained inputs (never a
+                live source) and reports any difference from what the manifest recorded. Nothing is modified.
   render        produces the Reader-safe HTML; a draft renders with a draft label, never as reviewed.
 
 Runtime: Node >= 22.18 or >= 24 (TypeScript type stripping on by default), no native compiler needed; prebuilt DuckDB binaries are used for rerun.
@@ -32,7 +32,7 @@ function out(report: Report, json: boolean): never {
   process.exit(exitCodeFor(report));
 }
 
-export function main(argv: string[]): void {
+export async function main(argv: string[]): Promise<void> {
   const [cmd, sub, ...rest] = argv;
   if (!cmd || cmd === "--help" || cmd === "-h" || cmd === "help") { process.stdout.write(HELP); process.exit(0); }
   if (cmd === "new") {
@@ -47,10 +47,10 @@ export function main(argv: string[]): void {
     const dir = positionals[0];
     if (!dir) { process.stderr.write("usage: aftergrid check <finding-dir>\n"); process.exit(2); }
     if (values.mode !== undefined && values.mode !== "artifact" && values.mode !== "rerun") { process.stderr.write(`--mode must be artifact or rerun, got '${values.mode}'\n`); process.exit(2); }
-    out(check({ dir, mode: values.mode === "rerun" ? "rerun" : "artifact" }), !!values.json);
+    out(await check({ dir, mode: values.mode === "rerun" ? "rerun" : "artifact" }), !!values.json);
   }
   if (cmd === "render" || cmd === "decide" || cmd === "intake") { process.stderr.write(`aftergrid ${cmd}: not implemented in this revision\n`); process.exit(3); }
   process.stderr.write(`unknown command '${cmd}'\n${HELP}`); process.exit(2);
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("/cli.ts") || process.argv[1]?.endsWith("/aftergrid")) main(process.argv.slice(2));
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("/cli.ts") || process.argv[1]?.endsWith("/aftergrid")) await main(process.argv.slice(2));

@@ -24,7 +24,7 @@ function scratchInstance(): string {
 }
 const fixed = () => new Date("2026-09-15T12:00:00Z");
 
-test("new finding creates an incomplete draft with fresh ids and refuses to overwrite", () => {
+test("new finding creates an incomplete draft with fresh ids and refuses to overwrite", async () => {
   const root = scratchInstance();
   const r1 = newFinding({ slug: "first-question", ask: "why?", instanceDir: root, now: fixed });
   assert.equal(r1.errors.length, 0);
@@ -46,17 +46,17 @@ test("new finding creates an incomplete draft with fresh ids and refuses to over
   assert.equal(r3.errors.length, 0);
 });
 
-test("new finding rejects bad slugs and unknown reader profiles", () => {
+test("new finding rejects bad slugs and unknown reader profiles", async () => {
   const root = scratchInstance();
   assert.equal(newFinding({ slug: "Bad Slug", instanceDir: root }).errors[0]?.category, "syntax");
   assert.equal(newFinding({ slug: "ok-slug", reader: "nobody", instanceDir: root }).errors[0]?.category, "unresolved_reference");
   assert.equal(newFinding({ slug: "ok-slug", reader: "product_owner", instanceDir: root, now: fixed }).errors.length, 0);
 });
 
-test("check on a fresh draft: schema ok, incomplete, evidence valid for what exists, not ready, no invented approval", () => {
+test("check on a fresh draft: schema ok, incomplete, evidence valid for what exists, not ready, no invented approval", async () => {
   const root = scratchInstance();
   newFinding({ slug: "draft-q", instanceDir: root, now: fixed });
-  const r = check({ dir: join(root, "findings", "2026-09-15-draft-q") });
+  const r = await check({ dir: join(root, "findings", "2026-09-15-draft-q") });
   assert.equal(r.syntax, "ok");
   assert.equal(r.content, "incomplete");
   assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
@@ -67,37 +67,37 @@ test("check on a fresh draft: schema ok, incomplete, evidence valid for what exi
   assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
 });
 
-test("check detects a digest that no longer matches after an edit", () => {
+test("check detects a digest that no longer matches after an edit", async () => {
   const root = scratchInstance();
   newFinding({ slug: "edited-q", instanceDir: root, now: fixed });
   const dir = join(root, "findings", "2026-09-15-edited-q");
   writeFileSync(join(dir, "memo.md"), readFileSync(join(dir, "memo.md"), "utf8") + "\nEdited.\n");
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.ok(r.errors.some((e) => e.category === "digest"));
 });
 
-test("check rejects an escaping evidence path with category unsafe_path", () => {
+test("check rejects an escaping evidence path with category unsafe_path", async () => {
   const root = scratchInstance();
   newFinding({ slug: "escape-q", instanceDir: root, now: fixed });
   const dir = join(root, "findings", "2026-09-15-escape-q");
   const m = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
   m.queries.push({ id: "q", path: "../../aftergrid.yaml", dialect: "duckdb", content_hash: { algorithm: "sha256", value: "0".repeat(64) } });
   writeFileSync(join(dir, "manifest.yaml"), JSON.stringify(m));
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.ok(r.errors.some((e) => e.category === "unsafe_path" || e.category === "schema"), JSON.stringify(r.errors));
 });
 
-test("check reports schema errors with locations", () => {
+test("check reports schema errors with locations", async () => {
   const root = scratchInstance();
   newFinding({ slug: "broken-q", instanceDir: root, now: fixed });
   const dir = join(root, "findings", "2026-09-15-broken-q");
   writeFileSync(join(dir, "manifest.yaml"), readFileSync(join(dir, "manifest.yaml"), "utf8").replace("state: draft", "state: complete"));
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.equal(r.syntax, "invalid");
   assert.ok(r.errors.every((e) => e.category === "schema" && e.location.startsWith("manifest.yaml#")));
 });
 
-test("digest is order-independent and matches the contract shape", () => {
+test("digest is order-independent and matches the contract shape", async () => {
   assert.equal(canon({ b: 1, a: [2, { d: null, c: "x" }] }), '{"a":[2,{"c":"x","d":null}],"b":1}');
   const m: any = { finding: {}, snapshot: {}, executions: [], checks: [], queries: [], charts: [], results: [], attestations: [1], reviews: [2] };
   const files = () => Buffer.from("memo");
@@ -107,9 +107,9 @@ test("digest is order-independent and matches the contract shape", () => {
   assert.equal(toId("Why did it Drop?!"), "why_did_it_drop");
 });
 
-test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL not executed", () => {
+test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL not executed", async () => {
   for (const f of ["2026-07-20-onboarding-checklist-retention", "2026-09-15-price-change-cancellations"]) {
-    const r = check({ dir: fileURLToPath(new URL(`../fixtures/instance/analytics/findings/${f}/`, import.meta.url)) });
+    const r = await check({ dir: fileURLToPath(new URL(`../fixtures/instance/analytics/findings/${f}/`, import.meta.url)) });
     assert.equal(r.syntax, "ok", JSON.stringify(r.errors));
     assert.equal(r.content, "complete");
     assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
@@ -118,7 +118,7 @@ test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL n
   }
 });
 
-test("check fails an exemplar copy with a tampered result and a bad reference, with categories and locations", () => {
+test("check fails an exemplar copy with a tampered result and a bad reference, with categories and locations", async () => {
   const src = fileURLToPath(new URL("../fixtures/instance/", import.meta.url));
   const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
   cpSync(src, root, { recursive: true });
@@ -126,7 +126,7 @@ test("check fails an exemplar copy with a tampered result and a bad reference, w
   const rp = join(dir, "results", "retention_by_arm.json");
   writeFileSync(rp, readFileSync(rp, "utf8").replace('"retained": 217', '"retained": 317'));
   writeFileSync(join(dir, "memo.md"), readFileSync(join(dir, "memo.md"), "utf8").replace("{{ref:retention_by_arm.control.retained}}", "{{ref:retention_by_arm.contrl.retained}}"));
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.equal(r.evidence, "invalid");
   const cats = new Set(r.errors.map((e) => e.category));
   assert.ok(cats.has("hash_mismatch") && cats.has("unresolved_reference") && cats.has("digest"), [...cats].join(","));
@@ -150,7 +150,7 @@ function repin(dir: string, manifest: any) {
   writeFileSync(join(dir, "manifest.yaml"), toYaml(manifest, { lineWidth: 0 }));
 }
 
-test("references resolve by row key independently of row order", () => {
+test("references resolve by row key independently of row order", async () => {
   const dir = exemplarCopy();
   const rp = join(dir, "results", "retention_by_arm.json");
   const data = JSON.parse(readFileSync(rp, "utf8"));
@@ -159,11 +159,11 @@ test("references resolve by row key independently of row order", () => {
   const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
   manifest.attestations = []; // content changed, so the fixture's (untrusted) attestation would be stale; drop it in the copy
   repin(dir, manifest);
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
 });
 
-test("duplicate row keys and invalid identifier grammar fail with precise categories and locations", () => {
+test("duplicate row keys and invalid identifier grammar fail with precise categories and locations", async () => {
   const dir = exemplarCopy();
   const rp = join(dir, "results", "retention_by_arm.json");
   const data = JSON.parse(readFileSync(rp, "utf8"));
@@ -171,32 +171,34 @@ test("duplicate row keys and invalid identifier grammar fail with precise catego
   writeFileSync(rp, JSON.stringify(data, null, 2) + "\n");
   const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
   repin(dir, manifest);
-  const r = check({ dir });
+  const r = await check({ dir });
   assert.ok(r.errors.some((e) => e.category === "duplicate_row_key" && /retention_by_arm/.test(e.location)), JSON.stringify(r.errors));
 
   const dir2 = exemplarCopy();
   const m2 = parseYaml(readFileSync(join(dir2, "manifest.yaml"), "utf8"));
   m2.claims[0].id = "Claim-1"; // uppercase and hyphen are outside the id grammar
   writeFileSync(join(dir2, "manifest.yaml"), toYaml(m2, { lineWidth: 0 }));
-  const r2 = check({ dir: dir2 });
+  const r2 = await check({ dir: dir2 });
   assert.equal(r2.syntax, "invalid");
   assert.ok(r2.errors.some((e) => e.category === "schema" && e.location === "manifest.yaml#/claims/0/id"), JSON.stringify(r2.errors));
 });
 
-test("--mode rerun is a structured not_implemented error with exit code 3; a mode typo is a usage error", () => {
+test("--mode rerun re-executes on retained inputs and reports performed; a mode typo is a usage error", async () => {
   const dir = fileURLToPath(new URL("../fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/", import.meta.url));
-  const r = check({ dir, mode: "rerun" });
-  assert.equal(r.errors[0]?.category, "not_implemented");
-  assert.equal(exitCodeFor(r), 3);
+  const r = await check({ dir, mode: "rerun" });
+  assert.equal(r.sql_execution, "performed");
+  assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
+  assert.ok(r.info.some((i) => /reproduced retention_by_arm exactly/.test(i)));
+  assert.ok(r.info.some((i) => /falsifier_lift=pass/.test(i)));
   const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
   const typo = spawnSync(process.execPath, [cli, "check", dir, "--mode", "rerunn"], { encoding: "utf8" });
   assert.equal(typo.status, 2);
   const rerun = spawnSync(process.execPath, [cli, "check", dir, "--mode", "rerun", "--json"], { encoding: "utf8" });
-  assert.equal(rerun.status, 3);
-  assert.equal(JSON.parse(rerun.stdout).errors[0].category, "not_implemented");
+  assert.equal(rerun.status, 0, rerun.stdout + rerun.stderr);
+  assert.equal(JSON.parse(rerun.stdout).sql_execution, "performed");
 });
 
-test("the CLI and the validator work from a relocated checkout whose path has spaces and percent signs", () => {
+test("the CLI and the validator work from a relocated checkout whose path has spaces and percent signs", async () => {
   const here = fileURLToPath(new URL("../", import.meta.url));
   const root = join(mkdtempSync(join(tmpdir(), "ag reloc ")), "repo %41 copy");
   mkdirSync(root, { recursive: true });

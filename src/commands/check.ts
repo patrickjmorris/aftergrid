@@ -14,20 +14,83 @@ import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
 import { validateDecisionsFor } from "../decisions.ts";
+import { openRetained } from "../adapters/duckdb.ts";
+import { AdapterError } from "../adapters/contract.ts";
+import { serializeResult } from "../adapters/serialize.ts";
+import { sha256 } from "../digest.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun" };
 
-export function check(opts: CheckOptions): Report {
+export async function check(opts: CheckOptions): Promise<Report> {
+  const report = checkArtifact(opts);
+  if (opts.mode !== "rerun") return report;
+  if (report.syntax === "invalid" || report.errors.some((e) => ["unsafe_path", "path_collision", "duplicate_id", "hash_mismatch", "missing_file"].includes(e.category))) {
+    report.info.push("rerun skipped: the artifact must verify before its SQL is re-executed");
+    return report;
+  }
+  await rerun(resolve(opts.dir), report);
+  return report;
+}
+
+/**
+ * Rerun mode: re-execute every recorded execution and Check against the retained inputs (never a live source)
+ * and compare with what the manifest recorded. Differences are errors; nothing in the directory is modified.
+ */
+async function rerun(dir: string, report: Report) {
+  const manifest: any = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8"));
+  const current: Record<string, string> = {};
+  const sessions = new Map<string, Awaited<ReturnType<typeof openRetained>>>();
+  const sessionFor = async (inputIds: string[]) => {
+    const key = JSON.stringify([...new Set(inputIds)].sort());
+    if (!sessions.has(key)) sessions.set(key, await openRetained(dir, manifest.snapshot.inputs.filter((i: any) => inputIds.includes(i.id))));
+    return sessions.get(key)!;
+  };
+  const execParams = (ck: any) => (ck.execution_id ? manifest.executions.find((e: any) => e.id === ck.execution_id) : manifest.executions[0]) ?? { parameters: { analytical_timezone: "UTC" }, input_ids: [] };
+  try {
+    for (const ex of manifest.executions) {
+      const q = manifest.queries.find((x: any) => x.id === ex.query_id);
+      const res = manifest.results.find((r: any) => r.id === ex.result_id);
+      try {
+        const s = await sessionFor(ex.input_ids);
+        const got = await s.execute(readFileSync(safePath(dir, q.path), "utf8"), ex.parameters);
+        const ser = serializeResult(got, { result_id: res.id, execution_id: ex.id, row_key: res.row_key, columns: res.columns });
+        const h = sha256(ser.bytes);
+        if (h !== res.content_hash.value) report.errors.push({ category: "rerun_mismatch", location: `manifest.yaml#/executions/${manifest.executions.indexOf(ex)}`, message: `rerun of ${ex.id} produced a different result set than the saved ${res.id}`, remedy: "the retained inputs, SQL or parameters no longer reproduce the saved evidence; investigate before trusting either" });
+        else report.info.push(`rerun ${ex.id}: reproduced ${res.id} exactly`);
+      } catch (e) {
+        report.errors.push({ category: e instanceof AdapterError ? e.category : "sql_error", location: `manifest.yaml#/executions/${manifest.executions.indexOf(ex)}`, message: (e as Error).message });
+      }
+    }
+    for (const ck of manifest.checks) {
+      const ex = execParams(ck);
+      let outcome = "error";
+      try {
+        const s = await sessionFor(ex.input_ids);
+        const got = await s.execute(readFileSync(safePath(dir, ck.path), "utf8"), ex.parameters);
+        const names = got.columns.map((c) => c.name);
+        const row = got.rows[0];
+        if (got.rows.length !== 1 || !names.includes("pass") || names.some((n) => !["pass", "detail"].includes(n)) || (row!.pass !== null && typeof row!.pass !== "boolean"))
+          report.errors.push({ category: "check_shape", location: ck.path, message: "Check must return exactly one row with a boolean/null pass and optional text detail" });
+        else outcome = row!.pass === null ? "not_run" : row!.pass ? "pass" : "fail";
+      } catch (e) {
+        report.errors.push({ category: e instanceof AdapterError ? e.category : "check_error", location: ck.path, message: (e as Error).message });
+      }
+      current[ck.id] = outcome;
+      if (outcome !== ck.outcome) report.errors.push({ category: "rerun_mismatch", location: `checks/${ck.id}`, message: `Check ${ck.id} is ${outcome} now but the manifest recorded ${ck.outcome}`, remedy: "rebuild the Finding as a new revision if the change is real" });
+    }
+  } finally { for (const s of sessions.values()) await s.close(); }
+  report.sql_execution = "performed";
+  report.info.push("rerun: current Check outcomes " + Object.entries(current).map(([k, v]) => `${k}=${v}`).join(", "));
+  if (report.errors.length) { report.evidence = "invalid"; report.readiness = "not_ready"; }
+}
+
+export function checkArtifact(opts: CheckOptions): Report {
   const report = emptyReport("check");
   const dir = resolve(opts.dir);
   if (!existsSync(join(dir, "manifest.yaml"))) {
     report.errors.push({ category: "missing_file", location: join(dir, "manifest.yaml"), message: "manifest.yaml not found", remedy: "pass a Finding directory" });
     report.syntax = "invalid"; return report;
-  }
-  if (opts.mode === "rerun") {
-    report.errors.push({ category: "not_implemented", location: "--mode rerun", message: "retained-input rerun is not implemented in this revision (ag-duckdb-execute-check-ypl)", remedy: "use --mode artifact, or scripts/fixture-tool.mjs build for fixtures" });
-    return report;
   }
   const out = validateFinding(dir, { repoRoot: REPO_ROOT });
   report.errors.push(...(out.errors as Problem[]));
