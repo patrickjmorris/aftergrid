@@ -153,6 +153,7 @@ test("references resolve by row key independently of row order", () => {
   data.rows.reverse();
   writeFileSync(rp, JSON.stringify(data, null, 2) + "\n");
   const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  manifest.attestations = []; // content changed, so the fixture's (untrusted) attestation would be stale; drop it in the copy
   repin(dir, manifest);
   const r = check({ dir });
   assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
