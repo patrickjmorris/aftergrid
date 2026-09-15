@@ -63,13 +63,20 @@ An open-source Engine (skills + Checks + adapters + a thin CLI) that a coding ag
 36. As a background agent, I want the guardrail hook and adapter guards to stop me from writing, running DDL, exceeding the cost budget or reading unbounded tables, so that a mistake cannot cause harm.
 37. As a background agent, I want to log a provisional read of a non-sensitive unverified source with a reason code and never share its results, so that exploration is possible without routing around hard permissions.
 
+**Revisit (schema in v0, command in v0.1)**
+38. As an Operator, I want every Claim to declare a tolerance and every Question a machine-checkable falsifier, so that a merged Finding can later be re-tested without re-commissioning the analysis.
+39. As an Operator, I want a Decision record to carry a structured revisit condition (schedule, falsifier reference, or both), so that "when should we look at this again" is data, not a promise.
+40. As an Operator, I want `aftergrid revisit` to refresh the Snapshot, rerun the saved SQL, compare each Claim within tolerance, evaluate the falsifier, and open a new revision that says whether the decision still holds, so that a refresh is a review, not a week-long project.
+41. As a Reader, I want the Decision log rendered as a board showing which decisions still hold and which rest on a flipped Claim, so that I know what to revisit without asking.
+42. As an Operator, I want a Revisit on thin data to report "insufficient data to re-test" rather than a flip, so that noise never masquerades as a changed decision.
+
 **Maintainer and contributor**
-38. As a maintainer, I want golden Questions on a synthetic dataset to run nightly and assert answer within tolerance, definition id used, tables read, and expected abstention, so that a model or skill change that breaks reasoning is caught.
-39. As a maintainer, I want failure fixtures (duplicate joins, zero denominators, mix shift, late events, missing instrumentation, bad references, insufficient data) in the dataset, so that evals reward refusing an unsupported conclusion.
-40. As a maintainer, I want the Finding-directory seam to run on every pull request against fixture directories, so that linter, evidence model, Checks, template and render are tested without a model in the loop.
-41. As a contributor, I want an adapter contract test suite that runs the same behaviours on DuckDB and Postgres, so that I can add a backend by making the suite pass.
-42. As a maintainer, I want a capability matrix per backend (snapshot, catalog, guards, SQL dialect), so that coverage is never claimed for an untested backend such as PostHog managed warehouse.
-43. As a maintainer, I want the Engine installable as a Claude Code plugin and via skills.sh, with `openai.yaml` beside each skill, so that Codex users get the same skills.
+43. As a maintainer, I want golden Questions on a synthetic dataset to run nightly and assert answer within tolerance, definition id used, tables read, and expected abstention, so that a model or skill change that breaks reasoning is caught.
+44. As a maintainer, I want failure fixtures (duplicate joins, zero denominators, mix shift, late events, missing instrumentation, bad references, insufficient data) in the dataset, so that evals reward refusing an unsupported conclusion.
+45. As a maintainer, I want the Finding-directory seam to run on every pull request against fixture directories, so that linter, evidence model, Checks, template and render are tested without a model in the loop.
+46. As a contributor, I want an adapter contract test suite that runs the same behaviours on DuckDB and Postgres, so that I can add a backend by making the suite pass.
+47. As a maintainer, I want a capability matrix per backend (snapshot, catalog, guards, SQL dialect), so that coverage is never claimed for an untested backend such as PostHog managed warehouse.
+48. As a maintainer, I want the Engine installable as a Claude Code plugin and via skills.sh, with `openai.yaml` beside each skill, so that Codex users get the same skills.
 
 ## Implementation Decisions
 
@@ -81,7 +88,7 @@ An open-source Engine (skills + Checks + adapters + a thin CLI) that a coding ag
 
 **Instance layout** (scaffolded by setup, inside the Operator's repo): a metric-definitions collection (one markdown file per definition with frontmatter: id, version, kind approved-or-diagnostic, status proposed/approved/deprecated, grain, population, denominator, window, owner, approver, reviewed revision; body: plain-language meaning; canonical SQL per dialect), a readers file of named profiles, a findings collection (one directory per Finding), a decision log, a golden-Questions collection, and a connection profile.
 
-**Finding directory.** Contains the memo, the manifest, saved query results, query files, Check files, chart specs and rendered chart images. The manifest carries `schema_version`, Finding id and revision, the Reader, the Question (decision, metric, population, window, falsifier), the Snapshot (retained input ids and content hashes, guarantees held: replay and/or rerun), executions (each binding SQL content hash, parameters including analytical timezone, input ids and hashes, definition ids with versions and content hashes, result id and hash), result sets (id, row-key column, column types and units), Claims (id, type, evidence references, population, baseline, window, exclusions, limitations), derived values (declared operation, referenced operands, units, zero-denominator and null behaviour), typed external sources (targets, assumptions), Checks run with outcomes, and review records (reviewer, date, content revision). Ids use a restricted character set so reference separators are unambiguous.
+**Finding directory.** Contains the memo, the manifest, saved query results, query files, Check files, chart specs and rendered chart images. The manifest carries `schema_version`, Finding id and revision, the Reader, the Question (decision, metric, population, window, falsifier), the Snapshot (retained input ids and content hashes, guarantees held: replay and/or rerun), executions (each binding SQL content hash, parameters including analytical timezone, input ids and hashes, definition ids with versions and content hashes, result id and hash), result sets (id, row-key column, column types and units), Claims (id, type, evidence references, population, baseline, window, exclusions, limitations, tolerance with minimum-data threshold), the Question's falsifier as a Check reference with expected outcome, derived values (declared operation, referenced operands, units, zero-denominator and null behaviour), typed external sources (targets, assumptions), Checks run with outcomes, and review records (reviewer, date, content revision). Ids use a restricted character set so reference separators are unambiguous.
 
 **Evidence references.** Memo prose and table cells insert values with a reference token naming result-set id, row key and column. The renderer resolves every token from the pinned manifest; resolution is by row key, never index; missing or duplicate keys and missing columns are errors. Precision is preserved; null and not-available are distinct from zero; rounding and percentage formatting are defined once and applied only at display. Dates, section numbers and labels have explicit non-evidence handling. A data-bearing numeral that is not a reference fails `check`.
 
@@ -99,7 +106,9 @@ An open-source Engine (skills + Checks + adapters + a thin CLI) that a coding ag
 
 **Review and approval.** `/analysis-review` dispatches Method, Question and Reader reviewers as parallel subagents; each returns blocking and non-blocking findings; `/analyze` halts on any blocking finding. Approval of a Finding revision, and approval of a Metric definition, are recorded with approver and content revision; a frontmatter status is display only.
 
-**Decisions.** Decision records are written by the decision owner through `/revise-finding` in v0 and appended to the decision log; merge of a Finding never creates one.
+**Decisions.** Decision records are written by the decision owner through `/revise-finding` in v0 and appended to the decision log; merge of a Finding never creates one. Each carries a structured revisit condition: a schedule, a reference to the Question's falsifier, or both.
+
+**Revisit (ADR 0009).** v0 ships the schema only: Claim tolerance, machine-checkable falsifier, revisit condition, all validated by `check`. v0.1 ships `aftergrid revisit`: refresh the Snapshot as a new retained input set, rerun every execution, compare each Claim to its reviewed value within tolerance (reporting insufficient data below the threshold), evaluate the falsifier Check, and write a new Finding revision whose Answer states whether each citing Decision record still holds. A Revisit is reviewed like any Finding; it never closes or changes a Decision record by itself.
 
 **Synthetic dataset.** A deterministic generator in the Engine produces PostHog-shaped users, events and subscriptions with planted effects (a churn spike, a broken funnel step, a mix shift) and the failure fixtures listed in the user stories, as a DuckDB file. Three to five golden Questions with expected answers or expected abstention and tolerances ship with it.
 
@@ -123,6 +132,7 @@ Tests assert external behaviour at two seams and never implementation details.
 - HogQL, Snowflake, BigQuery adapters beyond an empty in-progress scaffold; any coverage claim for PostHog managed warehouse.
 - Interactive charts, decks, notebooks, dashboards as canonical artifacts; `/present`.
 - Automatic correction harvesting from chat; self-improving skills.
+- The `revisit` command itself (v0.1); v0 only validates its schema fields.
 - The formative usability study (gates external release, not v0).
 - Revocation of shared HTML files.
 - Codex-native plugin packaging; Codex safety parity claims until export and query paths are tested.

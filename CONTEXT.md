@@ -9,7 +9,7 @@ This glossary governs Engine and Instance docs and skill prose. Reader-facing co
 ### Work
 
 **Question**:
-The sharpened form of a raw ask: a decision to make, a metric, a population, a window and a falsifier. Sharpening is the job of `/grill-question`; a raw ask is not rejected for lacking these.
+The sharpened form of a raw ask: a decision to make, a metric, a population, a window and a falsifier. The falsifier is machine-checkable so a Revisit can evaluate it. Sharpening is the job of `/grill-question`; a raw ask is not rejected for lacking these.
 _Avoid_: request, ticket, ask
 
 **Analysis**:
@@ -21,7 +21,7 @@ The document an Analysis produces: Claims, tables and charts, with every number 
 _Avoid_: memo, report, result, insight, readout
 
 **Claim**:
-One assertion in a Finding, stated as a sentence and backed by at least one chart or table whose numbers are traced. Every Claim declares its type: descriptive, associational or causal; and its comparison, population and window.
+One assertion in a Finding, stated as a sentence and backed by at least one chart or table whose numbers are traced. Every Claim declares its type: descriptive, associational or causal; its comparison, population and window; and a tolerance within which a later value still supports it.
 _Avoid_: insight, takeaway, point, key finding
 
 **Variant**:
@@ -51,8 +51,12 @@ A Question with a known-true answer, used to evaluate that the Engine and an Ins
 _Avoid_: eval case, test question
 
 **Decision record**:
-An entry stating who decided, what action or deliberate inaction was taken, why, when, what would trigger a revisit, and the eventual outcome. It cites a Finding; merging a Finding does not create one.
+An entry stating who decided, what action or deliberate inaction was taken, why, when, what would trigger a Revisit, and the eventual outcome. It cites a Finding; merging a Finding does not create one.
 _Avoid_: outcome, verdict
+
+**Revisit**:
+The operation that refreshes a merged Finding's Snapshot, reruns its Analysis, compares each Claim to its reviewed value within tolerance, evaluates the Question's falsifier, and produces a new revision saying whether the decision still holds. Always reviewed by an Operator, never an automatic verdict.
+_Avoid_: refresh (the data step only), re-run, monitor, alert
 
 **Decision log**:
 The collection of Decision records in an Instance.
@@ -85,5 +89,6 @@ _Avoid_: stakeholder, consumer, end user, audience
 - An **Analysis** runs against one **Snapshot**
 - Every number in a **Finding** resolves from an evidence reference: query execution, **Snapshot**, and a **Metric definition** or **Diagnostic calculation**
 - A **Decision record** cites a **Finding** and enters the **Decision log**; merging a **Finding** does not create one
+- A **Revisit** of a **Finding** tests every **Decision record** that cites it
 - A **Golden Question** is a **Question** whose **Finding** is already known
 - The **Engine** operates on an **Instance**; the **Operator** owns both, the **Reader** sees only **Findings**
