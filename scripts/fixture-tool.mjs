@@ -8,12 +8,14 @@
 // publication readiness: only a verified github_pr_review can, and this tool cannot verify one.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join, dirname, resolve, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import { safePath, validateStructure, validateResult, calculate, ContractError, sqlString, fail } from "./fixture-safety.mjs";
+import { join, dirname, resolve } from "node:path";
 import { parseDocument, parse as parseYaml } from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
-const REPO = resolve(dirname(new URL(import.meta.url).pathname), "..");
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const [cmd, dirArg] = process.argv.slice(2);
 if (!cmd || !dirArg) { console.error("usage: fixture-tool.mjs <build|validate> <finding-dir>"); process.exit(2); }
 const DIR = resolve(dirArg);
@@ -26,10 +28,10 @@ const VALUE_REF_RE = new RegExp(`^(?:ref:(${ID})\\.(${RK})\\.(${ID})|derived:(${
 
 function findInstanceRoot(d) {
   let cur = d;
-  for (let i = 0; i < 6; i++) { if (existsSync(join(cur, "aftergrid.yaml"))) return cur; cur = dirname(cur); }
+  while (true) { if (existsSync(safePath(cur, "aftergrid.yaml"))) return cur; const parent = dirname(cur); if (parent === cur) break; cur = parent; }
   throw new Error("no aftergrid.yaml found above " + d);
 }
-const INSTANCE = findInstanceRoot(DIR);
+let INSTANCE;
 
 // Canonical JSON: sorted keys, no whitespace.
 function canon(v) {
@@ -49,7 +51,7 @@ function digestOf(manifest, dir) {
   for (const e of m.executions) delete e.executed_at;
   for (const c of m.checks) delete c.executed_at;
   const files = {};
-  const add = (id, p) => { files[id] = sha(rd(join(dir, p))); };
+  const add = (id, p) => { files[id] = sha(rd(safePath(dir, p))); };
   add("memo", "memo.md");
   for (const q of m.queries) add("query:" + q.id, q.path);
   for (const c of m.checks) add("check:" + c.id, c.path);
@@ -58,98 +60,128 @@ function digestOf(manifest, dir) {
   return H(Buffer.from(canon({ manifest: m, files }), "utf8"));
 }
 
-async function openDb(manifest, dir) {
+async function openDb(manifest, dir, inputIds) {
   const { DuckDBInstance } = await import("@duckdb/node-api");
-  const db = await DuckDBInstance.create(":memory:");
+  const db = await DuckDBInstance.create(":memory:", {
+    autoload_known_extensions: "false", autoinstall_known_extensions: "false",
+    allow_community_extensions: "false", allow_unsigned_extensions: "false",
+    memory_limit: "256MB", threads: "2", max_temp_directory_size: "0B"
+  });
   const c = await db.connect();
-  await c.run("SET TimeZone='UTC'");
-  for (const inp of manifest.snapshot.inputs) {
-    if (inp.kind !== "extract") throw new Error("fixture tool only supports extract inputs (CSV)");
-    await c.run(`create view "${inp.id}" as select * from read_csv('${join(dir, inp.path)}', header=true, all_varchar=true)`);
-  }
-  return c;
-}
-function bindable(sql, params) {
-  const out = {};
-  for (const [k, v] of Object.entries(params)) if (new RegExp("\\$" + k + "\\b").test(sql)) out[k] = v;
-  return out;
+  try {
+    await c.run("SET TimeZone='UTC'");
+    for (const inp of manifest.snapshot.inputs.filter(i => inputIds.includes(i.id))) {
+      if (inp.kind !== "extract") throw new Error("fixture tool only supports extract inputs (CSV)");
+      // Materialize declared inputs before disabling all external access. Queries can only read these tables.
+      await c.run(`create table "${inp.id}" as select * from read_csv(${sqlString(safePath(dir, inp.path))}, header=true, all_varchar=true)`);
+    }
+    await c.run("SET enable_external_access=false");
+    await c.run("SET lock_configuration=true");
+    return { c, close: () => { c.closeSync(); db.closeSync(); } };
+  } catch (e) { c.closeSync(); db.closeSync(); throw e; }
 }
 async function runSql(c, sql, params) {
-  const p = await c.prepare(sql);
-  const b = bindable(sql, params);
-  if (Object.keys(b).length) p.bind(b);
-  const r = await p.runAndReadAll();
-  return { names: r.columnNames(), rows: r.getRowObjectsJson() };
+  const { StatementType } = await import("@duckdb/node-api");
+  const timer = setTimeout(() => c.interrupt(), 10000);
+  let p;
+  try {
+    const statements = await c.extractStatements(sql);
+    if (statements.count !== 1) fail("sql_policy", "SQL", "exactly one SELECT statement is allowed");
+    p = await statements.prepare(0);
+    if (p.statementType !== StatementType.SELECT) fail("sql_policy", "SQL", "only SELECT statements are allowed");
+    const bindings = Object.create(null);
+    for (let i = 1; i <= p.parameterCount; i++) {
+      const name = p.parameterName(i);
+      if (!Object.hasOwn(params, name)) fail("sql_parameter", name, "missing named SQL parameter");
+      bindings[name] = params[name];
+    }
+    if (p.parameterCount) p.bind(bindings);
+    const r = await p.runAndReadAll();
+    return { names: r.columnNames(), rows: r.getRowObjectsJson() };
+  } finally { clearTimeout(timer); p?.destroySync(); }
 }
 function coerce(v, type) {
-  if (v === null || v === undefined) return null;
-  if (type === "integer") return Number(v);
-  if (type === "boolean") return v === true || v === "true";
+  if (v === null) return null;
+  if (v === undefined) fail("value_type", "result", "missing value");
+  if (type === "integer") { const n = Number(v); if (!Number.isSafeInteger(n)) fail("value_type", "result", "integer exceeds safe JSON integer range"); return n; }
+  if (type === "boolean") { if (typeof v !== "boolean") fail("value_type", "result", "expected SQL boolean"); return v; }
   return String(v);
 }
-function firstExecParams(manifest, check) {
-  const ex = check.execution_id ? manifest.executions.find((e) => e.id === check.execution_id) : manifest.executions[0];
-  return ex ? ex.parameters : { analytical_timezone: "UTC" };
+function checkExecution(manifest, check) {
+  return (check.execution_id ? manifest.executions.find(e => e.id === check.execution_id) : manifest.executions[0]) ?? { parameters: { analytical_timezone: "UTC" }, input_ids: [] };
 }
 
 async function build() {
-  const doc = parseDocument(readFileSync(join(DIR, "manifest.yaml"), "utf8"));
+  const doc = parseDocument(readFileSync(safePath(DIR, "manifest.yaml"), "utf8"));
   const manifest = doc.toJS();
-  const c = await openDb(manifest, DIR);
-  const set = (path, v) => doc.setIn(path, v);
-  manifest.snapshot.inputs.forEach((inp, i) => set(["snapshot", "inputs", i, "content_hash"], H(rd(join(DIR, inp.path)))));
-  manifest.definitions.forEach((d, i) => {
-    const p = join(INSTANCE, d.path); const text = readFileSync(p, "utf8"); const h = definitionHash(text);
-    set(["definitions", i, "content_hash"], h);
-    if (d.approval) {
-      set(["definitions", i, "approval", "content_hash"], h);
-      // Pin the same hash inside the definition file's approval block (fixture semantics: the approval was of this content).
-      const fixed = text.replace(/(approval:[\s\S]*?content_hash:\n\s*algorithm: sha256\n\s*value: )"[a-f0-9]{64}"/, `$1"${h.value}"`);
-      if (fixed !== text) writeFileSync(p, fixed);
+  if (!schemaCheck(manifest)) return finish(manifest);
+  validateStructure(manifest, DIR, INSTANCE);
+  // Detect missing source files before staging any generated output.
+  rd(safePath(DIR, "memo.md"));
+  for (const ch of manifest.charts) rd(safePath(DIR, ch.spec_path));
+  // Separate databases enforce each execution's declared input boundary, including dynamic SQL.
+  const databases = new Map();
+  const connectionFor = async (inputIds) => {
+    const key = JSON.stringify([...new Set(inputIds)].sort());
+    if (!databases.has(key)) databases.set(key, await openDb(manifest, DIR, inputIds));
+    return databases.get(key).c;
+  };
+  const staged = [];
+  try {
+    const set = (path, v) => doc.setIn(path, v);
+    manifest.snapshot.inputs.forEach((inp, i) => set(["snapshot", "inputs", i, "content_hash"], H(rd(safePath(DIR, inp.path)))));
+    manifest.definitions.forEach((d, i) => {
+      const p = safePath(INSTANCE, d.path); const text = readFileSync(p, "utf8"); const h = definitionHash(text);
+      set(["definitions", i, "content_hash"], h);
+    });
+    manifest.queries.forEach((q, i) => set(["queries", i, "content_hash"], H(rd(safePath(DIR, q.path)))));
+    mkdirSync(safePath(DIR, "results"), { recursive: true });
+    for (const [i, ex] of manifest.executions.entries()) {
+      const q = manifest.queries.find((x) => x.id === ex.query_id);
+      const sql = readFileSync(safePath(DIR, q.path), "utf8");
+      set(["executions", i, "sql_hash"], H(Buffer.from(sql, "utf8")));
+      const rIdx = manifest.results.findIndex((r) => r.id === ex.result_id);
+      const res = manifest.results[rIdx];
+      const { names, rows } = await runSql(await connectionFor(ex.input_ids), sql, ex.parameters);
+      const declared = res.columns.map((x) => x.name);
+      if (canon(names) !== canon(declared)) throw new Error(`${ex.id}: result columns ${names} do not match declared ${declared}`);
+      const out = { result_id: res.id, execution_id: ex.id, row_key: res.row_key, columns: declared,
+        rows: rows.map((row) => Object.fromEntries(res.columns.map((col) => [col.name, coerce(row[col.name], col.type)]))) };
+      const bytes = Buffer.from(JSON.stringify(out, null, 2) + "\n", "utf8");
+      validateResult(out, { ...res, row_count: out.rows.length });
+      staged.push([safePath(DIR, res.path), bytes]);
+      set(["results", rIdx, "content_hash"], H(bytes)); set(["results", rIdx, "row_count"], out.rows.length);
+      set(["executions", i, "result_hash"], H(bytes));
+      set(["executions", i, "executed_at"], new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
+      console.log(`ran ${ex.id}: ${out.rows.length} rows`);
     }
-  });
-  manifest.queries.forEach((q, i) => set(["queries", i, "content_hash"], H(rd(join(DIR, q.path)))));
-  manifest.charts.forEach((ch, i) => void ch);
-  mkdirSync(join(DIR, "results"), { recursive: true });
-  for (const [i, ex] of manifest.executions.entries()) {
-    const q = manifest.queries.find((x) => x.id === ex.query_id);
-    const sql = readFileSync(join(DIR, q.path), "utf8");
-    set(["executions", i, "sql_hash"], H(Buffer.from(sql, "utf8")));
-    const rIdx = manifest.results.findIndex((r) => r.id === ex.result_id);
-    const res = manifest.results[rIdx];
-    const { names, rows } = await runSql(c, sql, ex.parameters);
-    const declared = res.columns.map((x) => x.name);
-    if (canon(names) !== canon(declared)) throw new Error(`${ex.id}: result columns ${names} do not match declared ${declared}`);
-    const out = { result_id: res.id, execution_id: ex.id, row_key: res.row_key, columns: declared,
-      rows: rows.map((row) => Object.fromEntries(res.columns.map((col) => [col.name, coerce(row[col.name], col.type)]))) };
-    const bytes = Buffer.from(JSON.stringify(out, null, 2) + "\n", "utf8");
-    writeFileSync(join(DIR, res.path), bytes);
-    set(["results", rIdx, "content_hash"], H(bytes)); set(["results", rIdx, "row_count"], out.rows.length);
-    set(["executions", i, "result_hash"], H(bytes));
-    set(["executions", i, "executed_at"], new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
-    console.log(`ran ${ex.id}: ${out.rows.length} rows`);
-  }
-  for (const [i, ck] of manifest.checks.entries()) {
-    const sql = readFileSync(join(DIR, ck.path), "utf8");
-    set(["checks", i, "content_hash"], H(Buffer.from(sql, "utf8")));
-    let outcome, detail = "";
-    try {
-      const { rows } = await runSql(c, sql, firstExecParams(manifest, ck));
-      const p = rows[0]?.pass; detail = rows[0]?.detail ?? "";
-      outcome = p === null || p === undefined ? "not_run" : (p === true || p === "true") ? "pass" : "fail";
-    } catch (e) { outcome = "error"; detail = String(e.message); }
-    set(["checks", i, "outcome"], outcome);
-    set(["checks", i, "executed_at"], new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
-    console.log(`check ${ck.id}: ${outcome} (${detail})`);
-  }
-  // Digest, then bind reviews/attestations to it (fixture semantics).
-  const m2 = doc.toJS();
-  const d = digestOf(m2, DIR);
-  set(["content_digest"], d);
-  (m2.reviews || []).forEach((_, i) => set(["reviews", i, "content_digest"], d));
-  (m2.attestations || []).forEach((_, i) => set(["attestations", i, "content_digest"], d));
-  writeFileSync(join(DIR, "manifest.yaml"), doc.toString({ lineWidth: 0 }));
-  console.log("pinned digest", d.value);
+    for (const [i, ck] of manifest.checks.entries()) {
+      const sql = readFileSync(safePath(DIR, ck.path), "utf8");
+      set(["checks", i, "content_hash"], H(Buffer.from(sql, "utf8")));
+      let outcome, detail = "";
+      try {
+        const ex = checkExecution(manifest, ck);
+        const { names, rows } = await runSql(await connectionFor(ex.input_ids), sql, ex.parameters);
+        if (rows.length !== 1 || !names.includes("pass") || names.some(n => !["pass", "detail"].includes(n)) ||
+            (rows[0].pass !== null && typeof rows[0].pass !== "boolean") ||
+            (names.includes("detail") && rows[0].detail !== null && typeof rows[0].detail !== "string")) {
+          fail("check_shape", ck.path, "Check must return exactly one row with a boolean/null pass and optional text detail");
+        }
+        const p = rows[0].pass; detail = rows[0].detail ?? "";
+        outcome = p === null ? "not_run" : p ? "pass" : "fail";
+      } catch (e) { throw new ContractError(e.category ?? "check_error", ck.path, e.message); }
+      set(["checks", i, "outcome"], outcome);
+      set(["checks", i, "executed_at"], new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));
+      console.log(`check ${ck.id}: ${outcome} (${detail})`);
+    }
+    // Write only after every query and Check completed successfully. Approvals are never rewritten.
+    for (const [path, bytes] of staged) writeFileSync(path, bytes);
+    const m2 = doc.toJS();
+    const d = digestOf(m2, DIR);
+    set(["content_digest"], d);
+    writeFileSync(safePath(DIR, "manifest.yaml"), doc.toString({ lineWidth: 0 }));
+    console.log("pinned digest", d.value);
+  } finally { for (const database of databases.values()) database.close(); }
 }
 
 // ---------------- validate ----------------
@@ -179,47 +211,51 @@ function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
     if (!d) { err("unresolved_reference", loc, `derived '${id}' not in manifest`, "declare it under derived"); return null; }
     const ops = d.operands.map((o) => resolveValueRef(manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
     if (ops.some((o) => o === null)) return null;
-    if (["difference", "sum", "min", "max"].includes(d.operation) && new Set(ops.map((o) => o.unit)).size > 1)
-      err("unit_mismatch", loc, `derived '${id}' ${d.operation} over units ${ops.map((o) => o.unit).join(", ")}`, "operands of difference/sum need one unit");
-    if (d.operation === "difference" && ops.length !== 2) err("unit_mismatch", loc, `derived '${id}' difference needs two operands`, "");
-    const nums = ops.map((o) => (o.value === null ? null : Number(o.value)));
-    let value = null;
-    if (!nums.some((n) => n === null)) {
-      const [a, b] = nums;
-      if (d.operation === "difference") value = a - b;
-      else if (d.operation === "sum") value = nums.reduce((x, y) => x + y, 0);
-      else if (d.operation === "ratio") value = b === 0 ? null : a / b;
-      else if (d.operation === "percent_of") value = b === 0 ? null : (100 * a) / b;
-      else if (d.operation === "percent_change") value = b === 0 ? null : (100 * (a - b)) / b;
-      else if (d.operation === "min") value = Math.min(...nums);
-      else if (d.operation === "max") value = Math.max(...nums);
-    }
-    return { value, unit: d.unit, display: d.display, provisional: ops.some((o) => o.provisional) };
+    const exact = calculate(d.operation, ops, d.unit);
+    return { value: exact === null ? null : "derived", exact, unit: d.unit, display: d.display, provisional: ops.some((o) => o.provisional) };
   }
   const e = manifest.external_sources.find((x) => x.id === m[5]);
   if (!e) { err("unresolved_reference", loc, `external source '${m[5]}' not in manifest`, "declare it under external_sources"); return null; }
   return { value: e.value, unit: e.unit, display: e.display, provisional: false };
 }
+function checkExport(manifest, ref, loc, seen = new Set()) {
+  if (ref.startsWith("ref:")) {
+    const [rid, , col] = ref.slice(4).split(".");
+    if (!manifest.export_policy.allowed_fields.includes(`${rid}.${col}`)) err("export_policy", loc, `${rid}.${col} is not allowed for display`, "remove the token or approve the field");
+    if (manifest.results.find(r => r.id === rid)?.provisional) err("provisional_evidence", loc, "provisional evidence cannot be displayed", "");
+  } else if (ref.startsWith("derived:")) {
+    const id = ref.slice(8);
+    if (seen.has(id)) return; // The value resolver separately reports cycles.
+    const d = manifest.derived.find(d => d.id === id);
+    for (const operand of d?.operands ?? []) checkExport(manifest, operand, loc, new Set([...seen,id]));
+  }
+}
 function resolveTokensIn(manifest, text, loc, results) {
   let out = text;
   for (const m of text.matchAll(TOKEN_RE)) {
     if (m[1] === "literal") continue;
+    checkExport(manifest, m[1] + ":" + m[2], loc);
     resolveValueRef(manifest, m[1] + ":" + m[2], `${loc} token ${m[0]}`, results);
   }
+  if (/\{\{/.test(text.replace(TOKEN_RE, ""))) err("unresolved_reference", loc, "unknown or malformed token", "use the declared token grammar");
   return out;
 }
 
-async function validate() {
-  const manifest = parseYaml(readFileSync(join(DIR, "manifest.yaml"), "utf8"));
-  // 1. schema
+function schemaCheck(manifest) {
   const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv);
   const schema = JSON.parse(readFileSync(join(REPO, "schema/finding-manifest.schema.json"), "utf8"));
   const ok = ajv.validate(schema, manifest);
   if (!ok) for (const e of ajv.errors) err("schema", "manifest.yaml#" + e.instancePath, e.message + (e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues) : ""), "fix the manifest against schema/finding-manifest.schema.json");
-  if (!ok) return finish(manifest);
+  return ok;
+}
+
+async function validate() {
+  const manifest = parseYaml(readFileSync(safePath(DIR, "manifest.yaml"), "utf8"));
+  if (!schemaCheck(manifest)) return finish(manifest);
+  validateStructure(manifest, DIR, INSTANCE);
   // 2. hashes
   const checkHash = (p, expected, loc) => {
-    const full = join(DIR, p);
+    const full = safePath(DIR, p);
     if (!existsSync(full)) { err("missing_file", loc, `${p} does not exist`, "restore the file or fix the path"); return; }
     const actual = sha(rd(full));
     if (actual !== expected.value) err("hash_mismatch", loc, `${p} hashes to ${actual.slice(0, 12)}…, manifest says ${expected.value.slice(0, 12)}…`, "content changed after pinning; rebuild or restore");
@@ -229,7 +265,7 @@ async function validate() {
   manifest.checks.forEach((c, n) => checkHash(c.path, c.content_hash, `manifest.yaml#/checks/${n}`));
   manifest.results.forEach((r, n) => checkHash(r.path, r.content_hash, `manifest.yaml#/results/${n}`));
   manifest.definitions.forEach((d, n) => {
-    const p = join(INSTANCE, d.path);
+    const p = safePath(INSTANCE, d.path);
     if (!existsSync(p)) return err("missing_file", `manifest.yaml#/definitions/${n}`, `${d.path} not in Instance`, "");
     const text = readFileSync(p, "utf8"); const h = definitionHash(text);
     if (h.value !== d.content_hash.value) err("hash_mismatch", `manifest.yaml#/definitions/${n}`, `definition ${d.id} content changed since pinned`, "re-pin the version or bump it");
@@ -256,13 +292,13 @@ async function validate() {
     const res = manifest.results.find((r) => r.id === ex.result_id);
     if (res && res.content_hash.value !== ex.result_hash.value) err("hash_mismatch", `manifest.yaml#/executions/${n}`, `result_hash differs from results[].content_hash`, "");
     const q = manifest.queries.find((x) => x.id === ex.query_id);
-    if (q && existsSync(join(DIR, q.path)) && sha(rd(join(DIR, q.path))) !== ex.sql_hash.value) err("hash_mismatch", `manifest.yaml#/executions/${n}`, `sql_hash differs from the query file`, "");
+    if (q && existsSync(safePath(DIR, q.path)) && sha(rd(safePath(DIR, q.path))) !== ex.sql_hash.value) err("hash_mismatch", `manifest.yaml#/executions/${n}`, `sql_hash differs from the query file`, "");
   }
-  const results = {};
+  const results = Object.create(null);
   for (const [n, res] of manifest.results.entries()) {
     if (!exids.has(res.execution_id)) err("unresolved_reference", `manifest.yaml#/results/${n}`, `execution ${res.execution_id}`, "");
-    if (!existsSync(join(DIR, res.path))) continue;
-    const data = JSON.parse(readFileSync(join(DIR, res.path), "utf8")); results[res.id] = data;
+    if (!existsSync(safePath(DIR, res.path))) continue;
+    const data = JSON.parse(readFileSync(safePath(DIR, res.path), "utf8")); validateResult(data, res); results[res.id] = data;
     if (canon(data.columns) !== canon(res.columns.map((c) => c.name))) err("schema", `${res.path}`, "file columns differ from declared columns", "");
     if (data.rows.length !== res.row_count) err("schema", `${res.path}`, `row_count ${res.row_count} but file has ${data.rows.length}`, "");
     if (!res.columns.some((c) => c.name === res.row_key)) err("missing_column", `manifest.yaml#/results/${n}`, `row_key ${res.row_key} not a column`, "");
@@ -274,7 +310,6 @@ async function validate() {
       if (v === null && !col.nullable) err("null_value", `${res.path} row ${i}`, `null in non-nullable column ${col.name}`, "mark nullable or fix the query");
       if (v !== null && col.type === "integer" && !Number.isInteger(v)) err("schema", `${res.path} row ${i}`, `${col.name} not an integer`, "");
       if (v !== null && col.type === "decimal" && typeof v !== "string") err("schema", `${res.path} row ${i}`, `${col.name} decimal must be a string to preserve precision`, "");
-      for (const [i2, d] of manifest.definitions.entries()) void i2, void d;
     }
   }
   for (const [n, cl] of manifest.claims.entries()) {
@@ -302,14 +337,15 @@ async function validate() {
     const res = manifest.results.find((r) => r.id === ch.result_id);
     if (!res) { err("unresolved_reference", `manifest.yaml#/charts/${n}`, `result ${ch.result_id}`, ""); continue; }
     resolveTokensIn(manifest, ch.title, `manifest.yaml#/charts/${n}/title`, results); resolveTokensIn(manifest, ch.description, `manifest.yaml#/charts/${n}/description`, results);
-    if (!existsSync(join(DIR, ch.spec_path))) { err("missing_file", `manifest.yaml#/charts/${n}`, ch.spec_path, ""); continue; }
-    const spec = JSON.parse(readFileSync(join(DIR, ch.spec_path), "utf8"));
-    validateChartSpec(spec, res, ch.spec_path);
+    if (!existsSync(safePath(DIR, ch.spec_path))) { err("missing_file", `manifest.yaml#/charts/${n}`, ch.spec_path, ""); continue; }
+    const spec = JSON.parse(readFileSync(safePath(DIR, ch.spec_path), "utf8"));
+    validateChartSpec(spec, res, ch.spec_path, new Set(manifest.export_policy.allowed_fields));
   }
   for (const [n, t] of manifest.tables.entries()) {
     if (!cids.has(t.claim_id)) err("unresolved_reference", `manifest.yaml#/tables/${n}`, `claim ${t.claim_id}`, "");
     const res = manifest.results.find((r) => r.id === t.result_id);
     if (!res) { err("unresolved_reference", `manifest.yaml#/tables/${n}`, `result ${t.result_id}`, ""); continue; }
+    if (res.provisional) err("provisional_evidence", t.id, "table uses provisional evidence", "");
     for (const c of t.columns) if (!res.columns.some((x) => x.name === c.name)) err("missing_column", `manifest.yaml#/tables/${n}`, `column ${c.name} not on ${res.id}`, "");
     for (const k of t.row_keys || []) if (results[res.id] && !results[res.id].rows.some((r) => String(r[res.row_key]) === k)) err("unresolved_reference", `manifest.yaml#/tables/${n}`, `row key ${k} not in ${res.id}`, "");
   }
@@ -331,12 +367,12 @@ async function validate() {
   if (q.metric && !defOk(q.metric)) err("definition_version", "manifest.yaml#/question/metric", `definition ${q.metric.id} v${q.metric.version} not pinned`, "");
   // Reader profile
   if (manifest.reader.profile !== "generic") {
-    const readers = existsSync(join(INSTANCE, "readers.md")) ? readFileSync(join(INSTANCE, "readers.md"), "utf8") : "";
+    const readers = existsSync(safePath(INSTANCE, "readers.md")) ? readFileSync(safePath(INSTANCE, "readers.md"), "utf8") : "";
     if (!new RegExp(`^## ${manifest.reader.profile}\\s*$`, "m").test(readers)) err("unresolved_reference", "manifest.yaml#/reader/profile", `profile ${manifest.reader.profile} not in readers.md`, "add the profile or use generic");
   }
   // Checks: evidence validity
-  let evidence = report.errors.length ? "invalid" : "valid";
   for (const ck of manifest.checks) {
+    if (ck.outcome === "error") err("check_error", ck.path, "recorded SQL error is not an analytical outcome", "fix and rerun the Check");
     if (ck.required && ck.outcome !== "pass") { err("check_failed", `checks/${ck.id}`, `required Check ${ck.id} outcome ${ck.outcome}`, "fix the analysis or the Check"); }
     if (ck.kind === "falsifier" && manifest.finding.outcome === "answered" && ck.outcome !== ck.expected_outcome) err("falsifier", `checks/${ck.id}`, `falsifier outcome ${ck.outcome}, expected ${ck.expected_outcome}`, "the Answer is contradicted by its own falsifier");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && manifest.finding.outcome !== "insufficient_data") warn("minimum_data", `checks/${ck.id}`, "minimum-data Check failed but outcome is not insufficient_data");
@@ -359,40 +395,44 @@ async function validate() {
     readiness = "unknown"; reasons.push(`attestation ${n}: github_pr_review must be verified through the API against the trusted allowlist; this tool cannot`);
   }
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
-  if (manifest.finding.state !== "complete") readiness = "not_ready";
+  if (manifest.finding.state !== "complete" || report.errors.length) readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
-  finish(manifest, { evidence: manifest.finding.state !== "complete" ? "incomplete" : report.errors.length ? "invalid" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
+  finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
 }
 
-function validateChartSpec(spec, res, loc) {
-  const cols = new Set(res.columns.map((c) => c.name));
+function validateChartSpec(spec, res, loc, allowed) {
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) return err("chart_subset", loc, "chart spec must be an object", "");
+  if (spec.$schema !== "https://vega.github.io/schema/vega-lite/v5.json") err("chart_subset", loc, "expected pinned Vega-Lite v5 schema", "");
+  const topKeys = new Set(["$schema", "description", "data", "mark", "encoding", "title", "width", "height", "config", "layer", "hconcat", "vconcat", "concat", "spacing", "resolve", "padding", "background"]);
+  for (const key of Object.keys(spec)) if (!topKeys.has(key)) err("chart_subset", loc, `unsupported top-level property ${key}`, "");
+  if (!spec.data || spec.data.name !== "result" || Object.keys(spec.data).length !== 1) err("chart_subset", loc, 'data must be exactly {"name":"result"}', "");
+  if (res.provisional) err("provisional_evidence", loc, "chart uses provisional evidence", "");
+  const cols = new Set(res.columns.map(c => c.name));
+  const banned = new Set(["transform", "aggregate", "bin", "timeUnit", "expr", "signal", "params", "datasets", "url", "href", "datum", "condition", "repeat", "facet"]);
   const walk = (node, path) => {
     if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) return node.forEach((n, i) => walk(n, `${path}[${i}]`));
-    if ("transform" in node) err("chart_subset", `${loc}${path}`, "transform is not allowed", "compute in SQL");
-    if ("data" in node) {
-      if (path !== "" ) err("chart_subset", `${loc}${path}`, "nested data is not allowed", "");
-      if (!node.data || node.data.name !== "result" || Object.keys(node.data).length !== 1) err("chart_subset", `${loc}${path}.data`, "data must be exactly {\"name\": \"result\"}", "");
+    if (Array.isArray(node)) return node.forEach((n,i) => walk(n, `${path}[${i}]`));
+    for (const [key,value] of Object.entries(node)) {
+      if (banned.has(key) || (key === "data" && path !== "") || (key === "stack" && value === "normalize")) err("chart_subset", loc + path, `${key} is not supported`, "compute values in SQL");
+      if (key === "field") {
+        if (!cols.has(value)) err("missing_column", loc + path, `field ${value} is not declared`, "");
+        else if (!allowed.has(`${res.id}.${value}`)) err("export_policy", loc + path, `field ${value} is not allowed for export`, "");
+      }
+      if (key === "encoding") for (const [channel, enc] of Object.entries(value ?? {})) {
+        if (enc && Object.hasOwn(enc, "value") && !["opacity", "size", "strokeWidth", "color", "fill", "stroke", "shape"].includes(channel)) err("chart_subset", loc + path, `constant evidence in ${channel} is not allowed`, "");
+      }
+      walk(value, path + "." + key);
     }
-    if ("url" in node) err("chart_subset", `${loc}${path}`, "url is not allowed", "");
-    if (node.encoding) for (const [ch, enc] of Object.entries(node.encoding)) {
-      if (!enc || typeof enc !== "object") continue;
-      for (const bad of ["aggregate", "bin", "timeUnit"]) if (bad in enc) err("chart_subset", `${loc}${path}.encoding.${ch}`, `${bad} is not allowed`, "compute in SQL");
-      if (enc.stack === "normalize") err("chart_subset", `${loc}${path}.encoding.${ch}`, "stack normalize is not allowed", "");
-      if (enc.field && !cols.has(enc.field)) err("missing_column", `${loc}${path}.encoding.${ch}`, `field ${enc.field} not on ${res.id}`, "");
-      if (typeof enc.value === "number" && !["opacity", "size", "strokeWidth"].includes(ch)) err("chart_subset", `${loc}${path}.encoding.${ch}`, "constant data values are not allowed", "");
-    }
-    for (const k of ["layer", "hconcat", "vconcat", "concat", "spec"]) if (node[k]) walk(node[k], `${path}.${k}`);
-    for (const k of ["repeat", "facet"]) if (node[k]) err("chart_subset", `${loc}${path}.${k}`, `${k} is not in the initial subset`, "");
   };
   walk(spec, "");
 }
 
 const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked", "What would change our mind", "Appendix"];
 function validateMemo(manifest, results) {
-  const p = join(DIR, "memo.md");
+  const p = safePath(DIR, "memo.md");
   if (!existsSync(p)) return err("missing_file", "memo.md", "memo.md missing", "");
   const text = readFileSync(p, "utf8");
+  resolveTokensIn(manifest, text, "memo.md", results);
   const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);
   if (!fm) return err("template", "memo.md:1", "front matter missing", "");
   const f = parseYaml(fm[1]);
@@ -438,9 +478,18 @@ function validateMemo(manifest, results) {
 }
 
 function finish(manifest, summary) {
-  const out = { finding: `${manifest.finding.id} r${manifest.finding.revision}`, state: manifest.finding.state, outcome: manifest.finding.outcome, ...(summary || {}), errors: report.errors, warnings: report.warnings, info: report.info };
+  const out = { finding: manifest?.finding?.id ? `${manifest.finding.id} r${manifest.finding.revision}` : null, state: manifest?.finding?.state, outcome: manifest?.finding?.outcome, ...(summary || {}), errors: report.errors, warnings: report.warnings, info: report.info };
   console.log(JSON.stringify(out, null, 2));
   process.exit(report.errors.length ? 1 : 0);
 }
 
-if (cmd === "build") await build(); else if (cmd === "validate") await validate(); else { console.error("unknown command"); process.exit(2); }
+try {
+  INSTANCE = findInstanceRoot(DIR);
+  if (cmd === "build") await build();
+  else if (cmd === "validate") await validate();
+  else { console.error("unknown command"); process.exitCode = 2; }
+} catch (e) {
+  err(e.category ?? (e.code === "ENOENT" ? "missing_file" : "invalid_artifact"), e.location ?? e.path ?? dirArg, e.message, "correct the artifact and retry");
+  if (cmd === "validate") finish(null, { evidence: "invalid", executionAvailability: "artifact_only", sqlExecution: "not_performed (artifact verification)", readiness: "not_ready" });
+  else { console.error(JSON.stringify({ errors: report.errors }, null, 2)); process.exitCode = 1; }
+}

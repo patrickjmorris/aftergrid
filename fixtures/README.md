@@ -23,3 +23,15 @@ node scripts/fixture-tool.mjs validate fixtures/instance/analytics/findings/<dir
 ## Approvals in fixtures
 
 `definitions/retained_7d.md` carries an approval block in the shape a real one has, pointing at a fictional repository and review id. It exists so the schema branch has an example. `aftergrid check` will report its verification as unavailable, and nothing in this directory may be read as a human having approved anything.
+
+## Regression checks and execution boundaries
+
+Run `npm test` for the fixture-tool regression suite and `npm run validate:fixtures` for the four checked-in Findings. Tests use disposable copies, including paths with spaces and apostrophes; they do not rewrite the checked-in evidence.
+
+The fixture builder materializes only an execution's declared input tables into a disposable database, then disables external access and extension loading. It accepts one SELECT statement, binds actual named parameters, limits each query to ten seconds, and closes connections explicitly. Queries and Checks cannot read other local files or write data. DuckDB has a 256 MB memory setting, two threads and no disk spill; these are fixture settings, not a complete hostile-code sandbox. Production isolation remains part of the adapter/hook work.
+
+`build` pins new evidence but never rebinds an existing approval or review. A changed digest makes prior reviews stale; a new review must explicitly cover the new content. Query and Check results are staged until all SQL completes successfully. Writes across the whole directory are not a transaction: an OS write failure can leave a digest mismatch, which `validate` rejects.
+
+`fill-reference-html` verifies evidence before writing, enforces exported columns through derived values, escapes interpolated text, and limits metadata tokens. Its hand-authored HTML template is trusted source code; this helper is not an HTML sanitizer or the production renderer. It atomically replaces the HTML only after successful validation and flags stale reviews in the generated page. Without a display format, a derived non-integer value is shown as an exact fraction; normal Reader-facing values should declare their display format.
+
+Synthetic observations end before **2026-09-15 04:00 UTC**, the end of September 14 in New York. Generated timestamps are clipped to that capture boundary. The planted September 9 signup/September 10 cancellation remains in retained inputs to verify that the analysis excludes subscriptions outside its declared cohort.

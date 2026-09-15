@@ -38,8 +38,8 @@ snapshot:
       path: inputs/subscriptions.csv
       content_hash:
         algorithm: sha256
-        value: e7aa3e13911192c81434cc3b633713b7f103deb7e278581ad63166a6dae748e0
-      captured_at: "2026-09-15T00:00:00Z"
+        value: 212504567b09daa51c426160077ce79542d1c3c420e9fd1506fb531290726341
+      captured_at: "2026-09-15T04:00:00Z"
       description: All paid subscriptions with start and cancellation times, through the end of 2026-09-14.
       source: { adapter: synthetic, method: "generator seed 20260915, extract by scripts/capture-fixture-inputs.mjs", tables: [ subscriptions ], consistency: single_transaction }
   guarantees: [ artifact_replay, analysis_rerun ]
@@ -71,7 +71,7 @@ executions:
     adapter: duckdb
     engine_version: 0.0.0-fixture
     mode: retained_rerun
-    executed_at: 2026-09-15T22:44:32Z
+    executed_at: 2026-09-15T22:58:07Z
 results:
   - id: since_change
     execution_id: ex_cancellations_since_change
@@ -171,9 +171,9 @@ tables:
       - { name: earliest_window_end, label: Last day of the earliest window that meets the day count }
     row_keys: [ post ]
 checks:
-  - { id: unique_subscriptions, kind: invariant, path: checks/unique_subscriptions.sql, required: true, outcome: pass, description: No subscription is counted twice., content_hash: { algorithm: sha256, value: a95db4eaefb4ca385585802aebb996b3b3a3885ed1481305f15d047718af774d }, executed_at: 2026-09-15T22:44:32Z }
-  - { id: minimum_data, kind: minimum_data, path: checks/minimum_data.sql, required: false, outcome: fail, description: "The policy minimum (four weeks, three hundred cancellations) is met. Failing is the expected business result of this Finding, not an engine failure.", content_hash: { algorithm: sha256, value: e532ed643f284895f8c4d0030e9c1940052c5e0fc9548aa277ca9f1a75cefd30 }, executed_at: 2026-09-15T22:44:32Z }
-  - { id: falsifier_cancel_rate, kind: falsifier, path: checks/falsifier_cancel_rate.sql, required: false, outcome: not_run, expected_outcome: pass, description: "Once the minimum is met, the daily cancellation rate after the change is not more than a fifth above the rate before it. Not evaluable until then.", content_hash: { algorithm: sha256, value: 4dffbd858db38be3796bf53fc19eb31643ab3e59eee4b480675880009657501b }, executed_at: 2026-09-15T22:44:33Z }
+  - { id: unique_subscriptions, kind: invariant, path: checks/unique_subscriptions.sql, required: true, outcome: pass, description: No subscription is counted twice., content_hash: { algorithm: sha256, value: a95db4eaefb4ca385585802aebb996b3b3a3885ed1481305f15d047718af774d }, executed_at: 2026-09-15T22:58:07Z }
+  - { id: minimum_data, kind: minimum_data, path: checks/minimum_data.sql, required: false, outcome: fail, description: "The policy minimum (four weeks, three hundred cancellations) is met. Failing is the expected business result of this Finding, not an engine failure.", content_hash: { algorithm: sha256, value: e532ed643f284895f8c4d0030e9c1940052c5e0fc9548aa277ca9f1a75cefd30 }, executed_at: 2026-09-15T22:58:07Z }
+  - { id: falsifier_cancel_rate, kind: falsifier, path: checks/falsifier_cancel_rate.sql, required: false, outcome: not_run, expected_outcome: pass, description: "Once the minimum is met, the daily cancellation rate after the change is not more than a fifth above the rate before it. Not evaluable until then.", content_hash: { algorithm: sha256, value: 4dffbd858db38be3796bf53fc19eb31643ab3e59eee4b480675880009657501b }, executed_at: 2026-09-15T22:58:07Z }
 reviews:
   - kind: method
     reviewer: "fixture: hand review by the exemplar author (CrimsonLotus, claude-fable-5-1)"
@@ -205,4 +205,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: 3d8fb5f86eb91c47332f4ccc63d4f022a7041b90a4baebbadfe16cee107667e5
+  value: ccbb1c4edee0dd79891fd11c9f5fb6c49ed7089cecc9c3d3369dd7e22f066397

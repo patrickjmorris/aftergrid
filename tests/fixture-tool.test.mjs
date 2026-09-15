@@ -120,3 +120,73 @@ test('SQL cannot read undeclared local files', t => {
   const r = f.run('build'); assert.notEqual(r.status, 0, 'undeclared file read must be denied');
   assert.match(r.stderr + r.stdout, /external|disabled|access|permission/i);
 });
+
+test('typed boolean result cannot be substituted with a string', t => {
+  const f = fixture(t); const col = f.manifest.results[0].columns.find(c=>c.name==='retained_7d_rate'); col.type='boolean'; f.pin(); invalid(f.run());
+});
+test('unknown nested chart fields and encoding transformations are rejected', t => {
+  const f = fixture(t); const path=join(f.dir,f.manifest.charts[0].spec_path);const spec=JSON.parse(readFileSync(path,'utf8'));
+  spec.encoding.tooltip=[{field:'made_up',aggregate:'sum',type:'quantitative'}];
+  writeFileSync(path,JSON.stringify(spec));f.pin();invalid(f.run());
+});
+test('a displayed derived value cannot launder a field excluded from export', t => {
+  const f=fixture(t); f.manifest.export_policy.allowed_fields=f.manifest.export_policy.allowed_fields.filter(x=>x!=='retention_by_arm.signups');
+  f.manifest.tables[0].columns=f.manifest.tables[0].columns.filter(c=>c.name!=='signups');
+  f.pin();invalid(f.run());
+});
+test('optional SQL errors are not valid insufficient-data outcomes', t => {
+  const f=fixture(t); f.manifest.checks[0].required=false;f.manifest.checks[0].outcome='error';f.pin();invalid(f.run());
+});
+test('a draft with corrupted evidence is invalid rather than merely incomplete', t => {
+  const f=fixture(t);f.manifest.finding.state='draft';f.manifest.finding.outcome='pending';f.pin();
+  const data=f.result();data.rows[0].retained_7d_rate='0.9';f.saveResult(data);
+  const r=f.run();invalid(r);assert.equal(JSON.parse(r.stdout).evidence,'invalid');
+});
+test('rebuild fails without replacing results if a later Check is malformed', t => {
+  const f=fixture(t);const resultPath=join(f.dir,f.manifest.results[0].path);const before=readFileSync(resultPath,'utf8');
+  writeFileSync(join(f.dir,f.manifest.queries[0].path),"select 'checklist' as arm, 1 as signups, 1 as retained, '0.5' as retained_7d_rate");
+  writeFileSync(join(f.dir,f.manifest.checks.at(-1).path),'select 1 as pass');
+  assert.notEqual(f.run('build').status,0);assert.equal(readFileSync(resultPath,'utf8'),before);
+});
+test('named parameters mentioned only in a comment are not bound', t => {
+  const f=fixture(t);f.manifest.executions[0].parameters.unused=7;f.save();const query=join(f.dir,f.manifest.queries[0].path);
+  writeFileSync(query,readFileSync(query,'utf8')+'\n-- This comment mentions $unused but SQL does not use it.\n');
+  const r=f.run('build');assert.equal(r.status,0,r.stderr+r.stdout);
+});
+test('write statements cannot change the fixture database', t => {
+  const f=fixture(t);writeFileSync(join(f.dir,f.manifest.queries[0].path),'delete from users returning user_id');
+  const r=f.run('build');assert.notEqual(r.status,0);assert.match(r.stderr,/only SELECT/);
+});
+test('multiple statements cannot hide work before the reported result', t => {
+  const f=fixture(t);const path=join(f.dir,f.manifest.queries[0].path);writeFileSync(path,'select 1; '+readFileSync(path,'utf8'));
+  const r=f.run('build');assert.notEqual(r.status,0);assert.match(r.stderr,/exactly one SELECT/);
+});
+test('derived cycles are rejected without crashing the renderer', t => {
+  const f=fixture(t);f.manifest.derived[0].operands=['derived:'+f.manifest.derived[0].id,'derived:'+f.manifest.derived[0].id];f.pin();
+  invalid(f.run());const r=f.run('','fill-reference-html.mjs');assert.notEqual(r.status,0);assert.doesNotMatch(r.stderr,/Maximum call stack/);
+});
+test('unsupported numeric operands are rejected before NaN can reach a Reader', t => {
+  const f=fixture(t);f.manifest.derived[0].operation='ratio';f.manifest.derived[0].unit='ratio';f.manifest.derived[0].operands=[f.manifest.derived[0].operands[0]];f.pin();invalid(f.run());
+});
+test('integers outside the safe JSON range are refused instead of rounded', t => {
+  const f=fixture(t);writeFileSync(join(f.dir,f.manifest.queries[0].path),"select 'checklist' as arm, 9007199254740993::bigint as signups, 1 as retained, '1' as retained_7d_rate");
+  const r=f.run('build');assert.notEqual(r.status,0);assert.match(r.stderr,/safe JSON integer/);
+});
+test('a query cannot read a retained table omitted from its execution record', t=>{
+  const f=fixture(t);f.manifest.executions[0].input_ids=['users'];f.save();
+  const r=f.run('build');assert.notEqual(r.status,0);assert.match(r.stderr,/events.*does not exist/i);
+});
+test('render identifies a review of an older digest as stale', t=>{
+  const f=fixture(t);f.manifest.attestations=[];f.save();const memo=join(f.dir,'memo.md');writeFileSync(memo,readFileSync(memo,'utf8')+'\nA new appendix note.\n');
+  const build=f.run('build');assert.equal(build.status,0,build.stderr);
+  const render=f.run('','fill-reference-html.mjs');assert.equal(render.status,0,render.stderr);
+  assert.match(readFileSync(join(f.dir,'render/finding.html'),'utf8'),/current version needs review/);
+});
+test('changing a definition does not silently renew its approval', t=>{
+  const f=fixture(t);const def=f.manifest.definitions[0];const old=structuredClone(def.approval);
+  const file=join(f.root,'analytics',def.path);writeFileSync(file,readFileSync(file,'utf8')+'\nA changed definition.\n');
+  const r=f.run('build');assert.equal(r.status,0,r.stderr);
+  const current=parse(readFileSync(join(f.dir,'manifest.yaml'),'utf8')).definitions[0];
+  assert.deepEqual(current.approval,old);assert.notEqual(current.content_hash.value,old.content_hash.value);
+  invalid(f.run());
+});

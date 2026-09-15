@@ -1,12 +1,13 @@
 // Deterministic synthetic warehouse for the Engine's fixture Instance.
 // PostHog-shaped: users, events, subscriptions, for a fictional habit app "Loop".
 // Planted effects: an onboarding-checklist experiment (2026-06-01..2026-07-12, randomized by user id)
-// raises 7-day retention on mobile and not on web; a price change on 2026-09-08 with only 6 days of data.
+// raises 7-day retention on mobile and not on web; a price change on 2026-09-08 with only 7 days of data.
 // Nothing here is real company data. Seed is fixed; output is byte-identical across runs.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const OUT = new URL("../fixtures/instance/data/", import.meta.url).pathname;
+const OUT = fileURLToPath(new URL("../fixtures/instance/data/", import.meta.url));
 mkdirSync(OUT, { recursive: true });
 
 function mulberry32(a) {
@@ -28,11 +29,12 @@ const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 const day = (s) => Date.parse(s + "T00:00:00Z");
 const hex = (n) => n.toString(16).padStart(8, "0");
 
-// Data window: signups 2026-05-01 .. 2026-09-14 inclusive. Extract captured 2026-09-15T00:00:00Z.
+// Data window: signups 2026-05-01 .. 2026-09-14 inclusive. The last full New York day ends at 2026-09-15T04:00:00Z (exclusive).
 const START = day("2026-05-01"), END = day("2026-09-14");
 const EXP_START = day("2026-06-01"), EXP_END = day("2026-07-12");
 const ROLLOUT = day("2026-08-20");
 const PRICE_CHANGE = day("2026-09-08");
+const CAPTURE = Date.parse("2026-09-15T04:00:00Z");
 
 // ---- users ----
 const users = [];
@@ -63,7 +65,7 @@ function p7(u) {
 }
 const events = [];
 let eid = 0;
-const ev = (u, ts) => events.push({ event_id: "e_" + hex(++eid), user_id: u.user_id, event: "app_open", timestamp: ts });
+const ev = (u, ts) => { if (ts < CAPTURE) events.push({ event_id: "e_" + hex(++eid), user_id: u.user_id, event: "app_open", timestamp: ts }); };
 for (const u of users) {
   ev(u, u.signed_up_at + Math.floor(rnd() * 3600000)); // day-0 open
   const retained = rnd() < p7(u);
@@ -74,28 +76,32 @@ for (const u of users) {
       // so a late-evening signup still cannot spill past day 7.
       const dayOffset = 1 + Math.floor(rnd() * 6); // days 1..6 (+ up to 20h)
       const ts = u.signed_up_at + dayOffset * DAY + Math.floor(rnd() * 20 * 3600000);
-      if (ts < END + DAY) ev(u, ts);
+      ev(u, ts);
     }
   }
   if (rnd() < 0.12) { // some later opens, days 8..14
     const ts = u.signed_up_at + (8 + Math.floor(rnd() * 7)) * DAY + Math.floor(rnd() * DAY);
-    if (ts < END + DAY) ev(u, ts);
+    ev(u, ts);
   }
 }
 events.sort((a, b) => a.timestamp - b.timestamp || (a.event_id < b.event_id ? -1 : 1));
 
 // ---- subscriptions ----
-// ~10% of users subscribe 0..10 days after signup; monthly plan; daily cancel hazard ~1.1%.
+// ~42% of users subscribe 0..10 days after signup; monthly plan; daily cancel hazard ~1.1%.
 const subs = [];
 let sid = 0;
 for (const u of users) {
   if (rnd() >= 0.42) continue; // ~42% of users subscribe (keeps ~1,700 subs so ~7 cancellations/day)
   const started_at = u.signed_up_at + Math.floor(rnd() * 10 * DAY);
-  if (started_at > END + DAY) continue;
+  if (started_at >= END + DAY) continue;
   const plan_price_cents = started_at >= PRICE_CHANGE ? 1299 : 999;
   let canceled_at = "";
   for (let t = started_at + DAY; t < END + DAY; t += DAY) {
-    if (rnd() < 0.011) { canceled_at = iso(t + Math.floor(rnd() * DAY)); break; }
+    if (rnd() < 0.011) {
+      const candidate = t + Math.floor(rnd() * DAY);
+      if (candidate < CAPTURE) canceled_at = iso(candidate);
+      break;
+    }
   }
   subs.push({ subscription_id: "s_" + hex(++sid), user_id: u.user_id, started_at: iso(started_at), canceled_at, plan_price_cents });
 }
