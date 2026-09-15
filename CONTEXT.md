@@ -33,7 +33,7 @@ A runnable assertion that establishes one stated property of an Analysis: an inv
 _Avoid_: test, validation, guardrail, proof
 
 **Snapshot**:
-The retained inputs an Analysis ran against: an immutable fixture or bounded extracts with content hashes. A Finding states which guarantee its Snapshot gives: artifact replay, analysis rerun, or refresh only.
+The retained inputs an Analysis ran against: an immutable fixture or bounded extracts with content hashes. A Finding lists which guarantees its Snapshot gives: artifact replay, analysis rerun, both, or neither.
 _Avoid_: freeze, baseline, as-of, fingerprint
 
 ### Context
