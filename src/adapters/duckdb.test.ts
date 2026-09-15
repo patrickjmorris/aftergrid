@@ -155,3 +155,19 @@ test("utcText floors before the epoch; scientific-notation decimals follow the s
   assert.equal(coerceCell("1e-7", "decimal", "x"), "1e-7");
   assert.throws(() => coerceCell("abc", "decimal", "x"), (e: any) => e.category === "value_type");
 });
+
+test("close during a first open leaves no connection behind, and overlapping calls are serialised rather than cross-cancelled", async () => {
+  const a = adapter(scratchWarehouse());
+  const pending = a.execute("select 1 as n", {});
+  await a.close();
+  await pending.catch(() => undefined);
+  assert.equal((a as any).conn, undefined, "no connection published after close");
+  assert.equal((a as any).db, undefined);
+  const b = adapter(scratchWarehouse(), { estimate_cap_rows: 1e15 });
+  const slow = b.execute("select count(*) from range(3000000000) x, range(1000) y", {}, { timeout_ms: 300 }).catch((e) => e);
+  const quick = b.execute("select 7 as seven", {});
+  const [s, qres] = await Promise.all([slow, quick]);
+  assert.equal((s as any).category, "cancelled");
+  assert.equal(Number(qres.rows[0]!.seven), 7, "the quick call ran after the slow one, untouched by its interrupt");
+  await b.close();
+});

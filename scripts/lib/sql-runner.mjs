@@ -27,9 +27,22 @@ export async function sealConnection(c) {
   await c.run("SET lock_configuration=true");
 }
 
+/** Run one internal (not authored) statement under the statement timeout, interrupting the connection if it overruns. */
+export async function runBounded(c, sql, timeoutMs = DEFAULT_LIMITS.statement_timeout_ms, what = "statement") {
+  const timer = setTimeout(() => { try { c.interrupt(); } catch { /* finished */ } }, timeoutMs);
+  try { return await c.run(sql); }
+  catch (e) {
+    const msg = String(e?.message ?? e);
+    if (/INTERRUPT/i.test(msg)) fail("cancelled", what, `${what} cancelled after ${timeoutMs} ms (statement_timeout)`);
+    if (/Out of Memory|memory limit/i.test(msg)) fail("resource_limit", what, `memory limit exceeded during ${what}`);
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+
 /**
  * Open a sandbox holding exactly the given retained CSV extracts as tables named by input id.
- * Callers verify hashes before calling this. Returns { c, close }.
+ * Callers verify hashes before calling this. Materialisation of each input is bounded by the statement timeout.
+ * Returns { c, close }.
  */
 export async function openRetainedDatabase(baseDir, inputs, limits = DEFAULT_LIMITS) {
   const { DuckDBInstance } = await api();
@@ -39,7 +52,7 @@ export async function openRetainedDatabase(baseDir, inputs, limits = DEFAULT_LIM
     await applyLimits(c, limits);
     for (const inp of inputs) {
       if (inp.kind !== "extract") fail("not_implemented", inp.id, `retained input kind ${inp.kind} is not supported for rerun yet`);
-      await c.run(`create table ${identifier(inp.id)} as select * from read_csv(${sqlString(safePath(baseDir, inp.path))}, ${CSV_READ_OPTIONS})`);
+      await runBounded(c, `create table ${identifier(inp.id)} as select * from read_csv(${sqlString(safePath(baseDir, inp.path))}, ${CSV_READ_OPTIONS})`, limits.statement_timeout_ms, `loading retained input ${inp.id}`);
     }
     await sealConnection(c);
     return { c, close: () => { c.closeSync(); db.closeSync(); } };

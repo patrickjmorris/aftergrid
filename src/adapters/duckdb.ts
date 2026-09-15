@@ -9,7 +9,7 @@ import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe
 // @ts-ignore: shared path containment and SQL string quoting.
 import { safePath, sqlString, ContractError } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: the one SQL execution policy, shared with the fixture builder.
-import { SANDBOX_SETTINGS, DEFAULT_LIMITS as RUNNER_LIMITS, applyLimits, sealConnection, openRetainedDatabase, runSelect, CSV_READ_OPTIONS, csvText, identifier } from "../../scripts/lib/sql-runner.mjs";
+import { SANDBOX_SETTINGS, DEFAULT_LIMITS as RUNNER_LIMITS, applyLimits, sealConnection, openRetainedDatabase, runSelect, runBounded, CSV_READ_OPTIONS, csvText, identifier } from "../../scripts/lib/sql-runner.mjs";
 // @ts-ignore: shared decimal validator.
 import { decimal as sharedDecimal } from "../../scripts/fixture-safety.mjs";
 
@@ -105,21 +105,36 @@ export class DuckDbAdapter implements Adapter {
       open_retained: { status: "supported", note: "extracts loaded into a fresh in-memory database with external access disabled" },
       privilege_probe: { status: "unsupported", note: "DuckDB has no roles; safety comes from READ_ONLY file access or read-only CSV views, not from a role probe" },
       cost_estimate: { status: "supported", note: "EXPLAIN (FORMAT JSON) without execution; unit estimated_rows; unknown when the planner reports none" },
-      resource_limits: { status: "partial", note: "memory_limit and threads are enforced by the engine; statement timeout is an interrupt from this process; no CPU or disk quota" },
+      resource_limits: { status: "partial", note: "memory_limit and threads are enforced by the engine; the statement timeout is an interrupt from this process and also bounds planning, capture and source materialisation; no CPU or disk quota; calls on one adapter are serialised" },
       cancellation: { status: "supported", note: "interrupt() on timeout; the connection is reusable afterwards" },
       statement_guard: { status: "supported", note: "one statement, SELECT only, external file access disabled after inputs load, declared inputs only in retained sessions" },
       catalog: { status: "supported", note: "information_schema.columns" },
     };
   }
   private opening?: Promise<any>;
+  private generation = 0;            // bumped by close(); an open that finishes for an older generation is discarded
+  private queue: Promise<unknown> = Promise.resolve();
+  /**
+   * Concurrency contract: one connection, one statement at a time. execute/capture/estimate/catalog calls are
+   * serialised in call order, because each statement's timeout interrupts the shared connection and capture runs a
+   * transaction; overlapping callers therefore never cancel each other. Use separate adapters for parallelism.
+   */
+  private serialize<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn);
+    this.queue = next.then(() => undefined, () => undefined);
+    return next;
+  }
+  private closed = false;
   private async open() {
+    if (this.closed) throw new AdapterError("closed", "adapter is closed", this.opts.source.path);
     if (this.conn) return this.conn;
     if (!this.opening) this.opening = this.openFresh().finally(() => { this.opening = undefined; });
     return this.opening;
   }
-  /** Initialise into locals; publish the connection only after the sandbox is sealed. Any failure closes everything. */
+  /** Initialise into locals; publish the connection only after the sandbox is sealed and only if close() has not run meanwhile. */
   private async openFresh() {
     const { DuckDBInstance } = await api();
+    const gen = this.generation;
     let db: any, conn: any; const tables: string[] = [];
     try {
       if (this.opts.source.kind === "duckdb_file") {
@@ -139,13 +154,16 @@ export class DuckDbAdapter implements Adapter {
           const table = basename(f, ".csv");
           if (!/^[a-z][a-z0-9_]{0,63}$/.test(table)) continue;
           // Materialised once; the source directory is never written. DML is refused by the guard before the engine.
-          await conn.run(`create table ${identifier(table)} as select * from read_csv(${sqlString(safePath(dir, f))}, ${CSV_READ_OPTIONS})`);
+          // Materialisation is bounded by the statement timeout like every other source read.
+          await runBounded(conn, `create table ${identifier(table)} as select * from read_csv(${sqlString(safePath(dir, f))}, ${CSV_READ_OPTIONS})`, this.limits.statement_timeout_ms, `loading ${table}`);
           tables.push(table);
         }
       }
       // READ_ONLY stops database writes, not filesystem reads: both source kinds are sealed before any authored SQL.
       await sealConnection(conn);
+      if (gen !== this.generation || this.closed) throw new AdapterError("closed", "adapter was closed while opening", this.opts.source.path);
     } catch (e) {
+      if (e instanceof ContractError) e = new AdapterError((e as any).category, (e as Error).message, String((e as any).location));
       try { conn?.closeSync(); } catch { /* ignore */ } try { db?.closeSync(); } catch { /* ignore */ }
       throw e;
     }
@@ -155,16 +173,24 @@ export class DuckDbAdapter implements Adapter {
   async probePrivileges(): Promise<PrivilegeProbe> {
     return { status: "unsupported", reason: this.opts.source.kind === "duckdb_file" ? "no roles in DuckDB; the file is opened READ_ONLY, which the engine enforces for every statement" : "no roles in DuckDB; CSV sources are exposed as read-only views" };
   }
-  async estimate(sql: string, params: SqlParams, opts: { timeout_ms?: number } = {}): Promise<Estimate> { return estimateOn(await this.open(), sql, params, opts.timeout_ms ?? this.limits.statement_timeout_ms); }
+  async estimate(sql: string, params: SqlParams, opts: { timeout_ms?: number } = {}): Promise<Estimate> {
+    return this.serialize(async () => estimateOn(await this.open(), sql, params, opts.timeout_ms ?? this.limits.statement_timeout_ms));
+  }
   async execute(sql: string, params: SqlParams, opts: { timeout_ms?: number } = {}): Promise<ExecuteResult> {
-    const c = await this.open();
-    const est = await this.estimate(sql, params, opts);
-    const admission = admit(est, this.cap, this.limits);
-    if (admission.decision === "rejected") throw new AdapterError("admission", admission.reason, "SQL");
-    const { columns, rows } = await guardedRun(c, sql, params, this.limits, opts.timeout_ms ?? this.limits.statement_timeout_ms);
-    return { columns, rows, admission };
+    return this.serialize(async () => {
+      const c = await this.open();
+      const timeout = opts.timeout_ms ?? this.limits.statement_timeout_ms;
+      const est = await estimateOn(c, sql, params, timeout);
+      const admission = admit(est, this.cap, this.limits);
+      if (admission.decision === "rejected") throw new AdapterError("admission", admission.reason, "SQL");
+      const { columns, rows } = await guardedRun(c, sql, params, this.limits, timeout);
+      return { columns, rows, admission };
+    });
   }
   async capture(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number } = {}): Promise<RetainedInput[]> {
+    return this.serialize(() => this.captureNow(tables, destDir, opts));
+  }
+  private async captureNow(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number }): Promise<RetainedInput[]> {
     const c = await this.open();
     mkdirSync(join(destDir, "inputs"), { recursive: true });
     const out: RetainedInput[] = [];
@@ -187,7 +213,8 @@ export class DuckDbAdapter implements Adapter {
     } finally { try { await c.run("COMMIT"); } catch { /* read-only transaction */ } }
     return out;
   }
-  async catalog(): Promise<CatalogTable[]> {
+  async catalog(): Promise<CatalogTable[]> { return this.serialize(() => this.catalogNow()); }
+  private async catalogNow(): Promise<CatalogTable[]> {
     const c = await this.open();
     const r = await c.runAndReadAll("select table_name, column_name, data_type from information_schema.columns where table_schema='main' order by table_name, ordinal_position");
     const map = new Map<string, CatalogTable>();
@@ -197,7 +224,14 @@ export class DuckDbAdapter implements Adapter {
     }
     return [...map.values()];
   }
-  async close() { try { this.conn?.closeSync(); this.db?.closeSync(); } finally { this.conn = undefined; this.db = undefined; this.tables = []; } }
+  /** Closes for good: queued or in-flight opens discard their connection instead of publishing it; later calls fail with `closed`. */
+  async close() {
+    this.closed = true;
+    this.generation++;
+    const pending = this.opening;
+    try { this.conn?.closeSync(); this.db?.closeSync(); } finally { this.conn = undefined; this.db = undefined; this.tables = []; }
+    if (pending) await pending.catch(() => undefined);
+  }
 }
 
 /**
