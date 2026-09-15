@@ -1,3 +1,8 @@
 # The Finding is the product, not the harness or the context repo
 
 Every published data-agent system we studied (Ramp Research, Anthropic's self-service analytics, Snap's DS Agent, Macomber's post-AI stack) agrees the harness is a commodity and the moat is company context plus a feedback loop. None of them ships the last mile: a document with tables, numbers and charts that a non-data reader can act on. The one product that does (OpenAI's Data agent) is closed. aftergrid anchors on that gap: the deliverable is a **Finding** a Reader trusts, and skills, Checks, adapters and the Instance exist to produce it. We considered engine-first (a Matt Pocock-style skill set where the memo is one output) and context-first (an open company-context template); both would compete with well-funded internal systems on their strength and leave the reader-facing artifact as an afterthought.
+
+
+## Amended 2026-09-15, after independent review
+
+Two changes from CobaltSpring's review (`docs/design/independent-review-2026-09-15.md`, findings 1 and 8). First, "the last mile is open" is a hypothesis, not a fact: OpenAI's Data agent already covers follow-ups and shareable dashboards, so the claim narrows to an *open, portable, inspectable decision record*, under the working statement "turn recurring product questions into reviewed decisions your team can understand, inspect, and revisit." Second, the Reader is not a passive consumer. A Finding must let the Reader **understand** (who is counted, compared with what, over which period), **inspect** (the calculation, exclusions and evidence behind a sentence) and **continue** (ask a follow-up or record a decision) without SQL. In v0 follow-ups route through the Operator; no general chat surface.
