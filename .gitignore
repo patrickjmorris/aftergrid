@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 *.log
+
+# bv (beads viewer) local config and caches
+.bv/

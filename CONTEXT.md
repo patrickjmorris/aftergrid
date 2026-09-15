@@ -9,7 +9,7 @@ This glossary governs Engine and Instance docs and skill prose. Reader-facing co
 ### Work
 
 **Question**:
-The sharpened form of a raw ask: a decision to make, a metric, a population, a window and a falsifier. The falsifier is machine-checkable so a Revisit can evaluate it. Sharpening is the job of `/grill-question`; a raw ask is not rejected for lacking these.
+The sharpened form of a raw ask: a decision to make, a metric, a population, a window and a falsifier. For a completed evaluable Question the falsifier is machine-checkable so a Revisit can evaluate it; unresolved or not-answerable Questions explicitly retain that state instead of inventing a falsifier. Sharpening is the job of `/grill-question`; a raw ask is not rejected for lacking these.
 _Avoid_: request, ticket, ask
 
 **Analysis**:
@@ -89,10 +89,10 @@ _Avoid_: stakeholder, consumer, end user, audience
 - A **Question** has many **Analyses**; each **Analysis** produces one **Finding**
 - A chart in a **Finding** is the surviving **Variant** for its **Claim**
 - A **Finding** is made of **Claims**; each **Claim** is headed by a sentence, and a numeric **Claim** is backed by a chart or table
-- A **Finding** is publishable only when its **Checks** pass, its **Metric definitions** are approved, and its method review is recorded; these are shown as separate facts, never one badge
+- A **Finding** is publishable only when its required **Checks** pass, its published decision **Metric definitions** have verified approval, and its required method/human publication reviews are recorded against current content; these are shown as separate facts, never one badge
 - An **Analysis** runs against one **Snapshot**
-- Every number in a **Finding** resolves from an evidence reference: query execution, **Snapshot**, and a **Metric definition** or **Diagnostic calculation**
+- Every data-bearing value in a **Finding** resolves from a typed evidence reference: query execution, **Snapshot**, and a **Metric definition** or **Diagnostic calculation**, or an explicitly sourced target/assumption
 - A **Decision record** cites a **Finding** and enters the **Decision log**; merging a **Finding** does not create one
 - A **Revisit** of a **Finding** tests every **Decision record** that cites it
-- A **Golden Question** is a **Question** whose **Finding** is already known
+- A **Golden Question** has a reviewed expected answer or abstention with explicit evidence constraints and tolerances
 - The **Engine** operates on an **Instance**; the **Operator** owns both; the **Reader** understands, inspects and follows up on **Findings** without SQL
