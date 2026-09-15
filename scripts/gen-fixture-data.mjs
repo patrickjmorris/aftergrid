@@ -110,9 +110,93 @@ for (const u of users) {
 // "active at the change" population, so cohort-correct queries must not count its cancellation.
 subs.push({ subscription_id: "s_" + hex(++sid), user_id: users[users.length - 1].user_id, started_at: iso(PRICE_CHANGE + DAY + 3600000), canceled_at: iso(PRICE_CHANGE + 2 * DAY + 7200000), plan_price_cents: 1299 });
 
+// ============================================================================================================
+// Planted learning and failure fixtures (ag-synthetic-golden-nightly-5vm). Everything below uses a SECOND random
+// stream and only ADDS rows (or removes rows outside both exemplars' extracts), so the reviewed exemplars keep their
+// bytes. Each item is described, with its expected layer, in fixtures/instance/planted-effects.yaml.
+// ============================================================================================================
+const rnd2 = mulberry32(5150);
+const pick2 = (arr, weights) => { const r = rnd2(); let acc = 0; for (let i = 0; i < arr.length; i++) { acc += weights[i]; if (r < acc) return arr[i]; } return arr[arr.length - 1]; };
+const AUG = day("2026-08-01"), SEP = day("2026-09-01");
+const FUNNEL_BREAK = day("2026-08-24");   // first_habit_created stops firing on android (instrumentation, not behaviour)
+// New York calendar days start at 04:00Z in summer; planted day boundaries follow the analytical timezone.
+const NY = 4 * 3600000;
+const OUTAGE_FROM = day("2026-09-03") + NY, OUTAGE_TO = day("2026-09-06") + NY; // web events not ingested (coverage gap), exclusive end
+const LATE_DAY = day("2026-09-01") + NY;   // ios events of this NY day ingested five days late
+const DUP_DAY = day("2026-08-31") + NY;    // exact duplicate app_open rows on this NY day
+
+// (M) Mix shift: a paid promo in August brings extra web signups (acquisition channel "promo") who come back far less
+// often (p = 0.18) than organic users. Organic retention per platform is unchanged, so overall August retention falls
+// with no product change: the denominator changed, not the product. Recorded in the acquisition table.
+const augWeb = [];
+for (let d = AUG; d < SEP; d += DAY) {
+  const n = 14 + Math.floor(rnd2() * 8);
+  for (let i = 0; i < n; i++) {
+    uid += 1 + Math.floor(rnd2() * 3);
+    // Signups land inside the New York calendar day (UTC-4 in August), so the promo cohort is entirely August in $tz.
+    const u = { user_id: "u_" + hex(uid), signed_up_at: d + 5 * 3600000 + Math.floor(rnd2() * 19 * 3600000), platform: "web", onboarding_variant: d >= ROLLOUT ? "checklist" : "", country: pick2(["US", "GB", "CA", "DE", "AU"], [0.55, 0.15, 0.12, 0.1, 0.08]) };
+    users.push(u); augWeb.push(u);
+    ev(u, u.signed_up_at + Math.floor(rnd2() * 3600000));
+    if (rnd2() < 0.18) { const opens = 1 + Math.floor(rnd2() * 4); for (let k = 0; k < opens; k++) ev(u, u.signed_up_at + (1 + Math.floor(rnd2() * 6)) * DAY + Math.floor(rnd2() * 20 * 3600000)); }
+  }
+}
+
+// (F) Signup funnel for users signed up from August on: signup_completed for everyone, first_habit_created for ~62%
+// within two days, EXCEPT android users signed up on/after FUNNEL_BREAK, whose first_habit_created is never recorded.
+for (const u of users) {
+  if (u.signed_up_at < AUG) continue;
+  ev2(u, "signup_completed", u.signed_up_at + 60000);
+  const creates = rnd2() < 0.62;
+  const broken = u.platform === "android" && u.signed_up_at >= FUNNEL_BREAK;
+  if (creates && !broken) ev2(u, "first_habit_created", u.signed_up_at + Math.floor(rnd2() * 2 * DAY));
+}
+function ev2(u, event, ts) { if (ts < CAPTURE) events.push({ event_id: "e_" + hex(++eid), user_id: u.user_id, event, timestamp: ts }); }
+
+// (R) Referral campaign in September: only a dozen referred signups, far too few to evaluate.
+const referred = users.filter((u) => u.signed_up_at >= SEP).slice(0, 12);
+for (const u of referred) ev2(u, "referral_signup", u.signed_up_at + 30000);
+
+// (G) Coverage gap: web app_open events on OUTAGE days were never ingested (removed here, recorded in ingestion_log).
+const byUser = new Map(users.map((u) => [u.user_id, u]));
+const inOutage = (e) => e.event === "app_open" && byUser.get(e.user_id)?.platform === "web" && e.timestamp >= OUTAGE_FROM && e.timestamp < OUTAGE_TO;
+const removedByOutage = events.filter(inOutage).length;
+for (let i = events.length - 1; i >= 0; i--) if (inOutage(events[i])) events.splice(i, 1);
+
+// (D) Duplicates: every ios app_open on DUP_DAY appears twice with the same event_id (an ingestion replay).
+const dups = events.filter((e) => e.event === "app_open" && byUser.get(e.user_id)?.platform === "ios" && e.timestamp >= DUP_DAY && e.timestamp < DUP_DAY + DAY);
+for (const e of dups) events.push({ ...e });
+
+events.sort((a, b) => a.timestamp - b.timestamp || (a.event_id < b.event_id ? -1 : 1));
+
+// (L) Ingestion log: when each event became visible. Normal: within 10 minutes. ios events on LATE_DAY: five days late.
+const ingestion = [];
+{
+  const seen = new Set();
+  for (const e of events) {
+    if (seen.has(e.event_id)) continue; seen.add(e.event_id);
+    const late = byUser.get(e.user_id)?.platform === "ios" && e.timestamp >= LATE_DAY && e.timestamp < LATE_DAY + DAY;
+    const ingested_at = late ? LATE_DAY + 5 * DAY + 3600000 : e.timestamp + Math.floor(rnd2() * 600000);
+    if (ingested_at < CAPTURE) ingestion.push({ event_id: e.event_id, ingested_at: iso(ingested_at) });
+  }
+}
+
+// Acquisition channel per user: promo for the August web cohort, organic for everyone else.
+const promoIds = new Set(augWeb.map((u) => u.user_id));
+const acquisition = users.map((u) => ({ user_id: u.user_id, channel: promoIds.has(u.user_id) ? "promo" : "organic" }));
+
+// (Z) Platform dimension including a platform with no users at all, so a per-platform rate meets a zero denominator.
+const platforms = [{ platform: "ios", label: "iPhone app" }, { platform: "android", label: "Android app" }, { platform: "web", label: "Web" }, { platform: "tv", label: "TV app (launched 2026-09-20, no users in this data)" }];
+
 // ---- write CSV ----
-const csv = (rows, cols) => cols.join(",") + "\n" + rows.map((r) => cols.map((c) => r[c]).join(",")).join("\n") + "\n";
+// CSV policy (docs/contracts/checks-and-results.md): NULL is an empty unquoted field, an empty string is "", and any
+// field holding a quote, comma, CR or LF is quoted with doubled quotes. Existing tables carry no such values, so their
+// bytes are unchanged by this rule.
+const csvField = (v) => { if (v === null || v === undefined) return ""; const t = String(v); return t === "" && v !== "" ? "" : /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+const csv = (rows, cols) => cols.join(",") + "\n" + rows.map((r) => cols.map((c) => csvField(r[c])).join(",")).join("\n") + "\n";
+writeFileSync(join(OUT, "ingestion_log.csv"), csv(ingestion, ["event_id", "ingested_at"]));
+writeFileSync(join(OUT, "acquisition.csv"), csv(acquisition, ["user_id", "channel"]));
+writeFileSync(join(OUT, "platforms.csv"), csv(platforms, ["platform", "label"]));
 writeFileSync(join(OUT, "users.csv"), csv(users.map((u) => ({ ...u, signed_up_at: iso(u.signed_up_at) })), ["user_id", "signed_up_at", "platform", "onboarding_variant", "country"]));
 writeFileSync(join(OUT, "events.csv"), csv(events.map((e) => ({ ...e, timestamp: iso(e.timestamp) })), ["event_id", "user_id", "event", "timestamp"]));
 writeFileSync(join(OUT, "subscriptions.csv"), csv(subs, ["subscription_id", "user_id", "started_at", "canceled_at", "plan_price_cents"]));
-console.log(`users ${users.length}, events ${events.length}, subscriptions ${subs.length}, cancellations ${subs.filter((s) => s.canceled_at).length}`);
+console.log(`users ${users.length}, events ${events.length}, subscriptions ${subs.length}, cancellations ${subs.filter((s) => s.canceled_at).length}, august web extra ${augWeb.length}, outage removed ${removedByOutage}, duplicates ${dups.length}, ingestion rows ${ingestion.length}`);

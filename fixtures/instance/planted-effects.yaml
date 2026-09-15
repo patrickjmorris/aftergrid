@@ -1,0 +1,65 @@
+# Catalogue of everything deliberately planted in the synthetic warehouse (scripts/gen-fixture-data.mjs).
+# Each item names its layer: an engine category (`check` catches it mechanically), an analytical outcome (an honest
+# Analysis reaches it), or a review concern (a reviewer must say it in words). See docs/contracts/golden-questions.md.
+schema_version: 0.1.0
+items:
+  - id: checklist_experiment
+    kind: effect
+    description: Onboarding checklist randomised 50/50 for signups 2026-06-01..2026-07-12 (New York); raises 7-day retention on mobile (0.27 -> 0.38), not on web (0.30 -> 0.30). Full rollout from 2026-08-20.
+    layer: analytical_outcome
+    expected: answered; a causal Claim is supported because assignment was random; the platform split is exploratory.
+    golden: [onboarding_checklist_retention]
+  - id: price_change_partial_window
+    kind: effect
+    description: Monthly price 999 -> 1299 cents on 2026-09-08; data ends 2026-09-14, so seven days and about seventy cancellations exist against a policy minimum of 28 days and 300.
+    layer: analytical_outcome
+    expected: insufficient_data; the minimum_data Check fails as a business result (required=false), never as an engine error.
+    golden: [price_change_cancellations]
+  - id: excluded_cohort_subscription
+    kind: failure
+    description: One subscription (s_000006b5) starts after the price change and cancels the next day; it is not in the population active at the change.
+    layer: engine_category
+    expected: a cohort-correct query does not count it; a query without the cohort filter fails the reconciliation Check (check_failed).
+    golden: [price_change_cancellations]
+  - id: promo_mix_shift
+    kind: effect
+    description: A paid promo in August adds ~540 web signups (acquisition.channel = promo) whose 7-day retention is ~0.18 versus ~0.31 for organic users. Overall August retention falls ~5 points while organic retention per platform is unchanged.
+    layer: review_concern
+    expected: answered (retention did fall) with the material caveat that the denominator changed; a Finding that calls it a product regression, or that compares August to July without naming the promo cohort, fails method review. No mechanical Check fails; the numbers are right.
+    golden: [august_retention_drop]
+  - id: android_funnel_instrumentation_break
+    kind: failure
+    description: first_habit_created stops being recorded for android users signed up on/after 2026-08-24 (rate falls from ~0.64 to exactly 0); ios and web are unchanged. Nothing changed in behaviour.
+    layer: review_concern
+    expected: needs_reframing or insufficient_data; an exactly-zero rate on one platform while others hold is an instrumentation question for the owner, not a finding about users. A Finding asserting Android users stopped creating habits must not be produced.
+    golden: [android_habit_creation]
+  - id: duplicate_events
+    kind: failure
+    description: Every ios app_open on 2026-08-31 (New York) appears twice with the same event_id (an ingestion replay); 27 duplicate rows.
+    layer: engine_category
+    expected: an invariant Check on event_id uniqueness fails (check_failed) unless the query deduplicates by event_id; a count that does not deduplicate overstates opens.
+    golden: [ios_opens_end_of_august]
+  - id: zero_denominator_platform
+    kind: failure
+    description: platforms contains tv, a platform with no users at all.
+    layer: engine_category
+    expected: a per-platform rate joined to platforms meets a zero denominator; the derived value is not available (null), never 0 or infinity (derived on_zero_denominator).
+    golden: [ios_opens_end_of_august]
+  - id: late_arriving_events
+    kind: failure
+    description: ios app_open events of 2026-09-01 (New York) were ingested on 2026-09-06 (ingestion_log.ingested_at); every other event within ten minutes.
+    layer: review_concern
+    expected: a Finding generated before 2026-09-06 would have under-counted 2026-09-01; a Finding must state coverage as "events ingested by <captured_at>" and a Revisit must treat the refreshed count as new retained inputs, not a contradiction of the old one.
+    golden: [ios_opens_end_of_august]
+  - id: web_ingestion_outage
+    kind: failure
+    description: No web app_open events exist for 2026-09-03..2026-09-05 (New York); they were never ingested. ingestion_log has no rows for them either.
+    layer: review_concern
+    expected: a Finding about web usage in early September must state the coverage gap; a week-over-week comparison across the gap is not comparable. No mechanical Check can prove the absence is an outage rather than real behaviour.
+    golden: [web_usage_first_week_september]
+  - id: referral_campaign_tiny_sample
+    kind: failure
+    description: Only 12 referral_signup events exist (September).
+    layer: analytical_outcome
+    expected: insufficient_data; twelve users cannot support a retention comparison. A minimum_data Check fails as a business result.
+    golden: [referral_campaign]

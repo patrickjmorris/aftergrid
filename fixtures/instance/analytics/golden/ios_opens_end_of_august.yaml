@@ -1,0 +1,47 @@
+# Golden Question exercising engine-layer failures: duplicate rows, a zero denominator, and late-arriving events.
+schema_version: 0.1.0
+id: ios_opens_end_of_august
+raw_ask: How many times was the app opened on iPhone on August 31, and what share of iPhone users opened it?
+reader: product_owner
+planted: [duplicate_events, zero_denominator_platform, late_arriving_events]
+expected:
+  outcome: answered
+  claim_type: descriptive
+  definition_ids: []
+  tables_read: [events, users, platforms, ingestion_log]
+  values:
+    - { id: raw_rows, reference: opens_by_platform.ios.event_rows, value: 56, tolerance: 0, unit: count, population: iPhone app_open rows on 2026-08-31, window: 2026-08-31 New York, note: "the raw row count double-counts a replayed batch" }
+    - { id: distinct_opens, reference: opens_by_platform.ios.opens, value: 28, tolerance: 0, unit: events, population: distinct iPhone app_open events on 2026-08-31, window: same }
+    - { id: tv_share, reference: opens_by_platform.tv.share_of_users, value: null, tolerance: 0, unit: ratio, population: TV users (none exist), window: same, note: "zero denominator renders not available, never 0 or infinity" }
+    - { id: late_next_day, reference: late_ios_sep1.post.late_events, value: 25, tolerance: 0, unit: events, population: iPhone app_open events of 2026-09-01, window: 2026-09-01 New York, note: "all of them were ingested five days later" }
+  must_state:
+    - that duplicate rows were removed and how many distinct opens remain
+    - that the TV share is not available because no TV users exist
+    - what date the events were ingested by (coverage), since the following day's iPhone events arrived late
+  must_not:
+    - report 56 opens
+    - report the TV share as 0%
+  reasoning: The event table carries an ingestion replay for iPhone on August 31, so an invariant on event_id uniqueness fails unless the analysis deduplicates; this is an engine-layer fact (check_failed or a dedup step with a stated count). The platforms dimension includes tv with no users, so a per-platform share meets a zero denominator and must render as not available. Ingestion_log shows iPhone events of September 1 arrived five days late, so coverage must be stated as "ingested by" a date.
+constraints:
+  window: { start: "2026-08-31", end: "2026-09-01", timezone: America/New_York }
+  required_checks: [invariant]
+reference:
+  parameters: { tz: America/New_York }
+  queries:
+    - id: opens_by_platform
+      row_key: platform
+      sql: |
+        with e as (select e.event_id, u.platform from events e join users u using (user_id)
+                   where e.event = 'app_open' and cast(timezone($tz, e."timestamp"::timestamptz) as date) = date '2026-08-31'),
+        pu as (select platform, count(*) as users from users group by platform)
+        select p.platform, count(e.event_id) as event_rows, count(distinct e.event_id) as opens,
+               case when coalesce(pu.users, 0) = 0 then null else count(distinct e.event_id)::decimal(12,6) / pu.users end as share_of_users
+        from platforms p left join e on e.platform = p.platform left join pu on pu.platform = p.platform
+        group by p.platform, pu.users order by 1
+    - id: late_ios_sep1
+      row_key: period
+      sql: |
+        select 'post' as period, count(*) as events,
+               count(*) filter (where i.ingested_at::timestamptz > e."timestamp"::timestamptz + interval 1 day) as late_events
+        from events e join ingestion_log i using (event_id) join users u using (user_id)
+        where u.platform = 'ios' and e.event = 'app_open' and cast(timezone($tz, e."timestamp"::timestamptz) as date) = date '2026-09-01'

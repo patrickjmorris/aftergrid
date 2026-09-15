@@ -1,0 +1,34 @@
+# Golden Question exercising a coverage gap: the absence of data is not evidence of absence.
+schema_version: 0.1.0
+id: web_usage_first_week_september
+raw_ask: How did web usage look in the first week of September compared with the week before?
+reader: product_owner
+planted: [web_ingestion_outage]
+expected:
+  outcome: inconclusive
+  claim_type: descriptive
+  definition_ids: []
+  tables_read: [events, users, ingestion_log]
+  values:
+    - { id: sep_3, reference: web_opens_by_day.2026-09-03.opens, value: 0, tolerance: 0, unit: events, population: web app_open events, window: 2026-09-03 New York, note: "not one event, and none in ingestion_log either" }
+    - { id: sep_4, reference: web_opens_by_day.2026-09-04.opens, value: 0, tolerance: 0, unit: events, population: same, window: 2026-09-04 New York }
+    - { id: sep_5, reference: web_opens_by_day.2026-09-05.opens, value: 0, tolerance: 0, unit: events, population: same, window: 2026-09-05 New York }
+    - { id: sep_2, reference: web_opens_by_day.2026-09-02.opens, value: 23, tolerance: 0, unit: events, population: same, window: 2026-09-02 New York }
+  must_state:
+    - that no web events exist for September 3 to 5 and that this looks like missing data, not zero usage
+    - that a week-over-week comparison across the gap is not comparable
+  must_not:
+    - report a week-over-week drop as if the gap were real usage
+  reasoning: Three consecutive days with exactly zero web events, while other platforms continue and ingestion_log has nothing for those days, mean the data does not cover the week. The comparison is not comparable; the honest outcome is inconclusive with the gap stated and the owner asked to confirm the outage. No mechanical invariant can prove the zeros are an outage; that is a review concern.
+constraints:
+  window: { start: "2026-08-25", end: "2026-09-07", timezone: America/New_York }
+  population: web app_open events by day
+reference:
+  parameters: { tz: America/New_York }
+  queries:
+    - id: web_opens_by_day
+      row_key: d
+      sql: |
+        with days as (select unnest(generate_series(date '2026-08-25', date '2026-09-07', interval 1 day))::date as d),
+        e as (select cast(timezone($tz, e."timestamp"::timestamptz) as date) as d from events e join users u using (user_id) where u.platform = 'web' and e.event = 'app_open')
+        select strftime(days.d, '%Y-%m-%d') as d, count(e.d) as opens from days left join e on e.d = days.d group by days.d order by days.d

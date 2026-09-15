@@ -1,0 +1,29 @@
+# Golden Question with an expected abstention: a dozen users cannot support a comparison.
+schema_version: 0.1.0
+id: referral_campaign
+raw_ask: Do users who joined through the September referral campaign stick around better than other new users?
+reader: product_owner
+planted: [referral_campaign_tiny_sample]
+expected:
+  outcome: insufficient_data
+  claim_type: descriptive
+  definition_ids: [retained_7d]
+  tables_read: [events, users]
+  values:
+    - { id: referred_users, reference: referred.post.referred_users, value: 12, tolerance: 0, unit: users, population: users with a referral_signup event, window: September 2026 New York }
+  must_state:
+    - how many referred users exist and why that is too few to compare
+    - what would be needed before the comparison can be made
+  must_not:
+    - report a retention rate for twelve users as evidence either way
+  reasoning: Twelve referred users, several of whom have not had seven days since signup at capture, cannot support a retention comparison; a minimum_data Check fails as a business result and the Finding says so.
+constraints:
+  data_to: "2026-09-14"
+  required_checks: [minimum_data]
+reference:
+  parameters: { tz: America/New_York }
+  queries:
+    - id: referred
+      row_key: period
+      sql: |
+        select 'post' as period, count(distinct user_id) as referred_users from events where event = 'referral_signup'

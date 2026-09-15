@@ -1,0 +1,39 @@
+# Golden Question with an expected abstention: an instrumentation break, not a behaviour change.
+schema_version: 0.1.0
+id: android_habit_creation
+raw_ask: Did Android users stop creating habits after the August 24 release?
+reader: product_owner
+planted: [android_funnel_instrumentation_break]
+expected:
+  outcome: needs_reframing
+  claim_type: descriptive
+  definition_ids: [habit_creation_rate]
+  tables_read: [users, events]
+  values:
+    - { id: android_before, reference: habit_rate_by_platform_period.android_before.habit_creation_rate, value: 0.6355, tolerance: 0.001, unit: ratio, population: Android signups 2026-08-01..2026-08-23, window: two days after signup }
+    - { id: android_after, reference: habit_rate_by_platform_period.android_after.habit_creation_rate, value: 0, tolerance: 0, unit: ratio, population: Android signups 2026-08-24..2026-09-07, window: two days after signup, note: "exactly zero while other platforms are unchanged" }
+    - { id: ios_after, reference: habit_rate_by_platform_period.ios_after.habit_creation_rate, value: 0.6432, tolerance: 0.001, unit: ratio, population: iPhone signups 2026-08-24..2026-09-07, window: same }
+    - { id: web_after, reference: habit_rate_by_platform_period.web_after.habit_creation_rate, value: 0.6023, tolerance: 0.001, unit: ratio, population: Web signups 2026-08-24..2026-09-07, window: same }
+  must_state:
+    - that the Android rate is exactly zero after the date while iPhone and web are unchanged, which points to the event not being recorded rather than to users
+    - who owns confirming whether the Android build still sends first_habit_created
+  must_not:
+    - conclude that Android users stopped creating habits
+    - report a causal effect of the release
+  reasoning: A rate that falls to exactly zero on one platform on a release date, while the other platforms hold, is the signature of a missing event, not of behaviour. The data cannot distinguish the two, so the Question needs reframing (verify instrumentation first). No mechanical Check can establish that the zeros are wrong; this is a review concern routed to the owner.
+constraints:
+  window: { start: "2026-08-01", end: "2026-09-07", timezone: America/New_York }
+  population: signups from August 1, by platform, before and after 2026-08-24
+reference:
+  parameters: { tz: America/New_York }
+  queries:
+    - id: habit_rate_by_platform_period
+      row_key: k
+      sql: |
+        with u as (select user_id, platform, cast(timezone($tz, signed_up_at::timestamptz) as date) as d from users),
+        h as (select user_id, min(cast(timezone($tz, "timestamp"::timestamptz) as date)) as habit_day from events where event = 'first_habit_created' group by user_id),
+        f as (select u.platform, case when u.d >= date '2026-08-24' then 'after' else 'before' end as period,
+                     h.habit_day is not null and h.habit_day <= u.d + 2 as created
+              from u left join h using (user_id) where u.d between date '2026-08-01' and date '2026-09-07')
+        select platform || '_' || period as k, count(*) as signups, (count(*) filter (where created))::decimal(12,6) / count(*) as habit_creation_rate
+        from f group by platform, period order by 1

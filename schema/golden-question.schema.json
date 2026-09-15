@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftergrid.dev/schema/golden-question/0.1.0",
+  "title": "aftergrid Golden Question",
+  "description": "A reference case: a Question with a reviewed expected answer within tolerances, or an expected abstention, plus the evidence constraints an honest Analysis must respect. Evaluated by the nightly eval; never a merge gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "raw_ask", "reader", "expected", "constraints", "reference"],
+  "properties": {
+    "schema_version": { "const": "0.1.0" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "raw_ask": { "type": "string", "minLength": 1 },
+    "reader": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "planted": { "type": "array", "items": { "type": "string" }, "description": "Ids from planted-effects.yaml this Question exercises." },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "definition_ids", "tables_read", "reasoning"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["answered", "inconclusive", "insufficient_data", "needs_reframing"] },
+        "definition_ids": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, "description": "Definitions an honest Analysis must cite (any version)." },
+        "tables_read": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } },
+        "claim_type": { "type": "string", "enum": ["descriptive", "associational", "causal"], "description": "Strongest Claim type the evidence supports for the answer-bearing Claim." },
+        "values": {
+          "type": "array",
+          "description": "Reference values with tolerance; each names the reference query and row/column that produces it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "reference", "value", "tolerance", "unit", "population", "window"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+              "reference": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}\\.[A-Za-z0-9_-]{1,64}\\.[a-z][a-z0-9_]{0,63}$", "description": "<reference query id>.<row key>.<column>" },
+              "value": { "type": ["number", "string", "null"] },
+              "tolerance": { "type": "number", "minimum": 0 },
+              "unit": { "type": "string" },
+              "population": { "type": "string", "minLength": 1 },
+              "window": { "type": "string", "minLength": 1 },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "must_state": { "type": "array", "items": { "type": "string" }, "description": "Caveats or facts the Finding must state in Reader-level words (judged by the reviewer, not lint)." },
+        "must_not": { "type": "array", "items": { "type": "string" }, "description": "Conclusions the evidence does not support and the Finding must not draw." },
+        "reasoning": { "type": "string", "minLength": 1 }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "window": { "type": "object", "additionalProperties": false, "required": ["start", "end", "timezone"], "properties": { "start": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, "end": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, "timezone": { "type": "string" } } },
+        "population": { "type": "string" },
+        "data_to": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "required_checks": { "type": "array", "items": { "type": "string", "enum": ["invariant", "reconciliation", "minimum_data", "falsifier"] } }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queries"],
+      "description": "Independently inspectable calculations. Each query runs against the fixture warehouse tables with named parameters; its rows are keyed by row_key.",
+      "properties": {
+        "parameters": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+        "queries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "row_key", "sql"],
+            "properties": { "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, "row_key": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, "sql": { "type": "string", "minLength": 1 } }
+          }
+        }
+      }
+    }
+  }
+}

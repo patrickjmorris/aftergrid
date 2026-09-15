@@ -1,0 +1,44 @@
+# Golden Question testing denominator and baseline reasoning: the overall rate fell because the population changed.
+schema_version: 0.1.0
+id: august_retention_drop
+raw_ask: Retention dropped in August. What happened?
+reader: product_owner
+planted: [promo_mix_shift]
+expected:
+  outcome: answered
+  claim_type: descriptive
+  definition_ids: [retained_7d]
+  tables_read: [users, events, acquisition]
+  values:
+    - { id: july_all, reference: retention_by_month_channel.jul_all.retained_7d_rate, value: 0.3163, tolerance: 0.001, unit: ratio, population: all July signups, window: signups 2026-07-01..2026-07-31 New York }
+    - { id: august_all, reference: retention_by_month_channel.aug_all.retained_7d_rate, value: 0.2540, tolerance: 0.001, unit: ratio, population: all August signups, window: signups 2026-08-01..2026-08-31 New York }
+    - { id: august_organic, reference: retention_by_month_channel.aug_organic.retained_7d_rate, value: 0.3118, tolerance: 0.001, unit: ratio, population: August signups from the organic channel, window: same, note: "within noise of July; the product did not get worse" }
+    - { id: august_promo, reference: retention_by_month_channel.aug_promo.retained_7d_rate, value: 0.1531, tolerance: 0.001, unit: ratio, population: August signups from the paid promo, window: same }
+    - { id: promo_share, reference: retention_by_month_channel.aug_promo.signups, value: 542, tolerance: 0, unit: users, population: August promo signups, window: same, note: "about a third of August signups" }
+  must_state:
+    - that overall retention fell, and by roughly how much
+    - that the denominator changed (a third of August signups came from a promo) and that organic retention is unchanged
+    - which comparison is being made (August vs July, all signups vs organic only)
+  must_not:
+    - call the drop a product regression or attribute it to a release
+    - compare August to July without naming the promo cohort
+  reasoning: Overall 7-day retention fell about six points from July to August, but organic retention by channel is unchanged within noise; the drop is a denominator change from a paid promo whose users retain at about half the organic rate. This is a mix shift, a review concern; the numbers are right and no mechanical Check fails. The honest Finding states the baseline and the changed population, and does not attribute the fall to the product.
+constraints:
+  window: { start: "2026-07-01", end: "2026-08-31", timezone: America/New_York }
+  population: all signups in July and August, split by acquisition channel
+  required_checks: [invariant, reconciliation]
+reference:
+  parameters: { tz: America/New_York }
+  queries:
+    - id: retention_by_month_channel
+      row_key: k
+      sql: |
+        with c as (select u.user_id, q.channel, cast(timezone($tz, signed_up_at::timestamptz) as date) as d from users u join acquisition q using (user_id)),
+        o as (select user_id, cast(timezone($tz, "timestamp"::timestamptz) as date) as od from events where event = 'app_open'),
+        f as (select c.channel, c.d, exists (select 1 from o where o.user_id = c.user_id and o.od between c.d + 1 and c.d + 7) as r from c
+              where c.d between date '2026-07-01' and date '2026-08-31'),
+        m as (select case when d >= date '2026-08-01' then 'aug' else 'jul' end as month, channel, r from f)
+        select month || '_' || channel as k, count(*) as signups, (count(*) filter (where r))::decimal(12,6) / count(*) as retained_7d_rate from m group by month, channel
+        union all
+        select month || '_all', count(*), (count(*) filter (where r))::decimal(12,6) / count(*) from m group by month
+        order by 1
