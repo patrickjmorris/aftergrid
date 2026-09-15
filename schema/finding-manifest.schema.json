@@ -336,7 +336,11 @@
                 }
               }
             }
-          ]
+          ],
+          "discriminator": {
+            "propertyName": "kind"
+          },
+          "type": "object"
         },
         "unresolved": {
           "type": "array",
@@ -1564,7 +1568,11 @@
           },
           "description": "A note with no trusted source. Never counts toward publication readiness; kept so that a forged or informal approval is visible and rejected, not hidden."
         }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "type"
+      },
+      "type": "object"
     },
     "recheck_policy": {
       "oneOf": [
@@ -1754,7 +1762,11 @@
             }
           }
         }
-      ]
+      ],
+      "discriminator": {
+        "propertyName": "mode"
+      },
+      "type": "object"
     },
     "claim": {
       "type": "object",

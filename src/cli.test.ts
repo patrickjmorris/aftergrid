@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, cpSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -134,6 +134,7 @@ function exemplarCopy(): string {
   const src = new URL("../fixtures/instance/", import.meta.url).pathname;
   const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
   cpSync(src, root, { recursive: true });
+  rmSync(join(root, "analytics", "decisions"), { recursive: true, force: true }); // copies get mutated; Decision bindings would rightly fail
   return join(root, "analytics", "findings", "2026-07-20-onboarding-checklist-retention");
 }
 function repin(dir: string, manifest: any) {

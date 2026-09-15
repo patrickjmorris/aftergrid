@@ -9,6 +9,8 @@ import { parse as parseYaml } from "yaml";
 // @ts-ignore: shared ESM validation library.
 import { validateFinding } from "../../scripts/lib/validate-finding.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
+import { findInstance } from "../instance.ts";
+import { validateDecisionsFor } from "../decisions.ts";
 
 const REPO_ROOT = resolve(new URL("../../", import.meta.url).pathname);
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun" };
@@ -45,6 +47,15 @@ export function check(opts: CheckOptions): Report {
     report.content = "complete";
   }
 
+  // Decision records that cite this Finding must bind to it exactly (ADR 0009 schema, v0).
+  if (manifest) {
+    const inst = findInstance(dir);
+    if (inst) {
+      const dc = validateDecisionsFor(inst.root, manifest);
+      report.errors.push(...dc.errors); report.warnings.push(...dc.warnings);
+      if (dc.records) report.info.push(`${dc.records} Decision record(s) cite this Finding; bindings checked, revisit conditions not evaluated`);
+    }
+  }
   report.evidence = report.errors.length ? "invalid" : "valid";
   report.sql_execution = "not_performed";
   if (out.recordedCheckOutcomes) report.info.push("recorded Check outcomes (history, not re-executed): " + Object.entries(out.recordedCheckOutcomes).map(([k, v]) => `${k}=${v}`).join(", "));

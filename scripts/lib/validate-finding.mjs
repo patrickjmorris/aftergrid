@@ -52,7 +52,7 @@ export function digestOf(manifest, dir) {
 
 /** JSON Schema problems for a manifest, as report entries. Empty when valid. */
 export function schemaErrors(manifest, repoRoot) {
-  const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv);
+  const ajv = new Ajv2020({ allErrors: true, strict: false, discriminator: true }); addFormats(ajv);
   const schema = JSON.parse(readFileSync(join(repoRoot, "schema/finding-manifest.schema.json"), "utf8"));
   if (ajv.validate(schema, manifest)) return [];
   return ajv.errors.map((e) => ({ category: "schema", location: "manifest.yaml#" + e.instancePath, message: e.message + (e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues) : ""), remedy: "fix the manifest against schema/finding-manifest.schema.json" }));
@@ -329,7 +329,8 @@ function validateMemo(manifest, results) {
   for (const ck of manifest.checks) {
     if (ck.outcome === "error") err("check_error", ck.path, "recorded SQL error is not an analytical outcome", "fix and rerun the Check");
     if (ck.required && ck.outcome !== "pass") { err("check_failed", `checks/${ck.id}`, `required Check ${ck.id} outcome ${ck.outcome}`, "fix the analysis or the Check"); }
-    if (ck.kind === "falsifier" && manifest.finding.outcome === "answered" && ck.outcome !== ck.expected_outcome) err("falsifier", `checks/${ck.id}`, `falsifier outcome ${ck.outcome}, expected ${ck.expected_outcome}`, "the Answer is contradicted by its own falsifier");
+    // A falsifier's business result (pass/fail/not_run) is a different kind of fact from an engine failure (error).
+    if (ck.kind === "falsifier" && ck.outcome !== "error" && manifest.finding.outcome === "answered" && ck.outcome !== ck.expected_outcome) err("falsifier", `checks/${ck.id}`, `falsifier outcome ${ck.outcome}, expected ${ck.expected_outcome}`, "the Answer is contradicted by its own falsifier");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && manifest.finding.outcome !== "insufficient_data") warn("minimum_data", `checks/${ck.id}`, "minimum-data Check failed but outcome is not insufficient_data");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && !ck.required) report.info.push(`minimum-data Check ${ck.id} failed: a business result, not an engine failure`);
   }
