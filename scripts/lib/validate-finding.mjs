@@ -5,6 +5,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { safePath, validateStructure, validateResult, calculate } from "../fixture-safety.mjs";
 import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -67,7 +68,7 @@ const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked",
  */
 export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
   const DIR = dir;
-  const REPO = repoRoot ?? join(dirname(new URL(import.meta.url).pathname), "..", "..");
+  const REPO = repoRoot ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const report = { errors: [], warnings: [], info: [] };
   const err = (category, location, message, remedy) => report.errors.push({ category, location, message, remedy });
   const warn = (category, location, message) => report.warnings.push({ category, location, message });

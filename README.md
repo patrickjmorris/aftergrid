@@ -6,7 +6,7 @@ Pre-release. Nothing is published to npm yet.
 
 ## Run the CLI from source
 
-Requires Node 22.6 or newer (TypeScript type stripping; Node 24 recommended) and pnpm. No native compiler: DuckDB ships prebuilt.
+Requires Node 22.18 or newer, or Node 24 or newer (TypeScript type stripping is on by default from those versions), and pnpm. No native compiler: DuckDB ships prebuilt.
 
 ```bash
 pnpm install

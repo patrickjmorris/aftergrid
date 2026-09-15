@@ -5,14 +5,17 @@
 // ag-duckdb-execute-check-ypl and is reported as not performed until it lands.
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 // @ts-ignore: shared ESM validation library.
 import { validateFinding } from "../../scripts/lib/validate-finding.mjs";
+// @ts-ignore: shared path containment.
+import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
 import { validateDecisionsFor } from "../decisions.ts";
 
-const REPO_ROOT = resolve(new URL("../../", import.meta.url).pathname);
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun" };
 
 export function check(opts: CheckOptions): Report {
@@ -22,17 +25,24 @@ export function check(opts: CheckOptions): Report {
     report.errors.push({ category: "missing_file", location: join(dir, "manifest.yaml"), message: "manifest.yaml not found", remedy: "pass a Finding directory" });
     report.syntax = "invalid"; return report;
   }
+  if (opts.mode === "rerun") {
+    report.errors.push({ category: "not_implemented", location: "--mode rerun", message: "retained-input rerun is not implemented in this revision (ag-duckdb-execute-check-ypl)", remedy: "use --mode artifact, or scripts/fixture-tool.mjs build for fixtures" });
+    return report;
+  }
   const out = validateFinding(dir, { repoRoot: REPO_ROOT });
   report.errors.push(...(out.errors as Problem[]));
   report.warnings.push(...(out.warnings as Problem[]));
   report.info.push(...(out.info as string[]));
-  report.syntax = report.errors.some((e) => e.category === "schema" || (e.category === "invalid_artifact" && /YAML|parse/i.test(e.message))) ? "invalid" : "ok";
+  const STOP = new Set(["schema", "invalid_artifact", "unsafe_path", "path_collision", "duplicate_id", "syntax"]);
+  report.syntax = report.errors.some((e) => e.category === "schema" || e.category === "syntax" || (e.category === "invalid_artifact" && /YAML|parse/i.test(e.message))) ? "invalid" : "ok";
   if (out.finding) { report.finding = out.finding; report.state = out.state; report.outcome = out.outcome; }
-  if (report.syntax === "invalid") return report;
+  // After a structural rejection nothing further is read from the directory.
+  if (report.errors.some((e) => STOP.has(e.category))) { report.readiness = "not_ready"; report.readiness_reasons.push("structural errors"); return report; }
 
-  // Content completeness: what a draft still lacks, named, never invented.
+  // Content completeness: what a draft still lacks, named, never invented. Reads go through safePath only.
   let manifest: any = null;
-  try { manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8")); } catch { /* reported above */ }
+  try { manifest = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8")); }
+  catch (e) { report.errors.push({ category: e instanceof ContractError ? (e as any).category : "invalid_artifact", location: "manifest.yaml", message: (e as Error).message }); return report; }
   if (manifest && manifest.finding.state !== "complete") {
     const missing: string[] = [];
     if (manifest.question?.state !== "resolved") missing.push(`question unresolved: ${(manifest.question?.unresolved ?? []).join(", ") || "unspecified"}`);
@@ -40,7 +50,7 @@ export function check(opts: CheckOptions): Report {
     if (!manifest.snapshot?.inputs?.length) missing.push("no retained inputs");
     if (!manifest.executions?.length) missing.push("no executions");
     for (const n of manifest.finding.needs_input ?? []) missing.push(`needs input (${n.kind}, owner ${n.owner}): ${n.description}`);
-    if (existsSync(join(dir, "memo.md")) && /_Not written yet\._/.test(readFileSync(join(dir, "memo.md"), "utf8"))) missing.push("memo sections not written");
+    try { const mp = safePath(dir, "memo.md"); if (existsSync(mp) && /_Not written yet\._/.test(readFileSync(mp, "utf8"))) missing.push("memo sections not written"); } catch { /* an unsafe memo path was already rejected above */ }
     report.content = "incomplete";
     for (const m of missing) report.warnings.push({ category: "incomplete", location: "manifest.yaml", message: m });
   } else if (manifest) {
@@ -59,7 +69,6 @@ export function check(opts: CheckOptions): Report {
   report.evidence = report.errors.length ? "invalid" : "valid";
   report.sql_execution = "not_performed";
   if (out.recordedCheckOutcomes) report.info.push("recorded Check outcomes (history, not re-executed): " + Object.entries(out.recordedCheckOutcomes).map(([k, v]) => `${k}=${v}`).join(", "));
-  if (opts.mode === "rerun") report.info.push("rerun mode requested: SQL re-execution is owned by ag-duckdb-execute-check-ypl; nothing was executed");
   report.readiness = (out.readiness as Report["readiness"]) ?? "not_ready";
   report.readiness_reasons.push(...((out.reasons as string[]) ?? []));
   if (manifest && manifest.finding.state !== "complete" && !report.readiness_reasons.includes("not complete")) report.readiness_reasons.unshift("not complete");

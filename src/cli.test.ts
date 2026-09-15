@@ -1,12 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, cpSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, cpSync, rmSync, symlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { newFinding } from "./commands/new-finding.ts";
 import { check } from "./commands/check.ts";
 import { FINDING_ID_RE, toId } from "./ids.ts";
+import { exitCodeFor } from "./report.ts";
 import { canon, contentDigest, sha256 } from "./digest.ts";
 // @ts-ignore: shared ESM validation library.
 import { digestOf } from "../scripts/lib/validate-finding.mjs";
@@ -106,7 +109,7 @@ test("digest is order-independent and matches the contract shape", () => {
 
 test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL not executed", () => {
   for (const f of ["2026-07-20-onboarding-checklist-retention", "2026-09-15-price-change-cancellations"]) {
-    const r = check({ dir: new URL(`../fixtures/instance/analytics/findings/${f}/`, import.meta.url).pathname });
+    const r = check({ dir: fileURLToPath(new URL(`../fixtures/instance/analytics/findings/${f}/`, import.meta.url)) });
     assert.equal(r.syntax, "ok", JSON.stringify(r.errors));
     assert.equal(r.content, "complete");
     assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
@@ -116,7 +119,7 @@ test("exemplar fixtures pass check: complete, evidence valid, never ready, SQL n
 });
 
 test("check fails an exemplar copy with a tampered result and a bad reference, with categories and locations", () => {
-  const src = new URL("../fixtures/instance/", import.meta.url).pathname;
+  const src = fileURLToPath(new URL("../fixtures/instance/", import.meta.url));
   const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
   cpSync(src, root, { recursive: true });
   const dir = join(root, "analytics", "findings", "2026-07-20-onboarding-checklist-retention");
@@ -131,7 +134,7 @@ test("check fails an exemplar copy with a tampered result and a bad reference, w
 });
 
 function exemplarCopy(): string {
-  const src = new URL("../fixtures/instance/", import.meta.url).pathname;
+  const src = fileURLToPath(new URL("../fixtures/instance/", import.meta.url));
   const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
   cpSync(src, root, { recursive: true });
   rmSync(join(root, "analytics", "decisions"), { recursive: true, force: true }); // copies get mutated; Decision bindings would rightly fail
@@ -178,4 +181,29 @@ test("duplicate row keys and invalid identifier grammar fail with precise catego
   const r2 = check({ dir: dir2 });
   assert.equal(r2.syntax, "invalid");
   assert.ok(r2.errors.some((e) => e.category === "schema" && e.location === "manifest.yaml#/claims/0/id"), JSON.stringify(r2.errors));
+});
+
+test("--mode rerun is a structured not_implemented error with exit code 3; a mode typo is a usage error", () => {
+  const dir = fileURLToPath(new URL("../fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/", import.meta.url));
+  const r = check({ dir, mode: "rerun" });
+  assert.equal(r.errors[0]?.category, "not_implemented");
+  assert.equal(exitCodeFor(r), 3);
+  const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+  const typo = spawnSync(process.execPath, [cli, "check", dir, "--mode", "rerunn"], { encoding: "utf8" });
+  assert.equal(typo.status, 2);
+  const rerun = spawnSync(process.execPath, [cli, "check", dir, "--mode", "rerun", "--json"], { encoding: "utf8" });
+  assert.equal(rerun.status, 3);
+  assert.equal(JSON.parse(rerun.stdout).errors[0].category, "not_implemented");
+});
+
+test("the CLI and the validator work from a relocated checkout whose path has spaces and percent signs", () => {
+  const here = fileURLToPath(new URL("../", import.meta.url));
+  const root = join(mkdtempSync(join(tmpdir(), "ag reloc ")), "repo %41 copy");
+  mkdirSync(root, { recursive: true });
+  for (const d of ["schema", "scripts", "src", "fixtures", "package.json"]) cpSync(join(here, d), join(root, d), { recursive: true });
+  symlinkSync(join(here, "node_modules"), join(root, "node_modules"));
+  const dir = join(root, "fixtures", "instance", "analytics", "findings", "2026-07-20-onboarding-checklist-retention");
+  const r = spawnSync(process.execPath, [join(root, "src", "cli.ts"), "check", dir, "--json"], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(JSON.parse(r.stdout).evidence, "valid");
 });

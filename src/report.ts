@@ -42,4 +42,5 @@ export function formatHuman(r: Report): string {
 }
 
 /** Exit codes: 0 clean, 1 errors found, 2 usage or refused action, 3 not implemented. */
-export const exitCodeFor = (r: Report): number => (r.errors.some((e) => e.category === "exists") ? 2 : r.errors.length ? 1 : 0);
+export const exitCodeFor = (r: Report): number =>
+  r.errors.some((e) => e.category === "not_implemented") ? 3 : r.errors.some((e) => e.category === "exists") ? 2 : r.errors.length ? 1 : 0;

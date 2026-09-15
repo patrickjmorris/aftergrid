@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, cpSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { check } from "./commands/check.ts";
 // @ts-ignore: shared ESM validation library.
@@ -14,10 +15,10 @@ const INSUFFICIENT = "2026-09-15-price-change-cancellations";
 
 function copyInstance(): string {
   const root = mkdtempSync(join(tmpdir(), "ag-rb8-"));
-  cpSync(new URL("../fixtures/instance/", import.meta.url).pathname, root, { recursive: true });
+  cpSync(fileURLToPath(new URL("../fixtures/instance/", import.meta.url)), root, { recursive: true });
   return root;
 }
-const PRISTINE = new URL("../fixtures/instance/analytics/findings/", import.meta.url).pathname;
+const PRISTINE = fileURLToPath(new URL("../fixtures/instance/analytics/findings/", import.meta.url));
 function mutate(root: string, finding: string, fn: (m: any) => void, opts: { repin?: boolean } = { repin: true }) {
   const dir = join(root, "analytics", "findings", finding);
   rmSync(join(root, "analytics", "decisions"), { recursive: true, force: true }); // mutated content would rightly break Decision bindings
