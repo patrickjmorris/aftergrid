@@ -1,0 +1,3 @@
+# Engine and Instance are separate repositories; nouns never live in skills
+
+aftergrid (the Engine) is public and holds only verbs: skills, Checks, adapters, the CLI. Each team's nouns — Metric definitions, table docs, Decision log, golden Questions, Findings — live in a private Instance (for Spot Sports, `spot_sports/analytics/`, colocated with schema and CI). A skill count near 15, hard ceiling under 50, follows from this: Snap reached ~250 skills partly because table and domain facts became skills. A pattern enters the Engine only after it has worked in an Instance. The alternative, one repo with a `private/` folder, would leak Spot Sports schema into the open-source history and make "what is generic?" a per-commit judgement.
