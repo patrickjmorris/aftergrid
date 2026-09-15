@@ -2,6 +2,8 @@
 // results[].content_hash commits to; two runs of the same SQL on the same retained inputs produce identical bytes.
 import type { ExecuteResult } from "./contract.ts";
 import { AdapterError } from "./contract.ts";
+// @ts-ignore: the shared decimal contract (finite decimal or exponent notation).
+import { decimal as sharedDecimal } from "../../scripts/fixture-safety.mjs";
 
 export type DeclaredColumn = { name: string; type: "integer" | "decimal" | "text" | "date" | "timestamp" | "boolean"; nullable?: boolean };
 
@@ -16,7 +18,7 @@ export function coerceCell(v: unknown, type: DeclaredColumn["type"], location: s
   if (type === "boolean") { if (typeof v !== "boolean") throw new AdapterError("value_type", "expected SQL boolean", location); return v; }
   if (type === "decimal") {
     const s = String(v);
-    if (!/^-?[0-9]+(\.[0-9]+)?$/.test(s)) throw new AdapterError("value_type", `decimal column holds '${s}'`, location);
+    try { sharedDecimal(s); } catch { throw new AdapterError("value_type", `decimal column holds '${s}'`, location); }
     return s;
   }
   return String(v);

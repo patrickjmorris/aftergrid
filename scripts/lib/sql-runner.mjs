@@ -39,7 +39,7 @@ export async function openRetainedDatabase(baseDir, inputs, limits = DEFAULT_LIM
     await applyLimits(c, limits);
     for (const inp of inputs) {
       if (inp.kind !== "extract") fail("not_implemented", inp.id, `retained input kind ${inp.kind} is not supported for rerun yet`);
-      await c.run(`create table "${inp.id}" as select * from read_csv(${sqlString(safePath(baseDir, inp.path))}, header=true, all_varchar=true)`);
+      await c.run(`create table ${identifier(inp.id)} as select * from read_csv(${sqlString(safePath(baseDir, inp.path))}, ${CSV_READ_OPTIONS})`);
     }
     await sealConnection(c);
     return { c, close: () => { c.closeSync(); db.closeSync(); } };
@@ -85,9 +85,30 @@ export async function runSelect(c, sql, params, { timeoutMs = DEFAULT_LIMITS.sta
 
 /** '2026-01-02 03:04:05+00' from a UTC microsecond instant (fractional seconds kept only when non-zero). */
 export function utcText(micros) {
-  const ms = Number(micros / 1000n); const frac = Number(micros % 1000000n);
-  const base = new Date(ms).toISOString().slice(0, 19).replace("T", " ");
+  micros = BigInt(micros);
+  if (micros >= 9223372036854775807n) return "infinity"; if (micros <= -9223372036854775807n) return "-infinity";
+  // Floor division so instants before the epoch keep a non-negative microsecond remainder.
+  let seconds = micros / 1000000n; let frac = micros % 1000000n;
+  if (frac < 0n) { frac += 1000000n; seconds -= 1n; }
+  const base = new Date(Number(seconds) * 1000).toISOString().slice(0, 19).replace("T", " ");
   return frac ? `${base}.${String(frac).padStart(6, "0").replace(/0+$/, "")}+00` : `${base}+00`;
+}
+
+/** Lossless CSV policy for retained extracts: NULL is an empty unquoted field; an empty string is "" (quoted). */
+export const CSV_READ_OPTIONS = "header=true, all_varchar=true, nullstr='', allow_quoted_nulls=false, quote='\"', escape='\"', delim=','";
+export function csvField(v) {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  return s === "" || /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+export function csvText(names, rows) {
+  const line = (vals) => vals.map(csvField).join(",");
+  return line(names) + "\n" + rows.map((row) => line(names.map((n) => row[n]))).join("\n") + (rows.length ? "\n" : "");
+}
+/** Only conservative identifiers are ever interpolated into SQL, always double-quoted. */
+export function identifier(name) {
+  if (typeof name !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(name)) fail("unsafe_identifier", String(name), "table names must match ^[a-z][a-z0-9_]{0,63}$");
+  return '"' + name + '"';
 }
 
 /** Outcome of a Check result set: pass | fail | not_run, or a check_shape ContractError. */

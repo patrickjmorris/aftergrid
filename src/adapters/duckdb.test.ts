@@ -107,3 +107,51 @@ test("a READ_ONLY DuckDB file source refuses writes at the engine, independent o
   assert.equal((await a.probePrivileges()).status, "unsupported");
   await a.close();
 });
+
+test("both source kinds are sealed: external file reads are refused, and a failed open never leaks an unsealed connection", async () => {
+  const sentinel = join(mkdtempSync(join(tmpdir(), "ag-sent-")), "sentinel.txt"); writeFileSync(sentinel, "secret");
+  const { DuckDBInstance } = await import("@duckdb/node-api");
+  const file = join(mkdtempSync(join(tmpdir(), "ag-db-")), "w.duckdb");
+  const db = await DuckDBInstance.create(file); const c = await db.connect(); await c.run("create table s as select 1 as v"); c.closeSync(); db.closeSync();
+  for (const a of [new DuckDbAdapter({ source: { kind: "duckdb_file", path: file } }), adapter(scratchWarehouse())]) {
+    await assert.rejects(a.execute(`select content from read_text('${sentinel}')`, {}), (e: any) => ["sql_error", "sql_policy", "admission"].includes(e.category), "external read must be refused");
+    await a.close();
+  }
+  const broken = new DuckDbAdapter({ source: { kind: "csv_dir", path: join(tmpdir(), "does-not-exist-" + Date.now()) } });
+  await assert.rejects(broken.execute("select 1", {}), (e: any) => e.category === "missing_file");
+  await assert.rejects(broken.execute(`select content from read_text('${sentinel}')`, {}), (e: any) => e.category === "missing_file", "retry must fail the same way, not run on a half-open connection");
+  const a2 = adapter(scratchWarehouse());
+  const [r1, r2] = await Promise.all([a2.execute("select 1 as x", {}), a2.execute("select 2 as x", {})]);
+  assert.equal(Number(r1.rows[0]!.x) + Number(r2.rows[0]!.x), 3, "concurrent first opens share one sealed connection");
+  await a2.close();
+});
+
+test("capture round-trips null, empty string, quotes, commas, CR/LF, decimals and timestamps losslessly", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-rt-"));
+  writeFileSync(join(dir, "t.csv"), 'id,value,amount,at\n1,,1.50,2026-01-02T03:04:05Z\n2,"",0.001,2026-01-02T03:04:05Z\n3,"a,b",-2,2026-01-02T03:04:05Z\n4,"say ""hi""",3e-7,2026-01-02T03:04:05Z\n5,"line\r\nbreak",7,2026-01-02T03:04:05Z\n');
+  const a = adapter(dir);
+  const dest = mkdtempSync(join(tmpdir(), "ag-rt-cap-"));
+  const [inp] = await a.capture(["t"], dest);
+  const text = readFileSync(join(dest, inp!.path), "utf8");
+  assert.ok(text.startsWith("id,value,amount,at\n1,,1.50,") && text.includes('\n2,"",0.001,'), text);
+  await a.close();
+  const s = await openRetained(dest, [inp!]);
+  const r = await s.execute("select id, value is null as is_null, value = '' as is_empty, value from t order by id", {});
+  assert.deepEqual(r.rows.map((x) => [Number(x.id), x.is_null, x.is_empty]), [[1, true, null], [2, false, true], [3, false, false], [4, false, false], [5, false, false]]);
+  assert.equal(r.rows[2]!.value, "a,b"); assert.equal(r.rows[3]!.value, 'say "hi"'); assert.equal(r.rows[4]!.value, "line\r\nbreak");
+  const amounts = await s.execute("select amount from t order by id", {});
+  assert.deepEqual(amounts.rows.map((x) => x.amount), ["1.50", "0.001", "-2", "3e-7", "7"]);
+  await s.close();
+});
+
+test("utcText floors before the epoch; scientific-notation decimals follow the shared contract", async () => {
+  // @ts-ignore
+  const { utcText } = await import("../../scripts/lib/sql-runner.mjs");
+  assert.equal(utcText(-1n), "1969-12-31 23:59:59.999999+00");
+  assert.equal(utcText(0n), "1970-01-01 00:00:00+00");
+  assert.equal(utcText(1_500_000n), "1970-01-01 00:00:01.5+00");
+  assert.equal(utcText(-1_000_000n), "1969-12-31 23:59:59+00");
+  const { coerceCell } = await import("./serialize.ts");
+  assert.equal(coerceCell("1e-7", "decimal", "x"), "1e-7");
+  assert.throws(() => coerceCell("abc", "decimal", "x"), (e: any) => e.category === "value_type");
+});

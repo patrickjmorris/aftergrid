@@ -9,7 +9,9 @@ import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe
 // @ts-ignore: shared path containment and SQL string quoting.
 import { safePath, sqlString, ContractError } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: the one SQL execution policy, shared with the fixture builder.
-import { SANDBOX_SETTINGS, DEFAULT_LIMITS as RUNNER_LIMITS, applyLimits, sealConnection, openRetainedDatabase, runSelect } from "../../scripts/lib/sql-runner.mjs";
+import { SANDBOX_SETTINGS, DEFAULT_LIMITS as RUNNER_LIMITS, applyLimits, sealConnection, openRetainedDatabase, runSelect, CSV_READ_OPTIONS, csvText, identifier } from "../../scripts/lib/sql-runner.mjs";
+// @ts-ignore: shared decimal validator.
+import { decimal as sharedDecimal } from "../../scripts/fixture-safety.mjs";
 
 export type DuckDbSource =
   | { kind: "duckdb_file"; path: string }        // opened READ_ONLY
@@ -45,9 +47,11 @@ function maxCardinality(plan: any): number | null {
   return max;
 }
 
-async function estimateOn(c: any, sql: string, params: SqlParams): Promise<Estimate> {
+async function estimateOn(c: any, sql: string, params: SqlParams, timeoutMs: number): Promise<Estimate> {
   const { StatementType } = await api();
   let p: any;
+  // Planning is bounded by the same statement timeout as execution.
+  const timer = setTimeout(() => { try { c.interrupt(); } catch { /* finished */ } }, timeoutMs);
   try {
     const statements = await c.extractStatements(sql);
     if (statements.count !== 1) return { status: "unknown", reason: "not a single statement" };
@@ -72,7 +76,7 @@ async function estimateOn(c: any, sql: string, params: SqlParams): Promise<Estim
     return { status: "estimated", rows: top ?? scan, unit: "estimated_rows", scan_rows: scan };
   } catch (e) {
     return { status: "unknown", reason: String((e as Error).message ?? e).split("\n")[0]! };
-  } finally { p?.destroySync?.(); }
+  } finally { clearTimeout(timer); p?.destroySync?.(); }
 }
 
 function admit(est: Estimate, cap: number, limits: ResourceLimits): Admission {
@@ -107,67 +111,80 @@ export class DuckDbAdapter implements Adapter {
       catalog: { status: "supported", note: "information_schema.columns" },
     };
   }
+  private opening?: Promise<any>;
   private async open() {
     if (this.conn) return this.conn;
+    if (!this.opening) this.opening = this.openFresh().finally(() => { this.opening = undefined; });
+    return this.opening;
+  }
+  /** Initialise into locals; publish the connection only after the sandbox is sealed. Any failure closes everything. */
+  private async openFresh() {
     const { DuckDBInstance } = await api();
-    if (this.opts.source.kind === "duckdb_file") {
-      if (!existsSync(this.opts.source.path)) throw new AdapterError("missing_file", `database ${this.opts.source.path} not found`, this.opts.source.path);
-      this.db = await DuckDBInstance.create(this.opts.source.path, { ...SANDBOX, access_mode: "READ_ONLY" });
-      this.conn = await this.db.connect();
-      await applyLimits(this.conn, this.limits);
-      const t = await this.conn.runAndReadAll("select table_name from information_schema.tables where table_schema='main' order by 1");
-      this.tables = t.getRowObjectsJson().map((r: any) => String(r.table_name));
-    } else {
-      this.db = await DuckDBInstance.create(":memory:", SANDBOX);
-      this.conn = await this.db.connect();
-      await applyLimits(this.conn, this.limits);
-      const dir = this.opts.source.path;
-      if (!existsSync(dir)) throw new AdapterError("missing_file", `source directory ${dir} not found`, dir);
-      for (const f of readdirSync(dir).filter((x) => x.endsWith(".csv")).sort()) {
-        const table = basename(f, ".csv");
-        if (!/^[a-z][a-z0-9_]{0,63}$/.test(table)) continue;
-        // Materialised once, then all external file access is disabled: the source directory is never written and
-        // no statement can read any other file. DML is refused by the guard before it reaches the engine.
-        await this.conn.run(`create table "${table}" as select * from read_csv(${sqlString(safePath(dir, f))}, header=true, all_varchar=true)`);
-        this.tables.push(table);
+    let db: any, conn: any; const tables: string[] = [];
+    try {
+      if (this.opts.source.kind === "duckdb_file") {
+        if (!existsSync(this.opts.source.path)) throw new AdapterError("missing_file", `database ${this.opts.source.path} not found`, this.opts.source.path);
+        db = await DuckDBInstance.create(this.opts.source.path, { ...SANDBOX, access_mode: "READ_ONLY" });
+        conn = await db.connect();
+        await applyLimits(conn, this.limits);
+        const t = await conn.runAndReadAll("select table_name from information_schema.tables where table_schema='main' order by 1");
+        tables.push(...t.getRowObjectsJson().map((r: any) => String(r.table_name)));
+      } else {
+        const dir = this.opts.source.path;
+        if (!existsSync(dir)) throw new AdapterError("missing_file", `source directory ${dir} not found`, dir);
+        db = await DuckDBInstance.create(":memory:", SANDBOX);
+        conn = await db.connect();
+        await applyLimits(conn, this.limits);
+        for (const f of readdirSync(dir).filter((x) => x.endsWith(".csv")).sort()) {
+          const table = basename(f, ".csv");
+          if (!/^[a-z][a-z0-9_]{0,63}$/.test(table)) continue;
+          // Materialised once; the source directory is never written. DML is refused by the guard before the engine.
+          await conn.run(`create table ${identifier(table)} as select * from read_csv(${sqlString(safePath(dir, f))}, ${CSV_READ_OPTIONS})`);
+          tables.push(table);
+        }
       }
-      await sealConnection(this.conn);
+      // READ_ONLY stops database writes, not filesystem reads: both source kinds are sealed before any authored SQL.
+      await sealConnection(conn);
+    } catch (e) {
+      try { conn?.closeSync(); } catch { /* ignore */ } try { db?.closeSync(); } catch { /* ignore */ }
+      throw e;
     }
-    return this.conn;
+    this.db = db; this.conn = conn; this.tables = tables;
+    return conn;
   }
   async probePrivileges(): Promise<PrivilegeProbe> {
     return { status: "unsupported", reason: this.opts.source.kind === "duckdb_file" ? "no roles in DuckDB; the file is opened READ_ONLY, which the engine enforces for every statement" : "no roles in DuckDB; CSV sources are exposed as read-only views" };
   }
-  async estimate(sql: string, params: SqlParams): Promise<Estimate> { return estimateOn(await this.open(), sql, params); }
+  async estimate(sql: string, params: SqlParams, opts: { timeout_ms?: number } = {}): Promise<Estimate> { return estimateOn(await this.open(), sql, params, opts.timeout_ms ?? this.limits.statement_timeout_ms); }
   async execute(sql: string, params: SqlParams, opts: { timeout_ms?: number } = {}): Promise<ExecuteResult> {
     const c = await this.open();
-    const est = await this.estimate(sql, params);
+    const est = await this.estimate(sql, params, opts);
     const admission = admit(est, this.cap, this.limits);
     if (admission.decision === "rejected") throw new AdapterError("admission", admission.reason, "SQL");
     const { columns, rows } = await guardedRun(c, sql, params, this.limits, opts.timeout_ms ?? this.limits.statement_timeout_ms);
     return { columns, rows, admission };
   }
-  async capture(tables: string[], destDir: string, opts: { description?: string } = {}): Promise<RetainedInput[]> {
+  async capture(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number } = {}): Promise<RetainedInput[]> {
     const c = await this.open();
     mkdirSync(join(destDir, "inputs"), { recursive: true });
     const out: RetainedInput[] = [];
     const captured_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-    for (const table of tables) {
-      if (!this.tables.includes(table)) throw new AdapterError("unresolved_reference", `table ${table} is not in the source catalog`, table);
-      const rel = `inputs/${table}.csv`;
-      const full = safePath(destDir, rel);
-      // Deterministic order for a stable hash: whole-row ordering by every column.
-      const r = await c.runAndReadAll(`select * from "${table}" order by all`);
-      const names: string[] = r.columnNames();
-      const rows: any[] = r.getRowObjectsJson();
-      const esc = (v: unknown) => { if (v === null || v === undefined) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-      const csv = names.join(",") + "\n" + rows.map((row) => names.map((n) => esc(row[n])).join(",")).join("\n") + (rows.length ? "\n" : "");
-      const bytes = Buffer.from(csv, "utf8");
-      writeFileSync(full, bytes);
-      out.push({ id: table, kind: "extract", path: rel, content_hash: { algorithm: "sha256", value: sha(bytes) }, captured_at,
-        description: opts.description ?? `Whole-table extract of ${table} from ${this.opts.source.kind} ${basename(this.opts.source.path)}`,
-        source: { adapter: "duckdb", method: `select * from ${table} order by all, written as CSV by the DuckDB adapter`, tables: [table], consistency: "single_transaction" } });
-    }
+    for (const table of tables) if (!this.tables.includes(table)) throw new AdapterError("unresolved_reference", `table ${table} is not in the source catalog`, table);
+    // One read transaction for every table, so the extracts are a single consistent view (DuckDB MVCC snapshot).
+    await c.run("BEGIN TRANSACTION");
+    try {
+      for (const table of tables) {
+        const rel = `inputs/${table}.csv`;
+        const full = safePath(destDir, rel);
+        // Deterministic order for a stable hash; bounded by the statement timeout like any other read.
+        const { columns, rows } = await guardedRun(c, `select * from ${identifier(table)} order by all`, {}, this.limits, opts.timeout_ms ?? this.limits.statement_timeout_ms);
+        const bytes = Buffer.from(csvText(columns.map((x) => x.name), rows), "utf8");
+        writeFileSync(full, bytes);
+        out.push({ id: table, kind: "extract", path: rel, content_hash: { algorithm: "sha256", value: sha(bytes) }, captured_at,
+          description: opts.description ?? `Whole-table extract of ${table} from ${this.opts.source.kind} ${basename(this.opts.source.path)}`,
+          source: { adapter: "duckdb", method: `select * from ${table} order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)`, tables: [table], consistency: "single_transaction" } });
+      }
+    } finally { try { await c.run("COMMIT"); } catch { /* read-only transaction */ } }
     return out;
   }
   async catalog(): Promise<CatalogTable[]> {
@@ -180,7 +197,7 @@ export class DuckDbAdapter implements Adapter {
     }
     return [...map.values()];
   }
-  async close() { try { this.conn?.closeSync(); this.db?.closeSync(); } finally { this.conn = undefined; this.db = undefined; } }
+  async close() { try { this.conn?.closeSync(); this.db?.closeSync(); } finally { this.conn = undefined; this.db = undefined; this.tables = []; } }
 }
 
 /**
