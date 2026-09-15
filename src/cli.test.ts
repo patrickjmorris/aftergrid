@@ -7,7 +7,10 @@ import { parse as parseYaml } from "yaml";
 import { newFinding } from "./commands/new-finding.ts";
 import { check } from "./commands/check.ts";
 import { FINDING_ID_RE, toId } from "./ids.ts";
-import { canon, contentDigest } from "./digest.ts";
+import { canon, contentDigest, sha256 } from "./digest.ts";
+// @ts-ignore: shared ESM validation library.
+import { digestOf } from "../scripts/lib/validate-finding.mjs";
+import { stringify as toYaml } from "yaml";
 
 function scratchInstance(): string {
   const root = mkdtempSync(join(tmpdir(), "ag-"));
@@ -125,4 +128,52 @@ test("check fails an exemplar copy with a tampered result and a bad reference, w
   const cats = new Set(r.errors.map((e) => e.category));
   assert.ok(cats.has("hash_mismatch") && cats.has("unresolved_reference") && cats.has("digest"), [...cats].join(","));
   assert.ok(r.errors.every((e) => e.location && e.message));
+});
+
+function exemplarCopy(): string {
+  const src = new URL("../fixtures/instance/", import.meta.url).pathname;
+  const root = mkdtempSync(join(tmpdir(), "ag-copy-"));
+  cpSync(src, root, { recursive: true });
+  return join(root, "analytics", "findings", "2026-07-20-onboarding-checklist-retention");
+}
+function repin(dir: string, manifest: any) {
+  for (const r of manifest.results) {
+    const bytes = readFileSync(join(dir, r.path));
+    r.content_hash.value = sha256(bytes);
+    const ex = manifest.executions.find((e: any) => e.result_id === r.id); if (ex) ex.result_hash.value = r.content_hash.value;
+  }
+  manifest.content_digest = digestOf(manifest, dir);
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(manifest, { lineWidth: 0 }));
+}
+
+test("references resolve by row key independently of row order", () => {
+  const dir = exemplarCopy();
+  const rp = join(dir, "results", "retention_by_arm.json");
+  const data = JSON.parse(readFileSync(rp, "utf8"));
+  data.rows.reverse();
+  writeFileSync(rp, JSON.stringify(data, null, 2) + "\n");
+  const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  repin(dir, manifest);
+  const r = check({ dir });
+  assert.equal(r.evidence, "valid", JSON.stringify(r.errors));
+});
+
+test("duplicate row keys and invalid identifier grammar fail with precise categories and locations", () => {
+  const dir = exemplarCopy();
+  const rp = join(dir, "results", "retention_by_arm.json");
+  const data = JSON.parse(readFileSync(rp, "utf8"));
+  data.rows[1].arm = "checklist"; // now two rows share the key
+  writeFileSync(rp, JSON.stringify(data, null, 2) + "\n");
+  const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  repin(dir, manifest);
+  const r = check({ dir });
+  assert.ok(r.errors.some((e) => e.category === "duplicate_row_key" && /retention_by_arm/.test(e.location)), JSON.stringify(r.errors));
+
+  const dir2 = exemplarCopy();
+  const m2 = parseYaml(readFileSync(join(dir2, "manifest.yaml"), "utf8"));
+  m2.claims[0].id = "Claim-1"; // uppercase and hyphen are outside the id grammar
+  writeFileSync(join(dir2, "manifest.yaml"), toYaml(m2, { lineWidth: 0 }));
+  const r2 = check({ dir: dir2 });
+  assert.equal(r2.syntax, "invalid");
+  assert.ok(r2.errors.some((e) => e.category === "schema" && e.location === "manifest.yaml#/claims/0/id"), JSON.stringify(r2.errors));
 });
