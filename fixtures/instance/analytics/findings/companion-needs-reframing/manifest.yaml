@@ -14,7 +14,7 @@ owner:
   name: Dana Okafor
   contact: dana@loop.example
 reader:
-  profile: product_owner
+  profile: generic
 question:
   id: podcast_listeners_happier
   raw_ask: Are people who use the podcast feature happier with Loop?
@@ -75,4 +75,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: e645e37a7dd4c4f550c0fc5325f4396d50ed1aab1e37dd4c23aa7a71e56056a0
+  value: a1df5cb53ceb542d025fef3555d90aa51f97431455bcd0bee270c08c2e7048ac

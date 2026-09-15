@@ -179,7 +179,7 @@ function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
     if (!d) { err("unresolved_reference", loc, `derived '${id}' not in manifest`, "declare it under derived"); return null; }
     const ops = d.operands.map((o) => resolveValueRef(manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
     if (ops.some((o) => o === null)) return null;
-    if ((d.operation === "difference" || d.operation === "sum") && new Set(ops.map((o) => o.unit)).size > 1)
+    if (["difference", "sum", "min", "max"].includes(d.operation) && new Set(ops.map((o) => o.unit)).size > 1)
       err("unit_mismatch", loc, `derived '${id}' ${d.operation} over units ${ops.map((o) => o.unit).join(", ")}`, "operands of difference/sum need one unit");
     if (d.operation === "difference" && ops.length !== 2) err("unit_mismatch", loc, `derived '${id}' difference needs two operands`, "");
     const nums = ops.map((o) => (o.value === null ? null : Number(o.value)));
@@ -191,6 +191,8 @@ function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
       else if (d.operation === "ratio") value = b === 0 ? null : a / b;
       else if (d.operation === "percent_of") value = b === 0 ? null : (100 * a) / b;
       else if (d.operation === "percent_change") value = b === 0 ? null : (100 * (a - b)) / b;
+      else if (d.operation === "min") value = Math.min(...nums);
+      else if (d.operation === "max") value = Math.max(...nums);
     }
     return { value, unit: d.unit, display: d.display, provisional: ops.some((o) => o.provisional) };
   }
@@ -340,7 +342,9 @@ async function validate() {
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && manifest.finding.outcome !== "insufficient_data") warn("minimum_data", `checks/${ck.id}`, "minimum-data Check failed but outcome is not insufficient_data");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && !ck.required) report.info.push(`minimum-data Check ${ck.id} failed: a business result, not an engine failure`);
   }
-  const executionAvailability = manifest.checks.some((c) => c.outcome === "not_run" && c.kind !== "falsifier") ? "artifact_only" : "rerun_recorded";
+  // This invocation never executes SQL: it verifies saved artifacts. Recorded outcomes are history, reported separately.
+  const executionAvailability = "artifact_only";
+  const recordedCheckOutcomes = Object.fromEntries(manifest.checks.map((c) => [c.id, c.outcome]));
   // 4. memo
   validateMemo(manifest, results);
   // 5. digest + readiness
@@ -357,7 +361,7 @@ async function validate() {
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
   if (manifest.finding.state !== "complete") readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
-  finish(manifest, { evidence: manifest.finding.state !== "complete" ? "incomplete" : report.errors.length ? "invalid" : "valid", executionAvailability, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
+  finish(manifest, { evidence: manifest.finding.state !== "complete" ? "incomplete" : report.errors.length ? "invalid" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
 }
 
 function validateChartSpec(spec, res, loc) {
@@ -427,7 +431,7 @@ function validateMemo(manifest, results) {
     for (const id of idSet) s = s.split(id).join(" ");
     s = s.replace(/\b[a-z0-9_/-]*\.(sql|json|csv|md|yaml|html|svg)\b/g, " ");
     const m = /[0-9]/.exec(s);
-    if (m) err("untraced_numeral", `memo.md:${i + 1}:${m.index + 1}`, `numeral without a reference: "${line.trim().slice(0, 80)}"`, "insert a {{ref:…}}, {{derived:…}} or {{ext:…}} token, spell the quantity as a word, or mark a parameter {{literal:…}}");
+    if (m) err("untraced_numeral", `memo.md:${i + 1}:${m.index + 1}`, `numeral without a reference: "${line.trim().slice(0, 80)}"`, "insert a {{ref:…}}, {{derived:…}} or {{ext:…}} token; a measured quantity is never written by hand. Only a parameter of the Question, a definition or a policy may be a {{literal:…}} or a word");
   });
   if (literals) report.info.push(`${literals} literal token(s) in memo.md; method review reads each`);
   for (const m of text.matchAll(/PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER/g)) void m;

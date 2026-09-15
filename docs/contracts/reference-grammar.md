@@ -4,13 +4,14 @@ How a value gets from a saved result into a sentence, a table cell or a chart ti
 
 ## Tokens
 
-Three token kinds. Nothing else is a token.
+Three value token kinds, plus one marker for declared non-evidence literals. Nothing else is a token.
 
 | Token | Resolves to | Example |
 | --- | --- | --- |
 | `{{ref:<result_id>.<row_key>.<column>}}` | One cell of a saved result set | `{{ref:signups_by_week.2026-08-24.signups}}` |
 | `{{derived:<id>}}` | One declared derived value | `{{derived:signups_short_of_minimum}}` |
 | `{{ext:<id>}}` | One typed external source (target, assumption, external reference) | `{{ext:minimum_cohort_size}}` |
+| `{{literal:<text>}}` | Not a value. Marks a numeral that is a parameter of the Question, a definition or a policy, never a measurement. Counted and listed by `check`; read by method review. | `{{literal:30-day}}` |
 
 - `result_id`, `column`, derived and external ids: `^[a-z][a-z0-9_]{0,63}$`. No dots, no hyphens.
 - `row_key`: `^[A-Za-z0-9_-]{1,64}$`. Hyphens allowed (dates, slugs). No dots.
@@ -43,13 +44,13 @@ Errors carry a location (`memo.md:42:17` or `manifest.yaml#/claims/0/evidence/1`
 | Allowed without a token | Rule |
 | --- | --- |
 | ISO dates and timestamps | `2026-08-24`, `2026-08-24T00:00:00Z` |
-| Times of day, durations stated as words | `9am`, "seven days" is prose, `7` alone is not |
+| Durations that are parameters, as words | "seven days after signup" describes the definition; a measured count of days is a token |
 | Ids | Finding, Claim, result, check ids declared in the manifest |
 | Section numbering in headings | `## 3. Evidence` |
 | Definition versions | `v2` when adjacent to a definition id |
-| Explicit non-evidence literal | `{{literal:30-day}}`: a number that is a parameter of the Question, a definition or a policy, not an observation. `check` counts these and lists them in its report; method review reads them. A literal is never a measured value. |
+| Explicit non-evidence literal | `{{literal:30-day}}`, see above. |
 
-Words that carry a quantity without digits ("doubled", "half", "most") are not caught by `check`; they belong to method review, which reads every Claim sentence against its evidence.
+Words that carry a quantity without digits ("doubled", "half", "most") are not caught by `check`; they belong to method review, which reads every Claim sentence against its evidence. Spelling a measured quantity out in words to get past `check` is a violation method review is asked to look for, not a technique.
 
 ## Chart bindings
 

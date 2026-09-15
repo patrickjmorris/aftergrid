@@ -49,7 +49,7 @@ owner:
 
 ## Why one file per Decision record
 
-The design assumed `decisions.md` as the log. `aftergrid decide` must be idempotent on retry, reject conflicting duplicates, and never lose a record under concurrent writes. One YAML file per record, named by the caller-supplied stable id, gives all three with plain git semantics; `decisions.md` becomes a generated index. This is a cheap-to-reverse refinement of the design assumption, recorded here rather than as an ADR.
+The design assumed `decisions.md` as the log. `aftergrid decide` must be idempotent on retry, reject conflicting duplicates, and never lose a record under concurrent writes. One YAML file per record, named by the caller-supplied stable id, makes those properties achievable with plain git semantics; `decisions.md` becomes a generated index. The layout does not by itself guarantee them: atomic create-if-absent, conflict detection on differing duplicate input and concurrent-write behaviour belong to the `aftergrid decide` bead (`ag-v0-spec-9an.1`). Owner-confirmed 2026-09-15.
 
 ## Definition file
 
@@ -68,7 +68,7 @@ approval:
   source: { type: github_pr_review, repository: ..., pull_request: 12, review_id: 345, commit_sha: ... }
   approver: ...
   date: 2026-08-01
-  content_hash: { algorithm: sha256, value: ... }   # of the file body below the front matter at approval time
+  content_hash: { algorithm: sha256, value: ... }   # definition content hash at approval time, see below
 ---
 Plain-language meaning.
 
@@ -82,5 +82,7 @@ Plain-language meaning.
 ...
 ```
 ```
+
+**Definition content hash.** SHA-256 of the UTF-8 bytes of: the canonical JSON (sorted keys, no whitespace) of the front matter with the `approval` key removed, then a newline, then the body below the closing `---`. The approval block is excluded so an approval can carry the hash of what it approved; the rest of the front matter (id, version, kind, grain, population, denominator, window, owner) is included because changing any of it changes the definition's meaning. Reference implementation: `definitionHash` in `scripts/fixture-tool.mjs`.
 
 The Engine never contains a definition, a table name, a reader or a credential. Synthetic fixtures in the Engine mirror this layout under `fixtures/instance/`.

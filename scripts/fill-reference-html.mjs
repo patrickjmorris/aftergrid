@@ -48,7 +48,8 @@ function resolveRef(ref) {
       const [a, b] = nums;
       v = d.operation === "difference" ? a - b : d.operation === "sum" ? nums.reduce((x, y) => x + y, 0)
         : d.operation === "ratio" ? (b === 0 ? null : a / b) : d.operation === "percent_of" ? (b === 0 ? null : 100 * a / b)
-        : d.operation === "percent_change" ? (b === 0 ? null : 100 * (a - b) / b) : null;
+        : d.operation === "percent_change" ? (b === 0 ? null : 100 * (a - b) / b)
+        : d.operation === "min" ? Math.min(...nums) : d.operation === "max" ? Math.max(...nums) : null;
     }
     return { value: v, unit: d.unit, display: d.display };
   }

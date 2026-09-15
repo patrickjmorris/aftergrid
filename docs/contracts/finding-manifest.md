@@ -10,7 +10,7 @@
 | Outcome | `finding.outcome` | `pending`, `answered`, `inconclusive`, `insufficient_data`, `needs_reframing` | What the Analysis concluded. `pending` only while not complete. The other three non-answers are valid complete outcomes and pass the template. |
 | Question state | `question.state` | `resolved`, `unresolved`, `not_answerable` | A resolved Question carries an executable falsifier. An unresolved or not-answerable one lists what is missing and never invents a falsifier. |
 | Evidence validity | `check` report | `valid`, `invalid`, `incomplete` | References resolve, hashes match, required Checks passed, definitions pinned. Not a field: computed. |
-| Execution availability | `check` report | `rerun`, `artifact_only` | Whether SQL Checks were re-executed against retained inputs or only saved evidence was verified. Never reported as a fresh pass when not run. |
+| Execution availability | `check` report | `rerun`, `artifact_only` | Whether this invocation re-executed SQL Checks against retained inputs, or only verified saved evidence. Recorded outcomes from earlier runs are reported separately as history; an artifact-only run never turns them into a fresh pass. |
 | Publication readiness | `check` report | `ready`, `not_ready`, `unknown` | A current `publication_approval` attestation whose source verifies at the analyzed commit against the trusted allowlist. `unknown` when the source cannot be reached. Never a field an author sets. |
 
 A complete, evidence-valid `insufficient_data` Finding is a normal, good result. A `draft` can be rendered with a draft label. Nothing in the manifest lets an author claim readiness.
@@ -46,15 +46,24 @@ A Claim with `numeric: false` is representable: `evidence` may be empty and no c
 
 ## Digest envelope
 
-`content_digest` is SHA-256 over a canonical serialisation (JSON, sorted keys, no whitespace, UTF-8) of:
+`content_digest` is SHA-256 over the UTF-8 bytes of the canonical JSON (keys sorted recursively, no whitespace, JSON string escaping) of one object:
 
-1. The manifest with these removed: `content_digest`, `attestations`, `reviews`, `finding.generated_at`, `executions[].executed_at`, `checks[].executed_at`, `snapshot.drift_fingerprints`.
-2. The bytes of `memo.md`, every `queries[].path`, `checks[].path`, `charts[].spec_path`, `results[].path`, each keyed by its manifest id.
-3. `renderer.version` and `renderer.house_style_version` (already inside the manifest; listed here because a house-style change is a content change).
+```
+{ "manifest": <manifest with exclusions removed>, "files": { "<key>": "<sha256 hex of file bytes>", ... } }
+```
 
-Excluded on purpose: the digest itself, attestations and reviews (they bind to the digest), generated outputs (`render/`, chart SVG/PNG, which are regenerated from validated source before publication), volatile timestamps and drift fingerprints (they change without changing meaning).
+- Exclusions from the manifest: `content_digest`, `attestations`, `reviews`, `finding.generated_at`, `executions[].executed_at`, `checks[].executed_at`, `snapshot.drift_fingerprints`.
+- File keys and contents: `memo` → `memo.md`; `query:<id>` → `queries[].path`; `check:<id>` → `checks[].path`; `chart:<id>` → `charts[].spec_path`; `result:<id>` → `results[].path`. Each value is the lowercase hex SHA-256 of the file's bytes. The digest therefore commits to file contents through their hashes, not by embedding bytes.
+- `renderer.version` and `renderer.house_style_version` are inside the manifest, so a house-style change is a content change.
+- Reference implementation: `digestOf` in `scripts/fixture-tool.mjs`. Golden value: the `content_digest` pinned in `fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/manifest.yaml`; `validate` recomputes and compares it.
 
-Consequences: editing one Claim's `type` or an exclusion changes the digest and invalidates the Finding's attestations. It does not touch a definition's approval, which binds the definition's own `content_hash`. Retained input files are not in the envelope directly; their hashes are, through `snapshot.inputs[].content_hash`.
+Excluded on purpose: the digest itself, attestations and reviews (they bind to the digest), generated outputs (`render/`, chart SVG/PNG, regenerated from validated source before publication), volatile timestamps and drift fingerprints.
+
+Consequences: editing one Claim's `type` or an exclusion changes the digest and invalidates the Finding's attestations. It does not touch a definition's approval, which binds the definition's own content hash (see `docs/contracts/instance-layout.md`). Retained input files are committed through `snapshot.inputs[].content_hash`.
+
+## What JSON Schema enforces and what `check` enforces
+
+JSON Schema (`schema/finding-manifest.schema.json`) enforces field shapes, enums, the conditional branches (state ↔ outcome, question state ↔ falsifier kind, answered ↔ resolved Question, not-answerable ↔ needs-reframing, numeric Claim ↔ chart or table, answer-bearing ↔ material caveat, associational/causal ↔ a comparison). Everything cross-referential is `check`'s job: id uniqueness within each list, every reference resolving, exact result ↔ execution identities and hashes, result cell types, row-key uniqueness, export allowlisting for chart data and for every prose and derived reference, Check files returning exactly one boolean-or-null row, definition version pinning and approval binding, the digest, and attestation currency. The fixture validator in `scripts/fixture-tool.mjs` implements a subset of this list and says so; the full list is the contract for `aftergrid check`.
 
 ## Attestations and trust
 

@@ -100,6 +100,10 @@ for (const u of users) {
   subs.push({ subscription_id: "s_" + hex(++sid), user_id: u.user_id, started_at: iso(started_at), canceled_at, plan_price_cents });
 }
 
+// Planted edge case: a subscription that started after the price change and cancelled the next day. It is NOT in the
+// "active at the change" population, so cohort-correct queries must not count its cancellation.
+subs.push({ subscription_id: "s_" + hex(++sid), user_id: users[users.length - 1].user_id, started_at: iso(PRICE_CHANGE + DAY + 3600000), canceled_at: iso(PRICE_CHANGE + 2 * DAY + 7200000), plan_price_cents: 1299 });
+
 // ---- write CSV ----
 const csv = (rows, cols) => cols.join(",") + "\n" + rows.map((r) => cols.map((c) => r[c]).join(",")).join("\n") + "\n";
 writeFileSync(join(OUT, "users.csv"), csv(users.map((u) => ({ ...u, signed_up_at: iso(u.signed_up_at) })), ["user_id", "signed_up_at", "platform", "onboarding_variant", "country"]));

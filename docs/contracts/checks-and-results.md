@@ -1,6 +1,6 @@
 # Check files and result files
 
-Conventions the manifest schema cannot express. Fixture tooling (`scripts/fixture-tool.mjs`) implements them today; `aftergrid check` and the DuckDB adapter inherit them.
+Conventions the manifest schema cannot express. `aftergrid check` and the DuckDB adapter must implement all of them. The fixture tooling (`scripts/fixture-tool.mjs`) implements enough of them to build and validate the exemplars and is deliberately incomplete: it does not enforce id uniqueness, exactly-one-row Check results, export allowlisting of every prose and derived reference, or result cell types beyond integer and decimal.
 
 ## Check files (`checks/<check_id>.sql`)
 

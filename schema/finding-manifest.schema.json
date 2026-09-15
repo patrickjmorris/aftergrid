@@ -228,16 +228,8 @@
       ],
       "properties": {
         "profile": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/id",
-              "description": "Id of a profile in the Instance readers file."
-            },
-            {
-              "const": "generic",
-              "description": "Generic fallback profile shipped with the Engine."
-            }
-          ]
+          "$ref": "#/$defs/id",
+          "description": "Id of a profile in the Instance readers file, or the reserved id `generic` for the Engine's fallback profile (schema/generic-reader-profile.yaml)."
         }
       }
     },
@@ -868,9 +860,11 @@
               "ratio",
               "percent_of",
               "percent_change",
-              "sum"
+              "sum",
+              "min",
+              "max"
             ],
-            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... Operand order is positional."
+            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... min/max: smallest/largest operand (identical units). Operand order is positional."
           },
           "operands": {
             "type": "array",
@@ -1712,9 +1706,10 @@
               "type": "string",
               "enum": [
                 "fixed_window",
-                "advancing_window"
+                "advancing_window",
+                "expanding_window"
               ],
-              "description": "fixed_window: restate the same dates on refreshed data. advancing_window: shift the window forward by its own length, keeping the comparison shape."
+              "description": "fixed_window: restate the same dates on refreshed data. advancing_window: shift the whole fixed-length window forward so its end is the new data_to. expanding_window: keep the start, extend the end to the new data_to (an accumulating observation window)."
             },
             "coverage": {
               "type": "string",
@@ -1983,6 +1978,57 @@
         "properties": {
           "claims": {
             "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "finding": {
+            "properties": {
+              "outcome": {
+                "const": "answered"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "question": {
+            "properties": {
+              "state": {
+                "const": "resolved"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "question": {
+            "properties": {
+              "state": {
+                "const": "not_answerable"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "finding": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "pending",
+                  "needs_reframing"
+                ]
+              }
+            }
           }
         }
       }

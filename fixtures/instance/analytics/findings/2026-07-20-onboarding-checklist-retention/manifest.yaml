@@ -88,7 +88,7 @@ executions:
     adapter: duckdb
     engine_version: 0.0.0-fixture
     mode: retained_rerun
-    executed_at: 2026-09-15T22:11:32Z
+    executed_at: 2026-09-15T22:44:30Z
   - id: ex_retention_by_week_arm
     query_id: retention_by_week_arm
     sql_hash:
@@ -104,7 +104,7 @@ executions:
     adapter: duckdb
     engine_version: 0.0.0-fixture
     mode: retained_rerun
-    executed_at: 2026-09-15T22:11:32Z
+    executed_at: 2026-09-15T22:44:31Z
   - id: ex_retention_by_platform_arm
     query_id: retention_by_platform_arm
     sql_hash:
@@ -120,7 +120,7 @@ executions:
     adapter: duckdb
     engine_version: 0.0.0-fixture
     mode: retained_rerun
-    executed_at: 2026-09-15T22:11:32Z
+    executed_at: 2026-09-15T22:44:31Z
 results:
   - id: retention_by_arm
     execution_id: ex_retention_by_arm
@@ -188,6 +188,14 @@ derived:
     display: { kind: percentage_points, decimals: 1 }
     on_zero_denominator: not_available
     on_null: not_available
+  - id: min_arm_signups
+    operation: min
+    operands: [ ref:retention_by_arm.checklist.signups, ref:retention_by_arm.control.signups ]
+    unit: users
+    display: { kind: integer }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: The smaller of the two arms; the falsifier and the Recheck both require it to be at least five hundred.
   - id: total_signups
     operation: sum
     operands: [ ref:retention_by_arm.checklist.signups, ref:retention_by_arm.control.signups ]
@@ -219,13 +227,13 @@ claims:
     limitations:
       - '"Came back" means opened the app on any of the next seven days; it says nothing about what they did in the app.'
       - Six weeks of signups in early summer; a different season could behave differently.
-    material_caveat: This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist.
+    material_caveat: "This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist. And the gap is one experiment's measurement: the {{ext:keep_threshold}} bar is a rule the team agreed in advance for acting on it, not a promise that the gap stays that size."
     recheck:
       mode: automatic
       predicate: { subject: derived:lift, operator: gte, threshold: ext:keep_threshold, unit: ratio, direction: higher_is_better }
       method: difference_in_proportions
       evidence: [ ref:retention_by_arm.checklist.retained_7d_rate, ref:retention_by_arm.control.retained_7d_rate ]
-      minimum_data: { subject: ref:retention_by_arm.control.signups, operator: gte, threshold: 500, unit: users }
+      minimum_data: { subject: derived:min_arm_signups, operator: gte, threshold: 500, unit: users }
       window_policy: fixed_window
       coverage: Both arms present for the whole window; retained_7d v2 unchanged.
       not_comparable_when:
@@ -278,17 +286,17 @@ tables:
       - { name: retained_7d_rate, label: Share who came back }
     row_keys: [ mobile_checklist, mobile_control, web_checklist, web_control ]
 checks:
-  - { id: unique_users, kind: invariant, path: checks/unique_users.sql, required: true, outcome: pass, description: No user is counted twice., content_hash: { algorithm: sha256, value: 8b9adc36ea4e969bd5b9f4ffb73a570e05974d0557ec452e9124328f883a363e }, executed_at: 2026-09-15T22:11:32Z }
-  - { id: arm_balance, kind: invariant, path: checks/arm_balance.sql, required: true, outcome: pass, description: "The two groups are about the same size, as random assignment should produce.", content_hash: { algorithm: sha256, value: 319f0c3081d8e8d8acace194276b3a34525f0fcf429980e89acec2e8c513de32 }, executed_at: 2026-09-15T22:11:32Z }
-  - { id: retained_7d_reconcile, kind: reconciliation, path: checks/retained_7d_reconcile.sql, required: true, outcome: pass, description: The count of users who came back matches the approved retained_7d definition computed a second way., content_hash: { algorithm: sha256, value: 2adcd612e2875fc4031b44b7640d25dc99b5c466f1563f59fca4c515eb4064ab }, executed_at: 2026-09-15T22:11:32Z }
-  - { id: falsifier_lift, kind: falsifier, path: checks/falsifier_lift.sql, required: true, outcome: pass, expected_outcome: pass, description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm., content_hash: { algorithm: sha256, value: f25b01fd9b160e88717fabc30a950b83c9e5bcd894a7d84490f89f519e0e0ccd }, executed_at: 2026-09-15T22:11:33Z }
+  - { id: unique_users, kind: invariant, path: checks/unique_users.sql, required: true, outcome: pass, description: No user is counted twice., content_hash: { algorithm: sha256, value: 8b9adc36ea4e969bd5b9f4ffb73a570e05974d0557ec452e9124328f883a363e }, executed_at: 2026-09-15T22:44:31Z }
+  - { id: arm_balance, kind: invariant, path: checks/arm_balance.sql, required: true, outcome: pass, description: "The two groups are about the same size, as random assignment should produce.", content_hash: { algorithm: sha256, value: 319f0c3081d8e8d8acace194276b3a34525f0fcf429980e89acec2e8c513de32 }, executed_at: 2026-09-15T22:44:31Z }
+  - { id: retained_7d_reconcile, kind: reconciliation, path: checks/retained_7d_reconcile.sql, required: true, outcome: pass, description: The count of users who came back matches the approved retained_7d definition computed a second way., content_hash: { algorithm: sha256, value: 2adcd612e2875fc4031b44b7640d25dc99b5c466f1563f59fca4c515eb4064ab }, executed_at: 2026-09-15T22:44:31Z }
+  - { id: falsifier_lift, kind: falsifier, path: checks/falsifier_lift.sql, required: true, outcome: pass, expected_outcome: pass, description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm., content_hash: { algorithm: sha256, value: f25b01fd9b160e88717fabc30a950b83c9e5bcd894a7d84490f89f519e0e0ccd }, executed_at: 2026-09-15T22:44:31Z }
 reviews:
   - kind: method
     reviewer: "fixture: hand review by the exemplar author (CrimsonLotus, claude-fable-5-1)"
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: e352f157f805adbfe1556127e516fdc2a02b097e8a631af72dae724fc792a8e5
+      value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078
     blocking: []
     non_blocking: [ "c2 is an exploratory split; it is labelled as such." ]
 attestations:
@@ -298,7 +306,7 @@ attestations:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: e352f157f805adbfe1556127e516fdc2a02b097e8a631af72dae724fc792a8e5
+      value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078
 export_policy:
   recipient_scope: named_readers
   granularity: aggregate_only
@@ -322,4 +330,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: e352f157f805adbfe1556127e516fdc2a02b097e8a631af72dae724fc792a8e5
+  value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078

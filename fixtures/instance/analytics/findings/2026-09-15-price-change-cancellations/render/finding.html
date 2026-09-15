@@ -54,7 +54,7 @@
 <body>
 <a class="skip" href="#answer">Skip to the answer</a>
 <main>
-  <p class="draft" role="status">Draft. No one has approved this Finding for publication yet. Numbers are checked; the conclusion is not yet reviewed by a person.</p>
+  <p class="draft" role="status">Draft, on synthetic example data from a fictional company. No one has approved this Finding for publication; numbers are checked, the conclusion is not yet reviewed by a person.</p>
 
   <h1>Too early to tell whether the price change made more people cancel</h1>
   <p class="flag">For: Non-technical product owner · From: Dana Okafor · Generated 2026-09-15T09:30:00Z · Revision 1</p>
@@ -63,11 +63,11 @@
   <p class="answer">We cannot tell yet. Only 7 days of data exist since the price change, and the team's own rule is to wait for 28 days and 300 cancellations before comparing.</p>
   <div class="caveat">
     <strong>The one thing to keep in mind</strong>
-    <p>This is not evidence that the price change is fine. It is evidence that we cannot tell yet. The earliest day we can is 2026-10-05.</p>
+    <p>This is not evidence that the price change is fine. It is evidence that we cannot tell yet. The day count is met once 2026-10-05 has closed; an answer also needs 300 cancellations and an approved definition, so it may still be too early then.</p>
   </div>
 
   <h2>Decision it informs</h2>
-  <p>Whether to keep the new price, roll it back, or wait. Dana Okafor owns the decision. The honest option today is to wait; nothing here supports rolling back or declaring success.</p>
+  <p>Whether to keep the new price, roll it back, or wait. Dana Okafor owns the decision. This analysis cannot choose between keeping and rolling back; Dana Okafor decides whether to wait or to use other evidence.</p>
 
   <h2>Evidence</h2>
 
@@ -77,7 +77,7 @@
 
     <table>
       <caption>What we have so far</caption>
-      <thead><tr><th scope="col">Full days since the change</th><th scope="col">Cancellations since the change</th><th scope="col">Subscriptions active at the change</th><th scope="col">Earliest day a comparison is allowed</th></tr></thead>
+      <thead><tr><th scope="col">Full days since the change</th><th scope="col">Cancellations since the change</th><th scope="col">Subscriptions active at the change</th><th scope="col">Last day of the earliest window that meets the day count</th></tr></thead>
       <tbody>
         <tr><td class="num">7</td><td class="num">67</td><td class="num">887</td><td>2026-10-05</td></tr>
       </tbody>
@@ -85,7 +85,7 @@
 
     <dl class="who">
       <dt>Who is counted</dt><dd>The 887 paid subscriptions that were active when the price changed on 2026-09-08. Cancellations are counted from that day through 2026-09-14, the last full day of data.</dd>
-      <dt>Compared with</dt><dd>Not with the weeks before the change, but with the minimum the analysis policy requires. We are 21 days and 233 cancellations short of it.</dd>
+      <dt>Compared with</dt><dd>Not with the weeks before the change, but with the minimum the analysis policy requires. We are 21 days and 233 cancellations short of it. The day count is first met when 2026-10-05 has closed; the cancellation count may or may not be met by then.</dd>
       <dt>When</dt><dd>2026-09-08 to 2026-09-14.</dd>
     </dl>
 
@@ -98,7 +98,7 @@
     </details>
     <details>
       <summary>Where the minimum comes from</summary>
-      <p>The team's analysis policy (dated 2026-03-10, owned by Dana Okafor) requires at least 28 full days after a change, so one billing cycle is covered, and at least 300 cancellations, so a change of a fifth can be told apart from normal week-to-week noise. Query <code>cancellations_since_change</code>; saved result <code>since_change</code>. The earliest eligible day is the change date plus the policy minimum, computed from the same numbers.</p>
+      <p>The team's analysis policy (dated 2026-03-10, owned by Dana Okafor) requires at least 28 full days after a change, so one billing cycle is covered, and at least 300 cancellations, so a change of a fifth can be told apart from normal week-to-week noise. Query <code>cancellations_since_change</code>; saved result <code>since_change</code>. The earliest window end is the change date plus the policy day minimum, computed from the same numbers, as is the minimum-met flag.</p>
     </details>
     <p class="flag"><a href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_3p8r5t2y7vnc%20r1%2C%20claim%20c1&amp;body=Finding%3A%20fnd_3p8r5t2y7vnc%0ARevision%3A%201%0AClaim%3A%20c1%0A%0AMy%20question%3A%20">Question or flag this claim</a> (reference: <code>fnd_3p8r5t2y7vnc r1 c1</code>)</p>
   </section>
@@ -106,7 +106,7 @@
   <section aria-labelledby="c2">
     <span class="type" title="This claim is a choice about method, not a measurement.">Why there is no comparison yet</span>
     <h3 id="c2">The cancellations so far are not compared with the weeks before the change, because the first days after a price change mix people reacting to the announcement with normal cancellations.</h3>
-    <p>A partial first week set against full earlier weeks would compare unlike things and invite a conclusion the data cannot support. If cancellations had spiked sharply in the first days, that would be visible in the daily count even without a comparison; nothing so far looks like that, but "does not look like" is a judgement, not a measurement.</p>
+    <p>A partial first week set against full earlier weeks would compare unlike things and invite a conclusion the data cannot support. No daily series is shown here, so this Finding says nothing about whether cancellations spiked in the first days; that would need its own evidenced claim.</p>
     <details>
       <summary>Limits of this claim</summary>
       <ul>
@@ -131,7 +131,7 @@
 
   <h2>What would change our mind</h2>
   <p>Once 28 days and 300 cancellations have accumulated, the belief that the price change did not raise cancellations is wrong if the daily cancellation rate after the change is more than a fifth higher than in the 28 days before it. That test is written down and waiting.</p>
-  <p>On a re-check with newer data, the first claim is re-tested by restating how many days have accumulated; once the count reaches 28 it stops holding, and this Finding should be redone with the full comparison. The second claim is a method choice, not a measurement; Dana Okafor decides when to retire it.</p>
+  <p>On a re-check with newer data, the first claim is re-tested by restating whether both policy minimums are met on the same population; only once both are met does it stop holding, and this Finding should be redone with the full comparison. The second claim is a method choice, not a measurement; Dana Okafor decides when to retire it.</p>
 
   <h2>Question or flag this Finding</h2>
   <p><a class="action" href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_3p8r5t2y7vnc%20r1&amp;body=Finding%3A%20fnd_3p8r5t2y7vnc%0ARevision%3A%201%0A%0AMy%20question%3A%20">Email Dana Okafor</a></p>

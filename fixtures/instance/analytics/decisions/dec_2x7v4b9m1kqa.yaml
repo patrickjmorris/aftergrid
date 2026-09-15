@@ -6,7 +6,7 @@ decided_on: "2026-07-22"
 finding:
   id: fnd_7k2m9q4w1xzb
   revision: 1
-  content_digest: { algorithm: sha256, value: "e352f157f805adbfe1556127e516fdc2a02b097e8a631af72dae724fc792a8e5" }
+  content_digest: { algorithm: sha256, value: "5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078" }
 rests_on_claims: [c1]
 action:
   kind: action

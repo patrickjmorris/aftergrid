@@ -38,7 +38,7 @@ snapshot:
       path: inputs/subscriptions.csv
       content_hash:
         algorithm: sha256
-        value: 04e32dea864332f5ae11e3d82f24307e9aeffe16f2a1f4eb716c681e8bc296e7
+        value: e7aa3e13911192c81434cc3b633713b7f103deb7e278581ad63166a6dae748e0
       captured_at: "2026-09-15T00:00:00Z"
       description: All paid subscriptions with start and cancellation times, through the end of 2026-09-14.
       source: { adapter: synthetic, method: "generator seed 20260915, extract by scripts/capture-fixture-inputs.mjs", tables: [ subscriptions ], consistency: single_transaction }
@@ -54,24 +54,24 @@ definitions:
       value: 4dad915c7cdebfe0887b91c0d3618caf494948fc21265ee9c95bc3aa578e2efd
     role: supporting
 queries:
-  - { id: cancellations_since_change, path: queries/cancellations_since_change.sql, dialect: duckdb, purpose: What has accumulated since the change., content_hash: { algorithm: sha256, value: 04c281fd664b435879773e5f2765008826bf0d825c44ff95978a1fb074bc432a } }
+  - { id: cancellations_since_change, path: queries/cancellations_since_change.sql, dialect: duckdb, purpose: What has accumulated since the change., content_hash: { algorithm: sha256, value: 2ceba3e8aab0fe09822db7a74354e4b0390ffb94297c1e397222038ccf6ca528 } }
 executions:
   - id: ex_cancellations_since_change
     query_id: cancellations_since_change
     sql_hash:
       algorithm: sha256
-      value: 04c281fd664b435879773e5f2765008826bf0d825c44ff95978a1fb074bc432a
+      value: 2ceba3e8aab0fe09822db7a74354e4b0390ffb94297c1e397222038ccf6ca528
     parameters: { analytical_timezone: America/New_York, tz: America/New_York, change_date: "2026-09-08", data_to: "2026-09-14", min_days: 28, min_cancellations: 300 }
     input_ids: [ subscriptions ]
     definition_refs: []
     result_id: since_change
     result_hash:
       algorithm: sha256
-      value: 6e110d24439d96e5cdf0442ac5d77bfa28063a863612578bd2308dab142c88dc
+      value: 286e0fa8f31340f73d2171a8c7e80470ef767876aaa4f3809bc3dba2cce2c60e
     adapter: duckdb
     engine_version: 0.0.0-fixture
     mode: retained_rerun
-    executed_at: 2026-09-15T22:11:33Z
+    executed_at: 2026-09-15T22:44:32Z
 results:
   - id: since_change
     execution_id: ex_cancellations_since_change
@@ -82,11 +82,12 @@ results:
       - { name: days_elapsed, type: integer, unit: days, display: { kind: integer }, description: "Full days of data since the change, inclusive." }
       - { name: cancellations, type: integer, unit: count, display: { kind: integer }, description: "Subscriptions cancelled on or after the change date. A diagnostic count, not an approved metric." }
       - { name: active_at_change, type: integer, unit: count, display: { kind: integer }, description: Subscriptions active at the start of the change date. }
-      - { name: earliest_eligible_date, type: date, unit: date, display: { kind: date }, description: The date on which the policy minimum number of days is reached. }
+      - { name: earliest_window_end, type: date, unit: date, display: { kind: date }, description: "The last day of the earliest observation window that satisfies the day-count minimum. Data for that day is complete only after it closes; the cancellation minimum and an approved definition are also required before an answer." }
+      - { name: minimum_met, type: integer, unit: count, display: { kind: integer }, description: "1 when both policy minimums (days and cancellations) are met on the declared population, else 0." }
     row_count: 1
     content_hash:
       algorithm: sha256
-      value: 6e110d24439d96e5cdf0442ac5d77bfa28063a863612578bd2308dab142c88dc
+      value: 286e0fa8f31340f73d2171a8c7e80470ef767876aaa4f3809bc3dba2cce2c60e
 derived:
   - id: days_short
     operation: difference
@@ -121,7 +122,7 @@ claims:
     numeric: true
     answer_bearing: true
     sentence: "Only {{ref:since_change.post.days_elapsed}} days and {{ref:since_change.post.cancellations}} cancellations have accumulated since the price change; the policy needs {{ext:minimum_days}} days and {{ext:minimum_cancellations}} cancellations before a comparison is made."
-    evidence: [ ref:since_change.post.days_elapsed, ref:since_change.post.cancellations, ref:since_change.post.active_at_change, ref:since_change.post.earliest_eligible_date, ext:minimum_days, ext:minimum_cancellations, derived:days_short, derived:cancellations_short ]
+    evidence: [ ref:since_change.post.days_elapsed, ref:since_change.post.cancellations, ref:since_change.post.active_at_change, ref:since_change.post.earliest_window_end, ext:minimum_days, ext:minimum_cancellations, derived:days_short, derived:cancellations_short ]
     table_ids: [ since_change_table ]
     population: "Paid subscriptions active when the price changed: {{ref:since_change.post.active_at_change}} of them."
     comparison: { kind: target, description: "What has accumulated so far, against the minimum the analysis policy requires. No before/after comparison is made yet.", pre_registered: true }
@@ -130,7 +131,7 @@ claims:
       - Subscriptions that started after the price change are not part of the population; they never saw the old price.
     limitations:
       - The cancellation count is a raw count, not the weekly cancellation rate, which is still a proposed definition.
-    material_caveat: "This is not evidence that the price change is fine. It is evidence that we cannot tell yet. The earliest day we can is {{ref:since_change.post.earliest_eligible_date}}."
+    material_caveat: "This is not evidence that the price change is fine. It is evidence that we cannot tell yet. The day count is met once {{ref:since_change.post.earliest_window_end}} has closed; an answer also needs {{ext:minimum_cancellations}} cancellations and an approved definition, so it may still be too early then."
     recheck:
       mode: automatic
       predicate: { subject: ref:since_change.post.days_elapsed, operator: lt, threshold: ext:minimum_days, unit: days, direction: none }
@@ -151,7 +152,7 @@ claims:
     window: { start: "2026-09-08", end: "2026-09-14", timezone: America/New_York }
     exclusions: []
     limitations:
-      - If cancellations spike sharply in the first days, that is visible in the daily count even without a comparison; nothing in the data so far looks like that, but "does not look like" is a judgement, not a measurement.
+      - No daily series is shown, so this Finding makes no statement about whether cancellations spiked in the first days; that would need its own evidenced Claim.
     recheck:
       mode: not_automatically_evaluable
       reason: This Claim is a methodological choice, not a measurement. Whether to keep withholding the comparison is the Operator's call when the minimum is met.
@@ -167,19 +168,19 @@ tables:
       - { name: days_elapsed, label: Full days since the change }
       - { name: cancellations, label: Cancellations since the change }
       - { name: active_at_change, label: Subscriptions active at the change }
-      - { name: earliest_eligible_date, label: Earliest day a comparison is allowed }
+      - { name: earliest_window_end, label: Last day of the earliest window that meets the day count }
     row_keys: [ post ]
 checks:
-  - { id: unique_subscriptions, kind: invariant, path: checks/unique_subscriptions.sql, required: true, outcome: pass, description: No subscription is counted twice., content_hash: { algorithm: sha256, value: a95db4eaefb4ca385585802aebb996b3b3a3885ed1481305f15d047718af774d }, executed_at: 2026-09-15T22:11:33Z }
-  - { id: minimum_data, kind: minimum_data, path: checks/minimum_data.sql, required: false, outcome: fail, description: "The policy minimum (four weeks, three hundred cancellations) is met. Failing is the expected business result of this Finding, not an engine failure.", content_hash: { algorithm: sha256, value: d1b2c3a110f6568eef234f1aa6bb331e0c75a981009ca33baab8015ffb96aaa9 }, executed_at: 2026-09-15T22:11:34Z }
-  - { id: falsifier_cancel_rate, kind: falsifier, path: checks/falsifier_cancel_rate.sql, required: false, outcome: not_run, expected_outcome: pass, description: "Once the minimum is met, the daily cancellation rate after the change is not more than a fifth above the rate before it. Not evaluable until then.", content_hash: { algorithm: sha256, value: d961c9a5152a0135554bde38fd6e5e30177e4bed085845ff4595c3aec09686a5 }, executed_at: 2026-09-15T22:11:34Z }
+  - { id: unique_subscriptions, kind: invariant, path: checks/unique_subscriptions.sql, required: true, outcome: pass, description: No subscription is counted twice., content_hash: { algorithm: sha256, value: a95db4eaefb4ca385585802aebb996b3b3a3885ed1481305f15d047718af774d }, executed_at: 2026-09-15T22:44:32Z }
+  - { id: minimum_data, kind: minimum_data, path: checks/minimum_data.sql, required: false, outcome: fail, description: "The policy minimum (four weeks, three hundred cancellations) is met. Failing is the expected business result of this Finding, not an engine failure.", content_hash: { algorithm: sha256, value: e532ed643f284895f8c4d0030e9c1940052c5e0fc9548aa277ca9f1a75cefd30 }, executed_at: 2026-09-15T22:44:32Z }
+  - { id: falsifier_cancel_rate, kind: falsifier, path: checks/falsifier_cancel_rate.sql, required: false, outcome: not_run, expected_outcome: pass, description: "Once the minimum is met, the daily cancellation rate after the change is not more than a fifth above the rate before it. Not evaluable until then.", content_hash: { algorithm: sha256, value: 4dffbd858db38be3796bf53fc19eb31643ab3e59eee4b480675880009657501b }, executed_at: 2026-09-15T22:44:33Z }
 reviews:
   - kind: method
     reviewer: "fixture: hand review by the exemplar author (CrimsonLotus, claude-fable-5-1)"
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: e2bb071765652507ca2994a6edcdc5dc6c036a6918914716800207f1fabb6e34
+      value: 3d8fb5f86eb91c47332f4ccc63d4f022a7041b90a4baebbadfe16cee107667e5
     blocking: []
     non_blocking: [ "The weekly cancellation rate definition is proposed, so no rate is shown; only counts." ]
 attestations: []
@@ -191,7 +192,8 @@ export_policy:
     - since_change.days_elapsed
     - since_change.cancellations
     - since_change.active_at_change
-    - since_change.earliest_eligible_date
+    - since_change.earliest_window_end
+    - since_change.minimum_met
   delivery: html_file
   private_marker: PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER
 coverage:
@@ -203,4 +205,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: e2bb071765652507ca2994a6edcdc5dc6c036a6918914716800207f1fabb6e34
+  value: 3d8fb5f86eb91c47332f4ccc63d4f022a7041b90a4baebbadfe16cee107667e5

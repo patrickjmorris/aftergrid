@@ -54,7 +54,7 @@
 <body>
 <a class="skip" href="#answer">Skip to the answer</a>
 <main>
-  <p class="draft" role="status">Draft. No one has approved this Finding for publication yet. Numbers are checked; the conclusion is not yet reviewed by a person.</p>
+  <p class="draft" role="status">Draft, on synthetic example data from a fictional company. No one has approved this Finding for publication; numbers are checked, the conclusion is not yet reviewed by a person.</p>
 
   <h1>New users who got the onboarding checklist came back more often</h1>
   <p class="flag">For: Non-technical product owner · From: {{meta:owner.name}} · Generated {{meta:finding.generated_at}} · Revision {{meta:finding.revision}}</p>
@@ -63,7 +63,7 @@
   <p class="answer">Yes. New users who saw the onboarding checklist came back within a week more often than new users who did not, and the difference is big enough to keep the checklist.</p>
   <div class="caveat">
     <strong>The one thing that would change this</strong>
-    <p>This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist.</p>
+    <p>This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist. And the gap is one experiment's measurement: the {{ext:keep_threshold}} bar is a rule the team agreed in advance for acting on it, not a promise that the gap stays that size.</p>
   </div>
 
   <h2>Decision it informs</h2>
@@ -164,7 +164,7 @@
   <p>These are separate facts. Passing checks mean the arithmetic and the references hold; they do not by themselves make the conclusion right.</p>
   <ul class="facts">
     <li><strong>Checks passed</strong> No user counted twice · The two groups are about the same size · The count of people who came back matches the approved definition computed a second way · The question's own test passed (the gap is at least {{ext:keep_threshold}} with at least five hundred people in each group)</li>
-    <li><strong>Definition</strong> retained_7d, version 2. Approval recorded in the team's records ({{meta:definitions.0.approval.approver}}, {{meta:definitions.0.approval.date}}); this draft has not verified it.</li>
+    <li><strong>Definition</strong> retained_7d, version 2. Its lifecycle is recorded as approved ({{meta:definitions.0.approval.approver}}, {{meta:definitions.0.approval.date}}) in the team's records; that record is fictional example data and this draft has not verified it. A recorded lifecycle is not a verified approval.</li>
     <li><strong>Method review</strong> Recorded 2026-09-15 by the exemplar author. No blocking findings.</li>
     <li><strong>Publication approval</strong> None. This is a draft.</li>
     <li><strong>Data</strong> A retained copy of the users and app-open events for the experiment window. The numbers can be replayed from the saved results and the queries rerun against the retained copy.</li>

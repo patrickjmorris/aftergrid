@@ -10,7 +10,7 @@ revision: 1
 Yes. New users who saw the onboarding checklist came back within a week more often than new users who did not, and the difference is big enough to keep the checklist.
 
 <!-- material_caveat -->
-This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist.
+This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist. And the gap is one experiment's measurement: the {{ext:keep_threshold}} bar is a rule the team agreed in advance for acting on it, not a promise that the gap stays that size.
 
 ## Decision it informs
 
@@ -45,7 +45,7 @@ This split was not planned before the experiment. It is a follow-up look, so tre
 - No user is counted twice (Check unique_users).
 - The two groups are about the same size, as random assignment should produce (Check arm_balance).
 - The count of people who came back matches the approved definition of "came back within a week" computed a second way (Check retained_7d_reconcile).
-- Definition used: retained_7d v2, approved by Dana on the twenty-eighth of May.
+- Definition used: retained_7d v2. An approval by Dana dated the twenty-eighth of May is recorded in the team's records; this draft has not verified it.
 - Data: a retained copy of the users and app-open events for the experiment window. Anyone can replay these numbers from the saved results and rerun the queries against the retained copy.
 - Method review: recorded by the exemplar author. No human has approved this Finding for publication; it is a draft.
 
