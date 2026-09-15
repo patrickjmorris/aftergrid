@@ -1,0 +1,20 @@
+# Fixture Decision record, written the way `aftergrid decide` writes one. Fictional owner; synthetic Finding.
+schema_version: 0.1.0
+id: dec_2x7v4b9m1kqa
+owner: Dana Okafor
+decided_on: "2026-07-22"
+finding:
+  id: fnd_7k2m9q4w1xzb
+  revision: 1
+  content_digest: { algorithm: sha256, value: "e352f157f805adbfe1556127e516fdc2a02b097e8a631af72dae724fc792a8e5" }
+rests_on_claims: [c1]
+action:
+  kind: action
+  description: Keep the onboarding checklist for all new users; roll it out to the remaining half on 2026-08-20.
+rationale: The checklist arm came back within a week at least three percentage points more often than the old onboarding, the bar agreed before the experiment, in a randomized comparison.
+revisit_when:
+  schedule: { kind: on_date, date: "2026-11-01" }
+  falsifier: { finding_id: fnd_7k2m9q4w1xzb, check_id: falsifier_lift }
+outcome:
+  state: pending
+recorded_at: "2026-07-22T15:12:00Z"

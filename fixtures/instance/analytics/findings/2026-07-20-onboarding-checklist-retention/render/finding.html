@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="aftergrid-finding" content="fnd_7k2m9q4w1xzb r1">
+<title>New users who got the onboarding checklist came back more often</title>
+<style>
+  /* Reference render for aftergrid v0. Static, self-contained, no scripts required. Phone first. */
+  :root { --fg: #1c1c1c; --muted: #5a5a5a; --bg: #ffffff; --line: #d9d9d9; --accent: #0b6e4f; --grey-bar: #b9b9b9; --draft: #7a4b00; --draft-bg: #fff4e0; --focus: #1d4ed8; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ececec; --muted: #b5b5b5; --bg: #121212; --line: #3a3a3a; --accent: #4fc79f; --grey-bar: #5c5c5c; --draft: #ffd08a; --draft-bg: #3a2a08; --focus: #8ab4ff; } }
+  * { box-sizing: border-box; }
+  html { font-size: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 1.0625rem/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 0 1rem 4rem; }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 1.25rem 0 0.5rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  h3 { font-size: 1.05rem; line-height: 1.35; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0.5rem 0; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 1rem; top: 0.5rem; background: var(--bg); padding: 0.5rem; z-index: 2; }
+  .draft { background: var(--draft-bg); color: var(--draft); border: 1px solid currentColor; border-radius: 6px; padding: 0.6rem 0.8rem; margin: 1rem 0; font-weight: 600; }
+  .answer { font-size: 1.25rem; line-height: 1.4; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+  .caveat { border-left: 4px solid var(--accent); padding: 0.4rem 0.8rem; margin: 0.75rem 0 0; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .caveat strong { display: block; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+  .type { display: inline-block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.05rem 0.55rem; margin-bottom: 0.3rem; }
+  dl.who { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.75rem; margin: 0.75rem 0; font-size: 0.95rem; }
+  dl.who dt { color: var(--muted); } dl.who dd { margin: 0; }
+  details { border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.8rem; margin: 0.75rem 0; }
+  summary { cursor: pointer; font-weight: 600; padding: 0.2rem 0; }
+  summary:focus-visible { outline: 3px solid var(--focus); }
+  figure { margin: 1rem 0; }
+  figcaption { font-size: 0.95rem; color: var(--muted); margin-top: 0.4rem; }
+  svg { width: 100%; height: auto; display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; margin: 0.5rem 0; }
+  caption { text-align: left; font-weight: 600; padding: 0.3rem 0; }
+  th, td { text-align: left; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th[scope=col] { font-size: 0.85rem; color: var(--muted); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  ul.facts { list-style: none; padding: 0; margin: 0.5rem 0; }
+  ul.facts li { padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
+  ul.facts li strong { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+  .action { display: inline-block; background: var(--accent); color: #fff; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 0.5rem 0; }
+  .action:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  footer { margin-top: 3rem; font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+  .flag { font-size: 0.9rem; }
+  @media (max-width: 30rem) { dl.who { grid-template-columns: 1fr; } dl.who dt { margin-top: 0.4rem; } table { display: block; overflow-x: auto; } h1 { font-size: 1.4rem; } }
+  @media (prefers-reduced-motion: no-preference) { details { transition: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#answer">Skip to the answer</a>
+<main>
+  <p class="draft" role="status">Draft. No one has approved this Finding for publication yet. Numbers are checked; the conclusion is not yet reviewed by a person.</p>
+
+  <h1>New users who got the onboarding checklist came back more often</h1>
+  <p class="flag">For: Non-technical product owner · From: Dana Okafor · Generated 2026-07-20T14:05:00Z · Revision 1</p>
+
+  <h2 id="answer">Answer</h2>
+  <p class="answer">Yes. New users who saw the onboarding checklist came back within a week more often than new users who did not, and the difference is big enough to keep the checklist.</p>
+  <div class="caveat">
+    <strong>The one thing that would change this</strong>
+    <p>This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist.</p>
+  </div>
+
+  <h2>Decision it informs</h2>
+  <p>Whether to keep the onboarding checklist for all new users or remove it. Dana Okafor owns the decision. Before the experiment, the team agreed the checklist earns its place if it lifts the share of new users who come back within a week by at least 3 pp.</p>
+
+  <h2>Evidence</h2>
+
+  <section aria-labelledby="c1">
+    <span class="type" title="This claim says the checklist caused the difference, because users were assigned at random.">Cause and effect</span>
+    <h3 id="c1">New users who saw the checklist came back within a week more often than new users who did not: 34.8% compared with 28.5%.</h3>
+
+    <figure>
+      <svg viewBox="0 0 640 210" role="img" aria-labelledby="chart1-title chart1-desc" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+        <title id="chart1-title">Users who saw the checklist came back more often: 34.8% vs 28.5%</title>
+        <desc id="chart1-desc">Two horizontal bars. Checklist: 34.8% of 624 new users came back within seven days. Old onboarding: 28.5% of 653. The checklist bar is longer by 6.3 pp.</desc>
+        <text x="0" y="22" font-size="18" font-weight="600" fill="currentColor">Users who saw the checklist came back more often</text>
+        <text x="0" y="44" font-size="14" fill="var(--muted)">Share of new users who opened the app in the seven days after signing up</text>
+        <!-- bar area x 150..630 represents 0%..50% -->
+        <g>
+          <text x="140" y="96" font-size="15" text-anchor="end" fill="currentColor">Checklist</text>
+          <rect x="150" y="80" width="333.9" height="24" fill="var(--accent)" rx="2"></rect>
+          <text x="492" y="97" font-size="15" font-weight="600" fill="currentColor">34.8%</text>
+        </g>
+        <g>
+          <text x="140" y="146" font-size="15" text-anchor="end" fill="currentColor">Old onboarding</text>
+          <rect x="150" y="130" width="273.4" height="24" fill="var(--grey-bar)" rx="2"></rect>
+          <text x="432" y="147" font-size="15" font-weight="600" fill="currentColor">28.5%</text>
+        </g>
+        <line x1="150" y1="170" x2="630" y2="170" stroke="var(--line)"></line>
+        <text x="150" y="190" font-size="12" fill="var(--muted)">0%</text>
+        <text x="630" y="190" font-size="12" fill="var(--muted)" text-anchor="end">50%</text>
+      </svg>
+      <figcaption>Two horizontal bars. Checklist: 34.8% of 624 new users came back within seven days. Old onboarding: 28.5% of 653. The checklist bar is longer by 6.3 pp.</figcaption>
+    </figure>
+
+    <dl class="who">
+      <dt>Who is counted</dt><dd>Every person who signed up between the first of June and the twelfth of July (New York time) and was randomly given one of the two onboardings, 1,277 people in all.</dd>
+      <dt>Compared with</dt><dd>The people who were randomly given the old onboarding at the same time.</dd>
+      <dt>When</dt><dd>Signups from 2026-06-01 to 2026-07-12, and their app opens through 2026-07-19.</dd>
+      <dt>"Came back" means</dt><dd>Opened the app on at least one of the seven days after the day they signed up.</dd>
+    </dl>
+
+    <p>The gap is 6.3 pp, above the 3 pp the team agreed on before the experiment. Out of 624 people who saw the checklist, 217 came back. Out of 653 who saw the old onboarding, 186 came back.</p>
+
+    <table>
+      <caption>Who was counted, and how many came back</caption>
+      <thead><tr><th scope="col">Onboarding</th><th scope="col" class="num">New users</th><th scope="col" class="num">Came back within 7 days</th><th scope="col" class="num">Share who came back</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Checklist</th><td class="num">624</td><td class="num">217</td><td class="num">34.8%</td></tr>
+        <tr><th scope="row">Old onboarding</th><td class="num">653</td><td class="num">186</td><td class="num">28.5%</td></tr>
+      </tbody>
+    </table>
+
+    <details>
+      <summary>Who was left out, and the limits of this claim</summary>
+      <ul>
+        <li>People who signed up before the first of June or after the twelfth of July were not part of the experiment and are not counted.</li>
+        <li>"Came back" says nothing about what they did in the app.</li>
+        <li>Six weeks of early-summer signups; a different season could behave differently.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>How this number was calculated</summary>
+      <p>Share who came back = people who opened the app on any of days one to seven after signup ÷ everyone who signed up in that group. Definition <code>retained_7d</code> version 2, approved in the team's own records. Query <code>retention_by_arm</code>; saved result <code>retention_by_arm</code>. The gap is the checklist share minus the old-onboarding share, in percentage points.</p>
+    </details>
+    <p class="flag"><a href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_7k2m9q4w1xzb%20r1%2C%20claim%20c1&amp;body=Finding%3A%20fnd_7k2m9q4w1xzb%0ARevision%3A%201%0AClaim%3A%20c1%0A%0AMy%20question%3A%20">Question or flag this claim</a> (reference: <code>fnd_7k2m9q4w1xzb r1 c1</code>)</p>
+  </section>
+
+  <section aria-labelledby="c2">
+    <span class="type" title="This claim describes a pattern seen after the fact; it does not establish a cause.">Pattern, not proof</span>
+    <h3 id="c2">The difference shows up on phones and not on the web: 8.7 pp on mobile against -1.3 pp on the web.</h3>
+    <p>This split was not planned before the experiment. It is a follow-up look, so treat it as a lead to test, not a settled fact. On phones, 37.0% of checklist users came back against 28.3% of the others. On the web the two groups are small, so the web number moves a lot with a handful of people: 27.7% against 29.0%.</p>
+    <table>
+      <caption>The same comparison, phones and web separately</caption>
+      <thead><tr><th scope="col">Where they signed up</th><th scope="col">Onboarding</th><th scope="col" class="num">New users</th><th scope="col" class="num">Share who came back</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Phone app</th><td>Checklist</td><td class="num">476</td><td class="num">37.0%</td></tr>
+        <tr><th scope="row">Phone app</th><td>Old onboarding</td><td class="num">460</td><td class="num">28.3%</td></tr>
+        <tr><th scope="row">Web</th><td>Checklist</td><td class="num">148</td><td class="num">27.7%</td></tr>
+        <tr><th scope="row">Web</th><td>Old onboarding</td><td class="num">193</td><td class="num">29.0%</td></tr>
+      </tbody>
+    </table>
+    <dl class="who">
+      <dt>Who is counted</dt><dd>The same users, split by whether they signed up on the iPhone or Android app or in a browser.</dd>
+      <dt>Compared with</dt><dd>Checklist versus old onboarding, inside each group.</dd>
+    </dl>
+    <details>
+      <summary>Limits of this claim</summary>
+      <ul>
+        <li>This split was decided after seeing the overall result, so it is a lead to test, not a settled fact.</li>
+        <li>The web groups are small, so the web number moves a lot with a handful of users.</li>
+      </ul>
+    </details>
+    <p class="flag"><a href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_7k2m9q4w1xzb%20r1%2C%20claim%20c2&amp;body=Finding%3A%20fnd_7k2m9q4w1xzb%0ARevision%3A%201%0AClaim%3A%20c2%0A%0AMy%20question%3A%20">Question or flag this claim</a> (reference: <code>fnd_7k2m9q4w1xzb r1 c2</code>)</p>
+  </section>
+
+  <h2>How we checked</h2>
+  <p>These are separate facts. Passing checks mean the arithmetic and the references hold; they do not by themselves make the conclusion right.</p>
+  <ul class="facts">
+    <li><strong>Checks passed</strong> No user counted twice · The two groups are about the same size · The count of people who came back matches the approved definition computed a second way · The question's own test passed (the gap is at least 3 pp with at least five hundred people in each group)</li>
+    <li><strong>Definition</strong> retained_7d, version 2. Approval recorded in the team's records (dana-okafor, 2026-05-28); this draft has not verified it.</li>
+    <li><strong>Method review</strong> Recorded 2026-09-15 by the exemplar author. No blocking findings.</li>
+    <li><strong>Publication approval</strong> None. This is a draft.</li>
+    <li><strong>Data</strong> A retained copy of the users and app-open events for the experiment window. The numbers can be replayed from the saved results and the queries rerun against the retained copy.</li>
+    <li><strong>Covers</strong> Signups from June 1 to July 12, 2026, and their app opens through July 19. Nothing after July 19 is included.</li>
+  </ul>
+
+  <h2>What would change our mind</h2>
+  <p>If the checklist group were not at least 3 pp ahead of the other group, with at least five hundred people in each group, the checklist did not help enough to keep. That test is written down and passed on this data.</p>
+  <p>On a re-check, the main claim is re-tested on the same six weeks of signups with the same definition; it holds if the gap is still at least 3 pp. It cannot be re-tested if the definition changes or if there is no longer a group without the checklist. The phone-versus-web claim is a judgement for the next experiment, not a number to re-test; Dana Okafor decides.</p>
+
+  <h2>Question or flag this Finding</h2>
+  <p><a class="action" href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_7k2m9q4w1xzb%20r1&amp;body=Finding%3A%20fnd_7k2m9q4w1xzb%0ARevision%3A%201%0A%0AMy%20question%3A%20">Email Dana Okafor</a></p>
+  <p>If the button does nothing on this device, write to <code>dana@loop.example</code> and quote <code>fnd_7k2m9q4w1xzb r1</code>. Your message carries only these ids, never the numbers.</p>
+
+  <footer>
+    <p>Finding <code>fnd_7k2m9q4w1xzb</code>, revision 1, generated 2026-07-20T14:05:00Z. Data covered: 2026-06-01 to 2026-07-19.</p>
+    <p>This file cannot know whether a newer revision exists. The current version lives at <code>loop-example/analytics/analytics/findings/2026-07-20-onboarding-checklist-retention</code>.</p>
+    <p>Owner: Dana Okafor (dana@loop.example).</p>
+  </footer>
+</main>
+</body>
+</html>

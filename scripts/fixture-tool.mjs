@@ -237,7 +237,10 @@ async function validate() {
       if (d.approval.content_hash.value !== h.value) err("stale_attestation", `manifest.yaml#/definitions/${n}/approval`, `approval binds a different definition content`, "re-approve the definition");
       if (d.approval.source.type !== "github_pr_review") err("untrusted_attestation", `manifest.yaml#/definitions/${n}/approval`, "approval source is not a trusted type", "");
     }
-    if (d.role === "decision_metric" && (d.kind !== "metric" || !d.approval)) err("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} lacks an approval or is not kind metric`, "approve the definition or mark the role supporting");
+    if (d.role === "decision_metric" && (d.kind !== "metric" || !d.approval)) {
+      if (manifest.finding.state === "complete") err("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} lacks an approval or is not kind metric`, "approve the definition or mark the role supporting");
+      else warn("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} is not approved; the draft cannot complete until it is`);
+    }
   });
   // 3. referential integrity + results
   const ids = (arr) => new Set(arr.map((x) => x.id));
@@ -354,7 +357,7 @@ async function validate() {
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
   if (manifest.finding.state !== "complete") readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
-  finish(manifest, { evidence: report.errors.length ? "invalid" : "valid", executionAvailability, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
+  finish(manifest, { evidence: manifest.finding.state !== "complete" ? "incomplete" : report.errors.length ? "invalid" : "valid", executionAvailability, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
 }
 
 function validateChartSpec(spec, res, loc) {

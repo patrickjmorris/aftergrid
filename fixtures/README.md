@@ -6,7 +6,7 @@ Synthetic material for the Engine's own tests and reviews. Nothing here is real 
 - `instance/data/` is the synthetic warehouse (users, events, subscriptions) the Findings' retained inputs were extracted from by `scripts/capture-fixture-inputs.mjs`.
 - `instance/analytics/findings/2026-07-20-onboarding-checklist-retention/` is the numeric exemplar: an answered Finding with a causal Claim (randomized experiment), an exploratory associational Claim, one chart and two tables.
 - `instance/analytics/findings/2026-09-15-price-change-cancellations/` is the insufficient-data exemplar: a complete Finding whose Answer is "we cannot tell yet", with a numeric Claim about what exists and a non-numeric Claim about why no comparison is made.
-- `findings/companion-*/` are small companion cases for schema branches the two exemplars do not exercise (a `needs_input` draft, a `needs_reframing` outcome).
+- `instance/analytics/findings/companion-*/` are small companion cases for schema branches the two exemplars do not exercise (a `needs_input` draft, a `needs_reframing` outcome).
 
 ## Regenerate and verify
 

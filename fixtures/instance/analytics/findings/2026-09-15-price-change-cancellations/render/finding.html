@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="aftergrid-finding" content="fnd_3p8r5t2y7vnc r1">
+<title>Too early to tell whether the price change made more people cancel</title>
+<style>
+  /* Reference render for aftergrid v0. Static, self-contained, no scripts required. Phone first. */
+  :root { --fg: #1c1c1c; --muted: #5a5a5a; --bg: #ffffff; --line: #d9d9d9; --accent: #0b6e4f; --grey-bar: #b9b9b9; --draft: #7a4b00; --draft-bg: #fff4e0; --focus: #1d4ed8; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ececec; --muted: #b5b5b5; --bg: #121212; --line: #3a3a3a; --accent: #4fc79f; --grey-bar: #5c5c5c; --draft: #ffd08a; --draft-bg: #3a2a08; --focus: #8ab4ff; } }
+  * { box-sizing: border-box; }
+  html { font-size: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 1.0625rem/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 0 1rem 4rem; }
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 1.25rem 0 0.5rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  h3 { font-size: 1.05rem; line-height: 1.35; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0.5rem 0; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .skip { position: absolute; left: -999px; } .skip:focus { left: 1rem; top: 0.5rem; background: var(--bg); padding: 0.5rem; z-index: 2; }
+  .draft { background: var(--draft-bg); color: var(--draft); border: 1px solid currentColor; border-radius: 6px; padding: 0.6rem 0.8rem; margin: 1rem 0; font-weight: 600; }
+  .answer { font-size: 1.25rem; line-height: 1.4; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+  .caveat { border-left: 4px solid var(--accent); padding: 0.4rem 0.8rem; margin: 0.75rem 0 0; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .caveat strong { display: block; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+  .type { display: inline-block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.05rem 0.55rem; margin-bottom: 0.3rem; }
+  dl.who { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.75rem; margin: 0.75rem 0; font-size: 0.95rem; }
+  dl.who dt { color: var(--muted); } dl.who dd { margin: 0; }
+  details { border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.8rem; margin: 0.75rem 0; }
+  summary { cursor: pointer; font-weight: 600; padding: 0.2rem 0; }
+  summary:focus-visible { outline: 3px solid var(--focus); }
+  figure { margin: 1rem 0; }
+  figcaption { font-size: 0.95rem; color: var(--muted); margin-top: 0.4rem; }
+  svg { width: 100%; height: auto; display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; margin: 0.5rem 0; }
+  caption { text-align: left; font-weight: 600; padding: 0.3rem 0; }
+  th, td { text-align: left; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th[scope=col] { font-size: 0.85rem; color: var(--muted); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  ul.facts { list-style: none; padding: 0; margin: 0.5rem 0; }
+  ul.facts li { padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
+  ul.facts li strong { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+  .action { display: inline-block; background: var(--accent); color: #fff; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 0.5rem 0; }
+  .action:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  footer { margin-top: 3rem; font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+  .flag { font-size: 0.9rem; }
+  @media (max-width: 30rem) { dl.who { grid-template-columns: 1fr; } dl.who dt { margin-top: 0.4rem; } table { display: block; overflow-x: auto; } h1 { font-size: 1.4rem; } }
+  @media (prefers-reduced-motion: no-preference) { details { transition: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#answer">Skip to the answer</a>
+<main>
+  <p class="draft" role="status">Draft. No one has approved this Finding for publication yet. Numbers are checked; the conclusion is not yet reviewed by a person.</p>
+
+  <h1>Too early to tell whether the price change made more people cancel</h1>
+  <p class="flag">For: Non-technical product owner · From: Dana Okafor · Generated 2026-09-15T09:30:00Z · Revision 1</p>
+
+  <h2 id="answer">Answer</h2>
+  <p class="answer">We cannot tell yet. Only 7 days of data exist since the price change, and the team's own rule is to wait for 28 days and 300 cancellations before comparing.</p>
+  <div class="caveat">
+    <strong>The one thing to keep in mind</strong>
+    <p>This is not evidence that the price change is fine. It is evidence that we cannot tell yet. The earliest day we can is 2026-10-05.</p>
+  </div>
+
+  <h2>Decision it informs</h2>
+  <p>Whether to keep the new price, roll it back, or wait. Dana Okafor owns the decision. The honest option today is to wait; nothing here supports rolling back or declaring success.</p>
+
+  <h2>Evidence</h2>
+
+  <section aria-labelledby="c1">
+    <span class="type" title="This claim describes what is in the data; it does not compare or explain.">What the data shows</span>
+    <h3 id="c1">Only 7 days and 67 cancellations have accumulated since the price change; the policy needs 28 days and 300 cancellations before a comparison is made.</h3>
+
+    <table>
+      <caption>What we have so far</caption>
+      <thead><tr><th scope="col">Full days since the change</th><th scope="col">Cancellations since the change</th><th scope="col">Subscriptions active at the change</th><th scope="col">Earliest day a comparison is allowed</th></tr></thead>
+      <tbody>
+        <tr><td class="num">7</td><td class="num">67</td><td class="num">887</td><td>2026-10-05</td></tr>
+      </tbody>
+    </table>
+
+    <dl class="who">
+      <dt>Who is counted</dt><dd>The 887 paid subscriptions that were active when the price changed on 2026-09-08. Cancellations are counted from that day through 2026-09-14, the last full day of data.</dd>
+      <dt>Compared with</dt><dd>Not with the weeks before the change, but with the minimum the analysis policy requires. We are 21 days and 233 cancellations short of it.</dd>
+      <dt>When</dt><dd>2026-09-08 to 2026-09-14.</dd>
+    </dl>
+
+    <details>
+      <summary>Who was left out, and the limits of this claim</summary>
+      <ul>
+        <li>Subscriptions that started after the price change never saw the old price and are not part of this population.</li>
+        <li>The cancellation number is a raw count, not the weekly cancellation rate, which is still a proposed definition and has not been approved.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Where the minimum comes from</summary>
+      <p>The team's analysis policy (dated 2026-03-10, owned by Dana Okafor) requires at least 28 full days after a change, so one billing cycle is covered, and at least 300 cancellations, so a change of a fifth can be told apart from normal week-to-week noise. Query <code>cancellations_since_change</code>; saved result <code>since_change</code>. The earliest eligible day is the change date plus the policy minimum, computed from the same numbers.</p>
+    </details>
+    <p class="flag"><a href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_3p8r5t2y7vnc%20r1%2C%20claim%20c1&amp;body=Finding%3A%20fnd_3p8r5t2y7vnc%0ARevision%3A%201%0AClaim%3A%20c1%0A%0AMy%20question%3A%20">Question or flag this claim</a> (reference: <code>fnd_3p8r5t2y7vnc r1 c1</code>)</p>
+  </section>
+
+  <section aria-labelledby="c2">
+    <span class="type" title="This claim is a choice about method, not a measurement.">Why there is no comparison yet</span>
+    <h3 id="c2">The cancellations so far are not compared with the weeks before the change, because the first days after a price change mix people reacting to the announcement with normal cancellations.</h3>
+    <p>A partial first week set against full earlier weeks would compare unlike things and invite a conclusion the data cannot support. If cancellations had spiked sharply in the first days, that would be visible in the daily count even without a comparison; nothing so far looks like that, but "does not look like" is a judgement, not a measurement.</p>
+    <details>
+      <summary>Limits of this claim</summary>
+      <ul>
+        <li>This is a method choice. When the minimum is met, the full before-and-after comparison replaces it.</li>
+      </ul>
+    </details>
+    <p class="flag"><a href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_3p8r5t2y7vnc%20r1%2C%20claim%20c2&amp;body=Finding%3A%20fnd_3p8r5t2y7vnc%0ARevision%3A%201%0AClaim%3A%20c2%0A%0AMy%20question%3A%20">Question or flag this claim</a> (reference: <code>fnd_3p8r5t2y7vnc r1 c2</code>)</p>
+  </section>
+
+  <h2>How we checked</h2>
+  <p>These are separate facts. Passing checks mean the arithmetic and the references hold; they do not by themselves make the conclusion right.</p>
+  <ul class="facts">
+    <li><strong>Checks passed</strong> No subscription counted twice</li>
+    <li><strong>Checks that did not pass, on purpose</strong> The policy minimum is not yet met. That failure is the result of this Finding, not an error.</li>
+    <li><strong>Not yet run</strong> The question's own test, whether cancellations rose after the change, cannot run until the minimum is met.</li>
+    <li><strong>Definition</strong> weekly_cancellation_rate, version 1, is proposed and not approved, so no rate is shown; only counts.</li>
+    <li><strong>Method review</strong> Recorded 2026-09-15 by the exemplar author. No blocking findings.</li>
+    <li><strong>Publication approval</strong> None. This is a draft.</li>
+    <li><strong>Data</strong> A retained copy of all subscriptions through 2026-09-14. The numbers can be replayed from the saved results and the query rerun against the retained copy.</li>
+    <li><strong>Covers</strong> Cancellations from the day of the price change through September 14, 2026. The weeks before the change are in the retained data but are deliberately not compared yet.</li>
+  </ul>
+
+  <h2>What would change our mind</h2>
+  <p>Once 28 days and 300 cancellations have accumulated, the belief that the price change did not raise cancellations is wrong if the daily cancellation rate after the change is more than a fifth higher than in the 28 days before it. That test is written down and waiting.</p>
+  <p>On a re-check with newer data, the first claim is re-tested by restating how many days have accumulated; once the count reaches 28 it stops holding, and this Finding should be redone with the full comparison. The second claim is a method choice, not a measurement; Dana Okafor decides when to retire it.</p>
+
+  <h2>Question or flag this Finding</h2>
+  <p><a class="action" href="mailto:dana@loop.example?subject=Question%20about%20Finding%20fnd_3p8r5t2y7vnc%20r1&amp;body=Finding%3A%20fnd_3p8r5t2y7vnc%0ARevision%3A%201%0A%0AMy%20question%3A%20">Email Dana Okafor</a></p>
+  <p>If the button does nothing on this device, write to <code>dana@loop.example</code> and quote <code>fnd_3p8r5t2y7vnc r1</code>. Your message carries only these ids, never the numbers.</p>
+
+  <footer>
+    <p>Finding <code>fnd_3p8r5t2y7vnc</code>, revision 1, generated 2026-09-15T09:30:00Z. Data covered: 2026-09-08 to 2026-09-14.</p>
+    <p>This file cannot know whether a newer revision exists. The current version lives at <code>loop-example/analytics/analytics/findings/2026-09-15-price-change-cancellations</code>.</p>
+    <p>Owner: Dana Okafor (dana@loop.example).</p>
+  </footer>
+</main>
+</body>
+</html>

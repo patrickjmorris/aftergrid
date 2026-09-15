@@ -1,0 +1,78 @@
+# Companion case: a complete Finding whose outcome is needs_reframing. The Question as asked cannot be answered
+# with the data the team has; the Finding says so, explains what could be asked instead, and invents no falsifier.
+schema_version: 0.1.0
+finding:
+  id: fnd_5n1k7w3e9qtb
+  revision: 1
+  slug: podcast-listeners-happier
+  title: Whether podcast listeners are happier cannot be answered from our data
+  state: complete
+  outcome: needs_reframing
+  generated_at: "2026-09-15T11:00:00Z"
+  canonical_location: loop-example/analytics/analytics/findings/companion-needs-reframing
+owner:
+  name: Dana Okafor
+  contact: dana@loop.example
+reader:
+  profile: product_owner
+question:
+  id: podcast_listeners_happier
+  raw_ask: Are people who use the podcast feature happier with Loop?
+  state: not_answerable
+  decision: Whether to invest the next quarter in the podcast feature.
+  population: Users who played at least one podcast episode.
+  primary_comparison: Podcast listeners against non-listeners, on a measure of satisfaction.
+  falsifier:
+    kind: not_evaluable
+    reason: Loop records no satisfaction measure. There is no survey, rating or support signal in the warehouse, so no observation in the data could show the belief wrong. A falsifier would be a fiction.
+    owner: Dana Okafor
+  unresolved: [ metric, falsifier ]
+snapshot:
+  id: snap_catalog_only
+  inputs: []
+  guarantees: []
+definitions: []
+queries: []
+executions: []
+results: []
+derived: []
+external_sources: []
+claims:
+  - id: c1
+    type: descriptive
+    numeric: false
+    answer_bearing: true
+    sentence: Loop's data contains no measure of how happy a user is, so the question cannot be answered as asked.
+    evidence: []
+    population: All Loop users.
+    comparison: { kind: none, description: No comparison is possible because the thing to compare (satisfaction) is not recorded., pre_registered: false }
+    window: { start: "2026-05-01", end: "2026-09-14", timezone: America/New_York, description: The whole period the warehouse covers. }
+    exclusions: []
+    limitations:
+      - The warehouse catalog was inspected; a satisfaction signal could exist in a tool the warehouse does not load, such as app-store reviews or support tickets.
+    material_caveat: Listeners may well be happier. Nothing here says they are not; it says we have no way to tell from the data we keep.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: There is nothing to re-measure. This Finding changes only if a satisfaction measure is added to the warehouse.
+      owner: Dana Okafor
+      review_hint: Check whether a satisfaction source (survey, rating, support) has been added; if so, reframe and rerun.
+charts: []
+tables: []
+checks: []
+reviews: []
+attestations: []
+export_policy:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+  allowed_fields: []
+  delivery: html_file
+coverage:
+  data_from: "2026-05-01"
+  data_to: "2026-09-14"
+  description: The warehouse catalog (tables and columns) as of 2026-09-14. No rows were read.
+renderer:
+  version: 0.0.0-reference
+  house_style_version: 0.1.0
+content_digest:
+  algorithm: sha256
+  value: e645e37a7dd4c4f550c0fc5325f4396d50ed1aab1e37dd4c23aa7a71e56056a0
