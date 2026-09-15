@@ -18,6 +18,8 @@ import { openRetained } from "../adapters/duckdb.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { serializeResult } from "../adapters/serialize.ts";
 import { sha256 } from "../digest.ts";
+// @ts-ignore: shared Check-shape rule.
+import { checkOutcome } from "../../scripts/lib/sql-runner.mjs";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun" };
@@ -68,13 +70,9 @@ async function rerun(dir: string, report: Report) {
       try {
         const s = await sessionFor(ex.input_ids);
         const got = await s.execute(readFileSync(safePath(dir, ck.path), "utf8"), ex.parameters);
-        const names = got.columns.map((c) => c.name);
-        const row = got.rows[0];
-        if (got.rows.length !== 1 || !names.includes("pass") || names.some((n) => !["pass", "detail"].includes(n)) || (row!.pass !== null && typeof row!.pass !== "boolean"))
-          report.errors.push({ category: "check_shape", location: ck.path, message: "Check must return exactly one row with a boolean/null pass and optional text detail" });
-        else outcome = row!.pass === null ? "not_run" : row!.pass ? "pass" : "fail";
+        outcome = checkOutcome(got.columns.map((c) => c.name), got.rows, ck.path).outcome;
       } catch (e) {
-        report.errors.push({ category: e instanceof AdapterError ? e.category : "check_error", location: ck.path, message: (e as Error).message });
+        report.errors.push({ category: e instanceof AdapterError ? e.category : e instanceof ContractError ? (e as any).category : "check_error", location: ck.path, message: (e as Error).message });
       }
       current[ck.id] = outcome;
       if (outcome !== ck.outcome) report.errors.push({ category: "rerun_mismatch", location: `checks/${ck.id}`, message: `Check ${ck.id} is ${outcome} now but the manifest recorded ${ck.outcome}`, remedy: "rebuild the Finding as a new revision if the change is real" });
@@ -126,7 +124,7 @@ export function checkArtifact(opts: CheckOptions): Report {
     if (inst) {
       const dc = validateDecisionsFor(inst.root, manifest);
       report.errors.push(...dc.errors); report.warnings.push(...dc.warnings);
-      if (dc.records) report.info.push(`${dc.records} Decision record(s) cite this Finding; bindings checked, revisit conditions not evaluated`);
+      if (dc.records) report.info.push(`${dc.records} Decision record(s) cite this Finding; ${dc.records - Math.min(dc.records, dc.unverified)} verified against this revision, ${dc.unverified} unverified (other revision); revisit conditions not evaluated`);
     }
   }
   report.evidence = report.errors.length ? "invalid" : "valid";

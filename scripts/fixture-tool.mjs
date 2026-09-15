@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { safePath, validateStructure, validateResult, ContractError, sqlString, fail } from "./fixture-safety.mjs";
 import { findInstanceRoot, canon, definitionHash, digestOf, schemaErrors, validateFinding } from "./lib/validate-finding.mjs";
+import { openRetainedDatabase, runSelect, checkOutcome } from "./lib/sql-runner.mjs";
 import { join, dirname, resolve } from "node:path";
 import { parseDocument, parse as parseYaml } from "yaml";
 
@@ -23,46 +24,11 @@ const rd = (p) => readFileSync(p);
 const H = (buf) => ({ algorithm: "sha256", value: sha(buf) });
 let INSTANCE;
 
+// SQL execution policy lives in scripts/lib/sql-runner.mjs (shared with the adapter and check --mode rerun).
 async function openDb(manifest, dir, inputIds) {
-  const { DuckDBInstance } = await import("@duckdb/node-api");
-  const db = await DuckDBInstance.create(":memory:", {
-    autoload_known_extensions: "false", autoinstall_known_extensions: "false",
-    allow_community_extensions: "false", allow_unsigned_extensions: "false",
-    memory_limit: "256MB", threads: "2", max_temp_directory_size: "0B"
-  });
-  const c = await db.connect();
-  try {
-    await c.run("SET TimeZone='UTC'");
-    for (const inp of manifest.snapshot.inputs.filter(i => inputIds.includes(i.id))) {
-      if (inp.kind !== "extract") throw new Error("fixture tool only supports extract inputs (CSV)");
-      // Materialize declared inputs before disabling all external access. Queries can only read these tables.
-      await c.run(`create table "${inp.id}" as select * from read_csv(${sqlString(safePath(dir, inp.path))}, header=true, all_varchar=true)`);
-    }
-    await c.run("SET enable_external_access=false");
-    await c.run("SET lock_configuration=true");
-    return { c, close: () => { c.closeSync(); db.closeSync(); } };
-  } catch (e) { c.closeSync(); db.closeSync(); throw e; }
+  return openRetainedDatabase(dir, manifest.snapshot.inputs.filter((i) => inputIds.includes(i.id)));
 }
-async function runSql(c, sql, params) {
-  const { StatementType } = await import("@duckdb/node-api");
-  const timer = setTimeout(() => c.interrupt(), 10000);
-  let p;
-  try {
-    const statements = await c.extractStatements(sql);
-    if (statements.count !== 1) fail("sql_policy", "SQL", "exactly one SELECT statement is allowed");
-    p = await statements.prepare(0);
-    if (p.statementType !== StatementType.SELECT) fail("sql_policy", "SQL", "only SELECT statements are allowed");
-    const bindings = Object.create(null);
-    for (let i = 1; i <= p.parameterCount; i++) {
-      const name = p.parameterName(i);
-      if (!Object.hasOwn(params, name)) fail("sql_parameter", name, "missing named SQL parameter");
-      bindings[name] = params[name];
-    }
-    if (p.parameterCount) p.bind(bindings);
-    const r = await p.runAndReadAll();
-    return { names: r.columnNames(), rows: r.getRowObjectsJson() };
-  } finally { clearTimeout(timer); p?.destroySync(); }
-}
+async function runSql(c, sql, params) { const { names, rows } = await runSelect(c, sql, params); return { names, rows }; }
 function coerce(v, type) {
   if (v === null) return null;
   if (v === undefined) fail("value_type", "result", "missing value");
@@ -126,13 +92,7 @@ async function build() {
       try {
         const ex = checkExecution(manifest, ck);
         const { names, rows } = await runSql(await connectionFor(ex.input_ids), sql, ex.parameters);
-        if (rows.length !== 1 || !names.includes("pass") || names.some(n => !["pass", "detail"].includes(n)) ||
-            (rows[0].pass !== null && typeof rows[0].pass !== "boolean") ||
-            (names.includes("detail") && rows[0].detail !== null && typeof rows[0].detail !== "string")) {
-          fail("check_shape", ck.path, "Check must return exactly one row with a boolean/null pass and optional text detail");
-        }
-        const p = rows[0].pass; detail = rows[0].detail ?? "";
-        outcome = p === null ? "not_run" : p ? "pass" : "fail";
+        ({ outcome, detail } = checkOutcome(names, rows, ck.path));
       } catch (e) { throw new ContractError(e.category ?? "check_error", ck.path, e.message); }
       set(["checks", i, "outcome"], outcome);
       set(["checks", i, "executed_at"], new Date().toISOString().replace(/\.\d{3}Z$/, "Z"));

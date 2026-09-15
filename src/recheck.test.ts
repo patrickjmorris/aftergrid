@@ -1,7 +1,7 @@
 // ag-revisit-schema-rb8: Recheck policy, falsifier and Decision-record validation, with targeted failures.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, cpSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, cpSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -113,14 +113,40 @@ test("Decision records bind to an existing Finding revision, its digest, its Cla
   assert.ok(r.info.some((i) => /1 Decision record/.test(i)));
 
   const write = (rec: any, name = "dec_2x7v4b9m1kqa") => writeFileSync(join(root, "analytics", "decisions", `${name}.yaml`), toYaml(rec));
+  // A symlinked decisions directory is refused as unsafe.
+  const linkRoot = copyInstance();
+  rmSync(join(linkRoot, "analytics", "decisions"), { recursive: true, force: true });
+  symlinkSync(join(root, "analytics", "decisions"), join(linkRoot, "analytics", "decisions"));
+  const rl = await check({ dir: join(linkRoot, "analytics", "findings", NUMERIC) });
+  assert.ok(rl.errors.some((e) => e.category === "unsafe_path"), JSON.stringify(rl.errors));
   write({ ...good, rests_on_claims: ["c9"] });
   assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/rests_on_claims/0"));
   write({ ...good, revisit_when: { ...good.revisit_when, falsifier: { finding_id: good.finding.id, check_id: "arm_balance" } } });
   assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/revisit_when/falsifier"));
-  write({ ...good, finding: { ...good.finding, revision: 7 } });
-  assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/finding/revision"));
+  // Another revision, forward or backward: not an error here, reported as unverified (its Claims may legitimately differ).
+  write({ ...good, finding: { ...good.finding, revision: 7 }, rests_on_claims: ["c_only_in_r7"] });
+  let rr = await check({ dir });
+  assert.ok(!cats(rr).some((c) => c.startsWith("decision_binding")), cats(rr).join("\n"));
+  assert.ok(rr.warnings.some((w) => w.category === "decision_binding" && /revision 7/.test(w.message)));
+  write(good);
+  const m2 = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8")); m2.finding.revision = 2; m2.attestations = []; m2.reviews = []; m2.content_digest = digestOf(m2, dir);
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(m2, { lineWidth: 0 }));
+  rr = await check({ dir }); // directory now holds r2; the r1 record is unverified, never wrong
+  assert.ok(!cats(rr).some((c) => c.startsWith("decision_binding")), cats(rr).join("\n"));
+  cpSync(join(PRISTINE, NUMERIC, "manifest.yaml"), join(dir, "manifest.yaml"));
   write({ ...good, finding: { ...good.finding, content_digest: { algorithm: "sha256", value: "a".repeat(64) } } });
   assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/finding/content_digest"));
+  write({ ...good, supersedes: good.id });
+  assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/supersedes"), "self-supersede rejected");
+  write({ ...good, supersedes: "dec_missing00000" });
+  assert.ok(cats(await check({ dir })).includes("decision_binding@decisions/dec_2x7v4b9m1kqa.yaml#/supersedes"), "missing predecessor rejected");
+  write({ ...good, id: "dec_aaaaaaaaaaaa", supersedes: "dec_bbbbbbbbbbbb" }, "dec_aaaaaaaaaaaa");
+  write({ ...good, id: "dec_bbbbbbbbbbbb", supersedes: "dec_aaaaaaaaaaaa" }, "dec_bbbbbbbbbbbb");
+  assert.ok(cats(await check({ dir })).some((c) => c.startsWith("decision_binding@decisions/dec_aaaaaaaaaaaa.yaml#/supersedes")), "cycle rejected");
+  rmSync(join(root, "analytics", "decisions", "dec_aaaaaaaaaaaa.yaml")); rmSync(join(root, "analytics", "decisions", "dec_bbbbbbbbbbbb.yaml"));
+  write({ ...good, revisit_when: { ...good.revisit_when, falsifier: { finding_id: "fnd_000000000000", check_id: "x" } } });
+  rr = await check({ dir });
+  assert.ok(rr.warnings.some((w) => /binding not verified/.test(w.message)), "foreign falsifier is reported unverified, not silently accepted");
   write({ ...good, revisit_when: { schedule: { kind: "on_date", date: "2026-11-01" } } });
   assert.ok(cats(await check({ dir })).some((c) => c.startsWith("schema@decisions/dec_2x7v4b9m1kqa.yaml#/revisit_when/schedule")), "timezone required");
   write({ ...good, revisit_when: {} });

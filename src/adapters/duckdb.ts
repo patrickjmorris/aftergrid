@@ -7,7 +7,9 @@ import { join, basename } from "node:path";
 import { AdapterError } from "./contract.ts";
 import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe, RetainedInput, RetainedSession, ResourceLimits, SqlParams, CatalogTable, Admission } from "./contract.ts";
 // @ts-ignore: shared path containment and SQL string quoting.
-import { safePath, sqlString } from "../../scripts/fixture-safety.mjs";
+import { safePath, sqlString, ContractError } from "../../scripts/fixture-safety.mjs";
+// @ts-ignore: the one SQL execution policy, shared with the fixture builder.
+import { SANDBOX_SETTINGS, DEFAULT_LIMITS as RUNNER_LIMITS, applyLimits, sealConnection, openRetainedDatabase, runSelect } from "../../scripts/lib/sql-runner.mjs";
 
 export type DuckDbSource =
   | { kind: "duckdb_file"; path: string }        // opened READ_ONLY
@@ -15,61 +17,21 @@ export type DuckDbSource =
 
 export type DuckDbOptions = { source: DuckDbSource; limits?: Partial<ResourceLimits>; estimate_cap_rows?: number };
 
-const DEFAULT_LIMITS: ResourceLimits = { statement_timeout_ms: 10_000, memory_limit: "256MB", threads: 2 };
-const SANDBOX = { autoload_known_extensions: "false", autoinstall_known_extensions: "false", allow_community_extensions: "false", allow_unsigned_extensions: "false", max_temp_directory_size: "0B" };
+const DEFAULT_LIMITS: ResourceLimits = { ...RUNNER_LIMITS };
+const SANDBOX: Record<string, string> = { ...SANDBOX_SETTINGS };
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 
 async function api() { return await import("@duckdb/node-api"); }
-/** '2026-01-02 03:04:05+00' (microseconds kept only when non-zero) from a UTC microsecond instant. */
-function utcText(micros: bigint): string {
-  const ms = Number(micros / 1000n); const frac = Number(micros % 1000000n);
-  const iso = new Date(ms).toISOString(); // YYYY-MM-DDTHH:MM:SS.sssZ
-  const base = iso.slice(0, 19).replace("T", " ");
-  return frac ? `${base}.${String(frac).padStart(6, "0").replace(/0+$/, "")}+00` : `${base}+00`;
-}
 
-/** Guarded execution shared by live and retained sessions. */
+/** Every authored statement goes through the shared runner; ContractError categories become AdapterError. */
 async function guardedRun(c: any, sql: string, params: SqlParams, limits: ResourceLimits, timeoutMs: number): Promise<{ columns: ExecuteResult["columns"]; rows: ExecuteResult["rows"] }> {
-  const { StatementType } = await api();
-  const timer = setTimeout(() => { try { c.interrupt(); } catch { /* already finished */ } }, timeoutMs);
-  let p: any;
   try {
-    const statements = await c.extractStatements(sql);
-    if (statements.count !== 1) throw new AdapterError("sql_policy", "exactly one SELECT statement is allowed", "SQL");
-    p = await statements.prepare(0);
-    if (p.statementType !== StatementType.SELECT) throw new AdapterError("sql_policy", "only SELECT statements are allowed", "SQL");
-    const bindings: Record<string, unknown> = Object.create(null);
-    for (let i = 1; i <= p.parameterCount; i++) {
-      const name = p.parameterName(i);
-      if (!Object.hasOwn(params, name)) throw new AdapterError("sql_parameter", `missing named SQL parameter $${name}`, name);
-      bindings[name] = params[name];
-    }
-    if (p.parameterCount) p.bind(bindings);
-    const r = await p.runAndReadAll();
-    const names: string[] = r.columnNames();
-    const types: string[] = r.columnTypes().map((t: any) => t.toString());
-    const rows: Record<string, any>[] = r.getRowObjectsJson();
-    // TIMESTAMP WITH TIME ZONE values are formatted by the client library in the process's local zone; the contract
-    // requires an unambiguous UTC text form, so they are re-rendered from their microsecond instant.
-    const tzCols = names.filter((_, i) => types[i] === "TIMESTAMP WITH TIME ZONE");
-    if (tzCols.length) {
-      const typed: Record<string, any>[] = r.getRowObjects();
-      rows.forEach((row, i) => { for (const col of tzCols) { const v = typed[i]![col]; row[col] = v === null || v === undefined ? null : utcText(v.micros as bigint); } });
-    }
-    return { columns: names.map((n, i) => ({ name: n, sql_type: types[i]! })), rows };
+    const { names, types, rows } = await runSelect(c, sql, params, { timeoutMs, limits });
+    return { columns: (names as string[]).map((n, i) => ({ name: n, sql_type: (types as string[])[i]! })), rows };
   } catch (e) {
-    if (e instanceof AdapterError) throw e;
-    const msg = String((e as Error).message ?? e);
-    if (/INTERRUPT/i.test(msg)) throw new AdapterError("cancelled", `statement cancelled after ${timeoutMs} ms (statement_timeout)`, "SQL");
-    if (/Out of Memory|memory limit/i.test(msg)) throw new AdapterError("resource_limit", `memory limit ${limits.memory_limit} exceeded`, "SQL");
-    throw new AdapterError("sql_error", msg.split("\n")[0]!, "SQL");
-  } finally { clearTimeout(timer); p?.destroySync?.(); }
-}
-
-async function applyLimits(c: any, limits: ResourceLimits) {
-  await c.run(`SET memory_limit=${sqlString(limits.memory_limit)}`);
-  await c.run(`SET threads=${Math.max(1, Math.floor(limits.threads))}`);
-  await c.run("SET TimeZone='UTC'");
+    if (e instanceof ContractError) throw new AdapterError((e as any).category, e.message, String((e as any).location));
+    throw e;
+  }
 }
 
 function maxCardinality(plan: any): number | null {
@@ -169,8 +131,7 @@ export class DuckDbAdapter implements Adapter {
         await this.conn.run(`create table "${table}" as select * from read_csv(${sqlString(safePath(dir, f))}, header=true, all_varchar=true)`);
         this.tables.push(table);
       }
-      await this.conn.run("SET enable_external_access=false");
-      await this.conn.run("SET lock_configuration=true");
+      await sealConnection(this.conn);
     }
     return this.conn;
   }
@@ -227,7 +188,6 @@ export class DuckDbAdapter implements Adapter {
  * extract is an explicit error and never falls back to a live source. Only the listed inputs are visible.
  */
 export async function openRetained(baseDir: string, inputs: { id: string; kind: string; path: string; content_hash: { value: string } }[], limits: Partial<ResourceLimits> = {}): Promise<RetainedSession> {
-  const { DuckDBInstance } = await api();
   const lim = { ...DEFAULT_LIMITS, ...limits };
   for (const inp of inputs) {
     if (inp.kind !== "extract") throw new AdapterError("not_implemented", `retained input kind ${inp.kind} is not supported for rerun yet`, inp.id);
@@ -236,19 +196,12 @@ export async function openRetained(baseDir: string, inputs: { id: string; kind: 
     const actual = sha(readFileSync(full));
     if (actual !== inp.content_hash.value) throw new AdapterError("hash_mismatch", `retained input ${inp.id} content differs from its recorded hash; rerun refused`, inp.path);
   }
-  const db = await DuckDBInstance.create(":memory:", SANDBOX);
-  const c = await db.connect();
-  try {
-    await applyLimits(c, lim);
-    for (const inp of inputs) await c.run(`create table "${inp.id}" as select * from read_csv(${sqlString(safePath(baseDir, inp.path))}, header=true, all_varchar=true)`);
-    await c.run("SET enable_external_access=false");
-    await c.run("SET lock_configuration=true");
-  } catch (e) { c.closeSync(); db.closeSync(); throw e; }
+  const { c, close } = await openRetainedDatabase(baseDir, inputs, lim);
   return {
     async execute(sql, params, opts = {}) {
       const { columns, rows } = await guardedRun(c, sql, params, lim, opts.timeout_ms ?? lim.statement_timeout_ms);
       return { columns, rows, admission: { decision: "admitted", basis: "unknown_estimate_with_enforced_limits", estimate: { status: "unknown", reason: "retained inputs are bounded extracts; admission is by enforced limits" }, limits: lim } };
     },
-    async close() { c.closeSync(); db.closeSync(); },
+    async close() { close(); },
   };
 }
