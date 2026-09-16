@@ -10,12 +10,15 @@ export type Category =
   | "hook_not_installed" | "hook_self_test_failed"
   | "runtime_unavailable" | "missing_credential"
   | "dependency_missing" | "write_capable_role"
+  // background intake (docs/contracts/intake.md): states a request can rest in, and why it stopped there
+  | "dispatch_refused" | "source_limits_missing" | "harness_failed" | "needs_input" | "needs_attention"
+  | "already_claimed" | "superseded" | "scope_violation" | "api_error"
   | "not_implemented";
 
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
 
 export type Report = {
-  command: "new" | "check" | "render" | "decide" | "hook" | "setup";
+  command: "new" | "check" | "render" | "decide" | "hook" | "setup" | "intake";
   finding?: string;
   state?: string;
   outcome?: string;

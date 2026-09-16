@@ -1,0 +1,58 @@
+# EXAMPLE, and optional. Copy this into your *Instance* repository and adapt it; the local poller
+# (`aftergrid intake --poll-seconds 60`) works without any of it, and nothing in the Engine depends on it.
+#
+# It is `workflow_dispatch`-only on purpose: an example living in the Engine repository must never start
+# running on a schedule by itself. In your Instance, add the `schedule` or `issues` trigger you want.
+#
+# The same rule applies here as everywhere else: `aftergrid intake` refuses to dispatch unless the guardrail
+# hook is installed AND self-tests clean on this runner. There is no bypass flag (docs/contracts/intake.md).
+name: aftergrid intake (example)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: owner/repo holding the Issues (defaults to publication.repository)
+        required: false
+        type: string
+
+permissions:
+  contents: write        # the head branch carrying the Finding directory
+  issues: write          # the two labels and the status comment
+  pull-requests: write   # the draft pull request. NEVER a review: approval is a human's
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24          # or 22.18+: TypeScript type stripping is on by default there
+
+      - name: Install the Engine
+        run: |
+          git clone --depth 1 https://github.com/patrickjmorris/aftergrid.git "$RUNNER_TEMP/aftergrid"
+          cd "$RUNNER_TEMP/aftergrid" && corepack enable && pnpm install --frozen-lockfile
+
+      - name: Install the guardrail hook, and stop if it does not self-test clean
+        run: node "$RUNNER_TEMP/aftergrid/src/cli.ts" hook install
+
+      - name: Run the labelled requests once
+        env:
+          # A token for the automation identity, never a reviewer's. Read from the environment only.
+          GITHUB_TOKEN: ${{ secrets.AFTERGRID_BOT_TOKEN }}
+        run: |
+          node "$RUNNER_TEMP/aftergrid/src/cli.ts" intake \
+            --repo "${{ inputs.repo || github.repository }}" \
+            --instance analytics \
+            --harness command \
+            --harness-command "your-headless-analysis --run {run_id} --instance {instance} --request {request}" \
+            --once --json
+
+# Not covered by this recipe, and not pretended otherwise:
+#   - committing and pushing the Finding directory to the run's head branch (aftergrid/<run_id>). intake does
+#     no git work; the branch must exist before `create` can succeed (docs/contracts/intake.md).
+#   - the headless analysis harness itself, which is a stub in the Engine today.
+#   - any claim that this file has been run. It has not: no test in the Engine executes a workflow.
