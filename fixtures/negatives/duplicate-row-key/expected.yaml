@@ -7,5 +7,5 @@ layer: engine_category
 expect: error
 category: duplicate_row_key
 location_pattern: ^results/retention_by_arm\.json row 1$
-defect: Both rows of the primary result set carry the row key 'checklist'.
-description: References resolve by row key, so a repeated key makes every reference into that result ambiguous.
+defect: "The primary result set carries the row key 'checklist' twice: the first row is repeated."
+description: "References resolve by row key, so a repeated key makes every reference into that result ambiguous. The defect is the repeated key alone: every other key still resolves, so nothing else about this Finding may fail."

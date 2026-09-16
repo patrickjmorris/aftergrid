@@ -45,7 +45,10 @@ export type NegativeCase = {
   base: "numeric" | "non_answer";
   layer: Layer;
   expect: Expectation;
-  /** The report category the defect must produce, or the name of the concern for a non-error expectation. */
+  /**
+   * The report category the defect must produce. `none` for every non-error expectation, including `readiness`:
+   * a case that reports no error must not name a category it does not raise. src/negatives.test.ts enforces both.
+   */
   category: string;
   location_pattern: string;
   defect: string;
@@ -314,7 +317,10 @@ export const CASES: NegativeCase[] = [
     category: "none",
     location_pattern: "",
     defect: "None. A declared but non-exported column carries the Instance's private marker in every row.",
-    description: "The marker and the column name must be absent from every rendered byte; render refuses to write anything that still contains the marker.",
+    // What this case proves is the projection, not the refusal: nothing references the column, so the marker has
+    // no path to the output and render's output-byte refusal is never reached. private-marker-in-memo is the case
+    // that exercises a marker on a path to a Reader.
+    description: "A column outside export_policy.allowed_fields is projected away: neither the marker nor the column name reaches any rendered byte, and check reports no error because the marker never had a path to a Reader.",
     render: { must_not_contain: [PRIVATE_MARKER, "internal_note"] },
     mutate: (m, files) => {
       resultOf(m, "retention_by_arm").columns.push({ name: "internal_note", type: "text", unit: "text", description: "Deliberately not in export_policy.allowed_fields: it must never reach a Reader." });
@@ -331,11 +337,14 @@ export const CASES: NegativeCase[] = [
     base: "numeric",
     layer: "review_concern",
     expect: "readiness",
-    category: "untrusted_attestation",
-    location_pattern: "^manifest\\.yaml#/attestations/0$",
+    // No error is raised for this case, so no category is named: an untrusted source is answered by readiness
+    // (src/publication/readiness.ts takes the unverified_note branch, records a reason and never rejects),
+    // not by a problem in the report. Declaring untrusted_attestation here would describe an error nothing emits.
+    category: "none",
+    location_pattern: "",
     reason_pattern: "unverified_note.*(not trusted|never an approval)",
     defect: "A publication_approval attestation whose source is an unverified_note, bound to the current digest.",
-    description: "An unverified note never counts toward publication readiness: check reports no error, readiness stays not_ready and says why. Whether an informal note was passed off as an approval is then a review concern.",
+    description: "An unverified note never counts toward publication readiness: check reports no error at all, readiness stays not_ready and the reason names the source. Whether an informal note was passed off as an approval is then a review concern.",
     render: { must_contain: ["Draft", "None verified"] },
     sign: (m, digest) => {
       m.attestations = [{
@@ -365,9 +374,11 @@ export const CASES: NegativeCase[] = [
     expect: "error",
     category: "duplicate_row_key",
     location_pattern: "^results/retention_by_arm\\.json row 1$",
-    defect: "Both rows of the primary result set carry the row key 'checklist'.",
-    description: "References resolve by row key, so a repeated key makes every reference into that result ambiguous.",
-    mutate: (m, files) => editResult(m, files, "retention_by_arm", (data) => void (data.rows[1].arm = "checklist")),
+    defect: "The primary result set carries the row key 'checklist' twice: the first row is repeated.",
+    description: "References resolve by row key, so a repeated key makes every reference into that result ambiguous. The defect is the repeated key alone: every other key still resolves, so nothing else about this Finding may fail.",
+    // A repeated row, not a renamed one: renaming 'control' to 'checklist' would also delete the 'control' key and
+    // the case would then fail for unresolved_reference as well, which proves nothing about duplicate keys.
+    mutate: (m, files) => editResult(m, files, "retention_by_arm", (data) => void data.rows.splice(1, 0, JSON.parse(JSON.stringify(data.rows[0])))),
   },
   {
     name: "missing-column",
@@ -466,6 +477,35 @@ export const CASES: NegativeCase[] = [
         replaceOnce(memo, "- Definition used: retained_7d v2.",
           "- Decision metric cited: weekly_cancellation_rate v1, which is only proposed and has never been approved.\n- Definition used: retained_7d v2."));
     },
+  },
+  {
+    name: "decision-metric-approval-forged",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "error",
+    category: "untrusted_attestation",
+    location_pattern: "^manifest\\.yaml#/definitions/0/approval$",
+    also: ["definition_not_approved"],
+    defect: "The Finding's manifest states an approval for its decision metric that the definition file does not record: a different approver and a different review.",
+    description:
+      "An approval is granted on the definition and lives in the definition file; a Finding may only restate it. A well-formed approval block pasted into a manifest is the Finding approving itself, so the restatement must match the file or the decision metric counts as unapproved.",
+    mutate: (m) => {
+      m.definitions[0].approval.approver = "an-agent";
+      m.definitions[0].approval.source.review_id = 9999999;
+    },
+  },
+  {
+    name: "private-marker-in-memo",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "error",
+    category: "export_policy",
+    location_pattern: "^memo\\.md:\\d+:\\d+$",
+    defect: "The Instance's private marker is typed into the memo prose.",
+    description:
+      "The memo is Reader-facing prose in full, so a private marker in it would be exported. check reports it with a line and column, and render is refused before anything is written — the marker is not left to be caught by the output-byte check alone.",
+    render: { refused: true },
+    mutate: (_m, files) => editMemo(files, (memo) => memo + `- Internal, not for a Reader: ${PRIVATE_MARKER}\n`),
   },
   {
     name: "definition-version-not-pinned",

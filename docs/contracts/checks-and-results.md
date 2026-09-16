@@ -61,6 +61,8 @@ Null and not-available render as "not available"; never as 0, blank or a dash wi
 
 `export_policy.allowed_fields` governs every value that can reach a Reader: chart data, table cells, prose tokens and the operands of derived values. A reference to a column outside the allowlist fails `export_policy` wherever it appears. Provisional status propagates from results through derived values to Claims; a Claim resting on provisional evidence cannot be rendered.
 
+`export_policy.private_marker` is the Instance's own sentinel for text that must never reach a Reader. `check` fails `export_policy`, with a line and column, when the marker appears in **memo prose**, because every byte of the memo is Reader-facing. It deliberately does not scan result files: a marker in a column outside `allowed_fields` is legitimate and the renderer projects that column away. `render` re-checks the marker against the bytes it is about to write and refuses rather than write them.
+
 ## Seam-1 negative fixtures
 
 `fixtures/negatives/` holds one small Finding directory per deliberate defect, each with an `expected.yaml`
@@ -84,7 +86,7 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `zero-denominator-derived` | engine_category | no error; the render says "not available", never 0 |
 | `nullable-null-not-available` | engine_category | no error; a declared null renders "not available" in prose and in the table |
 | `display-only-rounding` | engine_category | no error; formatting is applied once at render and the saved decimals never reach the page |
-| `private-field-sentinel` | engine_category | no error; the private marker and the non-exported column name are absent from every rendered byte |
+| `private-field-sentinel` | engine_category | no error; the column is outside `allowed_fields`, so the marker never had a path to a Reader and neither it nor the column name is in any rendered byte |
 | `forged-attestation` | review_concern | no error, readiness `not_ready`: an `unverified_note` never counts toward publication readiness |
 | `unresolved-reference` | engine_category | `unresolved_reference` |
 | `duplicate-row-key` | engine_category | `duplicate_row_key` |
@@ -95,6 +97,8 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `missing-memo-section` | engine_category | `template` |
 | `claim-without-recheck` | engine_category | `schema` |
 | `decision-metric-not-approved` | engine_category | `definition_not_approved` |
+| `decision-metric-approval-forged` | engine_category | `untrusted_attestation` (plus `definition_not_approved`): the manifest states an approval the definition file does not record |
+| `private-marker-in-memo` | engine_category | `export_policy` at `memo.md:<line>:<col>`; `render` is refused |
 | `definition-version-not-pinned` | engine_category | `definition_version` |
 | `failing-reconciliation-check` | engine_category | `check_failed`; `render` is refused |
 | `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` |
@@ -118,5 +122,19 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 - **Location granularity is not uniform.** `unit_mismatch` is reported at the operation name (`difference`) because
   the shared arithmetic helper raises it before a manifest pointer exists; `expected.yaml` records that location as
   it is rather than pretending it is finer.
-- **A structural rejection stops validation.** `schema` cases report exactly one error and evidence
-  `not_evaluated`, not `invalid`; nothing further is read from the directory.
+- **A structural rejection stops validation.** Validation stops at the first `schema` problem and at the first
+  `ContractError` from the shared helpers in `scripts/fixture-safety.mjs`: `unsafe_path`, `path_collision`,
+  `duplicate_id`, `execution_binding`, `derived_arity` and `definition_version` from `validateStructure`, and
+  `unit_mismatch` from the derived arithmetic. Those cases report exactly one error and nothing after the stop is
+  read — no memo check, no content digest, no readiness — so `check` reports evidence `not_evaluated`, not
+  `invalid`. `schema`, `unit_mismatch`, `execution_binding` and `derived_arity` are in `check`'s STOP set, so the
+  report does not claim `content: complete` for a Finding it stopped reading.
+- **A fault inside a result file does not stop validation.** `result_shape`, `row_key`, `value_type`,
+  `duplicate_row_key` and `null_value` in a `results/*.json` file are reported and validation continues: the
+  remaining results, the Claims, the memo, the content digest and readiness are all still checked. Only a file
+  whose shape cannot be read at all is skipped, because nothing below it can read its rows.
+- **A definition's approval is corroborated, not verified.** `check` requires a decision metric's `lifecycle` and
+  `approval` in the manifest to match the definition file's own front matter, and requires the approval to bind the
+  definition's current content and to name a trusted source type. It does **not** call GitHub, check the named
+  review, or compare the approver against the Instance's `publication.trusted_approvers`; that is
+  `src/publication/readiness.ts`, which answers `unknown` rather than `ready` when it cannot read the review.

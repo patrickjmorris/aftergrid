@@ -118,7 +118,7 @@ export function checkArtifact(opts: CheckOptions): Report {
   report.errors.push(...(out.errors as Problem[]));
   report.warnings.push(...(out.warnings as Problem[]));
   report.info.push(...(out.info as string[]));
-  const STOP = new Set(["schema", "invalid_artifact", "unsafe_path", "path_collision", "duplicate_id", "syntax"]);
+  const STOP = new Set(["schema", "invalid_artifact", "unsafe_path", "path_collision", "duplicate_id", "syntax", "unit_mismatch", "execution_binding", "derived_arity"]);
   report.syntax = report.errors.some((e) => e.category === "schema" || e.category === "syntax" || (e.category === "invalid_artifact" && /YAML|parse/i.test(e.message))) ? "invalid" : "ok";
   if (out.finding) { report.finding = out.finding; report.state = out.state; report.outcome = out.outcome; }
   // After a structural rejection nothing further is read from the directory.
