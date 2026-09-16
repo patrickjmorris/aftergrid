@@ -12,7 +12,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: 10 }
       - uses: actions/setup-node@v4
-        with: { node-version: ${{ matrix.node }}, cache: pnpm }
+        with: { node-version: "${{ matrix.node }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: expose a local Postgres runtime when the image has one (seam-2 Postgres contract)
         shell: bash
@@ -58,7 +58,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: 10 }
       - uses: actions/setup-node@v4
-        with: { node-version: ${{ matrix.node }}, cache: pnpm }
+        with: { node-version: "${{ matrix.node }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: node src/cli.ts plugin validate --json
       - run: node scripts/pack-smoke.mjs
