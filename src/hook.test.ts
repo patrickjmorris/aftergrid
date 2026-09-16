@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { GUARD_PATH, HOOK_COMMAND, hook } from "./commands/hook.ts";
@@ -224,11 +224,205 @@ test("install refuses to touch settings it cannot parse, and creates the file wh
   assert.equal(JSON.parse(readFileSync(fresh, "utf8")).hooks.PreToolUse[0].hooks[0].command, HOOK_COMMAND);
 });
 
+test("a redirection is removed operator and operand, so an output file is never read as the target", () => {
+  const root = instance();
+  for (const command of [
+    `psql -h warehouse.example -d analytics -c "drop table users" > out.txt`,
+    `psql -h warehouse.example -d analytics -c "drop table users" 2> err.log`,
+    `psql -h warehouse.example -d analytics -c "drop table users" 2>&1`,
+    `psql -c "drop table users" > /dev/null`,
+    `psql -c "drop table users" >out.txt`,
+    `psql -c "drop table users" -o "out file.txt" 2>> err.log`,
+  ]) {
+    const g = guard(command, root);
+    assert.equal(g.status, 2, `redirecting output must not change the target: ${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.rule, "source_write", command);
+    assert.equal(g.decision.target, "configured", command);
+  }
+  assert.equal(guard(`ls -la > out.txt`, root).status, 0, "a local command with a redirection is still local");
+});
+
+test("every -c and every -f is inspected: an opening select does not hide the statement behind it", () => {
+  const root = instance();
+  writeFileSync(join(root, "a.sql"), "select 1;\n");
+  writeFileSync(join(root, "ddl.sql"), "drop table users;\n");
+  const duck = "analytics/data/warehouse.duckdb";
+  const cases: [string, string][] = [
+    [`psql -c "select 1" -c "drop table users"`, "source_write"],
+    [`psql -c "select 1" --command "delete from users"`, "source_write"],
+    [`psql -f a.sql -f ddl.sql`, "source_write"],
+    [`duckdb ${duck} -c "select 1" -c "drop table t"`, "source_write"],
+    [`duckdb ${duck} -c "select 1" -c "attach '/tmp/x.db' as x"`, "engine_extension"],
+  ];
+  for (const [command, rule] of cases) {
+    const g = guard(command, root);
+    assert.equal(g.status, 2, `${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.rule, rule, command);
+  }
+  assert.equal(guard(`psql -c "select 1" -c "select 2"`, root).decision.rule, "query_read", "repeated reads are still reads");
+});
+
+test("a target the hook cannot resolve is unknown, never 'other': an unexpanded variable does not wave a write through", () => {
+  const root = instance();
+  for (const command of [
+    `psql -d "$DB" -c "drop table users"`,
+    `psql $PGDATABASE -c "drop table users"`,
+    `psql -h $PGHOST -d $PGDATABASE -c "truncate events"`,
+    `psql -d "\${WAREHOUSE}" -c "drop table users"`,
+    `duckdb $DB -c "drop table t"`,
+  ]) {
+    const g = guard(command, root);
+    assert.equal(g.status, 2, `${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.target, "unknown", command);
+    assert.match(g.decision.message, /cannot rule out/, command);
+  }
+  assert.equal(guard(`psql -h 127.0.0.1 -d scratch -c "create table t (a int)"`, root).decision.target, "other",
+    "a target it did read, and that differs, is still out of scope");
+});
+
+test("a command substitution anywhere in the SQL is refused, not only when it is the whole string", () => {
+  const root = instance();
+  const duck = "analytics/data/warehouse.duckdb";
+  for (const command of [
+    `psql -d analytics -c "select 1; $(cat /tmp/evil.sql)"`,
+    `psql -c "$(echo drop) table users"`,
+    `psql -c "de$(echo lete) from users"`,
+    `psql -c "select id from t where x = $(cat /tmp/t.txt)"`,
+    `duckdb ${duck} "dr$(echo op) table t"`,
+    'psql -c "select 1; `cat /tmp/evil.sql`"',
+  ]) {
+    const g = guard(command, root);
+    assert.equal(g.status, 2, `${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.rule, "uninspected_sql", command);
+    assert.equal(g.decision.uninspected, true, command);
+  }
+});
+
+test("shell parameter expansion is reported uninspected, never as a checked read", () => {
+  const root = instance();
+  for (const command of [
+    `Q="drop table users"; psql -d analytics -c "$Q"`,
+    `Q="drop table users"; psql -d analytics -c "\${Q}"`,
+    `duckdb analytics/data/warehouse.duckdb "$Q"`,
+  ]) {
+    const g = guard(command, root);
+    assert.equal(g.status, 0, command);
+    assert.equal(g.decision.rule, "uninspected", `${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.uninspected, true, command);
+    assert.ok(g.decision.notes.some((n: string) => /parameter expansion/.test(n)), `${command}: ${JSON.stringify(g.decision.notes)}`);
+  }
+  assert.equal(guard(`psql -d analytics -c "delete from users where id = $ID"`, root).status, 2,
+    "a write keyword the hook can see still blocks, expansion or not");
+});
+
+test("an inline shell or interpreter payload is inspected; a script file is still only reported", () => {
+  const root = instance();
+  const blocked = [
+    `bash -c "psql -c 'drop table users'"`,
+    `sh -c "psql -d analytics -c 'delete from events'"`,
+    `bash -lc "psql -d analytics -c 'truncate events'"`,
+    `env bash -c "duckdb analytics/data/warehouse.duckdb -c 'drop table t'"`,
+    `zsh -c "psql -c 'grant select on users to bob'"`,
+    `python3 -c "cur.execute('drop table users')"`,
+    `perl -e "$dbh->do('drop table users')"`,
+  ];
+  for (const command of blocked) {
+    const g = guard(command, root);
+    assert.equal(g.status, 2, `one word of indirection is not a payload beyond the parser: ${command}\n${JSON.stringify(g.decision)}`);
+    assert.equal(g.decision.rule, "source_write", command);
+  }
+  const read = guard(`bash -c "psql -c 'select 1'"`, root);
+  assert.equal(read.status, 0);
+  assert.equal(read.decision.rule, "query_read");
+  assert.equal(read.decision.wrapper, "bash", "the verdict says how it was reached");
+  // A script file is not read, exactly as the contract says.
+  assert.equal(guard(`bash ./load.sh`, root).decision.rule, "uninspected");
+  assert.equal(guard(`python3 scripts/pull.py --table users`, root).decision.rule, "uninspected");
+});
+
+test("SQL arriving on stdin is read when the hook can read it, and named when it cannot", () => {
+  const root = instance();
+  writeFileSync(join(root, "ddl.sql"), "drop table users;\n");
+  const redirected = guard(`psql -d analytics < ddl.sql`, root);
+  assert.equal(redirected.status, 2, JSON.stringify(redirected.decision));
+  assert.deepEqual(redirected.decision.operations, ["drop"]);
+  assert.equal(guard(`psql -d analytics <<< "drop table users"`, root).status, 2, "a here-string is the SQL");
+  const piped = guard(`cat ddl.sql | psql -d analytics`, root);
+  assert.equal(piped.status, 0);
+  assert.equal(piped.decision.rule, "uninspected");
+  assert.ok(piped.decision.notes.some((n: string) => /piped in from cat/.test(n)), JSON.stringify(piped.decision.notes));
+});
+
+test("the block remedy does not promise that a provisional sign-off unblocks a write", () => {
+  const g = guard(`psql -c "drop table users"`, instance());
+  assert.equal(g.status, 2);
+  assert.match(g.decision.remedy, /not something any sign-off in this Engine unblocks/);
+  assert.match(g.decision.remedy, /no command calls yet: it never lifts this block/);
+});
+
+test("settings that parse but are shaped differently are reported, not crashed through, and never written", () => {
+  const root = instance();
+  const dir = join(root, "shaped");
+  mkdirSync(dir, { recursive: true });
+  const shapes: [string, RegExp][] = [
+    [JSON.stringify({ hooks: { PreToolUse: { matcher: "Bash" } } }), /hooks\.PreToolUse is an object, not an array/],
+    [JSON.stringify({ hooks: { PreToolUse: [null, { matcher: "Bash", hooks: [] }] } }), /hooks\.PreToolUse\[0\] is null, not an object/],
+    [JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: "nope" }] } }), /hooks\.PreToolUse\[0\]\.hooks is a JSON string, not an array/],
+    [JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command" }, 5] }] } }), /hooks\.PreToolUse\[0\]\.hooks\[1\] is a JSON number, not an object/],
+    [JSON.stringify({ hooks: [] }), /hooks is a JSON array, not an object/],
+    [JSON.stringify({ hooks: [{ matcher: "Bash" }] }), /hooks is a JSON array, not an object/],
+    [JSON.stringify({ hooks: "x" }), /hooks is a JSON string, not an object/],
+    [JSON.stringify({ hooks: 5 }), /hooks is a JSON number, not an object/],
+  ];
+  for (const [text, message] of shapes) {
+    const p = join(dir, "settings.json");
+    writeFileSync(p, text);
+    for (const action of ["status", "install", "uninstall"] as const) {
+      const r = hook({ action, settingsPath: p, cwd: root });
+      assert.equal(r.errors[0]?.category, "invalid_artifact", `${action} ${text}: ${JSON.stringify(r.errors)}`);
+      assert.match(r.errors[0]!.message, message, `${action} ${text}`);
+      assert.equal(r.syntax, "invalid", `${action} ${text}`);
+      assert.equal(readFileSync(p, "utf8"), text, `${action} ${text}: a file it cannot walk is a file it does not write`);
+      assert.notEqual(r.state, "installed", `${action} ${text}: nothing was written, so nothing is installed`);
+    }
+  }
+});
+
+test("a guard entry under a matcher that never matches Bash is not an installed guard", () => {
+  const root = instance();
+  const p = join(root, ".claude", "settings.json");
+  mkdirSync(join(root, ".claude"), { recursive: true });
+  const inert = JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Write", hooks: [{ type: "command", command: HOOK_COMMAND }] }] } }, null, 2) + "\n";
+  writeFileSync(p, inert);
+
+  const before = hook({ action: "status", settingsPath: p, cwd: root });
+  assert.equal(before.state, "not_installed", "Claude Code never runs a Write-matched group for a Bash call");
+  assert.ok(before.warnings.some((w) => /does not match Bash/.test(w.message)), JSON.stringify(before.warnings));
+
+  const installed = hook({ action: "install", settingsPath: p, cwd: root });
+  assert.equal(installed.errors.length, 0, JSON.stringify(installed.errors));
+  assert.notEqual(readFileSync(p, "utf8"), inert, "install must add the group that is actually run");
+  const after = JSON.parse(readFileSync(p, "utf8"));
+  const bash = after.hooks.PreToolUse.find((g: any) => g.matcher === "Bash");
+  assert.equal(bash.hooks[0].command, HOOK_COMMAND);
+  assert.equal(hook({ action: "status", settingsPath: p, cwd: root }).state, "installed");
+
+  // A matcher that does match Bash counts: an exact name, a wildcard, an empty matcher, an alternation.
+  for (const [n, matcher] of ["", "*", "Bash|Write"].entries()) {
+    const q = join(root, `matcher-${n}`, "settings.json");
+    mkdirSync(dirname(q), { recursive: true });
+    writeFileSync(q, JSON.stringify({ hooks: { PreToolUse: [{ matcher, hooks: [{ type: "command", command: HOOK_COMMAND }] }] } }));
+    assert.equal(hook({ action: "status", settingsPath: q, cwd: root }).state, "installed", `matcher '${matcher}'`);
+  }
+});
+
 // ---------------------------------------------------------------- provisional sign-off
 
-function signoff(inst: string, id: string, record: Record<string, unknown>) {
+/** A record is identified by its file, so by default the written `id` is the filename; `keepId` writes the record
+ *  exactly as given, which is how the mismatch case is built. */
+function signoff(inst: string, id: string, record: Record<string, unknown>, { keepId = false } = {}) {
   mkdirSync(join(inst, "provisional"), { recursive: true });
-  writeFileSync(join(inst, "provisional", `${id}.yaml`), toYaml(record));
+  writeFileSync(join(inst, "provisional", `${id}.yaml`), toYaml(keepId ? record : { ...record, id }));
 }
 const AT = new Date("2026-09-15T12:00:00Z");
 const valid = {
@@ -284,7 +478,33 @@ test("a provisional sign-off is scoped to source, reason, date and expiry, and a
   assert.equal(log.length, 9, "every evaluation is logged, allowed and blocked alike");
   assert.equal(log[1].decision, "allowed");
   assert.equal(log[1].reason_code, "unverified_table");
-  assert.deepEqual(log[0], { at: AT.toISOString(), source: src, record_id: null, decision: "blocked", reason_code: null, reasons: ["missing"] });
+  assert.deepEqual(log[0], {
+    at: AT.toISOString(), source: src, record_id: null, record_path: missing.record_path,
+    decision: "blocked", reason_code: null, reasons: ["missing"],
+  });
+});
+
+test("a sign-off is identified by its file: a record declaring another id is blocked, and the log joins back to the file", () => {
+  const root = instance();
+  const inst = join(root, "analytics");
+
+  signoff(inst, "prov_a", { ...valid, id: "totally_other_id" }, { keepId: true });
+  const mismatched = evaluateProvisional(inst, "prov_a", valid.source, AT);
+  assert.equal(mismatched.decision, "blocked", "a record that misnames itself cannot be audited");
+  assert.deepEqual(mismatched.reasons.map((r) => r.code), ["id_mismatch"]);
+  assert.equal(mismatched.record_id, "prov_a", "the id that was evaluated, never the one the file claims");
+
+  signoff(inst, "prov_num", { ...valid, id: 42 }, { keepId: true });
+  assert.deepEqual(evaluateProvisional(inst, "prov_num", valid.source, AT).reasons.map((r) => r.code), ["id_mismatch"]);
+
+  signoff(inst, "prov_named", valid); // written with its own filename as the id
+  assert.equal(evaluateProvisional(inst, "prov_named", valid.source, AT).decision, "allowed");
+
+  const log = readFileSync(join(inst, "provisional", "log.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(log[0].record_id, "prov_a");
+  assert.equal(log[0].record_path, mismatched.record_path, "a log line names the file that granted or refused the read");
+  assert.match(String(log[0].record_path), /provisional\/prov_a\.yaml$/);
+  assert.equal(log[2].decision, "allowed");
 });
 
 test("a result marked provisional cannot be rendered: the existing validator refuses it", async () => {
