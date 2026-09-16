@@ -440,9 +440,50 @@ export type EvalOptions = {
   /** Date used for the throwaway Finding directory name. */
   date?: string;
   now?: () => Date;
+  /**
+   * Wall-clock budget for the whole run, in milliseconds. A case that has not started when the budget is spent
+   * is recorded `not_run` with `stopped_by: "budget"` and is never attempted: the run says which cases it did
+   * not reach rather than reporting a suite it only partly ran. Omitted (the default) means no budget, which is
+   * what `aftergrid eval` has always done.
+   */
+  budgetMs?: number;
+  /**
+   * Per-case timeout, in milliseconds. A case that outruns it is recorded as an infrastructure `error` with
+   * `stopped_by: "timeout"`; nothing is claimed about the Analysis. Omitted means no per-case bound.
+   */
+  caseTimeoutMs?: number;
+  /** Passed to the command analyzer, so the child process itself is bounded and not merely abandoned. */
+  analyzerTimeoutMs?: number;
 };
 
+/** A promise that resolves after `ms`, without holding the event loop open on its own. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => { const t = setTimeout(r, ms); (t as { unref?: () => void }).unref?.(); });
+}
+
 export type EvalReport = Report & { cases: CaseRecord[]; summary: EvalSummary | null };
+
+/** What running one case establishes. Returned rather than written, so a timed-out case cannot edit its record. */
+type CasePatch = {
+  outcome: CaseOutcome;
+  failure_category: CaseRecord["failure_category"];
+  reason: string;
+  finding?: CaseRecord["finding"];
+  assertions?: Assertion[];
+  analyzerSource?: string | null;
+  model?: string | null;
+  sqlExecuted?: boolean;
+};
+
+function applyPatch(record: CaseRecord, patch: CasePatch): void {
+  record.outcome = patch.outcome;
+  record.failure_category = patch.failure_category;
+  record.reason = patch.reason;
+  if (patch.finding) record.finding = patch.finding;
+  if (patch.assertions) record.assertions = patch.assertions;
+  if (patch.analyzerSource !== undefined) record.analyzer.source = patch.analyzerSource;
+  if (patch.model !== undefined) record.model = patch.model;
+}
 
 /** The warehouse the golden reference queries read, taken from the Instance's connection profile. */
 export function resolveWarehouse(instanceDir: string): { path: string } | { reason: string } {
@@ -527,7 +568,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
       report.errors.push({ category: "incomplete", location: "--analyzer-command", message: "the command analyzer needs a command template", remedy: 'pass --analyzer-command "<cmd> {finding_dir} {raw_ask}"' });
       return report;
     }
-    analyzer = createCommandAnalyzer({ command: opts.analyzerCommand, model: opts.model ?? null });
+    analyzer = createCommandAnalyzer({ command: opts.analyzerCommand, model: opts.model ?? null, timeoutMs: opts.analyzerTimeoutMs });
   } else {
     analyzer = createFixtureAnalyzer({ root: opts.fixtureRoot });
   }
@@ -555,6 +596,8 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
   const now = opts.now ?? (() => new Date());
   const runStarted = now().toISOString();
   const date = opts.date ?? runStarted.slice(0, 10);
+  const caseTimeoutMs = opts.caseTimeoutMs && opts.caseTimeoutMs > 0 ? opts.caseTimeoutMs : null;
+  const deadline = opts.budgetMs !== undefined && opts.budgetMs >= 0 ? now().getTime() + opts.budgetMs : null;
 
   try {
     for (const golden of goldens) {
@@ -578,64 +621,95 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
         cost: { input_tokens: null, output_tokens: null, usd: null },
       };
 
-      let temp: string | null = null;
-      try {
-        temp = copyInstance(instanceDir);
-        const slug = golden.id.replace(/_/g, "-");
-        const created = newFinding({ slug, ask: golden.raw_ask, reader: golden.reader, instanceDir: temp, date });
-        if (created.errors.length) {
-          record.outcome = "error";
-          record.failure_category = "infrastructure";
-          record.reason = `aftergrid new finding refused: ${created.errors.map((e) => `${e.category} ${e.message}`).join("; ")}`;
-        } else {
-          const findingDir = join(temp, "findings", `${date}-${slug}`);
-          record.finding.dir = findingDir;
-          let produced: AnalyzerOutcome;
-          try {
-            produced = await analyzer.analyze({ golden, rawAsk: golden.raw_ask, findingDir, instanceRoot: temp });
-          } catch (e) {
-            produced = { status: "declined", reason: `__threw__: ${(e as Error).message}` };
-          }
-          if (produced.status === "declined" && produced.reason.startsWith("__threw__: ")) {
-            record.outcome = "error";
-            record.failure_category = "infrastructure";
-            record.reason = `the analyzer threw: ${produced.reason.slice("__threw__: ".length)}`;
-          } else if (produced.status === "declined") {
-            record.outcome = "not_run";
-            record.failure_category = null;
-            record.reason = produced.reason;
+      // One case, as a value rather than as mutation: a case that outruns its timeout must not keep writing
+      // into a record the run has already reported.
+      const runOne = async (): Promise<CasePatch> => {
+        const patch: CasePatch = { outcome: "error", failure_category: "infrastructure", reason: "", finding: { ...record.finding } };
+        let temp: string | null = null;
+        try {
+          temp = copyInstance(instanceDir);
+          const slug = golden.id.replace(/_/g, "-");
+          const created = newFinding({ slug, ask: golden.raw_ask, reader: golden.reader, instanceDir: temp, date });
+          if (created.errors.length) {
+            patch.outcome = "error";
+            patch.failure_category = "infrastructure";
+            patch.reason = `aftergrid new finding refused: ${created.errors.map((e) => `${e.category} ${e.message}`).join("; ")}`;
           } else {
-            record.analyzer.source = produced.source ?? null;
-            record.model = produced.model ?? record.model;
-            record.finding.dir = produced.finding_dir;
-            const assessed = await assess(produced.finding_dir, golden, adapter, referenceUnavailable, definitions);
-            if (assessed.sqlExecuted) sqlExecuted = true;
-            record.assertions = assessed.assertions;
-            record.finding.id = assessed.findingId;
-            record.finding.state = assessed.state;
-            record.finding.outcome = assessed.outcome;
-            const failed = assessed.assertions.filter((a) => a.status === "fail");
-            if (assessed.fatal) {
-              record.outcome = "error";
-              record.failure_category = "infrastructure";
-              record.reason = assessed.fatal;
-            } else if (failed.length) {
-              record.outcome = "fail";
-              record.failure_category = failed.some((a) => a.category === "infrastructure") ? "infrastructure" : "analytical";
-              record.reason = failed.map((a) => `${a.id}: expected ${a.expected}, got ${a.observed}`).join("; ");
+            const findingDir = join(temp, "findings", `${date}-${slug}`);
+            patch.finding!.dir = findingDir;
+            let produced: AnalyzerOutcome;
+            try {
+              produced = await analyzer.analyze({ golden, rawAsk: golden.raw_ask, findingDir, instanceRoot: temp });
+            } catch (e) {
+              produced = { status: "declined", reason: `__threw__: ${(e as Error).message}` };
+            }
+            if (produced.status === "declined" && produced.reason.startsWith("__threw__: ")) {
+              patch.outcome = "error";
+              patch.failure_category = "infrastructure";
+              patch.reason = `the analyzer threw: ${produced.reason.slice("__threw__: ".length)}`;
+            } else if (produced.status === "declined") {
+              patch.outcome = "not_run";
+              patch.failure_category = null;
+              patch.reason = produced.reason;
             } else {
-              record.outcome = "pass";
-              record.failure_category = null;
-              record.reason = `every assertion held (${assessed.assertions.filter((a) => a.status === "pass").length} checked, ${assessed.assertions.filter((a) => a.status === "not_evaluated").length} not evaluated)`;
+              patch.analyzerSource = produced.source ?? null;
+              patch.model = produced.model ?? record.model;
+              patch.finding!.dir = produced.finding_dir;
+              const assessed = await assess(produced.finding_dir, golden, adapter, referenceUnavailable, definitions);
+              patch.sqlExecuted = assessed.sqlExecuted;
+              patch.assertions = assessed.assertions;
+              patch.finding!.id = assessed.findingId;
+              patch.finding!.state = assessed.state;
+              patch.finding!.outcome = assessed.outcome;
+              const failed = assessed.assertions.filter((a) => a.status === "fail");
+              if (assessed.fatal) {
+                patch.outcome = "error";
+                patch.failure_category = "infrastructure";
+                patch.reason = assessed.fatal;
+              } else if (failed.length) {
+                patch.outcome = "fail";
+                patch.failure_category = failed.some((a) => a.category === "infrastructure") ? "infrastructure" : "analytical";
+                patch.reason = failed.map((a) => `${a.id}: expected ${a.expected}, got ${a.observed}`).join("; ");
+              } else {
+                patch.outcome = "pass";
+                patch.failure_category = null;
+                patch.reason = `every assertion held (${assessed.assertions.filter((a) => a.status === "pass").length} checked, ${assessed.assertions.filter((a) => a.status === "not_evaluated").length} not evaluated)`;
+              }
             }
           }
+        } catch (e) {
+          patch.outcome = "error";
+          patch.failure_category = "infrastructure";
+          patch.reason = `the eval runner failed before it could judge this case: ${(e as Error).message}`;
+        } finally {
+          if (temp) rmSync(dirname(temp), { recursive: true, force: true });
         }
-      } catch (e) {
-        record.outcome = "error";
-        record.failure_category = "infrastructure";
-        record.reason = `the eval runner failed before it could judge this case: ${(e as Error).message}`;
-      } finally {
-        if (temp) rmSync(dirname(temp), { recursive: true, force: true });
+        return patch;
+      };
+
+      if (deadline !== null && now().getTime() >= deadline) {
+        // Not attempted, and said so: a case skipped for budget is neither a pass nor a failure.
+        record.outcome = "not_run";
+        record.failure_category = null;
+        record.stopped_by = "budget";
+        record.reason = `the run's ${opts.budgetMs} ms wall-clock budget was spent before this case started, so it was not attempted`;
+      } else {
+        const work = runOne();
+        const patch = caseTimeoutMs === null
+          ? await work
+          : await Promise.race([work, sleep(caseTimeoutMs).then(() => null)]);
+        if (patch) {
+          applyPatch(record, patch);
+          if (patch.sqlExecuted) sqlExecuted = true;
+        } else {
+          // The case is still running somewhere; nothing it produces afterwards is believed. A bound that was
+          // hit is a fact about the machinery, never a verdict on the Analysis.
+          record.outcome = "error";
+          record.failure_category = "infrastructure";
+          record.stopped_by = "timeout";
+          record.reason = `the case outran its ${caseTimeoutMs} ms timeout and was abandoned; nothing is claimed about the Analysis`;
+          work.catch(() => {});
+        }
       }
 
       record.finished = now().toISOString();
