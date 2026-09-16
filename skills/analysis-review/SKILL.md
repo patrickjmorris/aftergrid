@@ -25,7 +25,13 @@ aftergrid review status <finding-dir>
 It prints the reviews bound to the current content digest, the ones bound to older content, and whether
 `/analyze` would halt. A review bound to older content is not a review of this Finding: redo it.
 
-Done when you can name which of `method`, `question`, `reader` still needs a review of the current content.
+The halt decision is computed, not assumed: the command runs the offline artifact check itself, so a Finding
+whose evidence is broken reports `halt` here with the check error rather than `continue`. It executes no SQL,
+so step 2 is still the gate — a rerun mismatch is invisible to this command. On a Finding outside its Instance
+there is nothing to validate against, and the command says the evidence was not judged instead of guessing.
+
+Done when you can name which of `method`, `question`, `reader` still needs a review of the current content,
+and whether the command already halted on the evidence.
 
 ## 2. Separate a broken execution from a thin answer
 

@@ -41,6 +41,13 @@ export type GoldenQuestion = {
     must_not?: string[];
     must_state?: string[];
   };
+  /** The evidence constraints an honest Analysis must respect (schema/golden-question.schema.json). */
+  constraints?: {
+    window?: { start: string; end: string; timezone: string };
+    population?: string;
+    data_to?: string;
+    required_checks?: string[];
+  };
   reference: { parameters?: Record<string, string | number | boolean>; queries: { id: string; row_key: string; sql: string }[] };
 };
 
@@ -51,6 +58,41 @@ export function loadGoldens(instanceDir: string): GoldenQuestion[] {
     .filter((f) => f.endsWith(".yaml"))
     .sort()
     .map((f) => parseYaml(readFileSync(join(dir, f), "utf8")) as GoldenQuestion);
+}
+
+/* ------------------------------------------------------------------ the Instance's definition library */
+
+/** One entry of `<instance>/definitions/`: which version of a Definition is current there, and its lifecycle. */
+export type InstanceDefinition = { id: string; version: number | string | null; lifecycle: string | null };
+
+/**
+ * The Instance's Definition library, by id.
+ *
+ * The Golden Question names definition **ids** and says nothing about versions
+ * (schema/golden-question.schema.json: "any version"), so the version an honest Analysis must cite is not in
+ * the golden — it is whatever the Instance currently approves. This is where that fact comes from, and it is
+ * what `definition_versions` asserts the Finding against.
+ */
+export function loadDefinitions(instanceDir: string): Map<string, InstanceDefinition> {
+  const out = new Map<string, InstanceDefinition>();
+  const dir = join(instanceDir, "definitions");
+  if (!existsSync(dir)) return out;
+  for (const file of readdirSync(dir).sort()) {
+    if (!file.endsWith(".md")) continue;
+    let text: string;
+    try { text = readFileSync(join(dir, file), "utf8"); } catch { continue; }
+    const m = /^---\r?\n([\s\S]*?)\r?\n---\r?(?:\n|$)/.exec(text);
+    if (!m) continue;
+    let front: any;
+    try { front = parseYaml(m[1]!); } catch { continue; }
+    const id = typeof front?.id === "string" && front.id.trim() ? front.id.trim() : file.replace(/\.md$/, "");
+    out.set(id, {
+      id,
+      version: typeof front?.version === "number" || typeof front?.version === "string" ? front.version : null,
+      lifecycle: typeof front?.lifecycle === "string" ? front.lifecycle : null,
+    });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ analyzers */
@@ -212,6 +254,8 @@ export type AssertOptions = {
   memo: string;
   /** Reference values recomputed from the warehouse, or a reason they could not be. */
   reference: { status: "checked"; mismatches: string[] } | { status: "unavailable"; reason: string };
+  /** The Instance's Definition library, for asserting the version the Finding cites. Null when it was not read. */
+  definitions?: Map<string, InstanceDefinition> | null;
 };
 
 /** The Golden Question's expectations, one assertion each. Nothing here writes to the Finding. */
@@ -233,10 +277,17 @@ export function assertCase(opts: AssertOptions): Assertion[] {
       ? pass("definitions_cited", "analytical", `cites ${expected.definition_ids.join(", ")}`, `cites ${citedDefs.join(", ") || "none"}`)
       : fail("definitions_cited", "analytical", `cites ${expected.definition_ids.join(", ")}`, `does not cite ${missingDefs.join(", ")}`));
 
+  // The version, not just the id. The golden names ids only, so the version an honest Analysis must cite is the
+  // one the Instance's library currently carries: citing a superseded or differently-lifecycled Definition is a
+  // different Analysis from the one the Golden Question describes.
+  out.push(assertDefinitionVersions(expected.definition_ids, manifest, opts.definitions ?? null));
+
+  // Only tables the Snapshot *declares* it read. An input id is a name the author chose, not provenance, so it
+  // is never taken as a table: a Finding that named its extracts after the tables would otherwise satisfy the
+  // permitted-evidence check with no recorded source at all.
   const snapshotTables = new Set<string>();
   for (const input of manifest?.snapshot?.inputs ?? []) {
     for (const t of input?.source?.tables ?? []) snapshotTables.add(String(t));
-    if (!(input?.source?.tables ?? []).length && input?.id) snapshotTables.add(String(input.id));
   }
   const unread = expected.tables_read.filter((t) => !snapshotTables.has(t));
   out.push(expected.tables_read.length === 0
@@ -270,14 +321,19 @@ export function assertCase(opts: AssertOptions): Assertion[] {
     out.push(fail(id, "analytical", `${v.value} ± ${v.tolerance} ${v.unit} somewhere in the saved results`, nearest ? `nearest saved value is ${nearest.value} at ${nearest.where}` : "the Finding saved no numeric result"));
   }
 
+  // `must_not` is a substring screen with one informative outcome. A memo that reproduces the forbidden wording
+  // fails. A memo that does not has proved nothing: the goldens' entries are prose descriptions of a forbidden
+  // conclusion ("recommend keeping or rolling back the price"), which no memo reproduces verbatim, so recording
+  // the absence as a pass would count an assertion that can never fire as evidence the Finding held. It is
+  // `not_evaluated`, and the Question and Method reviewers do the judging.
   const memoNorm = normalisePhrase(memo);
-  for (const phrase of expected.must_not ?? []) {
-    const id = `must_not:${normalisePhrase(phrase).slice(0, 40).replace(/ /g, "_")}`;
-    const present = memoNorm.includes(normalisePhrase(phrase));
-    out.push(present
-      ? fail(id, "analytical", `the memo does not say "${phrase}"`, "the phrase appears in the memo")
-      : pass(id, "analytical", `the memo does not say "${phrase}"`, "the phrase does not appear in the memo"));
-  }
+  (expected.must_not ?? []).forEach((phrase, i) => {
+    const id = `must_not:${i + 1}:${normalisePhrase(phrase).slice(0, 40).replace(/ /g, "_")}`;
+    const expectation = `the memo does not reproduce "${phrase}"`;
+    out.push(memoNorm.includes(normalisePhrase(phrase))
+      ? fail(id, "analytical", expectation, "the memo reproduces that wording")
+      : skip(id, "analytical", expectation, "the memo does not reproduce that wording, which is not evidence it avoided the conclusion: a substring screen cannot see the conclusion drawn in other words"));
+  });
 
   const answerClaim = (manifest?.claims ?? []).find((c: any) => c.answer_bearing) ?? (manifest?.claims ?? [])[0];
   if (!expected.claim_type) {
@@ -291,6 +347,77 @@ export function assertCase(opts: AssertOptions): Assertion[] {
       ? fail("claim_type", "analytical", `at most ${expected.claim_type}`, `the answer-bearing Claim is ${got}`)
       : pass("claim_type", "analytical", `at most ${expected.claim_type}`, `the answer-bearing Claim is ${got}`));
   }
+
+  out.push(...assertConstraints(golden, manifest));
+
+  return out;
+}
+
+/** The cited Definition's version against the Instance's current one. Version, then lifecycle. */
+function assertDefinitionVersions(expectedIds: string[], manifest: any, library: Map<string, InstanceDefinition> | null): Assertion {
+  const id = "definition_versions";
+  if (!expectedIds.length) return skip(id, "analytical", "no definition is required", "nothing to version");
+  const known = expectedIds.filter((d) => library?.has(d));
+  if (!library || !known.length) {
+    return skip(id, "infrastructure", `each of ${expectedIds.join(", ")} is cited at the Instance's current version`,
+      library ? `the Instance library declares none of ${expectedIds.join(", ")}, so no current version exists to compare against` : "the Instance's definition library was not read");
+  }
+  const cited: any[] = manifest?.definitions ?? [];
+  const wanted = known.map((d) => `${d} v${library.get(d)!.version ?? "(none)"} (${library.get(d)!.lifecycle ?? "no lifecycle"})`);
+  const observed: string[] = [];
+  const problems: string[] = [];
+  for (const d of known) {
+    const lib = library.get(d)!;
+    const got = cited.find((c) => String(c?.id) === d);
+    if (!got) { problems.push(`${d} is not cited at all`); continue; }
+    observed.push(`${d} v${got.version ?? "(none)"} (${got.lifecycle ?? "no lifecycle"})`);
+    if (String(got.version ?? "") !== String(lib.version ?? "")) {
+      problems.push(`${d} is cited at version ${got.version ?? "(none)"}, and the Instance's current version is ${lib.version ?? "(none)"}`);
+    } else if (String(got.lifecycle ?? "") !== String(lib.lifecycle ?? "")) {
+      problems.push(`${d} is cited as ${got.lifecycle ?? "(no lifecycle)"}, and the Instance library records it as ${lib.lifecycle ?? "(none)"}`);
+    }
+  }
+  return problems.length === 0
+    ? pass(id, "analytical", `cites ${wanted.join(", ")}`, `cites ${observed.join(", ")}`)
+    : fail(id, "analytical", `cites ${wanted.join(", ")}`, problems.join("; "));
+}
+
+/**
+ * The golden's `constraints` block: the evidence the case is allowed to rest on.
+ *
+ * `window`, `data_to` and `required_checks` are declared in fields a Finding also declares, so each is compared
+ * directly. `population` is prose and is not asserted here — like `expected.must_state`, a reviewer judges it.
+ */
+function assertConstraints(golden: GoldenQuestion, manifest: any): Assertion[] {
+  const out: Assertion[] = [];
+  const c = golden.constraints ?? {};
+
+  const window = c.window;
+  const got = manifest?.question?.window ?? {};
+  const shape = (w: any) => `${w?.start ?? "(none)"}..${w?.end ?? "(none)"} ${w?.timezone ?? "(no timezone)"}`;
+  out.push(!window
+    ? skip("constraint:window", "analytical", "the Golden Question constrains no window", `the Finding's Question window is ${shape(got)}`)
+    : shape(got) === shape(window)
+      ? pass("constraint:window", "analytical", `the Question window is ${shape(window)}`, `the Finding's Question window is ${shape(got)}`)
+      : fail("constraint:window", "analytical", `the Question window is ${shape(window)}`, `the Finding's Question window is ${shape(got)}`));
+
+  const dataTo = c.data_to;
+  const coverage = manifest?.coverage?.data_to;
+  out.push(!dataTo
+    ? skip("constraint:data_to", "analytical", "the Golden Question constrains no data cut-off", `the Finding covers data to ${coverage ?? "(none declared)"}`)
+    : String(coverage ?? "") === dataTo
+      ? pass("constraint:data_to", "analytical", `data to ${dataTo}`, `the Finding covers data to ${coverage}`)
+      : fail("constraint:data_to", "analytical", `data to ${dataTo}`, `the Finding covers data to ${coverage ?? "(none declared)"}`));
+
+  const required = c.required_checks ?? [];
+  const kinds = new Set((manifest?.checks ?? []).map((k: any) => String(k?.kind)));
+  const recorded = [...kinds].sort().join(", ") || "no Checks";
+  const missing = required.filter((k) => !kinds.has(k));
+  out.push(!required.length
+    ? skip("required_checks", "analytical", "the Golden Question requires no Check kind", `the Finding records ${recorded}`)
+    : missing.length === 0
+      ? pass("required_checks", "analytical", `runs a ${required.join(", ")} Check`, `the Finding records ${recorded}`)
+      : fail("required_checks", "analytical", `runs a ${required.join(", ")} Check`, `the Finding records no ${missing.join(", ")} Check (it records ${recorded})`));
 
   return out;
 }
@@ -330,11 +457,17 @@ export function resolveWarehouse(instanceDir: string): { path: string } | { reas
   return found ? { path: found } : { reason: `the declared warehouse '${declared}' was not found at ${candidates.join(" or ")}` };
 }
 
-/** Recompute one golden's reference values through the DuckDB adapter, the way `src/golden.test.ts` does. */
-async function recomputeReference(adapter: DuckDbAdapter, golden: GoldenQuestion): Promise<string[]> {
+/**
+ * Recompute one golden's reference values through the DuckDB adapter, the way `src/golden.test.ts` does.
+ *
+ * `onExecuted` fires after each query that actually ran, including when a later one throws: the run report's
+ * `sql_execution` axis is about SQL that executed, not about an adapter that was constructed.
+ */
+async function recomputeReference(adapter: DuckDbAdapter, golden: GoldenQuestion, onExecuted: () => void): Promise<string[]> {
   const results: Record<string, Record<string, any>> = {};
   for (const q of golden.reference.queries) {
     const r = await adapter.execute(q.sql, (golden.reference.parameters ?? {}) as any);
+    onExecuted();
     results[q.id] = Object.fromEntries(r.rows.map((row) => [String(row[q.row_key]), row]));
   }
   const mismatches: string[] = [];
@@ -400,9 +533,12 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
   }
   if (!analyzer.exercised) report.info.push(`analyzer '${analyzer.name}' is not exercised by any test in this repository: what it does with a real model is unverified here`);
 
+  const definitions = loadDefinitions(instanceDir);
   const warehouse = resolveWarehouse(instanceDir);
   let adapter: DuckDbAdapter | null = null;
   let referenceUnavailable: string | null = null;
+  /** Whether any reference query actually ran. Opening an adapter executes nothing. */
+  let sqlExecuted = false;
   if ("path" in warehouse) {
     try {
       const isDir = statSync(warehouse.path).isDirectory();
@@ -472,7 +608,8 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
             record.analyzer.source = produced.source ?? null;
             record.model = produced.model ?? record.model;
             record.finding.dir = produced.finding_dir;
-            const assessed = await assess(produced.finding_dir, golden, adapter, referenceUnavailable);
+            const assessed = await assess(produced.finding_dir, golden, adapter, referenceUnavailable, definitions);
+            if (assessed.sqlExecuted) sqlExecuted = true;
             record.assertions = assessed.assertions;
             record.finding.id = assessed.findingId;
             record.finding.state = assessed.state;
@@ -546,38 +683,55 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
     report.info.push("no --out given, so nothing was written; the run exists only in this report");
   }
   report.info.push(`${summary.totals.pass} pass, ${summary.totals.fail} fail, ${summary.totals.error} error, ${summary.totals.not_run} not run (${summary.totals.analytical_failures} analytical, ${summary.totals.infrastructure_failures} infrastructure)`);
-  report.content = "complete";
+  // A run is complete when every case reached a verdict. A case the analyzer declined, or one the machinery
+  // broke on, leaves a hole in the run, and a report that called that `complete` would be describing a run of
+  // the cases that happened to work.
+  const unjudged = report.cases.filter((c) => c.outcome !== "pass" && c.outcome !== "fail");
+  report.content = report.cases.length && !unjudged.length ? "complete" : "incomplete";
+  if (unjudged.length) report.info.push(`${unjudged.length} of ${report.cases.length} case(s) reached no verdict (${unjudged.map((c) => `${c.case}: ${c.outcome}`).join(", ")}), so this run is incomplete`);
   report.evidence = "not_evaluated";
   report.info.push("an eval asserts a Golden Question's expectations; it does not validate a Finding's evidence — that is `aftergrid check`");
-  report.sql_execution = referenceUnavailable ? "not_performed" : "performed";
+  // The axis is about SQL that ran. Constructing the adapter runs none: a run where every case declined opens
+  // the warehouse, executes nothing, and says `not_performed`.
+  report.sql_execution = sqlExecuted ? "performed" : "not_performed";
   if (referenceUnavailable) report.warnings.push({ category: "runtime_unavailable", location: "reference.queries", message: referenceUnavailable });
+  else if (!sqlExecuted) report.info.push("no reference query ran: no case reached the point of recomputing a golden's own numbers, so the golden values in this run were read from the file and not reproduced");
   return report;
 }
 
-async function assess(dir: string, golden: GoldenQuestion, adapter: DuckDbAdapter | null, referenceUnavailable: string | null) {
+async function assess(
+  dir: string,
+  golden: GoldenQuestion,
+  adapter: DuckDbAdapter | null,
+  referenceUnavailable: string | null,
+  definitions: Map<string, InstanceDefinition> | null,
+) {
+  const empty = { assertions: [] as Assertion[], findingId: null, state: null, outcome: null, sqlExecuted: false };
   const manifestPath = join(dir, "manifest.yaml");
   if (!existsSync(manifestPath)) {
-    return { assertions: [] as Assertion[], fatal: `the analyzer reported a Finding at ${dir} but there is no manifest.yaml there`, findingId: null, state: null, outcome: null };
+    return { ...empty, fatal: `the analyzer reported a Finding at ${dir} but there is no manifest.yaml there` };
   }
   let manifest: any;
   try { manifest = parseYaml(readFileSync(manifestPath, "utf8")); }
-  catch (e) { return { assertions: [] as Assertion[], fatal: `manifest.yaml could not be parsed: ${(e as Error).message}`, findingId: null, state: null, outcome: null }; }
+  catch (e) { return { ...empty, fatal: `manifest.yaml could not be parsed: ${(e as Error).message}` }; }
   const memoPath = join(dir, "memo.md");
   const memo = existsSync(memoPath) ? readFileSync(memoPath, "utf8") : "";
 
+  let sqlExecuted = false;
   let reference: AssertOptions["reference"];
   if (!adapter) reference = { status: "unavailable", reason: referenceUnavailable ?? "no warehouse adapter" };
   else {
-    try { reference = { status: "checked", mismatches: await recomputeReference(adapter, golden) }; }
+    try { reference = { status: "checked", mismatches: await recomputeReference(adapter, golden, () => { sqlExecuted = true; }) }; }
     catch (e) { reference = { status: "unavailable", reason: `the reference query failed: ${e instanceof AdapterError ? `${e.category}: ` : ""}${(e as Error).message}` }; }
   }
 
   return {
-    assertions: assertCase({ golden, dir, manifest, memo, reference }),
+    assertions: assertCase({ golden, dir, manifest, memo, reference, definitions }),
     fatal: null as string | null,
     findingId: manifest?.finding?.id ?? null,
     state: manifest?.finding?.state ?? null,
     outcome: manifest?.finding?.outcome ?? null,
+    sqlExecuted,
   };
 }
 

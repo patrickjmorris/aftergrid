@@ -3,6 +3,10 @@
 // An agent review completes a draft. It is not approval, and nothing here writes one: `attestations[]` is
 // never touched, and readiness is reported `unknown` because this command reads no publication source.
 //
+// `status` additionally runs the offline artifact check, because the halt decision it prints puts a broken
+// execution ahead of every review finding, and a command that printed that decision without looking at the
+// evidence would be announcing a conclusion it had not reached.
+//
 // A review binds to a content digest. Recording one against a Finding whose files no longer hash to the digest
 // its manifest pins would produce a review of something nobody reviewed, so that is refused rather than
 // recorded — the review would look current and be false.
@@ -15,6 +19,8 @@ import { schemaErrors } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment.
 import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 import { contentDigest } from "../digest.ts";
+import { checkArtifact } from "./check.ts";
+import { findInstance } from "../instance.ts";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
@@ -142,6 +148,7 @@ export function recordReview(opts: RecordReviewOptions): Report {
 }
 
 function summarise(report: Report, reviews: ReviewEntry[], currentDigest: string) {
+  // No `checkErrors`: recording a review runs no check, and decideHalt says so rather than implying one passed.
   const decision = decideHalt({ reviews, currentDigest });
   for (const b of decision.blocking) {
     report.warnings.push({ category: "needs_attention", location: `reviews/${b.kind}`, message: `${b.reviewer} recorded ${b.items.length} blocking finding(s): ${b.items.join(" | ")}` });
@@ -170,6 +177,10 @@ export type HaltDecision = {
  * required review kind with nothing bound to the current digest. Nothing here reads a Finding's outcome:
  * `insufficient_data` with clean reviews continues, because too little evidence is an answer and a failed
  * execution is not.
+ *
+ * `checkErrors` is three-valued on purpose. An empty array means a check ran and found nothing, and only then
+ * does the continue reason call the draft evidence-valid. `undefined` means no check ran here, and the reason
+ * says so instead of asserting a validity nobody established.
  */
 export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: string; checkErrors?: Problem[] }): HaltDecision {
   const current = (input.reviews ?? []).filter((r) => r.content_digest?.value === input.currentDigest);
@@ -180,8 +191,8 @@ export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: strin
   const missing_kinds = REQUIRED_REVIEW_KINDS.filter((k) => !current.some((r) => r.kind === k));
   const base = { blocking, stale, missing_kinds };
 
-  const errors = input.checkErrors ?? [];
-  if (errors.length) {
+  const errors = input.checkErrors;
+  if (errors?.length) {
     return { ...base, next: "halt", state: "needs_attention", reason: `check reported ${errors.length} error(s), starting with ${errors[0]!.category} at ${errors[0]!.location}: a broken execution is not an analytical result` };
   }
   if (blocking.length) {
@@ -191,16 +202,30 @@ export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: strin
   if (missing_kinds.length) {
     return { ...base, next: "halt", state: "needs_attention", reason: `no current review of kind ${missing_kinds.join(", ")}${stale.length ? ` (${stale.length} review(s) bound to older content)` : ""}` };
   }
-  return { ...base, next: "continue", state: "complete", reason: "evidence-valid draft reviewed by agents, awaiting human publication readiness" };
+  return {
+    ...base,
+    next: "continue",
+    state: "complete",
+    reason: errors
+      ? "evidence-valid draft reviewed by agents, awaiting human publication readiness"
+      : "reviewed by agents with no blocking findings; no check ran here, so evidence validity is unjudged and publication readiness is still a human's",
+  };
 }
 
 export type ReviewStatusReport = Report & { decision: HaltDecision };
 
-/** Read-only: what is recorded, what is stale, and whether `/analyze` continues. Writes nothing. */
-export function reviewStatus(opts: { dir: string }): ReviewStatusReport {
+/**
+ * Read-only: what is recorded, what is stale, and whether `/analyze` continues. Writes nothing.
+ *
+ * It runs `checkArtifact` itself — the offline half of `aftergrid check`, which executes no SQL and reads no
+ * publication source — because the decision it prints is a halt decision, and the first halt is a broken
+ * execution. Without that the command could only see reviews, and would answer "continue, evidence-valid
+ * draft" on a Finding whose evidence it had never looked at.
+ */
+export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string }) => Report }): ReviewStatusReport {
   const report = emptyReport("review") as ReviewStatusReport;
   report.readiness = "unknown";
-  report.readiness_reasons.push("review status reads no publication source; `aftergrid check` decides readiness");
+  report.readiness_reasons.push("review status validates the artifact but reads no publication source; `aftergrid check` decides readiness and a human APPROVED review decides approval");
   report.decision = { next: "halt", state: "needs_attention", reason: "nothing was read", blocking: [], stale: [], missing_kinds: [...REQUIRED_REVIEW_KINDS] };
   const dir = resolve(opts.dir);
   const manifestPath = resolve(dir, "manifest.yaml");
@@ -228,8 +253,27 @@ export function reviewStatus(opts: { dir: string }): ReviewStatusReport {
     report.warnings.push({ category: "invalid_artifact", location: "manifest.yaml", message: `the digest could not be recomputed (${(e as Error).message}); review staleness is judged against the pinned value` });
   }
 
+  // A Finding outside an Instance cannot be validated at all (there is no definition library or Decision set to
+  // validate it against). That is a missing check, not a broken Finding, so `checkErrors` stays undefined and
+  // the halt decision says the evidence is unjudged rather than inventing either verdict.
+  let checkErrors: Problem[] | undefined;
+  if (opts.checkImpl || findInstance(dir)) {
+    const artifact = (opts.checkImpl ?? checkArtifact)({ dir });
+    checkErrors = artifact.errors;
+    report.evidence = artifact.evidence;
+    report.sql_execution = "not_performed";
+    for (const e of checkErrors) report.errors.push(e);
+    for (const w of artifact.warnings) if (w.category !== "incomplete") report.warnings.push(w);
+    report.info.push(checkErrors.length
+      ? `the artifact check reported ${checkErrors.length} error(s); it executed no SQL, so \`aftergrid check --mode rerun\` is still the last word on whether the Checks run`
+      : "the artifact check reported no errors; it executed no SQL, so a rerun mismatch would not be visible here");
+  } else {
+    report.warnings.push({ category: "missing_file", location: dir, message: "no aftergrid.yaml above this directory, so the artifact could not be validated here", remedy: "run review status on a Finding inside its Instance" });
+    report.info.push("the evidence was not validated: this directory is not inside an Instance");
+  }
+
   const reviews: ReviewEntry[] = Array.isArray(manifest?.reviews) ? manifest.reviews : [];
-  report.decision = decideHalt({ reviews, currentDigest });
+  report.decision = decideHalt({ reviews, currentDigest, checkErrors });
   for (const b of report.decision.blocking) report.warnings.push({ category: "needs_attention", location: `reviews/${b.kind}`, message: `${b.reviewer}: ${b.items.join(" | ")}` });
   for (const s of report.decision.stale) report.warnings.push({ category: "stale_review", location: `reviews/${s.kind}`, message: `${s.reviewer} reviewed a different digest; redo this review or re-pin` });
   report.info.push(`${reviews.length} review(s) recorded; ${report.decision.next} (${report.decision.reason})`);

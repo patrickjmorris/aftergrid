@@ -44,20 +44,38 @@ Each is recorded with an id, a status (`pass`, `fail`, `not_evaluated`) and a ca
 | --- | --- | --- |
 | `outcome` | `finding.outcome` equals `expected.outcome` | analytical |
 | `definitions_cited` | every id in `expected.definition_ids` appears in `definitions[]` | analytical |
+| `definition_versions` | every one of those Definitions is cited at the version **and** lifecycle the Instance's `definitions/` library currently carries | analytical |
 | `tables_read` | every table in `expected.tables_read` appears in some `snapshot.inputs[].source.tables` | analytical |
 | `reference_values` | the golden's own `reference.queries` reproduce every `expected.values[]` within tolerance, through the DuckDB adapter on the Instance's warehouse | **infrastructure** |
 | `value:<id>` | some cell of the Finding's saved results is within tolerance of the expected value | analytical |
-| `must_not:<phrase>` | the phrase does not appear in `memo.md` | analytical |
+| `must_not:<n>:<phrase>` | **fails** when the phrase appears in `memo.md`; never passes (see below) | analytical |
 | `claim_type` | the answer-bearing Claim's type is no stronger than `expected.claim_type` (descriptive < associational < causal) | analytical |
+| `constraint:window` | `question.window` start, end and timezone equal `constraints.window` | analytical |
+| `constraint:data_to` | `coverage.data_to` equals `constraints.data_to` | analytical |
+| `required_checks` | every kind in `constraints.required_checks` appears as some `checks[].kind` | analytical |
 
 `not_evaluated` is a real status and appears where there is nothing to judge: a golden with no
 `definition_ids`, a `null` expected value (not-availability is the render contract's job, not a cell search),
-or a warehouse the runner could not open.
+a constraint the golden does not declare, or a warehouse the runner could not open.
 
-`must_not` is a **lexical screen and only that**: it catches a memo that reproduces the forbidden phrase, not a
-memo that draws the forbidden conclusion in other words. The real judgement is the Question and Method
-reviewers; the assertion is a cheap floor under them. `expected.must_state` is not asserted here for the same
-reason — a reviewer judges it, in words.
+A Golden Question names definition **ids** and says "any version"
+(`schema/golden-question.schema.json`), so there is no version in the golden to compare against. The version an
+honest Analysis must cite is the one the Instance approves, and `definition_versions` reads it from
+`<instance>/definitions/*.md` frontmatter. A Finding citing a superseded `retained_7d v1`, or citing v2 as
+`proposed` when the library records it `approved`, fails that assertion while still passing
+`definitions_cited`. When the Instance library declares none of the expected ids there is no current version to
+compare against, and the assertion is `not_evaluated` with category `infrastructure`.
+
+`must_not` is a **substring screen with one informative outcome**. A memo that reproduces the forbidden wording
+fails. A memo that does not has established nothing, and is recorded `not_evaluated` rather than `pass`: the
+shipped goldens' entries are prose descriptions of a forbidden conclusion ("recommend keeping or rolling back
+the price"), which no memo reproduces verbatim, so counting their absence as a held assertion would inflate
+what the record says the run checked. The judgement belongs to the Question and Method reviewers.
+`expected.must_state` is not asserted here for the same reason — a reviewer judges it, in words. The id carries
+the entry's ordinal, so two entries sharing a 40-character prefix stay two assertions.
+
+`constraints.population` is prose and is not asserted; like `must_state`, a reviewer judges it. The other three
+constraint fields name things a Finding also declares, so each is compared directly.
 
 ## Analytical and infrastructure, kept apart
 
@@ -73,6 +91,15 @@ that conflates them reports a broken warehouse as a bad answer.
 
 In the report these arrive as `eval_case_failed` (analytical) and `eval_infrastructure` (everything else).
 
+## The run report's own axes
+
+- `content` is `complete` only when every case reached a verdict. A `not_run` or an `error` leaves a hole in
+  the run, and the report names the cases and says the run is incomplete.
+- `sql_execution` is `performed` only when a reference query actually executed. Constructing the DuckDB adapter
+  runs no SQL, so a run whose cases all declined reports `not_performed` and says the golden values it carried
+  were read from the file rather than reproduced.
+- `evidence` is always `not_evaluated`, and `readiness` always `unknown`, with the reason.
+
 ## The record
 
 ```json
@@ -81,7 +108,7 @@ In the report these arrive as `eval_case_failed` (analytical) and `eval_infrastr
   "case": "onboarding_checklist_retention",
   "outcome": "pass",
   "failure_category": null,
-  "reason": "every assertion held (9 checked, 0 not evaluated)",
+  "reason": "every assertion held (11 checked, 2 not evaluated)",
   "analyzer": { "name": "fixture", "exercised": true, "source": "fixtures/runs/4ka-…/output" },
   "finding": { "dir": "…", "id": "fnd_7k2m9q4w1xzb", "state": "complete", "outcome": "answered" },
   "assertions": [ { "id": "outcome", "status": "pass", "category": "analytical", "expected": "…", "observed": "…" } ],
