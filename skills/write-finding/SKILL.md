@@ -107,16 +107,17 @@ what, plus `pre_registered`), `window`, `exclusions`, `limitations`, and the `re
 - Exactly one Claim is `answer_bearing: true`, and it carries a `material_caveat`: the one caveat that would
   change the conclusion, written so a Reader who reads only the Answer still meets it.
 
-`comparison.kind` is the Analysis's fact and never your judgement — but the two schemas spell three of the
-five values differently, so carrying it across is a rename, done from this table and nowhere else:
+`comparison.kind` is the Analysis's fact and never your judgement. Since 2026-09-16 the Analysis schema uses the
+manifest's spelling, so the value is carried across unchanged; the table is the identity and exists so a checker
+can prove nothing is renamed:
 
 | `analysis.yaml#candidate_claims[].comparison.kind` | `manifest.yaml` `claims[].comparison.kind` |
 | --- | --- |
 | `none` | `none` |
+| `baseline_period` | `baseline_period` |
+| `cohort_vs_cohort` | `cohort_vs_cohort` |
 | `variant_vs_control` | `variant_vs_control` |
-| `period_over_period` | `baseline_period` |
-| `segment_vs_segment` | `cohort_vs_cohort` |
-| `vs_target` | `target` |
+| `target` | `target` |
 
 A value outside the left column is an error in the Analysis: report it with its location and stop, rather
 than picking the nearest manifest value. `description` and `pre_registered` are carried across verbatim.

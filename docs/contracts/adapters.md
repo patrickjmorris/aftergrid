@@ -7,7 +7,7 @@ Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (
 | Capability | Meaning |
 | --- | --- |
 | execute | One statement, SELECT only, named parameters bound only when the statement declares them, typed JSON-safe cells (integers as numbers, decimals/dates/timestamps as strings, booleans, null). Timestamps with time zone are rendered in UTC as `YYYY-MM-DD HH:MM:SS+00`. |
-| capture | Bounded extracts of declared tables written as CSV under `inputs/`, rows in a deterministic order, content hash recorded, consistency declared (`single_transaction`, `per_table`, `unknown`). |
+| capture | Whole-table extracts of declared tables (no adapter applies a row bound; the analytical window is applied in SQL) written as CSV under `inputs/`, rows in a deterministic order, content hash recorded, consistency declared (`single_transaction`, `per_table`, `unknown`). |
 | open_retained | Loads hash-verified extracts into a fresh sandbox; only the listed inputs are visible; a missing or corrupt extract is an explicit error and never falls back to a live source. |
 | privilege_probe | Whether the connected role can write or run DDL, or `unsupported` with the reason. |
 | cost_estimate | A non-executing planner estimate in backend units, or `unknown` with a reason. `scan_rows` is the largest planned scan; `rows` is the planned output. `unit` names the planner model the numbers came from (`estimated_rows` for DuckDB, `planner_cost` for Postgres, which also carries the planner's abstract `cost`), never an accuracy claim. |

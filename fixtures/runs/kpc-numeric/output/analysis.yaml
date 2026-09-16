@@ -90,6 +90,7 @@ candidate_claims:
     sentence_draft: 7-day retention is higher in the checklist arm than in the control arm, and the gap
       clears the pre-registered 3 percentage point threshold.
     type: causal
+    causal_basis: randomised_assignment
     numeric: true
     answer_bearing: true
     evidence:

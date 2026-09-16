@@ -102,7 +102,9 @@ async function rerun(dir: string, report: Report) {
     }
     return sessions.get(key)!;
   };
-  const execParams = (ck: any) => (ck.execution_id ? manifest.executions.find((e: any) => e.id === ck.execution_id) : manifest.executions[0]) ?? { parameters: { analytical_timezone: "UTC" }, input_ids: [] };
+  // A Check runs with the parameters and inputs of the execution it names (or the first execution). One that resolves
+  // to no execution is refused as execution_binding rather than run against no tables and mis-reported as sql_error.
+  const execParams = (ck: any) => (ck.execution_id ? manifest.executions.find((e: any) => e.id === ck.execution_id) : manifest.executions[0]) ?? null;
   try {
     for (const ex of manifest.executions) {
       const q = manifest.queries.find((x: any) => x.id === ex.query_id);
@@ -121,6 +123,7 @@ async function rerun(dir: string, report: Report) {
     for (const ck of manifest.checks) {
       const ex = execParams(ck);
       let outcome = "error";
+      if (!ex) { report.errors.push({ category: "execution_binding", location: `checks/${ck.id}`, message: `Check ${ck.id} names no execution to run under (execution_id ${ck.execution_id ?? "unset"}, and there is no first execution)`, remedy: "give the Check an execution_id that exists, or add the execution" }); current[ck.id] = outcome; continue; }
       try {
         const s = await sessionFor(ex.input_ids);
         const got = await s.execute(readFileSync(safePath(dir, ck.path), "utf8"), ex.parameters);

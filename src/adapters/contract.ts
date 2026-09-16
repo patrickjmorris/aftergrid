@@ -59,7 +59,7 @@ export interface Adapter {
   estimate(sql: string, params: SqlParams): Promise<Estimate>;
   /** Guarded execution against the connected source: single SELECT, admission by estimate, limits active throughout. */
   execute(sql: string, params: SqlParams, opts?: { timeout_ms?: number }): Promise<ExecuteResult>;
-  /** Capture bounded extracts of the named tables into destDir as retained inputs with content hashes. */
+  /** Capture whole-table extracts of the named tables (no row bound is applied; the analytical window lives in SQL) into destDir as retained inputs with content hashes. */
   capture(tables: string[], destDir: string, opts?: { description?: string }): Promise<RetainedInput[]>;
   catalog(): Promise<CatalogTable[]>;
   close(): Promise<void>;

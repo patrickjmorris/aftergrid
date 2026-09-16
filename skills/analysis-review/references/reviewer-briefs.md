@@ -24,7 +24,7 @@ You are reviewing statistical hygiene and whether the design earns what the Find
 
 Work through each of these against every Claim in `manifest.yaml` and its subsection in `memo.md`:
 
-- **Claim type earned by design.** `causal` needs randomised assignment or an identified design stated in the
+- **Claim type earned by design.** `causal` needs randomised assignment (the only basis v0 accepts; `candidate_claims[].causal_basis: randomised_assignment` in analysis.yaml), stated in the
   Finding; observational data supports `associational` at most; a single series supports `descriptive`. A
   `causal` Claim whose design is not stated is blocking.
 - **Denominator and baseline.** Every rate names what it is a share of. Every comparison names what it is

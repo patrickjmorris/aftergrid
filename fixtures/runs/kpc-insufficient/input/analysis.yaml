@@ -111,7 +111,7 @@ candidate_claims:
       - ref:since_change.post.active_at_change
       - ref:since_change.post.earliest_window_end
     comparison:
-      kind: vs_target
+      kind: target
       description: What has accumulated so far, against the minimum the analysis policy requires. No
         before/after comparison is made yet, and nothing here compares a treated group with an untreated one.
       pre_registered: true

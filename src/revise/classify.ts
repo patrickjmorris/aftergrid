@@ -202,8 +202,14 @@ export function classifyChartSpec(chartId: string, specPath: string, before: unk
       const key = parts[scaleAt + 1] ?? "";
       if (!(POSITION.has(channel) && parts.slice(0, scaleAt - 1).includes("encoding")) || POSITION_SCALE_SPACING.has(key)) { out.push({ level: "presentation", location: loc, message: `${d.pointer || "the spec"} is how the chart looks` }); continue; }
       // The whole scale object appeared or vanished: `domain` is already judged above, so judge what is left.
-      const rest = key ? [key] : Object.keys((d.kind === "removed" ? d.before : d.after) ?? {}).filter((k) => k !== "domain" && !POSITION_SCALE_SPACING.has(k));
-      if (!rest.length) continue;
+      const scaleObj = (d.kind === "removed" ? d.before : d.after) ?? {};
+      const rest = key ? [key] : Object.keys(scaleObj).filter((k) => k !== "domain" && !POSITION_SCALE_SPACING.has(k));
+      if (!rest.length) {
+        // Only spacing keys (or nothing but `domain`, judged above) appeared or vanished: how the chart looks, and it is
+        // still a difference to re-render, never something to report as "unchanged".
+        if (!key && Object.keys(scaleObj).some((k) => k !== "domain")) out.push({ level: "presentation", location: loc, message: `${channel}.scale spacing is how the chart looks` });
+        continue;
+      }
       out.push({ level: "interpretation", location: loc, message: `${channel}.scale.${rest.join(", ")} decides how a value becomes a length on the ${channel} axis, so it changes what a mark's length says` });
       continue;
     }

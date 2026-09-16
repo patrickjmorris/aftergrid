@@ -368,6 +368,7 @@ function validateMemo(manifest, results) {
     for (const c of t.columns) if (!res.columns.some((x) => x.name === c.name)) err("missing_column", `manifest.yaml#/tables/${n}`, `column ${c.name} not on ${res.id}`, "");
     for (const k of t.row_keys || []) if (results[res.id] && !results[res.id].rows.some((r) => String(r[res.row_key]) === k)) err("unresolved_reference", `manifest.yaml#/tables/${n}`, `row key ${k} not in ${res.id}`, "");
   }
+  if (manifest.export_policy.granularity === "row_level") err("export_policy", "manifest.yaml#/export_policy/granularity", "row_level export is refused in v0; a Reader render carries aggregates only", "use aggregate_only");
   for (const f of manifest.export_policy.allowed_fields) {
     const [rid, col] = f.split(".");
     const res = manifest.results.find((r) => r.id === rid);
@@ -405,7 +406,7 @@ function validateMemo(manifest, results) {
   validateMemo(manifest, results);
   // 5. digest + readiness
   const d = digestOf(manifest, DIR);
-  if (d.value !== manifest.content_digest.value) err("digest", "manifest.yaml#/content_digest", "content digest does not match current content", "run build (fixtures) or aftergrid check --pin");
+  if (d.value !== manifest.content_digest.value) err("digest", "manifest.yaml#/content_digest", "content digest does not match current content", "re-pin with aftergrid execute (evidence) or aftergrid revise --pin (presentation); fixtures: scripts/fixture-tool.mjs build");
   for (const [n, r] of (manifest.reviews || []).entries()) if (r.content_digest.value !== d.value) warn("stale_review", `manifest.yaml#/reviews/${n}`, `${r.kind} review is for a different content digest`);
   let readiness = "not_ready"; const reasons = [];
   const approvals = (manifest.attestations || []).filter((a) => a.kind === "publication_approval");
