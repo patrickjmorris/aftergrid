@@ -24,9 +24,10 @@ Usage:
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
   aftergrid render <finding-dir> [--png] [--json]
   aftergrid decide --finding <dir> --owner <name> --date <yyyy-mm-dd> --claims <c1,c2> --action action|inaction
-                   --description "<what was done>" --rationale "<why>" [--revisit-date <yyyy-mm-dd> | --revisit-every <days>]
-                   [--timezone <IANA zone>] [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"]
-                   [--supersedes <dec_id>] [--id <dec_id>] [--dry-run] [--json]
+                   --description "<what was done>" --rationale "<why>"
+                   [--revisit-date <yyyy-mm-dd> --timezone <IANA zone> | --revisit-every <days> --timezone <IANA zone>]
+                   [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"]
+                   [--supersedes <dec_id>] [--instance <dir>] [--id <dec_id>] [--dry-run] [--json]
   aftergrid hook install|uninstall|status [--settings <path>]
   aftergrid plugin validate [--root <dir>] [--json]
   aftergrid intake --repo owner/repo [--label ready-for-agent] [--instance <dir>] [--once | --poll-seconds N]
@@ -148,18 +149,21 @@ export async function main(argv: string[]): Promise<void> {
       action: { type: "string" }, description: { type: "string" }, rationale: { type: "string" },
       "revisit-date": { type: "string" }, "revisit-every": { type: "string" }, timezone: { type: "string" },
       "falsifier-check": { type: "string" }, outcome: { type: "string" }, supersedes: { type: "string" },
-      id: { type: "string" }, "dry-run": { type: "boolean" }, json: { type: "boolean" },
+      instance: { type: "string" }, id: { type: "string" }, "dry-run": { type: "boolean" }, json: { type: "boolean" },
     } });
-    const usage = (message: string): never => { process.stderr.write(`${message}\nusage: aftergrid decide --finding <dir> --owner <name> --date <yyyy-mm-dd> --claims <c1,c2> --action action|inaction --description "<what was done>" --rationale "<why>" [--revisit-date <yyyy-mm-dd> | --revisit-every <days>] [--timezone <IANA zone>] [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"] [--supersedes <dec_id>] [--id <dec_id>] [--dry-run] [--json]\n`); process.exit(2); };
+    const usage = (message: string): never => { process.stderr.write(`${message}\nusage: aftergrid decide --finding <dir> --owner <name> --date <yyyy-mm-dd> --claims <c1,c2> --action action|inaction --description "<what was done>" --rationale "<why>" [--revisit-date <yyyy-mm-dd> --timezone <IANA zone> | --revisit-every <days> --timezone <IANA zone>] [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"] [--supersedes <dec_id>] [--instance <dir>] [--id <dec_id>] [--dry-run] [--json]\n`); process.exit(2); };
     const dir = values.finding ?? positionals[0];
     if (!dir) usage("name the Finding directory to decide on");
     if (values.action !== "action" && values.action !== "inaction") usage("--action must be action or inaction");
     for (const required of ["owner", "date", "claims", "description", "rationale"] as const) if (!values[required]) usage(`--${required} is required: aftergrid decide never invents one`);
     if (!values["revisit-date"] && !values["revisit-every"] && !values["falsifier-check"]) usage("state when to revisit: --revisit-date, --revisit-every, and/or --falsifier-check");
+    // A schedule is a date in a place, so the zone is part of the schedule, not an optional extra.
+    if ((values["revisit-date"] || values["revisit-every"]) && !values.timezone) usage("--timezone is required with --revisit-date or --revisit-every: a schedule names an IANA zone, such as America/New_York or UTC");
     const om = values.outcome ? /^(\d{4}-\d{2}-\d{2})\s+(.*\S)$/.exec(values.outcome) : null;
     if (values.outcome && !om) usage('--outcome is "<yyyy-mm-dd> <what happened>"; omit it while the outcome is unknown');
     out(await decide({
       findingDir: dir,
+      instanceDir: values.instance,
       owner: values.owner!,
       decidedOn: values.date!,
       restsOnClaims: values.claims!.split(",").map((c) => c.trim()).filter(Boolean),
