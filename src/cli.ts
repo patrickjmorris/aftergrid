@@ -4,6 +4,7 @@
 import { parseArgs } from "node:util";
 import { newFinding } from "./commands/new-finding.ts";
 import { check } from "./commands/check.ts";
+import { render } from "./commands/render.ts";
 import { exitCodeFor, formatHuman, type Report } from "./report.ts";
 
 const HELP = `aftergrid — produce Findings a non-data Reader can understand, inspect and act on.
@@ -11,7 +12,7 @@ const HELP = `aftergrid — produce Findings a non-data Reader can understand, i
 Usage:
   aftergrid new finding <slug> [--ask "<raw ask>"] [--reader <profile-id>] [--instance <dir>] [--date yyyy-mm-dd]
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
-  aftergrid render <finding-dir>          (not implemented yet: ag-render-html-pjn)
+  aftergrid render <finding-dir> [--png] [--json]
   aftergrid decide ...                    (not implemented yet: ag-v0-spec-9an.1)
   aftergrid intake ...                    (not implemented yet: ag-background-intake-ka3)
 
@@ -21,7 +22,8 @@ Lifecycle:
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
                 --mode rerun re-executes every recorded query and Check against the retained inputs (never a
                 live source) and reports any difference from what the manifest recorded. Nothing is modified.
-  render        produces the Reader-safe HTML; a draft renders with a draft label, never as reviewed.
+  render        validates the source, then writes render/finding.html and render/<chart>.svg (and .png with --png);
+                a draft renders with a draft label, never as reviewed; invalid evidence is refused.
 
 Runtime: Node >= 22.18 or >= 24 (TypeScript type stripping on by default), no native compiler needed; prebuilt DuckDB binaries are used for rerun.
 Exit codes: 0 clean, 1 problems found, 2 refused or usage error, 3 not implemented.
@@ -49,7 +51,13 @@ export async function main(argv: string[]): Promise<void> {
     if (values.mode !== undefined && values.mode !== "artifact" && values.mode !== "rerun") { process.stderr.write(`--mode must be artifact or rerun, got '${values.mode}'\n`); process.exit(2); }
     out(await check({ dir, mode: values.mode === "rerun" ? "rerun" : "artifact" }), !!values.json);
   }
-  if (cmd === "render" || cmd === "decide" || cmd === "intake") { process.stderr.write(`aftergrid ${cmd}: not implemented in this revision\n`); process.exit(3); }
+  if (cmd === "render") {
+    const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: { png: { type: "boolean" }, json: { type: "boolean" } } });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write("usage: aftergrid render <finding-dir>\n"); process.exit(2); }
+    out(await render({ dir, png: !!values.png }), !!values.json);
+  }
+  if (cmd === "decide" || cmd === "intake") { process.stderr.write(`aftergrid ${cmd}: not implemented in this revision\n`); process.exit(3); }
   process.stderr.write(`unknown command '${cmd}'\n${HELP}`); process.exit(2);
 }
 

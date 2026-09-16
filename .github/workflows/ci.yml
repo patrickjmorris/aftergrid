@@ -19,3 +19,4 @@ jobs:
       - run: node src/cli.ts --help
       - run: node src/cli.ts check fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention --json
       - run: node src/cli.ts check fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations --mode rerun --json
+      - run: cp -R fixtures/instance /tmp/inst && node src/cli.ts render /tmp/inst/analytics/findings/2026-07-20-onboarding-checklist-retention --png --json

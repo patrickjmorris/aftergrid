@@ -13,6 +13,7 @@ pnpm install
 node src/cli.ts --help
 node src/cli.ts new finding my-question --ask "Did the checklist help?" --instance fixtures/instance
 node src/cli.ts check fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention
+node src/cli.ts render <copy-of-a-finding-dir> --png   # writes render/finding.html and chart SVG/PNG
 pnpm test                 # fixture regressions + CLI tests
 pnpm run validate:fixtures
 ```
@@ -23,7 +24,7 @@ pnpm run validate:fixtures
 
 - `schema/` canonical JSON Schemas (Finding manifest, Decision record, Reader profile)
 - `docs/contracts/` the contracts those schemas cannot express
-- `src/` the CLI (`new finding`, `check`; `render`, `decide`, `intake` follow in their beads)
+- `src/` the CLI (`new finding`, `check`, `render`; `decide` and `intake` follow in their beads) and the adapters
 - `scripts/` fixture tooling and the shared validation library (`scripts/lib/`)
 - `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`)
 

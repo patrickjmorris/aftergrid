@@ -17,8 +17,12 @@
   },
   "devDependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
+    "@resvg/resvg-wasm": "^2.6.2",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "marked": "^18.0.13",
+    "vega": "^6.4.0",
+    "vega-lite": "^6.4.3",
     "yaml": "^2.6.0"
   },
   "bin": {

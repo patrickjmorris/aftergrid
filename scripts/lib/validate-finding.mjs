@@ -3,7 +3,7 @@
 // Extracted from fixture-tool.mjs after the 2026-09-15 code review; behaviour and categories unchanged.
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { safePath, validateStructure, validateResult, calculate } from "../fixture-safety.mjs";
+import { safePath, validateStructure, validateResult, calculate, ContractError } from "../fixture-safety.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -59,23 +59,8 @@ export function schemaErrors(manifest, repoRoot) {
   return ajv.errors.map((e) => ({ category: "schema", location: "manifest.yaml#" + e.instancePath, message: e.message + (e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues) : ""), remedy: "fix the manifest against schema/finding-manifest.schema.json" }));
 }
 
-const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked", "What would change our mind", "Appendix"];
-
-/**
- * Validate one Finding directory. Never executes SQL. Returns
- * { finding, state, outcome, evidence, sqlExecution, executionAvailability, recordedCheckOutcomes, readiness, reasons,
- *   decisionMetrics, errors, warnings, info }.
- */
-export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
-  const DIR = dir;
-  const REPO = repoRoot ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-  const report = { errors: [], warnings: [], info: [] };
-  const err = (category, location, message, remedy) => report.errors.push({ category, location, message, remedy });
-  const warn = (category, location, message) => report.warnings.push({ category, location, message });
-  const finish = (manifest, summary) => ({ finding: manifest?.finding?.id ? `${manifest.finding.id} r${manifest.finding.revision}` : null, state: manifest?.finding?.state, outcome: manifest?.finding?.outcome, ...(summary || {}), errors: report.errors, warnings: report.warnings, info: report.info });
-  let INSTANCE;
-
-function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
+// ---- value resolution (module scope; `err` collects problems) ----
+function resolveValueRefWith(err, manifest, ref, loc, results, seen = new Set()) {
   const m = VALUE_REF_RE.exec(ref);
   if (!m) { err("unresolved_reference", loc, `malformed reference '${ref}'`, "use ref:<result>.<row_key>.<column>, derived:<id> or ext:<id>"); return null; }
   if (m[1]) {
@@ -95,7 +80,7 @@ function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
     if (seen.has(id)) { err("derived_cycle", loc, `derived '${id}' depends on itself`, "remove the cycle"); return null; }
     const d = manifest.derived.find((x) => x.id === id);
     if (!d) { err("unresolved_reference", loc, `derived '${id}' not in manifest`, "declare it under derived"); return null; }
-    const ops = d.operands.map((o) => resolveValueRef(manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
+    const ops = d.operands.map((o) => resolveValueRefWith(err, manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
     if (ops.some((o) => o === null)) return null;
     const exact = calculate(d.operation, ops, d.unit);
     return { value: exact === null ? null : "derived", exact, unit: d.unit, display: d.display, provisional: ops.some((o) => o.provisional) };
@@ -104,7 +89,7 @@ function resolveValueRef(manifest, ref, loc, results, seen = new Set()) {
   if (!e) { err("unresolved_reference", loc, `external source '${m[5]}' not in manifest`, "declare it under external_sources"); return null; }
   return { value: e.value, unit: e.unit, display: e.display, provisional: false };
 }
-function checkExport(manifest, ref, loc, seen = new Set()) {
+function checkExportWith(err, manifest, ref, loc, seen = new Set()) {
   if (ref.startsWith("ref:")) {
     const [rid, , col] = ref.slice(4).split(".");
     if (!manifest.export_policy.allowed_fields.includes(`${rid}.${col}`)) err("export_policy", loc, `${rid}.${col} is not allowed for display`, "remove the token or approve the field");
@@ -113,9 +98,42 @@ function checkExport(manifest, ref, loc, seen = new Set()) {
     const id = ref.slice(8);
     if (seen.has(id)) return; // The value resolver separately reports cycles.
     const d = manifest.derived.find(d => d.id === id);
-    for (const operand of d?.operands ?? []) checkExport(manifest, operand, loc, new Set([...seen,id]));
+    for (const operand of d?.operands ?? []) checkExportWith(err, manifest, operand, loc, new Set([...seen,id]));
   }
 }
+
+/**
+ * Strict resolution for renderers: returns { value, exact?, unit, display, provisional } or throws the first
+ * ContractError (unresolved_reference, duplicate_row_key, missing_column, derived_cycle, unit_mismatch, export_policy,
+ * provisional_evidence). Export policy is enforced here too, so a renderer cannot display a non-exported field.
+ */
+export function resolveValueStrict(manifest, results, ref, loc = ref) {
+  const problems = [];
+  const err = (category, location, message) => problems.push({ category, location, message });
+  checkExportWith(err, manifest, ref, loc);
+  const v = resolveValueRefWith(err, manifest, ref, loc, results);
+  if (problems.length) throw new ContractError(problems[0].category, problems[0].location, problems[0].message);
+  return v;
+}
+
+const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked", "What would change our mind", "Appendix"];
+
+/**
+ * Validate one Finding directory. Never executes SQL. Returns
+ * { finding, state, outcome, evidence, sqlExecution, executionAvailability, recordedCheckOutcomes, readiness, reasons,
+ *   decisionMetrics, errors, warnings, info }.
+ */
+export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
+  const DIR = dir;
+  const REPO = repoRoot ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const report = { errors: [], warnings: [], info: [] };
+  const err = (category, location, message, remedy) => report.errors.push({ category, location, message, remedy });
+  const warn = (category, location, message) => report.warnings.push({ category, location, message });
+  const resolveValueRef = (manifest, ref, loc, results, seen) => resolveValueRefWith(err, manifest, ref, loc, results, seen);
+  const checkExport = (manifest, ref, loc, seen) => checkExportWith(err, manifest, ref, loc, seen);
+  const finish = (manifest, summary) => ({ finding: manifest?.finding?.id ? `${manifest.finding.id} r${manifest.finding.revision}` : null, state: manifest?.finding?.state, outcome: manifest?.finding?.outcome, ...(summary || {}), errors: report.errors, warnings: report.warnings, info: report.info });
+  let INSTANCE;
+
 function resolveTokensIn(manifest, text, loc, results) {
   let out = text;
   for (const m of text.matchAll(TOKEN_RE)) {
