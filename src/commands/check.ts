@@ -42,7 +42,9 @@ export async function check(opts: CheckOptions): Promise<Report> {
  * Publication readiness is decided by src/publication, never by the Finding under review: trusted Instance policy
  * plus a GitHub review read through the API. Without a token there is no client and readiness stays `unknown`,
  * never `ready`. Offline artifact verification (checkArtifact, and therefore render) keeps its own conservative
- * answer so a rendered draft stays reproducible.
+ * answer so a rendered draft stays reproducible. Evidence validity and readiness stay separate axes, with traffic
+ * in one direction only: an evidence error forces `not_ready` (never `unknown`), while a `not_ready` or `unknown`
+ * readiness never makes evidence invalid.
  */
 async function verifyPublication(opts: CheckOptions, report: Report) {
   if (report.syntax === "invalid") return;
@@ -56,7 +58,12 @@ async function verifyPublication(opts: CheckOptions, report: Report) {
   report.warnings.push(...assessment.warnings);
   report.readiness = assessment.readiness;
   report.readiness_reasons = assessment.reasons;
-  if (report.errors.length && report.readiness !== "unknown") report.readiness = "not_ready";
+  // Evidence errors force not_ready with no exception, including for `unknown`: a Finding whose retained inputs or
+  // approved definitions no longer hash to its manifest is definitely wrong, not merely unanswerable.
+  if (report.errors.length) {
+    report.readiness = "not_ready";
+    report.readiness_reasons.push(`the evidence is invalid (${report.errors.length} error${report.errors.length === 1 ? "" : "s"}), which forces not_ready whatever the GitHub review says`);
+  }
 }
 
 /**

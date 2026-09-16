@@ -12,7 +12,10 @@ import { findInstance } from "../instance.ts";
 import { render } from "../commands/render.ts";
 
 export type OutputVerification = {
-  /** verified: bytes match. tampered: they do not. not_verifiable: the source could not be re-rendered at all. */
+  /**
+   * verified: bytes match. tampered: they do not (`tampered_output`). not_verifiable: the source could not be
+   * re-rendered at all, which is reported as `render_error` — an unverifiable output is never called a tampered one.
+   */
   status: "verified" | "tampered" | "not_verifiable";
   /** The output paths, relative to the Finding directory, that were compared. */
   compared: string[];
@@ -54,8 +57,10 @@ export async function verifyGeneratedOutputs(dir: string, opts: { generatedAt?: 
         const p = relative(instance.root, src);
         if (!p) return true;
         const seg = p.split(sep);
-        // Skip the sibling Findings: they cost time and nothing here reads them.
-        if (seg.length > prefix.length && prefix.every((x, i) => seg[i] === x) && seg[prefix.length] !== leaf) return false;
+        // Skip the sibling Findings: they cost time and nothing here reads them. With an empty prefix the Finding
+        // sits directly under the Instance root, where its "siblings" are the Instance itself — aftergrid.yaml,
+        // definitions/, readers.md — so nothing is skipped and the whole Instance is staged.
+        if (prefix.length > 0 && seg.length > prefix.length && prefix.every((x, i) => seg[i] === x) && seg[prefix.length] !== leaf) return false;
         // Skip the cached outputs under test: the copy must be re-rendered from source alone.
         if (seg.length > parts.length && parts.every((x, i) => seg[i] === x) && seg[parts.length] === "render") return false;
         return true;
@@ -70,7 +75,8 @@ export async function verifyGeneratedOutputs(dir: string, opts: { generatedAt?: 
     const report = await render({ dir: copyDir, png: false, generatedAt: opts.generatedAt });
     if (report.errors.length) {
       problems.push(...report.errors);
-      problems.push({ category: "tampered_output", location: `${rel}/render`, message: "the Finding could not be re-rendered from its source, so its cached outputs cannot be trusted or replaced", remedy: "fix the errors above; publication never falls back to the files already in render/" });
+      // "Could not verify" is not "was tampered with": a re-render that fails says nothing about the bytes on disk.
+      problems.push({ category: "render_error", location: `${rel}/render`, message: "the Finding could not be re-rendered from its source, so its cached outputs could not be compared and cannot be trusted or replaced", remedy: "fix the errors above; publication never falls back to the files already in render/" });
       return out("not_verifiable");
     }
 

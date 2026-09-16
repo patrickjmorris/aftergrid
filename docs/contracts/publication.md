@@ -8,7 +8,7 @@ Three values, never a boolean:
 | --- | --- |
 | `ready` | A `publication_approval` attestation bound to the Finding's **current** digest was verified through the GitHub API: an APPROVED, undismissed review at the exact analyzed commit, by a login on the Instance allowlist, on a pull request opened by the Instance's automation identity. |
 | `not_ready` | Something is definitely wrong or missing: no attestation, a stale one, an untrusted source, a wrong commit, an unauthorized or dismissed reviewer, an impossible author/approver split, an untrusted policy, or a Finding that is not `complete`. |
-| `unknown` | The question could not be answered: no token, no client, or the API could not be read. Only a labelled draft may be produced. `unknown` is never rounded up to `ready` and never down to a silent pass. |
+| `unknown` | The question could not be answered: no token, no client, the API could not be read, or a later objection carries a timestamp that cannot be ordered against the approval. Only a labelled draft may be produced. `unknown` is never rounded up to `ready` and never down to a silent pass. A pointer the *Finding* wrote badly is not `unknown`: it is a defect, and therefore `not_ready`. |
 
 ## The trust boundary
 
@@ -20,7 +20,9 @@ The proposed Finding supplies a **pointer**, not a verdict: `attestations[].sour
 
 An attestation naming a repository other than `publication.repository` is rejected *before* any network call, so a Finding cannot make the runner talk to a repository its Instance does not trust.
 
-**The policy file must be guarded.** Nothing in the Engine can stop a pull request that edits both the Finding and `aftergrid.yaml` in the same branch. Put `aftergrid.yaml` behind CODEOWNERS and branch protection so a change to it needs its own human review. This is a repository-configuration requirement, not something `check` enforces.
+**The policy is always resolved from a directory strictly above the Finding.** `readPublicationPolicy` starts its search at the Finding's parent, and an `aftergrid.yaml` **inside** the Finding directory is refused outright as `invalid_artifact` (an error against the Finding, not a warning about the Instance) rather than read. A Finding pull request adds files inside the Finding directory, so without that rule the proposed Finding would supply the repository, the allowlist and the automation identity that judge it, and nothing in the digest envelope would even record that it did. An explicit `instanceRoot` is held to the same rule: a root that does not strictly contain the Finding is `policy_untrusted`, never the policy this Finding is judged by.
+
+**The Instance policy file must still be guarded.** Nothing in the Engine can stop a pull request that edits both the Finding and the *Instance's* `aftergrid.yaml` in the same branch. Put `aftergrid.yaml` behind CODEOWNERS and branch protection so a change to it needs its own human review. This is a repository-configuration requirement, not something `check` enforces.
 
 `readPublicationPolicy` reports `policy_untrusted` and yields no policy at all when the policy file is missing, unparsable, has no `publication` section, has a malformed `repository` or login, has an empty or missing `trusted_approvers`, has no `automation_login`, or lists `automation_login` among `trusted_approvers`. An unreadable policy is never treated as permissive.
 
@@ -28,14 +30,14 @@ An attestation naming a repository other than `publication.repository` is reject
 
 `assessReadiness({ dir, manifest, instanceRoot, github, now })` requires every one of these, per attestation, and stops at the first failure:
 
-1. The Instance policy is trustworthy (above).
+1. The Instance policy is trustworthy (above) and was read from a directory strictly above the Finding.
 2. `kind: publication_approval` and `content_digest` equal to the digest **recomputed from the directory now** (`digestOf`, the single implementation in `scripts/lib/validate-finding.mjs`). A stale binding is `stale_attestation`.
 3. `source.type: github_pr_review`. An `unverified_note` is reported in the reasons as a note that is visibly not an approval; it is not a defect and produces no error.
 4. `source.repository` equals the Instance's `publication.repository`.
 5. A review with `source.review_id` exists on that pull request and its state is `APPROVED`. A dismissed review comes back as `DISMISSED` and is rejected.
 6. `review.commit_id` equals `source.commit_sha` **and** the pull request's `head_sha` equals `source.commit_sha`. An approval counts only for the commit it was given on, and only while that commit is still the head.
 7. `review.submitted_at` parses and is not in the future (60s of clock skew allowed).
-8. The approval is not superseded: no later `CHANGES_REQUESTED` or `DISMISSED` from the same reviewer, and — deliberately stricter than GitHub's own merge rules — no later unresolved `CHANGES_REQUESTED` from any other trusted approver.
+8. The approval is not superseded: no later `CHANGES_REQUESTED` or `DISMISSED` from the same reviewer, and — deliberately stricter than GitHub's own merge rules — no later unresolved `CHANGES_REQUESTED` from any other trusted approver. An objection from the same reviewer or a trusted approver whose `submitted_at` will not parse **cannot be ordered** against the approval and yields `unknown`; it is never dropped so the approval can survive. That check runs after every other rule, so a definite defect — an untrusted approver, the wrong pull request author — still reports `not_ready` rather than `unknown`. (A `CHANGES_REQUESTED` from a login that is neither the approver nor a trusted approver is not an objection under this rule and is ignored whatever its timestamp.)
 9. `review.user_login` is on `trusted_approvers`.
 10. The pull request author is not the approver and is not on `trusted_approvers` (`solo_setup_invalid`), and is the Instance's `automation_login` (`untrusted_attestation` otherwise).
 11. `finding.state` is `complete`.
@@ -44,9 +46,11 @@ The `attester` string in the manifest is display only. When it disagrees with th
 
 `assessReadiness` returns `{ readiness, reasons, verified, errors, warnings }`, following the same split as `validateDecisionsFor`:
 
-- **errors** are defects in the Finding's own attestations: `stale_attestation`, `untrusted_attestation`, `solo_setup_invalid`. Any of them forces `not_ready`, even when a second attestation verified.
+- **errors** are defects in the Finding's own attestations or directory: `stale_attestation`, `untrusted_attestation`, `solo_setup_invalid`, and `invalid_artifact` for a policy file the Finding carries. Any of them forces `not_ready`, even when a second attestation verified.
 - **warnings** are `policy_untrusted`. An Instance that cannot verify publication is not a defect in the Finding: a draft in such an Instance is still perfectly valid, it simply never reaches `ready`.
-- Any read that could not be completed — no client, no token, network failure, HTTP error, rate limit, malformed body, truncated review list — produces `unknown` with the error class named in the reason, and never an error masquerading as a rejection.
+- Any read that could not be completed — no client, no token, network failure, HTTP error, rate limit, malformed body, truncated review list, an objection whose time cannot be ordered — produces `unknown` with the error class or the unorderable review named in the reason, and never an error masquerading as a rejection.
+- The client shape-checks every review before it is believed: `id`, `user.login`, `state` and — for every state except `PENDING`, which the API returns unsubmitted to its own author and which can be neither an approval nor an objection — `commit_id` and `submitted_at` must be strings. A missing or wrongly typed field is a `malformed_response`, and therefore `unknown`; it is never defaulted to `""`, which would make a review unorderable against the approval it is meant to supersede.
+- A pointer the client refuses *before* any network call (`invalid_request`: a repository that is not `owner/repo`, a pull request number that is not a positive integer) is a defect in the Finding, not an unreadable API: it is `untrusted_attestation` and `not_ready`, and no request is issued.
 - `verified` lists what was actually verified: attestation index, review id, the login the API returned and the commit sha. It is empty unless `readiness` is `ready`.
 
 ### Why a single account cannot work
@@ -66,6 +70,9 @@ So a cosmetic change excluded from the digest envelope (`finding.generated_at`, 
 
 `verifyGeneratedOutputs(dir)` copies the Instance (without its sibling Findings and without the cached `render/` directory), re-renders the Finding from its validated source, and compares `render/finding.html` and every chart SVG **byte for byte** with what is on disk. Any difference, extra generated-looking file or missing file is `tampered_output`. The returned `regenerated` map holds the fresh bytes: **publication uses those, never the files on disk.** Hand-authored references in `render/` (`finding.template.html`) are not generated and are not compared.
 
+- Sibling Findings are skipped only when there are siblings to skip. A Finding that sits **directly under the Instance root** has no Finding siblings — its neighbours are the Instance itself (`aftergrid.yaml`, `definitions/`, `readers.md`, `data/`) — so the whole Instance is staged and the Finding re-renders normally.
+- A re-render that fails at all is `render_error` with status `not_verifiable`, never `tampered_output`. "Could not verify" is not "was tampered with": a failed re-render says nothing about the bytes on disk, and only a completed comparison can accuse them.
+
 - PNG previews are excluded. The WASM rasterizer's output depends on the font it finds (`AFTERGRID_FONT`), so a byte comparison would report the machine, not a tamper. The SVG each PNG is made from is compared.
 - Vega numbers SVG def ids from a process-global counter, so the canonical output is that of a fresh `aftergrid render`. `verifyGeneratedOutputs` calls `resetSVGDefIds()` before re-rendering to reproduce it. That reset is process-global: do not run an unrelated render concurrently in the same process.
 - The re-render uses the offline readiness from `checkArtifact`, which is what `aftergrid render` writes into the draft banner. Rendering deliberately does not call the GitHub API, so the artifact stays reproducible; publication readiness comes from `check`.
@@ -84,15 +91,16 @@ So a cosmetic change excluded from the digest envelope (`finding.generated_at`, 
 
 ## Wiring into `check`
 
-`src/commands/check.ts` is not changed by this contract's own bead; the readiness block it ships with is the
-offline, conservative one from `validateFinding`, which can never reach `ready`. The maintainer wires this module
-in by calling `assessReadiness` from the async `check()` (not from the sync `checkArtifact`, which `render` uses
-and which must stay offline and reproducible), passing `github: null` when no token is configured so readiness
-stays `unknown`. The exact snippet is in the bead's hand-off. Two rules the wiring must keep:
+`verifyPublication` in `src/commands/check.ts` calls `assessReadiness` from the async `check()` (never from the
+sync `checkArtifact`, which `render` uses and which must stay offline and reproducible), passing `github: null`
+when no token is configured so readiness stays `unknown`. Two rules the wiring keeps:
 
 - `check` never mutates hashed content. Nothing here writes to the Finding directory.
-- evidence validity and publication readiness stay separate axes in the report. Evidence errors force `not_ready`,
-  but a `not_ready` or `unknown` readiness never makes evidence invalid.
+- evidence validity and publication readiness stay separate axes in the report, with traffic in one direction
+  only. Evidence errors force `not_ready` **with no exception, including over `unknown`**: a Finding whose
+  retained inputs or approved definitions no longer hash to its manifest is definitely wrong, not merely
+  unanswerable, and the forced verdict is spelled out in `readiness_reasons`. A `not_ready` or `unknown`
+  readiness never makes evidence invalid.
 
 ## Human round trip: the solo pilot runbook
 
