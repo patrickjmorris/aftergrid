@@ -4,10 +4,15 @@
 // skill is written against: fixtures/runs/<run>/ holds an Analysis directory (input/) and the Finding the
 // skill is expected to produce from it (output/), both hand-authored, with run.yaml recording both digests
 // and the absence of a model. So the assertions here are mechanical ones — evidence validity, the writer's
-// field boundary, answer-first structure, bound values, Reader vocabulary, causal wording — and the
-// judgements a lint cannot make (whether a caveat is the one that matters, whether "doubled" is earned) are
-// deliberately absent: they live in skills/shape-narrative/references/narrative-criteria.md and are the
-// Reader reviewer's, not this file's.
+// field boundary, answer-first structure, bound values, figure titles, Reader vocabulary, causal wording —
+// and the judgements a lint cannot make (whether a caveat is the one that matters, whether "doubled" is
+// earned) are deliberately absent: they live in skills/shape-narrative/references/narrative-criteria.md and
+// are the Reader reviewer's, not this file's.
+//
+// Three tests at the end read the skill prose rather than the fixtures. A step that sends a writer to a
+// field the Analysis schema does not define sends it to nothing, and a writer with nothing to read decides
+// the value itself — the invented threshold the skill's own Boundaries table refuses. That is mechanical
+// too, so it lives here.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -20,14 +25,31 @@ import { check } from "./commands/check.ts";
 import { render } from "./commands/render.ts";
 
 const RUNS = fileURLToPath(new URL("../fixtures/runs/", import.meta.url));
+const WRITER_SKILL = fileURLToPath(new URL("../skills/write-finding/", import.meta.url));
+const readJson = (url: URL) => JSON.parse(readFileSync(fileURLToPath(url), "utf8"));
+const ANALYSIS_SCHEMA = readJson(new URL("./analysis/analysis.schema.json", import.meta.url));
+const MANIFEST_SCHEMA = readJson(new URL("../schema/finding-manifest.schema.json", import.meta.url));
 
-/** The manifest fields /write-finding owns. Everything else must survive the skill byte-identical. */
+/**
+ * The manifest paths /write-finding owns. Everything else must survive the skill byte-identical.
+ *
+ * Ownership is path-level, not block-level. The skill owns `export_policy.allowed_fields` and
+ * `reader.profile` (skills/write-finding/SKILL.md, docs/skills/write-finding.md), not the blocks they sit
+ * in: listing the coarse keys here would let `recipient_scope`, `granularity`, `delivery` and
+ * `private_marker` change, or disappear, with the boundary reporting nothing. `private_marker` is the one
+ * that bites — it is optional in schema/finding-manifest.schema.json, and both guards that use it are
+ * conditional on its presence (the memo scan at scripts/lib/validate-finding.mjs:230, the output-byte
+ * refusal in src/commands/render.ts) — so a writer that dropped it would disable the Instance's
+ * private-content sentinel and still pass `check`, `render` and this file.
+ *
+ * `finding.generated_at` is volatile and excluded from the digest; the other `finding` paths identify the
+ * Finding and are the writer's to set.
+ */
 const WRITER_OWNED = new Set([
-  "claims", "charts", "tables", "derived", "external_sources",
-  "coverage", "export_policy", "reader", "content_digest",
+  "claims", "charts", "tables", "derived", "external_sources", "coverage", "content_digest",
+  "export_policy.allowed_fields", "reader.profile",
+  "finding.state", "finding.outcome", "finding.title", "finding.generated_at",
 ]);
-/** Inside `finding`. `generated_at` is volatile and excluded from the digest; the rest identify the Finding. */
-const WRITER_OWNED_FINDING = new Set(["state", "outcome", "title", "generated_at"]);
 
 /** Evidence the writer reads and never writes: a change to any of these is the failure the boundary catches. */
 const EVIDENCE_DIRS = ["inputs", "queries", "checks", "results"];
@@ -42,6 +64,26 @@ const CAUSAL_VERBS = [
   "resulted in", "results in", "due to", "because of", "thanks to", "responsible for",
   "impact of", "effect of", "made more", "brought about",
 ];
+
+/**
+ * A title that opens by asking, or by pointing back at another figure, names the artifact instead of
+ * stating the Claim: "Who was counted, and how many came back", "The same comparison, phones and web
+ * separately". A blunt proxy for a judgement that is the Reader reviewer's
+ * (skills/shape-narrative/references/narrative-criteria.md, criterion 8); it reads the opening, not the
+ * sentence, so a label it does not catch is still a review finding.
+ */
+const LABEL_OPENER = /^\s*(who|what|which|when|where|why|how|the same|this|that|these|those|summary|overview|breakdown)\b/i;
+
+/** Words too common to tell a title about its Claim from a title about the table it sits on. */
+const STOPWORDS = new Set([
+  "more", "than", "with", "that", "this", "from", "have", "been", "they", "them", "their", "there", "were",
+  "what", "when", "which", "while", "into", "over", "only", "also", "both", "each", "most", "some", "such",
+  "then", "does", "done", "will", "about", "same", "those", "these", "here", "very", "much",
+]);
+
+/** Content words of a title or sentence, value tokens removed. */
+const contentWords = (text: string): Set<string> =>
+  new Set((text.toLowerCase().replace(/\{\{[^}]*\}\}/g, " ").match(/[a-z]{4,}/g) ?? []).filter((w) => !STOPWORDS.has(w)));
 
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 const readRun = (run: string) => parseYaml(readFileSync(join(RUNS, run, "run.yaml"), "utf8"));
@@ -81,6 +123,25 @@ function section(memo: string, name: string): string {
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => /^## /.test(l));
   return (end < 0 ? rest : rest.slice(0, end)).join("\n");
+}
+
+/**
+ * Every leaf path at which two manifests differ, excluding the paths the writer owns. An empty array is the
+ * boundary holding; each entry is a field the writer moved and was not entitled to.
+ */
+function boundaryViolations(input: any, output: any): string[] {
+  const out: string[] = [];
+  const isPlainObject = (v: unknown) => v !== null && typeof v === "object" && !Array.isArray(v);
+  const walk = (a: any, b: any, path: string) => {
+    if (WRITER_OWNED.has(path)) return;
+    if (isPlainObject(a) && isPlainObject(b)) {
+      for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[key], b[key], path ? `${path}.${key}` : key);
+      return;
+    }
+    try { assert.deepEqual(b, a); } catch { out.push(path); }
+  };
+  walk(input, output, "");
+  return out.sort();
 }
 
 const RUN_NAMES = ["kpc-numeric", "kpc-insufficient"] as const;
@@ -138,14 +199,8 @@ test("the writer changes only the fields it owns: no query, Check, result, retai
     const inp = join(RUNS, name, "input"), out = join(RUNS, name, "output");
     const im = readManifest(inp), om = readManifest(out);
 
-    for (const key of Object.keys({ ...im, ...om })) {
-      if (WRITER_OWNED.has(key) || key === "finding") continue;
-      assert.deepEqual(om[key], im[key], `${name}: manifest.${key} is evidence the writer reads, not a field it writes`);
-    }
-    for (const key of Object.keys({ ...im.finding, ...om.finding })) {
-      if (WRITER_OWNED_FINDING.has(key)) continue;
-      assert.deepEqual(om.finding[key], im.finding[key], `${name}: manifest.finding.${key} identifies the Finding and never changes`);
-    }
+    assert.deepEqual(boundaryViolations(im, om), [],
+      `${name}: these manifest paths are evidence the writer reads, or the Instance's to set, not fields it writes`);
     // Stated positively as well: the writer really did write its half.
     assert.equal(im.finding.state, "draft");
     assert.equal(om.finding.state, "complete");
@@ -153,6 +208,14 @@ test("the writer changes only the fields it owns: no query, Check, result, retai
     assert.ok(om.coverage.description !== im.coverage.description, `${name}: the writer states coverage`);
     assert.ok(om.export_policy.allowed_fields.length > 0 && im.export_policy.allowed_fields.length === 0,
       `${name}: the writer declares what may reach the Reader`);
+    // Stated positively as well, because both sentinel guards are conditional on the marker's presence:
+    // an absent marker is not a lenient policy, it is no policy.
+    for (const [side, m] of [["input", im], ["output", om]] as const) {
+      assert.ok(typeof m.export_policy.private_marker === "string" && m.export_policy.private_marker.length > 0,
+        `${name}/${side}: the Instance's private_marker is what makes the memo scan and the render refusal run at all`);
+      assert.equal(m.export_policy.granularity, "aggregate_only",
+        `${name}/${side}: row_level is refused in v0 (docs/contracts/finding-manifest.md)`);
+    }
 
     // Evidence files, and the Analysis directory's own record, are byte-identical on both sides.
     for (const sub of EVIDENCE_DIRS) {
@@ -229,7 +292,7 @@ test("answer-first: the Answer opens the memo, carries the material caveat, and 
   }
 });
 
-test("every numeric Claim leads with its figure and is backed by a chart or table whose title states the Claim", () => {
+test("every numeric Claim leads with its figure, and every chart and table title states its Claim", () => {
   for (const name of RUN_NAMES) {
     const dir = join(RUNS, name, "output");
     const m = readManifest(dir);
@@ -248,15 +311,30 @@ test("every numeric Claim leads with its figure and is backed by a chart or tabl
       assert.match(firstContent!, /^<!-- (chart|table): [a-z0-9_]+ -->$/,
         `${name}: ${claim.id} opens with its figure, then the prose`);
     }
-    // Chart and table titles are claims with values bound, not axis labels.
+    // Chart and table titles state their Claim, and both are held to it. A chart title carries the values as
+    // tokens and the render resolves them; a table caption is emitted verbatim (src/render/html.ts), so a
+    // token in a table title would reach a Reader as literal braces — it states the Claim in words and the
+    // rows underneath carry the numbers. skills/shape-narrative/SKILL.md step 4 is the contract.
     for (const fig of [...m.charts, ...m.tables]) {
+      const isChart = m.charts.includes(fig);
+      const kind = isChart ? "chart" : "table";
       assert.ok(typeof fig.title === "string" && fig.title.length > 0, `${name}: ${fig.id} has a title`);
       const claim = m.claims.find((c: any) => c.id === fig.claim_id);
       assert.ok(claim, `${name}: ${fig.id} names a Claim`);
-      if (m.charts.includes(fig)) {
-        const tokens = [...fig.title.matchAll(/\{\{(ref|derived|ext):([^}]*)\}\}/g)].map((t) => `${t[1]}:${t[2]}`);
+
+      assert.ok(!LABEL_OPENER.test(fig.title),
+        `${name}: ${kind} ${fig.id} title "${fig.title}" opens by naming the artifact, not by stating the Claim`);
+      const shared = [...contentWords(fig.title)].filter((w) => contentWords(claim.sentence).has(w));
+      assert.ok(shared.length >= 2,
+        `${name}: ${kind} ${fig.id} title "${fig.title}" says nothing its Claim ${claim.id} says (shared: ${JSON.stringify(shared)})`);
+
+      const tokens = [...fig.title.matchAll(/\{\{(ref|derived|ext):([^}]*)\}\}/g)].map((t) => `${t[1]}:${t[2]}`);
+      if (isChart) {
         assert.ok(tokens.length > 0, `${name}: chart ${fig.id} states the Claim with its values bound`);
         for (const t of tokens) assert.ok(claim.evidence.includes(t), `${name}: chart title value ${t} is evidence of ${claim.id}`);
+      } else {
+        assert.deepEqual(tokens, [],
+          `${name}: table ${fig.id} title carries a value token, which a table caption renders as literal braces`);
       }
     }
   }
@@ -356,4 +434,130 @@ test("the numeric Finding's causal Claim is earned by randomised assignment, and
   assert.equal(c2.comparison.pre_registered, false);
   assert.ok(!c2.answer_bearing, "an exploratory Claim never carries the Answer");
   for (const c of m.claims) assert.ok(c.comparison.kind !== "none", "an associational or causal Claim compares something");
+});
+
+// --- The skill's own prose, read as a contract -----------------------------------------------------------
+
+/** Every markdown page of /write-finding, concatenated: the whole instruction a writer follows. */
+const writerSkillText = (): string => {
+  const files = ["SKILL.md", ...readdirSync(join(WRITER_SKILL, "references")).map((f) => join("references", f))];
+  return files.filter((f) => f.endsWith(".md")).map((f) => readFileSync(join(WRITER_SKILL, f), "utf8")).join("\n");
+};
+
+/** Does `path` (dotted, `[]` for "into the array's items") name a property the Analysis schema defines? */
+function analysisSchemaDefines(path: string): boolean {
+  let node: any = ANALYSIS_SCHEMA;
+  for (const segment of path.split(".")) {
+    const key = segment.replace(/\[\]$/, "");
+    if (node?.type !== "object" || !node.properties?.[key]) return false;
+    node = node.properties[key];
+    if (segment.endsWith("[]")) {
+      if (node?.type !== "array" || !node.items) return false;
+      node = node.items;
+    }
+  }
+  return true;
+}
+
+/**
+ * Fields the Analysis schema is gaining in the parallel schema change, and the schema-valid place each one
+ * is recorded until it lands. The skill may name them, and must also name the fallback, so a writer reading
+ * a schema-valid analysis.yaml today still has somewhere to look.
+ */
+// depends on 7qg schema change: once the schema defines these, the first assertion below resolves them
+// directly and this map only keeps the fallback documented.
+const PENDING_ANALYSIS_FIELDS: Record<string, string> = {
+  "requested_external_sources": "analysis.yaml#assumptions",
+  "requested_derived": "analysis.yaml#notes",
+  "candidate_claims[].causal_basis": "candidate_claims[].comparison.description",
+};
+
+test("every analysis.yaml field the writer skill names is one the Analysis schema defines", () => {
+  const text = writerSkillText();
+  const named = [...text.matchAll(/analysis\.yaml#([A-Za-z_][\w.[\]]*)/g)].map((m) => m[1]!.replace(/\.+$/, ""));
+  assert.ok(named.length > 0, "the skill cites analysis.yaml fields by path");
+
+  for (const path of new Set(named)) {
+    assert.ok(analysisSchemaDefines(path) || path in PENDING_ANALYSIS_FIELDS,
+      `skills/write-finding names analysis.yaml#${path}, which src/analysis/analysis.schema.json does not define: ` +
+      "a writer sent to a field that cannot exist has to decide the value for itself");
+  }
+  // A pending field is only safe to name while the page also names where the value is recorded today.
+  for (const [pending, fallback] of Object.entries(PENDING_ANALYSIS_FIELDS)) {
+    if (!named.includes(pending)) continue;
+    assert.ok(text.includes(fallback),
+      `skills/write-finding names ${pending}, which the Analysis schema may not define yet, without naming ${fallback}`);
+  }
+});
+
+test("the writer skill maps every Analysis comparison.kind onto a kind the manifest schema accepts", () => {
+  const analysisKinds: string[] = ANALYSIS_SCHEMA.properties.candidate_claims.items.properties.comparison.properties.kind.enum;
+  const manifestKinds: string[] = MANIFEST_SCHEMA.$defs.claim.properties.comparison.properties.kind.enum;
+
+  // The mapping table in step 5 of SKILL.md: rows of | `analysis kind` | `manifest kind` |.
+  const skill = readFileSync(join(WRITER_SKILL, "SKILL.md"), "utf8");
+  const mapping = new Map<string, string>();
+  for (const row of skill.matchAll(/^\|\s*`([a-z_]+)`\s*\|\s*`([a-z_]+)`\s*\|\s*$/gm)) mapping.set(row[1]!, row[2]!);
+
+  for (const kind of analysisKinds) {
+    const target = mapping.get(kind) ?? kind;
+    assert.ok(manifestKinds.includes(target),
+      `the Analysis spells comparison.kind ${kind}, which is not a manifest value and skills/write-finding/SKILL.md ` +
+      "gives no mapping for it: carrying it across fails the manifest schema, and translating it is a judgement no page backs");
+  }
+  for (const [from, to] of mapping) {
+    assert.ok(analysisKinds.includes(from), `SKILL.md maps comparison.kind ${from}, which the Analysis schema does not allow`);
+    assert.ok(manifestKinds.includes(to), `SKILL.md maps comparison.kind ${from} to ${to}, which the manifest schema does not allow`);
+  }
+
+  // And the recorded runs carry each comparison across by that mapping, never by re-judging it.
+  for (const name of RUN_NAMES) {
+    const analysis = parseYaml(readFileSync(join(RUNS, name, "input", "analysis.yaml"), "utf8"));
+    const om = readManifest(join(RUNS, name, "output"));
+    for (const candidate of analysis.candidate_claims) {
+      const claim = om.claims.find((c: any) => c.id === candidate.id);
+      assert.ok(claim, `${name}: candidate Claim ${candidate.id} reached the Finding`);
+      assert.equal(claim.comparison.kind, mapping.get(candidate.comparison.kind) ?? candidate.comparison.kind,
+        `${name}: ${candidate.id} comparison.kind was translated by something other than the table in SKILL.md`);
+      assert.equal(claim.comparison.pre_registered, candidate.comparison.pre_registered,
+        `${name}: ${candidate.id} pre_registered is a fact about the Analysis`);
+    }
+  }
+});
+
+test("the writer's field boundary is path-level: dropping the Instance's private marker is a violation", () => {
+  for (const name of RUN_NAMES) {
+    const im = readManifest(join(RUNS, name, "input"));
+    const om = readManifest(join(RUNS, name, "output"));
+    assert.deepEqual(boundaryViolations(im, om), [], `${name}: the recorded run stays inside the boundary`);
+
+    // The failure the coarse form of WRITER_OWNED could not see: the Instance's half of export_policy
+    // rewritten, and the private-content sentinel deleted, under cover of a field the writer does own.
+    const tampered = structuredClone(om);
+    delete tampered.export_policy.private_marker;
+    tampered.export_policy.recipient_scope = "company";
+    tampered.export_policy.granularity = "row_level";
+    tampered.reader.profile = "someone_else";
+    assert.deepEqual(boundaryViolations(im, tampered), [
+      "export_policy.granularity", "export_policy.private_marker", "export_policy.recipient_scope",
+    ], `${name}: a writer that rewrote the Instance's export policy must be reported, and reader.profile must not be`);
+  }
+});
+
+test("a recorded run reports no corrections count, because none was observed", () => {
+  for (const name of RUN_NAMES) {
+    const raw = readFileSync(join(RUNS, name, "run.yaml"), "utf8");
+    const run = readRun(name);
+    // input/ was cut out of an already-reviewed output/, so the transformation a corrections counter scores
+    // ran backwards: nothing was produced and then corrected. A zero here would read as an observation,
+    // sitting beside check_artifact and check_rerun, which are reproducible facts.
+    assert.equal(run.verification.structural_or_value_corrections_after_first_check, undefined,
+      `${name}: a corrections count is not something a hand-built fixture can verify`);
+    assert.equal(run.corrections_after_first_check, "not_measured",
+      `${name}: run.yaml records the absence of the measurement rather than a number`);
+    assert.match(String(run.corrections_not_measured_because ?? ""), /output\/ existed/,
+      `${name}: run.yaml says why the count cannot be measured here`);
+    assert.ok(!/corrections[a-z_]*:\s*-?\d/i.test(raw),
+      `${name}: a corrections count in a hand-recorded run describes its construction, not the skill`);
+  }
 });

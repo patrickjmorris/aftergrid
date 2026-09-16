@@ -29,18 +29,23 @@ Read `manifest.yaml`, `analysis.yaml`, every file under `results/`, and the Read
 it is `generic`.
 
 `analysis.yaml` is the Analysis directory's own record, written by `/checked-analysis`
-(`docs/contracts/analysis-directory.md`). You read six parts of it: `outcome_recommendation`, `needs_input`,
-`candidate_claims`, `requested_derived`, `requested_external_sources` and `reader_profile`. The rest —
-assumptions, probes, the pre-registered comparison, the execution order — is context for the prose and for
-the reviewer, never something to restate as a Claim.
+(`docs/contracts/analysis-directory.md`, schema `src/analysis/analysis.schema.json`). You read five parts of
+it: `analysis.yaml#reader_profile`, `analysis.yaml#outcome_recommendation`, `analysis.yaml#needs_input`,
+`analysis.yaml#candidate_claims` and `analysis.yaml#assumptions`. The rest — probes, the pre-registered
+comparison, the execution order — is context for the prose and for the reviewer, never something to restate
+as a Claim.
+
+Read the file you were given, not the file you expected. Every field named on this page is a field the
+Analysis schema defines; where a step needs something the Analysis did not record, the step says so and
+names `needs_input` rather than letting you supply it.
 
 **Done when** you can state, without looking again: the decision the Question informs, the outcome
-`analysis.yaml#outcome_recommendation` names, every `results[].id` with its row keys and columns, and each
-item on the Reader profile's `will_misread` list.
+`analysis.yaml#outcome_recommendation.outcome` names, every `results[].id` with its row keys and columns, and
+each item on the Reader profile's `will_misread` list.
 
 ## 2. Take the outcome as given
 
-`finding.outcome` is `analysis.yaml#outcome_recommendation.state`, carried across unchanged.
+`finding.outcome` is `analysis.yaml#outcome_recommendation.outcome`, carried across unchanged.
 
 When `analysis.yaml#needs_input` is non-empty, stop here: set `finding.state: needs_input`, copy each item
 into `finding.needs_input` with its owner, leave the outcome `pending`, and report what is missing and who
@@ -68,15 +73,26 @@ Every number a Reader sees is a token resolving to a saved cell, a declared deri
 external source. Read [`references/evidence-binding.md`](references/evidence-binding.md), then declare, in
 this order:
 
-1. `external_sources` — the targets and assumptions `analysis.yaml#requested_external_sources` lists, each
-   with its `kind`, `unit`, `display` and where it came from.
-2. `derived` — the arithmetic in `analysis.yaml#requested_derived`. Prefer a value the SQL already produced;
-   a `derived` entry exists for display-time arithmetic the query did not do.
+1. `external_sources` — every typed target or assumption a candidate Claim, a `material_caveat` or a
+   `recheck_draft` names as `ext:<id>`, each with its `kind`, `unit`, `display` and where it came from. The
+   Analysis records them in `analysis.yaml#assumptions`: the entry whose `statement` names that `ext:<id>`
+   carries its value, its unit and its source, and `basis` plus `settled_by` say where the value was
+   settled. Where the Analysis schema carries the typed list, `analysis.yaml#requested_external_sources`
+   says the same thing in fields.
+   **A value the Analysis did not record does not exist.** A threshold, a target, a policy minimum or a
+   date you would have to choose is a `needs_input` item with the owner `settled_by` names — go back to
+   step 2 and stop there. Inventing one to fill `external_sources` is the failure this ordering exists to
+   catch.
+2. `derived` — the display-time arithmetic a Claim, a caveat or a recheck names as `derived:<id>`. The
+   Analysis records each one in `analysis.yaml#notes`, one line per value with its operation and its
+   operands; where the schema carries the typed list, `analysis.yaml#requested_derived` says the same thing
+   in fields. Prefer a value the SQL already produced; a `derived` entry exists for display-time arithmetic
+   the query did not do.
 3. Each Claim's `evidence` array, listing every value the Claim rests on.
 
-**Done when** every requested derived value and external source is declared with a unit and a display rule,
-and every reference in every `evidence` array resolves to a declared result cell, derived value or external
-source.
+**Done when** every derived value and external source the Analysis recorded is declared with a unit and a
+display rule, every reference in every `evidence` array resolves to a declared result cell, derived value or
+external source, and no declared value carries a number the Analysis did not record.
 
 ## 5. Write the Claims
 
@@ -90,6 +106,20 @@ what, plus `pre_registered`), `window`, `exclusions`, `limitations`, and the `re
   may be empty.
 - Exactly one Claim is `answer_bearing: true`, and it carries a `material_caveat`: the one caveat that would
   change the conclusion, written so a Reader who reads only the Answer still meets it.
+
+`comparison.kind` is the Analysis's fact and never your judgement — but the two schemas spell three of the
+five values differently, so carrying it across is a rename, done from this table and nowhere else:
+
+| `analysis.yaml#candidate_claims[].comparison.kind` | `manifest.yaml` `claims[].comparison.kind` |
+| --- | --- |
+| `none` | `none` |
+| `variant_vs_control` | `variant_vs_control` |
+| `period_over_period` | `baseline_period` |
+| `segment_vs_segment` | `cohort_vs_cohort` |
+| `vs_target` | `target` |
+
+A value outside the left column is an error in the Analysis: report it with its location and stop, rather
+than picking the nearest manifest value. `description` and `pre_registered` are carried across verbatim.
 
 **Done when** every candidate Claim from `analysis.yaml` is present, no Claim field uses a word on the
 Reader profile's `vocabulary.avoid` list, and the `material_caveat` answers at least one item on that
@@ -109,15 +139,23 @@ the point.
 - `charts[].title` states the Claim with its values bound, not the axis. `charts[].description` is what a
   Reader who cannot see the chart is told.
 - `tables[]` name their `result_id`, their columns with Reader-facing labels, and the `row_keys` to show.
+  `tables[].title` states the Claim the table evidences, in the Reader's words, and carries **no token**: a
+  table caption is rendered verbatim, so `{{ref:…}}` in a title reaches the Reader as literal braces. The
+  values are in the rows underneath it.
 
 **Done when** every `numeric: true` Claim lists a chart or table id owned by that Claim, every field a chart
-or table shows is in `export_policy.allowed_fields`, and every chart title reads as a sentence a Reader
-could repeat out loud.
+or table shows is in `export_policy.allowed_fields`, and every chart and table title reads as a sentence a
+Reader could repeat out loud rather than a name for the artifact ("New users who saw the checklist came back
+more often", not "Retention by arm" or "Who was counted").
 
 ## 7. Declare what may reach the Reader
 
 - `export_policy.allowed_fields` lists every `<result_id>.<column>` a Reader may see — in prose, in a table
   cell, inside chart data, as a derived operand. List the columns your Claims, charts and tables use.
+  `allowed_fields` is the only key in that block you write. `recipient_scope`, `granularity`, `delivery` and
+  `private_marker` are the Instance's, already set, and you leave them byte-identical — `private_marker`
+  above all, because both the memo scan in `check` and the output-byte refusal in `render` only run when it
+  is present, so dropping it disables the Instance's private-content sentinel without failing anything.
 - `coverage` says in plain words what data this Finding covers and what it leaves out. Take `data_from` and
   `data_to` from the retained inputs, which may run wider or narrower than the Question's window.
 - `reader.profile` is the profile `analysis.yaml` names. When it is `generic`, say so in **How we checked**:
@@ -189,6 +227,7 @@ Each of these is a hard rule, stated as what to do and then as the line not to c
 | --- | --- |
 | Report a wrong or missing number and stop. | Edit `queries/`, `checks/`, `results/`, `inputs/`, `executions`, `definitions`, `snapshot` or `analysis.yaml`. |
 | Leave `reviews` and `attestations` as you found them. | Add an entry to either. `check` reports an approval nobody granted as an untrusted attestation. |
+| Write `export_policy.allowed_fields` and `reader.profile`, and leave the rest of both blocks as you found them. | Touch `export_policy.recipient_scope`, `granularity`, `delivery` or `private_marker`. Dropping the marker turns off both sentinel guards silently, because each one is conditional on its presence. |
 | Call the Finding a draft, and say which facts are recorded. | Describe it as verified, approved, reviewed or complete-and-trusted. Those are separate facts a human establishes. |
 | State the falsifier `/checked-analysis` recorded, or that none exists yet and who owns writing it. | Invent a falsifier, a threshold, a definition or a caveat to fill a template slot. |
 | Write "not available" where a value is null or a denominator is zero. | Write 0, a blank or a dash. |

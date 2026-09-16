@@ -17,8 +17,17 @@ regression, matching, difference-in-differences or set of controls promotes an `
 design that argues for cause without randomisation may still be worth running; its Claim is `associational`
 and its limitations say what would have to hold for the causal reading to be right.
 
-`analysis.yaml` records `candidate_claims[].causal_basis`. When it says anything other than randomised
-assignment, the Claim is `associational` or `descriptive`, whatever the draft sentence sounded like.
+The Analysis records the basis in `analysis.yaml#candidate_claims[].comparison.description`, which the
+Analysis schema requires on every `associational` and `causal` candidate; where the schema carries the typed
+field, `analysis.yaml#candidate_claims[].causal_basis` says the same thing in one word. When neither states
+randomised assignment, the Claim is `associational` or `descriptive`, whatever the draft sentence sounded
+like. A basis you cannot point at in `analysis.yaml` is not a basis, and a design you infer from the
+sentence is the failure this page exists to prevent.
+
+This rule binds the reviewer as well as you. The Method reviewer in `/analysis-review` reads the same
+Finding; where a reviewer's wording would admit a broader basis for `causal` — an identified design such as
+difference-in-differences, instrumental variables or matching — that is a disagreement between two pages,
+not permission. Report it as a disagreement and leave the Claim typed as this page types it.
 
 ## Typing in four questions
 
@@ -27,8 +36,9 @@ Run them in order and stop at the first "no".
 1. Does the Claim assert a number for one population over one window, with nothing compared? → `descriptive`.
 2. Is something compared with something else? If not, it is `descriptive`, and the schema refuses
    `comparison.kind: none` on anything higher.
-3. Were the two sides created by randomised assignment, recorded in `analysis.yaml`? If not →
-   `associational`.
+3. Were the two sides created by randomised assignment, and does `analysis.yaml` say so — in
+   `candidate_claims[].comparison.description`, or in `candidate_claims[].causal_basis` where the schema
+   carries it? If not → `associational`.
 4. Both sides randomised, same definition version, same window, same timezone? → `causal`.
 
 ## Sentences that give the type away

@@ -472,7 +472,7 @@ tables:
   - id: retention_by_arm_table
     claim_id: c1
     result_id: retention_by_arm
-    title: Who was counted, and how many came back
+    title: New users who saw the checklist came back within a week more often than new users who did not
     columns:
       - name: arm
         label: Onboarding
@@ -488,7 +488,7 @@ tables:
   - id: retention_by_platform_arm_table
     claim_id: c2
     result_id: retention_by_platform_arm
-    title: The same comparison, phones and web separately
+    title: Sign-ups on phones show the difference and sign-ups on the web do not
     columns:
       - name: platform_group
         label: Where they signed up
@@ -570,4 +570,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: ba18cefb21f995c3b2ec8120c9d6ac9dbc44fbd0340dfd4c0e66a54a265d54de
+  value: a8ce155145f512a8870466e1ccd38b52ce522e6b9951c2b08892f4d009688daf
