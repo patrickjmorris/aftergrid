@@ -34,7 +34,8 @@ Usage:
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
   aftergrid capture <finding-dir> --tables <a,b> [--catalog] [--instance <dir>] [--description "<text>"] [--json]
   aftergrid execute <finding-dir> [--instance <dir>] [--json]
-  aftergrid record <finding-dir> --tool <name> [--tool-version <v>] [--instance <dir>] [--json]
+  aftergrid record <finding-dir> --tool <name> [--tool-version <v>] [--executed-at <timestamp>]
+                   [--instance <dir>] [--json]
                    --execution <id> --result <file.json|file.csv> [--sql <file|inline>] [--params k=v ...]
                  | --check <id> --outcome pass|fail|not_run|error [--evidence <file>]
   aftergrid revise <finding-dir> --pin|--classify|--apply [--baseline <dir>] [--force] [--json]
@@ -94,7 +95,8 @@ Lifecycle:
                 says sql_execution not_performed. snapshot.guarantees becomes exactly [artifact_replay], never
                 analysis_rerun, and check --mode rerun then refuses the Finding with rerun_unavailable. Capture
                 is optional on this route. An agent-reported pass without an evidence file is refused, and so is
-                a revision carrying attestations.
+                a revision carrying attestations. --executed-at is the harness's own execution time, as RFC 3339
+                (2026-09-16T09:12:44Z); it defaults to now and is never invented as something earlier.
   revise      says what a change to a pinned Finding costs, then applies it or refuses. --pin archives the
                 Finding under revisions/<N>/ as the baseline; --classify calls every difference presentation,
                 interpretation or numeric and writes nothing; --apply makes a presentation or interpretation
@@ -215,7 +217,8 @@ export async function main(argv: string[]): Promise<void> {
     } });
     const dir = positionals[0];
     const usage = 'usage: aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file.json|file.csv> [--sql <file|inline>] [--params k=v ...]\n' +
-      '       aftergrid record <finding-dir> --tool "<name>" --check <id> --outcome pass|fail|not_run|error [--evidence <file>]\n';
+      '       aftergrid record <finding-dir> --tool "<name>" --check <id> --outcome pass|fail|not_run|error [--evidence <file>]\n' +
+      "       [--executed-at <timestamp>] is when the harness ran it (2026-09-16T09:12:44Z); it defaults to now\n";
     if (!dir) { process.stderr.write(usage); process.exit(2); }
     if (!values.tool) { process.stderr.write("--tool names the tool that actually ran this; aftergrid never guesses which tool the harness used\n" + usage); process.exit(2); }
     if (!!values.execution === !!values.check) { process.stderr.write("name exactly one of --execution or --check\n" + usage); process.exit(2); }

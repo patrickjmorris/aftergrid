@@ -29,6 +29,7 @@ test("both exemplars render: factual values agree across prose, tables and chart
   for (const m of mailtos) { assert.ok(/Finding: fnd_7k2m9q4w1xzb/.test(m)); assert.ok(!/34\.8|28\.5|624|653/.test(m), "mailto carries ids only"); }
   assert.ok(html.includes("write to <code>dana@loop.example</code>"), "copyable fallback contact");
   assert.ok(html.includes("cannot know whether a newer revision exists"), "no supersession claim");
+  assert.ok(/<strong>Data<\/strong> Retained inputs are kept: artifact replay and analysis rerun are possible\./.test(html), "a Finding that did retain its inputs says so, with its guarantees");
   assert.ok(existsSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.svg")) && existsSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.png")));
   const svg = readFileSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.svg"), "utf8");
   assert.ok(/<title id="chart-retention_by_arm_chart-title">Users who saw the checklist came back more often: 34\.8% vs 28\.5%<\/title>/.test(svg) && /<desc id=/.test(svg), "chart carries title and description");
@@ -127,9 +128,14 @@ test("a recorded Finding says on the page who ran it, in one line beside the oth
     html.includes("<strong>How this was run</strong> Queries and Checks were run by the Operator's tool duckdb cli; aftergrid recorded them and did not rerun them."),
     "the recorded-path fact is on the page, in the Reader's words",
   );
-  // It is a fact among facts, not a badge: it carries its own mark and the Snapshot guarantee stays separate.
+  // It is a fact among facts, not a badge: it carries its own mark and the Data fact stays separate.
   assert.ok(/<span class="mk wn">!<\/span><span><strong>How this was run<\/strong>/.test(html), "it carries its own mark");
-  assert.ok(/<strong>Data<\/strong> Retained inputs are kept: artifact replay are possible\./.test(html), "the Snapshot guarantee is unchanged and still separate");
+  // Nothing was retained here, and the Data fact says that rather than reading a guarantee as a kept copy.
+  assert.ok(
+    html.includes('<span class="mk no">×</span><span><strong>Data</strong> No copy of the data was kept. The saved results replay byte for byte; the queries cannot be rerun here.'),
+    "the Data fact reports the empty Snapshot, with its own mark",
+  );
+  assert.ok(!/Retained inputs are kept/.test(html), "a Finding that retained nothing never says inputs are kept");
   assert.ok(/class="draft"/.test(html), "nothing about being recorded makes a draft approved");
   // The provenance popover tells the same truth about where the numbers came from.
   assert.ok(html.includes("the source, read by duckdb cli; aftergrid recorded the result and did not run the query"), "the value popover does not claim a retained copy");

@@ -269,7 +269,14 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     ...m.definitions.map((d: any) => fact(d.lifecycle === "approved" ? "wn" : "na", "Definition", `${esc(d.id)}, version ${esc(String(d.version))}, recorded as ${esc(d.lifecycle)}${d.approval ? ` (approval recorded by ${esc(d.approval.approver)} on ${esc(d.approval.date)}; a recorded lifecycle is not a verified approval)` : ""}.`)),
     ...m.reviews.map((r: any) => fact(r.content_digest.value !== m.content_digest.value || r.blocking?.length ? "wn" : "ok", `${esc(r.kind.replace(/^./, (x: string) => x.toUpperCase()))} review`, `Recorded ${esc(r.date)} by ${esc(r.reviewer)}${r.content_digest.value !== m.content_digest.value ? "; for an earlier version of this content, so it is stale" : ""}${r.blocking?.length ? `; blocking: ${r.blocking.map(esc).join("; ")}` : ""}.`)),
     fact(inp.readiness === "ready" ? "ok" : "no", "Publication approval", inp.readiness === "ready" ? "Verified." : "None verified. This is a draft."),
-    fact(m.snapshot.guarantees.length ? "ok" : "no", "Data", m.snapshot.guarantees.length ? `Retained inputs are kept: ${m.snapshot.guarantees.map((g: string) => esc(g.replace(/_/g, " "))).join(" and ")} are possible.` : "Inputs were not retained; these numbers are not reproducible."),
+    // What the Finding KEPT, which is `snapshot.inputs` and never the guarantee list: a recorded Finding retains
+    // nothing and still guarantees artifact_replay, so reading the guarantees as a kept copy would tell a Reader
+    // the opposite of what the provenance popover on every value says.
+    (m.snapshot.inputs ?? []).length
+      ? fact("ok", "Data", `Retained inputs are kept: ${m.snapshot.guarantees.map((g: string) => esc(g.replace(/_/g, " "))).join(" and ")} are possible.`)
+      : recordedTools.length
+        ? fact("no", "Data", "No copy of the data was kept. The saved results replay byte for byte; the queries cannot be rerun here.")
+        : fact("no", "Data", "Inputs were not retained; these numbers are not reproducible."),
     // The recorded data path (ADR 0010): the Operator's own tool ran the queries and the Checks, and aftergrid
     // wrote down what came back. A Reader is told that in one sentence, beside the other facts, never instead of them.
     recordedTools.length ? fact("wn", "How this was run", `Queries and Checks were run by the Operator's tool ${esc(recordedTools.join(", "))}; aftergrid recorded them and did not rerun them.`) : "",

@@ -13,12 +13,13 @@ import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { newFinding } from "./commands/new-finding.ts";
 import { record, parseCsv, readResultFile, evidenceDestination } from "./commands/record.ts";
 import { check } from "./commands/check.ts";
 // @ts-ignore: the shared digest envelope, the one `check` verifies against.
-import { digestOf } from "../scripts/lib/validate-finding.mjs";
+import { digestOf, schemaErrors } from "../scripts/lib/validate-finding.mjs";
 
 const AFTERGRID_YAML = `schema_version: 0.1.0
 instance_root: analytics
@@ -415,4 +416,160 @@ test("the result readers accept what a tool actually hands over, and say so when
   assert.equal(evidenceDestination("unique_subscriptions", "/tmp/out.TXT"), "checks/evidence/unique_subscriptions.txt");
   assert.equal(evidenceDestination("unique_subscriptions", "/tmp/out"), "checks/evidence/unique_subscriptions.txt");
   assert.equal(evidenceDestination("unique_subscriptions", "/tmp/out.json"), "checks/evidence/unique_subscriptions.json");
+});
+
+// ---------------------------------------------------------------- what `--sql` may be
+
+test("a --sql argument that looks like a file path and names nothing is refused, and so is inline text that is not SQL", async () => {
+  // A typo in the path is the dangerous case: taken as inline SQL it OVERWRITES the real query file with the
+  // path string, re-pins every hash over it, and leaves a Finding whose evidence `check` reports as valid.
+  const typo = declaredFinding();
+  const before = readFileSync(join(typo.dir, "manifest.yaml"), "utf8");
+  const refused = await record({
+    dir: typo.dir, tool: "psql", execution: "ex_cancellations", sql: "queries/cancellations_since_chagne.sql",
+    result: toolOutput("r.json", JSON_RESULT), params: ["change_date=2026-09-08"],
+  });
+  assert.ok(refused.errors.some((e) => e.category === "missing_file" && e.location === "--sql" && /looks like a file path/.test(e.message)), JSON.stringify(refused.errors));
+  assert.equal(readFileSync(join(typo.dir, "queries", "cancellations.sql"), "utf8"), CANCELLATIONS_SQL, "the declared query file is untouched");
+  assert.equal(readFileSync(join(typo.dir, "manifest.yaml"), "utf8"), before, "nothing was pinned over it");
+
+  // A path with no .sql extension is still plainly a path, and still refused rather than recorded as a query.
+  const other = declaredFinding();
+  const alsoRefused = await record({ dir: other.dir, tool: "psql", execution: "ex_cancellations", sql: "/tmp/ag-nothing-here/ran", result: toolOutput("r.json", JSON_RESULT) });
+  assert.ok(alsoRefused.errors.some((e) => e.category === "missing_file" && e.location === "--sql"), JSON.stringify(alsoRefused.errors));
+
+  // Inline text with no SQL keyword in it was never the query the harness ran.
+  const prose = declaredFinding();
+  const proseRefused = await record({ dir: prose.dir, tool: "psql", execution: "ex_cancellations", sql: "the usual cancellations query", result: toolOutput("r.json", JSON_RESULT) });
+  assert.ok(proseRefused.errors.some((e) => e.location === "--sql" && /SQL/.test(e.message)), JSON.stringify(proseRefused.errors));
+  assert.equal(readFileSync(join(prose.dir, "queries", "cancellations.sql"), "utf8"), CANCELLATIONS_SQL, "nothing was written over the query");
+});
+
+// ---------------------------------------------------------------- CSV cells are converted, never coerced
+
+test("a CSV cell an integer column cannot hold is reported, never turned into a number that looks right", async () => {
+  for (const cell of ["7.0", "1e3", "0x10", "+7"]) {
+    const { dir } = declaredFinding();
+    const report = await record({
+      dir, tool: "psql", execution: "ex_cancellations", params: ["change_date=2026-09-08"],
+      result: toolOutput("r.csv", `period,cancellations,active_at_change\npost,${cell},887\n`),
+    });
+    assert.ok(report.errors.some((e) => e.category === "value_type"), `${cell}: got ${report.errors.map((e) => e.category).join(", ") || "no error"}`);
+    assert.ok(!existsSync(join(dir, "results", "since_change.json")), `${cell}: nothing was written`);
+  }
+  // Whitespace around an integer is still that integer: the tool's padding is not a different value.
+  const { dir } = declaredFinding();
+  const padded = await record({
+    dir, tool: "psql", execution: "ex_cancellations", params: ["change_date=2026-09-08"],
+    result: toolOutput("r.csv", "period,cancellations,active_at_change\npost, 67 ,887\n"),
+  });
+  assert.deepEqual(padded.errors, [], JSON.stringify(padded.errors));
+  assert.equal(JSON.parse(readFileSync(join(dir, "results", "since_change.json"), "utf8")).rows[0].cancellations, 67);
+});
+
+test("the CSV reader keeps what psql --csv distinguishes: a quoted empty string, a carriage return, and an empty row", async () => {
+  assert.deepEqual(parseCsv('a,b\n"",x\n'), { columns: ["a", "b"], rows: [["", "x"]] }, 'a quoted "" is an empty string, and an unquoted empty field is NULL');
+  assert.deepEqual(parseCsv("a,b\n,x\n"), { columns: ["a", "b"], rows: [[null, "x"]] });
+  assert.deepEqual(parseCsv('a,b\n"one\rtwo",x\n'), { columns: ["a", "b"], rows: [["one\rtwo", "x"]] }, "a CR inside a field is data; only a CRLF line ending is stripped");
+  assert.deepEqual(parseCsv("a,b\n1,2\n\n"), { columns: ["a", "b"], rows: [["1", "2"]] }, "a trailing empty LINE is not a row");
+  assert.deepEqual(parseCsv("a,b\n,\n"), { columns: ["a", "b"], rows: [[null, null]] }, "an all-empty ROW is a row, and is reported rather than dropped");
+
+  const declared = [{ name: "period", type: "text" as const }, { name: "n", type: "integer" as const }];
+  const read = readResultFile(toolOutput("x.csv", 'period,n\n"",4\n'), declared);
+  assert.deepEqual(read.rows, [{ period: "", n: 4 }], "an empty string stays an empty string");
+
+  // An all-empty row reaches the declared shape and is refused there, instead of vanishing.
+  const { dir } = declaredFinding();
+  const report = await record({
+    dir, tool: "psql", execution: "ex_cancellations", params: ["change_date=2026-09-08"],
+    result: toolOutput("r.csv", "period,cancellations,active_at_change\npost,67,887\n,,\n"),
+  });
+  assert.ok(report.errors.some((e) => e.category === "null_value" || e.category === "row_key"), JSON.stringify(report.errors));
+  assert.ok(!existsSync(join(dir, "results", "since_change.json")), "nothing was written");
+});
+
+// ---------------------------------------------------------------- re-recording, timestamps, refused runs
+
+test("re-recording a Check with a different evidence extension leaves no evidence file outside the digest", async () => {
+  const { dir } = declaredFinding();
+  await record({ dir, tool: "psql", execution: "ex_cancellations", result: toolOutput("r.json", JSON_RESULT), params: ["change_date=2026-09-08"] });
+  await record({ dir, tool: "psql", check: "unique_subscriptions", outcome: "pass", evidence: toolOutput("unique.txt", "pass|detail\ntrue|rows 887\n") });
+  assert.ok(existsSync(join(dir, "checks", "evidence", "unique_subscriptions.txt")));
+
+  const again = await record({ dir, tool: "psql", check: "unique_subscriptions", outcome: "pass", evidence: toolOutput("unique.json", '{"pass":true}\n') });
+  assert.deepEqual(again.errors, [], JSON.stringify(again.errors));
+  assert.equal(manifestOf(dir).checks[0].reported_by.evidence.path, "checks/evidence/unique_subscriptions.json");
+  assert.ok(!existsSync(join(dir, "checks", "evidence", "unique_subscriptions.txt")), "the evidence this recording replaced is gone, not left behind outside the digest");
+  const verified = await check({ dir, github: null });
+  assert.deepEqual(verified.errors, [], JSON.stringify(verified.errors));
+});
+
+test("--executed-at is the harness's own execution time, and anything that is not a timestamp is refused", async () => {
+  const { dir } = declaredFinding();
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+  const refused = await record({
+    dir, tool: "psql", execution: "ex_cancellations", result: toolOutput("r.json", JSON_RESULT),
+    params: ["change_date=2026-09-08"], executedAt: "last tuesday",
+  });
+  assert.ok(refused.errors.some((e) => e.category === "invalid_artifact" && e.location === "--executed-at"), JSON.stringify(refused.errors));
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
+
+  const ok = await record({
+    dir, tool: "psql", execution: "ex_cancellations", result: toolOutput("r.json", JSON_RESULT),
+    params: ["change_date=2026-09-08"], executedAt: "2026-09-16T09:12:44Z",
+  });
+  assert.deepEqual(ok.errors, [], JSON.stringify(ok.errors));
+  assert.equal(manifestOf(dir).executions[0].executed_at, "2026-09-16T09:12:44Z");
+});
+
+test("a refused recording never reports that it copied anything in", async () => {
+  const { dir } = declaredFinding();
+  rmSync(join(dir, "queries", "cancellations.sql"));   // declared in the manifest, absent from the directory
+  const report = await record({ dir, tool: "psql", check: "unique_subscriptions", outcome: "pass", evidence: toolOutput("unique.txt", "pass|detail\ntrue|rows 887\n") });
+  assert.ok(report.errors.length, "the digest could not be computed, so nothing was written");
+  assert.ok(!report.info.some((i) => /copied the Check evidence/.test(i)), JSON.stringify(report.info));
+  assert.ok(!existsSync(join(dir, "checks", "evidence", "unique_subscriptions.txt")), "and no evidence file was left behind");
+});
+
+// ---------------------------------------------------------------- what the schema says about a recorded execution
+
+test("the state /checked-analysis writes is schema-valid, and check says the recording has not happened yet", async () => {
+  const { dir } = declaredFinding();
+  const report = await check({ dir, github: null });
+  assert.deepEqual(report.errors.filter((e) => e.category === "schema"), [], "mode: recorded with no executed_by and no retained inputs is a state the schema allows");
+  assert.ok(
+    report.warnings.some((w) => w.category === "recorded_path" && /ex_cancellations/.test(w.message)),
+    `the warning is reachable: ${JSON.stringify(report.warnings)}`,
+  );
+});
+
+test("a harness-recorded execution that also names an adapter, an engine version or retained inputs is a schema error", () => {
+  const REPO = fileURLToPath(new URL("..", import.meta.url));
+  const base = {
+    id: "ex_cancellations", query_id: "cancellations", sql_hash: ZERO(), parameters: { analytical_timezone: "America/New_York" },
+    input_ids: [], definition_refs: [], result_id: "since_change", result_hash: ZERO(), mode: "recorded",
+    executed_by: { kind: "harness", tool: "psql", recorded_at: "2026-09-16T09:14:02Z" },
+  };
+  const { dir } = declaredFinding();
+  const manifest = manifestOf(dir);
+  const withExecution = (ex: any) => ({ ...manifest, executions: [ex] });
+  assert.deepEqual(schemaErrors(withExecution(base), REPO), [], "the recorded execution itself is valid");
+  for (const [what, ex] of [
+    ["an adapter", { ...base, adapter: "duckdb" }],
+    ["an engine version", { ...base, engine_version: "0.1.0" }],
+    ["retained inputs", { ...base, input_ids: ["subscriptions"] }],
+  ] as const) {
+    const problems = schemaErrors(withExecution(ex), REPO);
+    assert.ok(problems.length, `${what}: aftergrid did not run this execution and cannot carry ${what} for it`);
+  }
+});
+
+// ---------------------------------------------------------------- the generated exemplar
+
+test("the recorded exemplar carries one header, the one its builder writes", () => {
+  const text = readFileSync(fileURLToPath(new URL("../fixtures/instance/analytics/findings/2026-09-16-price-change-cancellations-recorded/manifest.yaml", import.meta.url)), "utf8");
+  const header = text.split("\n").filter((l) => l.startsWith("#"));
+  assert.ok(header[0]!.startsWith("# Exemplar: the recorded data path"), header[0]);
+  assert.equal(header.filter((l) => /^# Exemplar:/.test(l)).length, 1, "not the source exemplar's header as well, saying the opposite about retained inputs");
+  assert.ok(!text.includes("scripts/fixture-tool.mjs build"), "and not the source exemplar's account of how it was pinned");
 });

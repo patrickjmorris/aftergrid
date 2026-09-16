@@ -12,7 +12,9 @@
 // exactly `[artifact_replay]` — the saved bytes can be replayed, and nothing can be rerun, because nothing was
 // retained. `check --mode rerun` refuses such a Finding with `rerun_unavailable` rather than pretend otherwise.
 //
-// Four refusals, none of them behind a flag:
+// Five refusals, none of them behind a flag:
+//   - **A `--sql` argument that is plainly a path to nothing, or inline text that is not SQL.** Either one would
+//     be written into the declared query file as the query the harness ran, and every hash re-pinned over it.
 //   - **A revision carrying attestations.** Evidence is inside the content digest an approval binds to, so
 //     recording into an approved revision would silently invalidate it. The answer is a new revision, exactly as
 //     `capture` says.
@@ -23,7 +25,7 @@
 //     digest.
 //   - **A result that does not match its declared shape.** Columns, types, row key and nullability are checked by
 //     the same `validateResult` the adapter path uses. Nothing is written when it fails.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { emptyReport, type Problem, type Report } from "../report.ts";
@@ -75,12 +77,30 @@ const categoryOf = (e: unknown): Problem["category"] => {
 
 const OUTCOMES = new Set(["pass", "fail", "not_run", "error"]);
 const stamp = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
+/** `$defs/timestamp` of schema/finding-manifest.schema.json: what a manifest may hold as a time. */
+const TIMESTAMP = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$/;
+/**
+ * An argument to `--sql` that is plainly a path rather than SQL: no whitespace, and either a `.sql` name or a
+ * directory separator. A typo in such a path must not be recorded as the query the harness ran (it would
+ * overwrite the real query file with the path string and re-pin every hash over it).
+ */
+const looksLikePath = (arg: string) => !/\s/.test(arg) && (/\.sql$/i.test(arg) || arg.includes("/") || arg.includes("\\"));
+/** The cheapest honest test that an inline `--sql` argument is SQL at all, rather than a note about it. */
+const looksLikeSql = (text: string) => /\b(select|with|values)\b/i.test(text);
 
-/** One RFC 4180 record set: a header row of column names plus typed-by-declaration rows. */
-export function parseCsv(text: string): { columns: string[]; rows: string[][] } {
-  const rows: string[][] = [];
-  let row: string[] = [], field = "", quoted = false, started = false;
-  const endField = () => { row.push(field); field = ""; started = false; };
+/**
+ * One RFC 4180 record set: a header row of column names plus typed-by-declaration rows.
+ *
+ * A field is `null` when it was empty and UNQUOTED, and `""` when it was written as `""` — the distinction
+ * `psql --csv` makes between SQL NULL and an empty string, which a reader that collapses them would decide for
+ * the Operator. A carriage return is stripped only as part of a CRLF line ending; inside a field it is data.
+ * An all-empty ROW (`,,`) is a row, and is reported by the declared-shape checks rather than quietly dropped;
+ * only a trailing empty LINE is not a row.
+ */
+export function parseCsv(text: string): { columns: string[]; rows: (string | null)[][] } {
+  const rows: (string | null)[][] = [];
+  let row: (string | null)[] = [], field = "", quoted = false, started = false, wasQuoted = false;
+  const endField = () => { row.push(field === "" && !wasQuoted ? null : field); field = ""; started = false; wasQuoted = false; };
   const endRow = () => { endField(); rows.push(row); row = []; };
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!;
@@ -89,23 +109,25 @@ export function parseCsv(text: string): { columns: string[]; rows: string[][] } 
       else field += c;
       continue;
     }
-    if (c === '"' && !started && field === "") { quoted = true; started = true; continue; }
+    if (c === '"' && !started && field === "") { quoted = true; started = true; wasQuoted = true; continue; }
     if (c === ",") { endField(); continue; }
-    if (c === "\r") continue;
+    if (c === "\r" && text[i + 1] === "\n") continue;
     if (c === "\n") { endRow(); continue; }
     field += c; started = true;
   }
-  if (field !== "" || row.length) endRow();
-  while (rows.length && rows[rows.length - 1]!.every((f) => f === "")) rows.pop();
+  if (field !== "" || wasQuoted || row.length) endRow();
+  while (rows.length > 1 && rows[rows.length - 1]!.length === 1 && rows[rows.length - 1]![0] === null) rows.pop();
   if (!rows.length) throw new ContractError("result_shape", "--result", "the CSV is empty: a result file carries a header row of column names");
-  return { columns: rows[0]!.map((c) => c.trim()), rows: rows.slice(1) };
+  return { columns: rows[0]!.map((c) => (c ?? "").trim()), rows: rows.slice(1) };
 }
 
 /**
  * The harness's result file, as `{ columns, rows }` in the shape `serializeResult` consumes. A CSV cell is text,
- * so it is converted by the column's DECLARED type and never guessed: an empty field is SQL NULL, `true`/`false`
- * is a boolean, an integer column is a number, and everything else stays the string the tool wrote. A value the
- * declared type cannot hold is left alone so `serializeResult` reports `value_type` on it.
+ * so it is converted by the column's DECLARED type and never guessed: an unquoted empty field is SQL NULL,
+ * `true`/`false` is a boolean, an integer column is a number when the cell is written as one (an optional minus
+ * sign and digits, nothing else), and everything else stays the string the tool wrote. A value the declared type
+ * cannot hold is left alone so `serializeResult` reports `value_type` on it: `7.0`, `1e3` and `0x10` are values
+ * an integer column did not produce, and reading them as 7, 1000 and 16 would invent a number nobody wrote.
  */
 export function readResultFile(path: string, declared: DeclaredColumn[]): { columns: { name: string }[]; rows: Record<string, unknown>[] } {
   const full = resolve(path);
@@ -115,15 +137,15 @@ export function readResultFile(path: string, declared: DeclaredColumn[]): { colu
   if (extname(full).toLowerCase() === ".csv") {
     const { columns, rows } = parseCsv(text);
     const typeOf = (name: string) => declared.find((c) => c.name === name)?.type;
-    const cell = (raw: string, type: DeclaredColumn["type"] | undefined): unknown => {
-      if (raw === "") return null;
-      if (type === "integer") { const n = Number(raw); return Number.isFinite(n) ? n : raw; }
+    const cell = (raw: string | null, type: DeclaredColumn["type"] | undefined): unknown => {
+      if (raw === null) return null;
+      if (type === "integer") { const t = raw.trim(); return /^-?[0-9]+$/.test(t) ? Number(t) : raw; }
       if (type === "boolean") return raw === "true" ? true : raw === "false" ? false : raw;
       return raw;
     };
     return {
       columns: columns.map((name) => ({ name })),
-      rows: rows.map((r) => Object.fromEntries(columns.map((name, i) => [name, cell(r[i] ?? "", typeOf(name))]))),
+      rows: rows.map((r) => Object.fromEntries(columns.map((name, i) => [name, cell(i < r.length ? r[i]! : null, typeOf(name))]))),
     };
   }
   let data: unknown;
@@ -203,6 +225,14 @@ export async function record(opts: RecordOptions): Promise<Report> {
     err("incomplete", "--tool", "name the tool that actually ran this", "pass --tool '<name>', as the Operator names it (psql, supabase mcp, duckdb cli); aftergrid never guesses which tool the harness used");
     return report;
   }
+  // `--executed-at` is the harness's own execution time, and it is written into the manifest as given. A value
+  // the schema cannot hold would be pinned here and reported as schema-invalid by `check` afterwards, so it is
+  // refused before anything is staged.
+  if (opts.executedAt !== undefined && !TIMESTAMP.test(opts.executedAt)) {
+    err("invalid_artifact", "--executed-at", `'${opts.executedAt}' is not a timestamp`,
+      "pass the time the harness ran it, as RFC 3339: 2026-09-16T09:12:44Z or 2026-09-16T05:12:44-04:00. Omit the flag to record this moment; it is never invented as something earlier. Nothing was written");
+    return report;
+  }
   // Evidence is inside the content digest an approval binds to, exactly as retained inputs are for `capture`.
   if ((manifest.attestations ?? []).length) {
     err("stale_attestation", "manifest.yaml#/attestations",
@@ -220,11 +250,15 @@ export async function record(opts: RecordOptions): Promise<Report> {
   const staged = new Map<string, Buffer>();
   const pins: [(string | number)[], unknown][] = [];
   const drops: (string | number)[][] = [];
+  // Files this recording replaces, and notes about what it did: both belong to the write, so neither happens
+  // until the write does. A refused run reports the refusal and nothing else.
+  const removals: string[] = [];
+  const postNotes: string[] = [];
   const set = (path: (string | number)[], value: unknown) => pins.push([path, value]);
 
   try {
-    if (opts.execution) recordExecution(opts, manifest, dir, at, executedBy(at), set, drops, staged, report);
-    else recordCheck(opts, manifest, dir, at, executedBy(at), set, staged, report);
+    if (opts.execution) recordExecution(opts, manifest, dir, at, executedBy(at), set, drops, staged, postNotes, report);
+    else recordCheck(opts, manifest, dir, at, executedBy(at), set, staged, removals, postNotes, report);
   } catch (e) {
     err(categoryOf(e), String((e as any).location ?? dir), (e as Error).message,
       "nothing was written: the Finding directory is exactly as it was before this command");
@@ -251,6 +285,16 @@ export async function record(opts: RecordOptions): Promise<Report> {
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, bytes);
   }
+  // A file the previous recording pinned and this one does not: it is no longer inside the content digest, and
+  // leaving it behind would leave an artifact in the Finding that nothing hashes and nobody can account for.
+  for (const rel of removals) {
+    if (staged.has(rel)) continue;
+    const full = safePath(dir, rel);
+    if (!existsSync(full)) continue;
+    rmSync(full);
+    postNotes.push(`removed ${rel}, the evidence this recording replaced: it is no longer named by the manifest or covered by the digest`);
+  }
+  report.info.push(...postNotes);
   const pinned = digestOf(doc.toJS(), dir);
   doc.setIn(["content_digest"], pinned);
   writeFileSync(safePath(dir, "manifest.yaml"), doc.toString({ lineWidth: 0 }));
@@ -277,7 +321,8 @@ export async function record(opts: RecordOptions): Promise<Report> {
 
 function recordExecution(
   opts: RecordOptions, manifest: any, dir: string, at: string, by: object,
-  set: (p: (string | number)[], v: unknown) => void, drops: (string | number)[][], staged: Map<string, Buffer>, report: Report,
+  set: (p: (string | number)[], v: unknown) => void, drops: (string | number)[][], staged: Map<string, Buffer>,
+  postNotes: string[], report: Report,
 ): void {
   const err = (category: Problem["category"], location: string, message: string, remedy?: string) => report.errors.push({ category, location, message, remedy });
   const i = (manifest.executions ?? []).findIndex((e: any) => e.id === opts.execution);
@@ -308,11 +353,21 @@ function recordExecution(
   if (opts.sql !== undefined) {
     const asFile = resolve(opts.sql);
     const fromFile = existsSync(asFile);
+    if (!fromFile && looksLikePath(opts.sql)) {
+      err("missing_file", "--sql", `--sql looks like a file path and no file exists there: ${opts.sql}`,
+        "pass the SQL file the harness ran, or SQL text. A path is never recorded as the query: a typo in it would be written into the declared query file as the query, and every hash re-pinned over it");
+      return;
+    }
     const text = fromFile ? readFileSync(asFile, "utf8") : opts.sql;
     if (!text.trim()) { err("incomplete", "--sql", "--sql is empty", "pass the SQL file the harness ran, or the SQL text itself"); return; }
+    if (!fromFile && !looksLikeSql(text)) {
+      err("invalid_artifact", "--sql", "--sql was given inline and holds no SQL: no select, with or values anywhere in it",
+        "pass the SQL the harness ran, as a file or as the statement itself; what goes into the query file is the query, not a description of it");
+      return;
+    }
     sqlBytes = Buffer.from(text.endsWith("\n") ? text : text + "\n", "utf8");
     staged.set(query.path, sqlBytes);
-    report.info.push(`copied the recorded SQL into ${query.path} from ${fromFile ? opts.sql : "--sql text"}`);
+    postNotes.push(`copied the recorded SQL into ${query.path} from ${fromFile ? opts.sql : "--sql text"}`);
   } else if (existsSync(queryPath)) {
     sqlBytes = readFileSync(queryPath);
   } else {
@@ -368,7 +423,8 @@ function recordExecution(
 
 function recordCheck(
   opts: RecordOptions, manifest: any, dir: string, at: string, by: Record<string, unknown>,
-  set: (p: (string | number)[], v: unknown) => void, staged: Map<string, Buffer>, report: Report,
+  set: (p: (string | number)[], v: unknown) => void, staged: Map<string, Buffer>, removals: string[],
+  postNotes: string[], report: Report,
 ): void {
   const err = (category: Problem["category"], location: string, message: string, remedy?: string) => report.errors.push({ category, location, message, remedy });
   const i = (manifest.checks ?? []).findIndex((c: any) => c.id === opts.check);
@@ -401,6 +457,9 @@ function recordCheck(
   set(["checks", i, "content_hash"], { algorithm: "sha256", value: sha256(readFileSync(checkPath)) });
 
   const reported: Record<string, unknown> = { kind: by.kind, tool: by.tool, ...(by.tool_version ? { tool_version: by.tool_version } : {}), reported_at: at };
+  // What the previous recording pinned for this Check. A new evidence file with another extension lands at
+  // another path, and the old one would otherwise stay in the directory outside the digest, unnamed by anything.
+  const replaced: string | undefined = manifest.checks[i]?.reported_by?.evidence?.path;
   if (opts.evidence) {
     const source = resolve(opts.evidence);
     if (!existsSync(source)) { err("missing_file", opts.evidence, `the evidence file ${opts.evidence} does not exist`, "point --evidence at the output the tool produced"); return; }
@@ -408,7 +467,10 @@ function recordCheck(
     const bytes = readFileSync(source);           // copied in, never linked: the Finding must stand on its own
     staged.set(rel, bytes);
     reported.evidence = { path: rel, content_hash: { algorithm: "sha256", value: sha256(bytes) } };
-    report.info.push(`copied the Check evidence into ${rel} and pinned its hash`);
+    postNotes.push(`copied the Check evidence into ${rel} and pinned its hash`);
+    if (replaced && replaced !== rel) removals.push(replaced);
+  } else if (replaced) {
+    removals.push(replaced);
   }
   set(["checks", i, "outcome"], opts.outcome);
   set(["checks", i, "executed_at"], opts.executedAt ?? at);

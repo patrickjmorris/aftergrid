@@ -171,7 +171,11 @@ doc.setIn(["reviews", 0, "non_blocking"], [
   "The weekly cancellation rate definition is proposed, so no rate is shown; only counts.",
   "Every Check outcome here was reported by the Operator's tool. aftergrid executed nothing, and the Finding says so in the manifest and on the rendered page.",
 ]);
-doc.commentBefore = null;
+// The source exemplar's own header, which says it retained its inputs and was pinned by `fixture-tool build`.
+// `yaml` parks a leading comment on the FIRST KEY of the mapping, not on the document, so clearing
+// `doc.commentBefore` did nothing and the generated manifest carried both headers, contradicting each other.
+const firstKey = doc.contents?.items?.[0]?.key;
+if (firstKey) firstKey.commentBefore = null;
 
 const digest = digestOf(doc.toJS(), DST);
 doc.setIn(["reviews", 0, "content_digest"], digest);
