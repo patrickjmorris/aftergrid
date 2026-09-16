@@ -57,6 +57,15 @@ manifest. `aftergrid review status <dir>` reprints them with the reviewer that r
 A `check` error goes into `reason` as its category and location, so the next person knows whether they are
 looking at a broken execution or at a disagreement about method.
 
+## What is not a halt
+
+**A missing or unconfigured adapter.** The recorded data path is the default (ADR 0010,
+`docs/contracts/record.md`): the harness runs the SQL and `aftergrid record` writes down what it ran. There is
+no stage, status or `needs_input` kind for an absent adapter, and writing one would stop a run that can finish.
+What it costs is recorded on the Finding instead — `snapshot.guarantees: [artifact_replay]`, Check outcomes
+reported by the harness, `check --mode rerun` refused with `rerun_unavailable`, no Revisit — and reported to the
+Operator in those words.
+
 ## What never happens at a halt
 
 - No Claim, number, definition, approval or falsifier is invented to get past the stage.

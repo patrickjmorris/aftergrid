@@ -1,7 +1,7 @@
 interface:
   display_name: "Analyze"
   short_description: "Raw ask to reviewed Finding draft: clarify, analyse under Checks, write, illustrate, shape, review, check"
-  default_prompt: "Analyze this: take it from the raw ask to a reviewed Finding draft, and stop with a clear reason if any gate fails."
+  default_prompt: "Analyze this: take it from the raw ask to a reviewed Finding draft, and stop with a clear reason if any gate fails. A missing or unconfigured adapter is not a gate — run on the recorded path, where this harness's own tool runs the SQL and `aftergrid record` pins it, and report that the draft guarantees artifact_replay only and that its Check outcomes were agent-reported."
 policy:
   # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The run writes a Finding directory,
   # reads a warehouse and spends real model time: a human asks for it. It is also the only orchestrator, so a

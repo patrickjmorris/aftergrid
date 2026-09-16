@@ -22,7 +22,7 @@ starting and again when it ends, so a stopped run can be picked up where it stop
 | Stage | Owner | Ends when |
 | --- | --- | --- |
 | `clarify` | the shared clarification procedure | `question.state` is `resolved`, or the run has halted with what is missing |
-| `checked_analysis` | `/checked-analysis` | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and `aftergrid execute` has pinned the results |
+| `checked_analysis` | `/checked-analysis` | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned — by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
 | `write_finding` | `/write-finding` | `memo.md` has all six sections and the manifest carries claims, charts, tables, coverage and an outcome |
 | `iterate_visual` | `/iterate-visual` | every chart has passed the rubric or been handed back after the third pass |
 | `shape_narrative` | `/shape-narrative` | the memo is answer-first and each Evidence subsection is one Claim |
@@ -31,6 +31,12 @@ starting and again when it ends, so a stopped run can be picked up where it stop
 
 Every stage runs, in this order, exactly once. A Finding with no chart still passes through `iterate_visual`,
 which has nothing to do and says so.
+
+**The data path does not change the stages.** By default the harness runs the SQL and `aftergrid record` writes
+down what it ran (ADR 0010, `docs/contracts/record.md`); an adapter is the upgrade an Instance may configure. A
+missing or unconfigured adapter is **not** a halt and never was a stage: the run continues on the recorded path,
+the draft carries `snapshot.guarantees: [artifact_replay]` only, and `check --mode rerun` and Revisit are
+unavailable until retained inputs exist. Carry that to the Operator as a fact; do not offer it as a fix.
 
 ## 1. Work out what you were given
 
@@ -67,6 +73,12 @@ Invoke each owner in turn and let it finish. Between stages, do three things and
 2. Read the halt conditions below.
 3. Move on.
 
+Before `analysis_review`, run `aftergrid check <finding-dir>` and pass the reviewers what it reported about the
+Check outcomes. On the recorded path the report carries `checks_reported_by_agent: true` — the outcomes are the
+harness's word, and `check` established only that each named evidence file is present and still hashes to what
+was pinned. A reviewer who is not told that is judging Checks they believe the Engine executed. Pass the tool
+that ran them and the `artifact_replay`-only guarantee with it.
+
 Treat every stage's output as its answer. `/iterate-visual` handing back a chart after three passes is an
 answer: record it and carry on to `shape_narrative`. `/analysis-review` returning blocking findings is an
 answer: halt. The craft loops live inside the craft skills, where each pass is recorded; a loop rerun from here
@@ -91,7 +103,13 @@ Two halts, and the difference matters to whoever picks the Finding up.
 - any error from `aftergrid check`, including a Check that errored, a hash mismatch or a rerun mismatch
 - a chart handed back by `/iterate-visual` after its third pass
 
-Neither is a failure of the Analysis, and neither is an outcome. `insufficient_data`, `inconclusive` and
+**These two lists are the whole set.** Nothing else halts a run. In particular, a missing or unconfigured
+adapter is not on either list: the analysis runs on the recorded path, the Finding is complete, checkable and
+renderable, and the only things that stop having an answer are `check --mode rerun` (refused with
+`rerun_unavailable`, exit 2) and Revisit. `checks_reported_by_agent: true` is not a halt either; it lowers
+publication readiness to `unknown` at most, and `unknown` is reported, never rounded up.
+
+Neither halt is a failure of the Analysis, and neither is an outcome. `insufficient_data`, `inconclusive` and
 `needs_reframing` are outcomes a completed Analysis reaches, and they run all the way through review and
 `check` like any other. A Check that **errored** is a run that did not happen; a `minimum_data` Check that
 **failed** is the answer.
@@ -110,7 +128,9 @@ Give the Operator, in this order:
 1. The outcome, in the Finding's own words.
 2. Where the run stopped: `complete`, `needs_input` or `needs_attention`, and why.
 3. What `aftergrid check` reported on each of its axes — syntax, content, evidence, sql, publication — using
-   the words the command used.
+   the words the command used. On the recorded path, also: which tool ran the queries and Checks, that the
+   Check outcomes were reported rather than executed (`checks_reported_by_agent`), and that the Snapshot
+   guarantees `artifact_replay` only, so the Analysis cannot be rerun or revisited.
 4. The next command: `aftergrid render <dir>` for a draft the Operator can read, or the command that clears
    the halt.
 

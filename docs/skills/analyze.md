@@ -40,7 +40,14 @@ user-invoked skill invokes another. Both read the same clarification procedure,
 clarification, an approved Metric definition for a published decision metric, a provisional-read sign-off.
 `needs_attention` means the run produced something a person must look at — a blocking review finding, an error
 from `aftergrid check`, or a chart `/iterate-visual` handed back after its third pass. Both leave every
-artifact in place and both are resumable.
+artifact in place and both are resumable. Those two lists are the whole set; anything not on them, a missing
+adapter included, is reported rather than halted on.
+
+**Is a missing adapter a halt?** No, and it never was one. The default data path is the recorded one (ADR 0010,
+[`docs/contracts/record.md`](../contracts/record.md)): your harness runs the SQL and `aftergrid record` writes
+down what it ran. The orchestration continues unchanged, the draft carries `snapshot.guarantees:
+[artifact_replay]` only, its Check outcomes are agent-reported, and `check --mode rerun` and Revisit are
+unavailable until inputs are captured. The run reports all of that; it does not stop for it.
 
 **Is "insufficient data" a halt?** No. `insufficient_data`, `inconclusive` and `needs_reframing` are outcomes a
 completed Analysis reaches, and they run all the way through review and `check` like any other. The line that
@@ -66,5 +73,8 @@ a Claim, never shown to a Reader.
   finding.
 - A Finding it completes carries three current reviews and no attestation, and the summary reports publication
   readiness in the word `aftergrid check` used — including `unknown`.
+- On the recorded path the reviewers were told the Check outcomes were agent-reported
+  (`checks_reported_by_agent`), and the summary names the tool that ran them and the `artifact_replay`-only
+  guarantee.
 - It never runs a fourth visual pass, a second narrative shaping, or `/analysis-review` twice on the same
   content.

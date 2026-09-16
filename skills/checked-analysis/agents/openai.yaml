@@ -1,7 +1,7 @@
 interface:
   display_name: "Checked analysis"
-  short_description: "Run one Analysis on retained inputs, Checks first, and leave an Analysis directory the writer can consume"
-  default_prompt: "Run the checked analysis for this Finding: probe the catalog, capture the retained inputs, write the applicable Checks before the analysis SQL, execute on the retained inputs, and fill analysis.yaml."
+  short_description: "Run one Analysis, Checks first, and leave an Analysis directory the writer can consume"
+  default_prompt: "Run the checked analysis for this Finding: probe the catalog, write the applicable Checks before the analysis SQL, run each query and Check through this harness's own data tool and pin what ran with `aftergrid record` (agent-reported Check outcomes, each pass with its evidence file, artifact_replay only), and fill analysis.yaml. Where the Instance configures an adapter, capture the retained inputs and run `aftergrid execute` against them instead."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. `/analyze` reaches for it mid-run, and it is
   # where the clarification procedure lives that `/grill-question` also points at, so no user-invoked skill has

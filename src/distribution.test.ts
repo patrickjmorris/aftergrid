@@ -194,3 +194,98 @@ test("the bin is a plain-JavaScript launcher, so an unsupported Node gets a mess
   assert.match(launcher, /22\.18/, "the launcher names the supported floor in the message an old Node gets");
   assert.match(launcher, /await import\("\.\/strip-types\.mjs"\)/, "the launcher registers the type-stripping hook before importing any .ts");
 });
+
+/* ------------------------------------------------------------------ the skills and the CLI agree (ag-olp) */
+//
+// The skills are prose, so what can be asserted about them is that they still say what the shipped CLI does.
+// ADR 0010 makes the recorded data path the default and the adapter the exception, and three facts are the ones
+// a later edit would quietly undo: the order the two paths are written in, that a missing adapter is not a halt,
+// and that every `aftergrid record` line a skill tells a model to run is a command the CLI actually parses.
+
+/** The body of a numbered step, from its `## <n>. ` heading to the next `## ` heading. */
+function step(markdown: string, n: number): string {
+  const start = markdown.search(new RegExp(`^## ${n}\\. `, "m"));
+  assert.notEqual(start, -1, `no step ${n} heading`);
+  const rest = markdown.slice(start);
+  const end = rest.slice(1).search(/^## /m);
+  return end === -1 ? rest : rest.slice(0, end + 1);
+}
+
+test("checked-analysis steps 3 and 6 write the recorded path before the adapter path (ADR 0010)", () => {
+  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+
+  for (const [n, adapterCommand] of [[3, "aftergrid capture"], [6, "aftergrid execute"]] as const) {
+    const body = step(skill, n);
+    const recorded = body.indexOf("aftergrid record");
+    const adapter = body.indexOf(adapterCommand);
+    assert.notEqual(recorded, -1, `step ${n} must name \`aftergrid record\``);
+    assert.notEqual(adapter, -1, `step ${n} must still name \`${adapterCommand}\` as the exception`);
+    assert.ok(recorded < adapter, `step ${n} names ${adapterCommand} before aftergrid record: the recorded path is the default, the adapter path the exception`);
+  }
+
+  const three = step(skill, 3);
+  assert.match(three, /artifact_replay/, "step 3 must name the one guarantee the recorded path gives");
+  assert.match(three, /rerun_unavailable/, "step 3 must say what stops having an answer until retained inputs exist");
+  assert.match(three, /Revisit/, "step 3 must name Revisit as unavailable on the recorded path");
+
+  const six = step(skill, 6);
+  assert.match(six, /--tool/, "step 6 must show the required --tool flag");
+  assert.match(six, /agent-reported/, "step 6 must say Check outcomes on this path are agent-reported");
+  assert.match(six, /unevidenced_outcome/, "step 6 must say a reported pass may only be recorded with its evidence file");
+  assert.match(six, /checks_reported_by_agent/, "step 6 must name the fact `check` reports");
+  assert.match(six, /guardrail hook[\s\S]{0,400}shell/, "ADR 0006/0010: step 6 must state the guard's non-coverage where SQL is run outside the CLI");
+  assert.match(six, /rerun_unavailable/, "step 6 may not offer `check --mode rerun` on this path without saying it is refused");
+});
+
+test("the /analyze halt conditions do not name a missing adapter", () => {
+  const skill = readFileSync(join(REPO, "skills", "analyze", "SKILL.md"), "utf8");
+  const halts = step(skill, 4);
+
+  const bullets = halts.split("\n").filter((l) => l.startsWith("- "));
+  assert.ok(bullets.length >= 6, `expected the two halt lists, found ${bullets.length} bullet(s)`);
+  for (const bullet of bullets) {
+    assert.doesNotMatch(bullet, /adapter/i, `a missing adapter is not a halt (ADR 0010), but a halt bullet names one: ${bullet}`);
+  }
+  assert.match(halts, /adapter is not on either list/, "the halt section must say so explicitly, not leave it to be inferred");
+  assert.match(halts, /rerun_unavailable/, "the halt section must say what a recorded Finding costs instead of halting");
+
+  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+  assert.match(doc, /Is a missing adapter a halt\?\*\* No/, "the docs page must answer it in the same words");
+  const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
+  assert.match(halting, /## What is not a halt/, "the halting reference carries the same non-halt");
+});
+
+test("every `aftergrid record` line in the skills and their docs uses flags the CLI parses", () => {
+  // The flags the shipped command really takes, read from the `record` branch of the CLI's own parseArgs.
+  const cli = readFileSync(join(REPO, "src", "cli.ts"), "utf8");
+  const branch = cli.slice(cli.indexOf('if (cmd === "record") {'), cli.indexOf('if (cmd === "revise") {'));
+  assert.ok(branch.length > 0 && branch.includes("parseArgs"), "could not find the record branch of the CLI");
+  const declared = new Set<string>();
+  for (const m of branch.matchAll(/(?:"([a-z][a-z-]*)"|\b([a-z][a-z-]*)):\s*\{\s*type:/g)) declared.add((m[1] ?? m[2])!);
+  for (const required of ["tool", "execution", "result", "check", "outcome", "evidence"]) {
+    assert.ok(declared.has(required), `the CLI no longer declares --${required}, and the skills still tell a model to pass it`);
+  }
+
+  const pages = [
+    join("skills", "checked-analysis", "SKILL.md"),
+    join("skills", "checked-analysis", "agents", "openai.yaml"),
+    join("skills", "checked-analysis", "references", "clarification.md"),
+    join("skills", "analyze", "SKILL.md"),
+    join("skills", "analyze", "agents", "openai.yaml"),
+    join("skills", "analyze", "references", "halting.md"),
+    join("docs", "skills", "checked-analysis.md"),
+    join("docs", "skills", "analyze.md"),
+  ];
+
+  let invocations = 0;
+  for (const page of pages) {
+    const text = readFileSync(join(REPO, page), "utf8").replace(/\\\n\s*/g, " ");
+    for (const line of text.matchAll(/aftergrid record\b[^\n`]*/g)) {
+      invocations += 1;
+      for (const flag of line[0].matchAll(/--([a-z][a-z-]*)/g)) {
+        assert.ok(declared.has(flag[1]!), `${page} tells a model to run \`aftergrid record --${flag[1]}\`, which the CLI does not parse`);
+      }
+    }
+  }
+  assert.ok(invocations >= 3, `expected the recorded path to be shown as a command, found ${invocations} \`aftergrid record\` invocation(s)`);
+});

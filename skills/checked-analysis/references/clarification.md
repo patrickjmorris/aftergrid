@@ -39,7 +39,8 @@ population, the window, the comparison, the falsifier, the Reader, or what count
 question that only makes the memo read better is not a clarification question.
 
 **Facts are yours to find, never the Operator's.** How many rows are in the window, whether a column exists,
-whether events arrive late: probe the catalog and the retained inputs. Ask the Operator only for decisions.
+whether events arrive late: probe the catalog and the data through the harness's own tool — or, where the
+Instance configures an adapter, through the retained inputs. Ask the Operator only for decisions.
 
 Completion criterion: the frontier is empty — every part settled, or explicitly recorded as unsettled with the
 reason. Say which it is, and wait for the Operator to confirm before writing.
