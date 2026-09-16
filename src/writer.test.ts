@@ -345,7 +345,9 @@ test("the numeric Finding's causal Claim is earned by randomised assignment, and
   assert.equal(c1.type, "causal");
   assert.equal(c1.comparison.kind, "variant_vs_control");
   assert.equal(c1.comparison.pre_registered, true);
-  assert.match(analysis.candidate_claims.find((c: any) => c.id === "c1").causal_basis, /randomis(ed|ing) assignment/i,
+  // The basis lives in comparison.description: analysis.schema.json sets additionalProperties:false on a
+  // candidate Claim, so there is no `causal_basis` key to read.
+  assert.match(analysis.candidate_claims.find((c: any) => c.id === "c1").comparison.description, /randomis(ed|ing) assignment/i,
     "the Analysis recorded the only basis v0 accepts for a causal Claim");
   assert.match(c1.material_caveat, /at random/i, "the caveat names the randomisation the conclusion rests on");
 

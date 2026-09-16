@@ -43,6 +43,11 @@ kpc-numeric/
 That is the point: `src/writer.test.ts` asserts the difference between the two directories is exactly the set
 of fields `/write-finding` owns, so a writer that edited a query or a saved result would fail.
 
+Because `analysis.yaml` is byte-identical on both sides and `derived` / `external_sources` are fields
+`/write-finding` owns, the Analysis names the derived values and typed external sources it needs in
+`assumptions` and `notes` rather than in `candidate_claims[].evidence`, where they could not resolve against
+the Analysis directory's own manifest.
+
 `render/` output is not committed. It is generated, it is excluded from the content digest, and the test
 renders into a temporary copy instead.
 
