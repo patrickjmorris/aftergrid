@@ -218,10 +218,19 @@ export type GitHubIssueSinkOptions = ApiOptions & {
   label?: string;
 };
 
+/** The open-issue search is bounded: 20 pages of 100 is 2000 open eval issues, far past anything sane. */
+export const SEARCH_PAGE_SIZE = 100;
+export const SEARCH_MAX_PAGES = 20;
+
 /**
  * The real sink. It reads the open issues carrying the eval label and looks for the fingerprint marker in their
  * bodies, rather than trusting a text search index to have caught up: a search that silently missed would open
  * a duplicate, which is the one thing this is here to prevent.
+ *
+ * That is also why it pages. A single `per_page=100` GET stops looking at the hundredth open issue, and every
+ * failure past it would be filed again every night. It follows pages until a short one ends the list, and if it
+ * runs out of pages without an answer it **refuses** — the caller records an `api_error` and files nothing,
+ * because a missing issue is recoverable and a stream of duplicates is not.
  *
  * The token comes from GITHUB_TOKEN / GH_TOKEN through `src/intake/api.ts` and from nowhere else. It is never
  * logged and never written into an issue body.
@@ -233,16 +242,20 @@ export function createGitHubIssueSink(options: GitHubIssueSinkOptions): IssueSin
   return {
     async find(fingerprint) {
       const marker = markerFor(fingerprint);
-      const body = await api("GET", `/repos/${repo}/issues?state=open&per_page=100&labels=${encodeURIComponent(label)}`);
-      if (!Array.isArray(body)) return null;
-      for (const raw of body) {
-        // The Issues endpoint returns pull requests too; a pull request is not an eval issue.
-        if (raw?.pull_request) continue;
-        const text = typeof raw?.body === "string" ? raw.body : "";
-        if (!text.includes(marker)) continue;
-        return { id: Number(raw.number), title: String(raw.title ?? ""), body: text, url: typeof raw.html_url === "string" ? raw.html_url : null };
+      for (let page = 1; page <= SEARCH_MAX_PAGES; page++) {
+        const body = await api("GET", `/repos/${repo}/issues?state=open&per_page=${SEARCH_PAGE_SIZE}&page=${page}&labels=${encodeURIComponent(label)}`);
+        if (!Array.isArray(body)) return null;
+        for (const raw of body) {
+          // The Issues endpoint returns pull requests too; a pull request is not an eval issue.
+          if (raw?.pull_request) continue;
+          const text = typeof raw?.body === "string" ? raw.body : "";
+          if (!text.includes(marker)) continue;
+          return { id: Number(raw.number), title: String(raw.title ?? ""), body: text, url: typeof raw.html_url === "string" ? raw.html_url : null };
+        }
+        // A short page is the end of the list, and the fingerprint is genuinely not open.
+        if (body.length < SEARCH_PAGE_SIZE) return null;
       }
-      return null;
+      throw new Error(`search window exhausted: ${SEARCH_MAX_PAGES} pages of ${SEARCH_PAGE_SIZE} open '${label}' issues did not settle whether this failure already has one, so none was created rather than risking a duplicate`);
     },
     async create(issue) {
       const created: any = await api("POST", `/repos/${repo}/issues`, { title: issue.title, body: issue.body, labels: issue.labels });

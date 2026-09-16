@@ -32,7 +32,9 @@ jobs:
       - run: node src/cli.ts hook status --settings /tmp/ag-settings.json --json
       - run: node src/cli.ts check fixtures/runs/kpc-numeric/output --mode rerun --json
       - run: node src/cli.ts check fixtures/runs/kpc-insufficient/output --mode rerun --json
-      - run: node src/cli.ts eval --golden all --analyzer fixture --json
+      # An eval is evaluation material and never a merge gate (docs/contracts/eval.md): exit 1 means a golden
+      # case failed, and that must not fail the PR check. 2 (usage/refusal) and 3 still do.
+      - run: node src/cli.ts eval --golden all --analyzer fixture --json || test $? -eq 1
       - name: setup scaffolds a fresh Instance end to end (skills bundle faked; CI runners have no Claude Code plugins)
         shell: bash
         run: |

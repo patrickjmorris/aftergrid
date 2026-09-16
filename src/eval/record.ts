@@ -56,6 +56,13 @@ export type CaseRecord = {
    * unbounded `aftergrid eval` writes exactly what it wrote before.
    */
   stopped_by?: "budget" | "timeout";
+  /**
+   * Present only when the analyzer itself reported *how* it broke, as a stable word rather than as prose:
+   * `analyzer_exit_<code>`, `analyzer_spawn_failed`, `analyzer_killed`, `analyzer_wrote_nothing`. It travels
+   * into summary.md and the issue body, where a message (which can quote a number read out of a Finding)
+   * must not. Absent on every ordinary case.
+   */
+  failure_cause?: string;
 };
 
 export type EvalSummary = {
