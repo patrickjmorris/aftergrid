@@ -1,66 +1,119 @@
 # Analysis directory contract (docs/contracts/analysis-directory.md, owned by /checked-analysis).
 # Hand-written for this recorded run from the reviewed exemplar
 # fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations. No model produced it.
+#
+# Written against the contract PROSE before src/analysis/analysis.schema.json existed, then mapped onto the
+# schema. Nothing recorded here was dropped; two lists moved, because the schema has no field for them:
+#   - `requested_external_sources` is now `assumptions`. Each entry keeps its id, kind, value, unit and
+#     source note in the assumption's statement, and names itself as `ext:<id>`. The writer declares it in
+#     manifest.external_sources with that typed source.
+#   - `requested_derived` is now `notes`, one line per value with its id, operation, operands and the Claim
+#     that reads it. The writer declares it in manifest.derived with the operation, operands, unit, display
+#     and zero-denominator behaviour.
+# Neither is listed under `candidate_claims[].evidence`. An evidence reference is resolved against the
+# manifest it sits beside, and `derived` / `external_sources` are fields /write-finding owns: in the Analysis
+# directory they are still empty, so `derived:`/`ext:` in evidence would be an unresolved reference here and
+# this file is byte-identical on both sides. The requests are recorded above and below instead, and the
+# recheck predicate and minimum-data lines still name them by id.
+# Per-claim `causal_basis` moved into `comparison.description` and `limitations`; `recheck.coverage` moved
+# into `recheck_draft.minimum_data`; `probes[].what_it_showed` is now `observed` and `probes[].query_id` is
+# now named in `changed_plan` and in the `execution_order` note for that query.
 schema_version: 0.1.0
 reader_profile: generic
 
 assumptions:
-  - The analysis policy agreed 2026-03-10 requires at least 28 full days and at least 300 cancellations
-    before a before/after comparison of cancellations is made. Both are decision rules, not measurements,
-    so the writer records them as typed external sources of kind assumption.
-  - The population is subscriptions that were active at the start of the change date. Subscriptions that
-    started later never saw the old price and are outside it.
-  - weekly_cancellation_rate v1 is proposed, not approved, so it may be cited as supporting context and no
-    rate computed from it may carry the Answer.
-  - The analytical timezone is America/New_York; the retained extract runs to the end of 2026-09-14, the
-    last full day.
+  - id: a_minimum_days
+    statement: "The analysis policy agreed 2026-03-10 requires at least 28 full days before a before/after
+      comparison of cancellations is made. It is a decision rule, not a measurement, so the writer records it
+      as the typed external source ext:minimum_days, kind assumption, value 28, unit days, source note: Loop
+      analysis policy, 2026-03-10, owner Dana Okafor, at docs/analysis-policy.md."
+    basis: instance_document
+    settled_by: docs/analysis-policy.md
+    affects: [c1]
+  - id: a_minimum_cancellations
+    statement: "The same policy requires at least 300 cancellations before that comparison is made. It is a
+      decision rule, not a measurement, so the writer records it as the typed external source
+      ext:minimum_cancellations, kind assumption, value 300, unit count, source note: Loop analysis policy,
+      2026-03-10, owner Dana Okafor, at docs/analysis-policy.md."
+    basis: instance_document
+    settled_by: docs/analysis-policy.md
+    affects: [c1]
+  - id: a_population_active_at_change
+    statement: The population is subscriptions that were active at the start of the change date.
+      Subscriptions that started later never saw the old price and are outside it.
+    basis: engine_default
+    settled_by: population bound chosen by the Analysis and stated in each Claim's population sentence
+    affects: [c1, c2]
+  - id: a_weekly_rate_is_proposed
+    statement: weekly_cancellation_rate v1 is proposed, not approved, so it may be cited as supporting
+      context and no rate computed from it may carry the Answer.
+    basis: instance_document
+    settled_by: definitions/weekly_cancellation_rate.md (lifecycle proposed, version 1)
+    affects: [c1, c2]
+  - id: a_timezone_and_coverage
+    statement: The analytical timezone is America/New_York; the retained extract runs to the end of
+      2026-09-14, the last full day.
+    basis: engine_default
+    settled_by: capture bound chosen by the Analysis, recorded in snapshot.inputs[].description
+    affects: [c1, c2]
 
+# Recorded even though the Analysis ends without an answer: registering it first is what keeps a thin result
+# from being re-cut until something looks different.
+pre_registered_comparison:
+  statement: Daily cancellation rate in the first four weeks after the change, compared with the four weeks
+    before it. Not reached in this Analysis; the minimum-data gate is not met.
+  registered_before_cuts: true
+  source: question.primary_comparison in manifest.yaml, fixed by the Loop analysis policy of 2026-03-10
+    before any data was read
+
+# p1 is a look at the retained query and p2 is a comparison deliberately not run. Neither is evidence for a
+# Claim. They are declared here and left out of execution_order: p1 reads the query's own result, and
+# execution_order is grouped probe -> check -> query, so recording it first would misstate the order.
 probes:
   - id: p1
-    label: exploratory
+    kind: exploratory
     question: How much has accumulated since the change, and how far is that from the policy minimum?
-    query_id: cancellations_since_change
-    what_it_showed: Seven full days and 67 cancellations against a minimum of 28 days and 300
-      cancellations, on 887 subscriptions active at the change. The earliest window end that satisfies the
-      day count is 2026-10-05.
+    observed: Seven full days and 67 cancellations against a minimum of 28 days and 300 cancellations, on 887
+      subscriptions active at the change. The earliest window end that satisfies the day count is 2026-10-05.
+    changed_plan: The minimum-data Check became the point of the run rather than a gate in front of it, and
+      the cancellations_since_change query was retained as the evidence for c1.
   - id: p2
-    label: exploratory
+    kind: exploratory
     question: Should a partial post-change week be set against full pre-change weeks?
-    query_id: null
-    what_it_showed: Not run. The first days after a price change mix announcement reactions with ordinary
-      cancellations, so the comparison would set unlike things against each other. Recorded as a deliberate
-      non-comparison rather than a number.
-
-pre_registered_comparison: Daily cancellation rate in the first four weeks after the change, compared with
-  the four weeks before it. Not reached in this Analysis; the minimum-data gate is not met.
+    observed: Not run. The first days after a price change mix announcement reactions with ordinary
+      cancellations, so the comparison would set unlike things against each other.
+    changed_plan: Recorded as a deliberate non-comparison rather than a number; Claim c2 states the method
+      choice and no daily series is shown.
 
 # Checks were written before the analysis query and run in this order.
 execution_order:
-  - unique_subscriptions
-  - minimum_data
-  - falsifier_cancel_rate
-  - cancellations_since_change
+  - kind: check
+    id: unique_subscriptions
+  - kind: check
+    id: minimum_data
+    note: minimum_data, required false. It records fail, which is the business result this Finding reports.
+  - kind: check
+    id: falsifier_cancel_rate
+  - kind: query
+    id: cancellations_since_change
+    note: What has accumulated since the change; the query probe p1 asked for.
 
 candidate_claims:
   - id: c1
-    answer_bearing: true
     sentence_draft: Elapsed days and accumulated cancellations are both below the policy minimum, so the
       pre-registered comparison has not been made.
     type: descriptive
-    causal_basis: none. Nothing here compares a treated group with an untreated one.
+    numeric: true
+    answer_bearing: true
     evidence:
       - ref:since_change.post.days_elapsed
       - ref:since_change.post.cancellations
       - ref:since_change.post.active_at_change
       - ref:since_change.post.earliest_window_end
-      - ext:minimum_days
-      - ext:minimum_cancellations
-      - derived:days_short
-      - derived:cancellations_short
     comparison:
-      kind: target
+      kind: vs_target
       description: What has accumulated so far, against the minimum the analysis policy requires. No
-        before/after comparison is made yet.
+        before/after comparison is made yet, and nothing here compares a treated group with an untreated one.
       pre_registered: true
     population: Paid subscriptions active when the price changed.
     window: { start: "2026-09-08", end: "2026-09-14", timezone: America/New_York }
@@ -68,16 +121,21 @@ candidate_claims:
       - Subscriptions that started after the price change are not part of the population.
     limitations:
       - The cancellation count is a raw count, not the weekly cancellation rate, which is still proposed.
-    recheck:
+    material_caveat: This is not a finding that the price change did or did not move cancellations. It is a
+      finding that seven days and 67 cancellations are below the policy minimum of 28 days and 300
+      cancellations, so the comparison has not been made and cannot be made yet in either direction.
+    recheck_draft:
       mode: automatic
-      predicate: { subject: ref:since_change.post.days_elapsed, operator: lt, threshold: ext:minimum_days, unit: days, direction: none }
+      predicate: Elapsed days since the change (ref:since_change.post.days_elapsed) is below the policy
+        minimum ext:minimum_days, in days, direction none.
       method: restate
       evidence:
         - ref:since_change.post.days_elapsed
         - ref:since_change.post.cancellations
-      minimum_data: { subject: ref:since_change.post.active_at_change, operator: gte, threshold: 1, unit: count }
+      minimum_data: "At least one subscription was active at the change
+        (ref:since_change.post.active_at_change). Coverage: the subscriptions extract must extend to the new
+        data_to date."
       window_policy: advancing_window
-      coverage: The subscriptions extract must extend to the new data_to date.
       not_comparable_when:
         - the analysis policy minimums change
 
@@ -86,12 +144,12 @@ candidate_claims:
       change, because a partial first week and full earlier weeks are unlike periods.
     type: descriptive
     numeric: false
-    causal_basis: none. This states a method choice, not a measurement.
     evidence: []
     comparison:
       kind: none
       description: Deliberately none. A partial first week against full prior weeks would compare unlike
-        things and invite a conclusion the data cannot support.
+        things and invite a conclusion the data cannot support. This states a method choice, not a
+        measurement, so there is no causal basis and none is claimed.
       pre_registered: true
     population: The same subscriptions.
     window: { start: "2026-09-08", end: "2026-09-14", timezone: America/New_York }
@@ -99,7 +157,7 @@ candidate_claims:
     limitations:
       - No daily series is shown, so this Finding makes no statement about whether cancellations spiked in
         the first days; that would need its own evidenced Claim.
-    recheck:
+    recheck_draft:
       mode: not_automatically_evaluable
       reason: This Claim is a methodological choice, not a measurement. Whether to keep withholding the
         comparison is the Operator's call when the minimum is met.
@@ -107,25 +165,28 @@ candidate_claims:
       review_hint: When the minimum-data Check passes, rerun the analysis with the before/after comparison
         and retire this Claim.
 
-requested_derived:
-  - { id: days_short, operation: difference, of: minimum days minus elapsed days }
-  - { id: cancellations_short, operation: difference, of: minimum cancellations minus accumulated cancellations }
-requested_external_sources:
-  - id: minimum_days
-    kind: assumption
-    value: 28
-    unit: days
-    source_note: Loop analysis policy, 2026-03-10, owner Dana Okafor, at docs/analysis-policy.md.
-  - id: minimum_cancellations
-    kind: assumption
-    value: 300
-    unit: count
-    source_note: Loop analysis policy, 2026-03-10, owner Dana Okafor, at docs/analysis-policy.md.
-
 outcome_recommendation:
-  state: insufficient_data
+  outcome: insufficient_data
   reason: The minimum_data Check recorded fail on the declared population, so the pre-registered comparison
     was not made and the falsifier Check is not evaluable yet. Nothing here supports a statement about
     whether the price change moved cancellations.
+  what_would_be_needed:
+    - At least 28 full days since the price change. The earliest window end that satisfies the day count is
+      2026-10-05 (ref:since_change.post.earliest_window_end).
+    - At least 300 cancellations accumulated on the subscriptions active at the change; 67 have accumulated
+      so far.
+    - A retained extract whose coverage reaches that later window end, so the advancing window can be
+      recomputed on captured data rather than a live source.
+    - An approved weekly_cancellation_rate, if the answer is to be stated as a rate rather than a count.
 
 needs_input: []
+
+# Derived values the candidate Claims and rechecks name (the `requested_derived` list this file used to
+# carry). The writer declares each one in manifest.derived with its operation, operands, unit, display and
+# zero-denominator/null behaviour; it is named as derived:<id>.
+notes:
+  - "derived:days_short — operation difference, of: minimum days minus elapsed days; c1 reads it."
+  - "derived:cancellations_short — operation difference, of: minimum cancellations minus accumulated
+    cancellations; c1 reads it."
+  - The writer sets finding.outcome from outcome_recommendation and turns each candidate Claim into a Claim.
+    It does not change a query, a result, a definition or a Claim's type, comparison, population or window.
