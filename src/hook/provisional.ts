@@ -77,6 +77,11 @@ export function evaluateProvisional(
   }
 
   if (record) {
+    // The filename is the identity a caller asked for and the only thing the log can be joined by. A record that
+    // declares a different id would be logged under a path that holds no such record.
+    if (record.id !== undefined && record.id !== id) {
+      reasons.push({ code: "id_mismatch", message: `the record at provisional/${id}.yaml declares id '${String(record.id)}'; a sign-off is identified by its file, and one that misnames itself cannot be audited` });
+    }
     for (const field of ["source", "reason", "date", "expiry"] as const) {
       if (typeof record[field] !== "string" || !String(record[field]).trim()) reasons.push({ code: "incomplete", message: `${field} is missing; a sign-off is scoped to source, reason, date and expiry` });
     }
@@ -111,7 +116,8 @@ export function evaluateProvisional(
   const decision: ProvisionalDecision = {
     decision: reasons.length ? "blocked" : "allowed",
     source,
-    record_id: record?.id ?? (record ? id : null),
+    record_id: record ? id : null, // the id that was evaluated, never the one the file claims for itself
+
     record_path: path,
     reason_code: (record?.reason_code ?? null) as string | null,
     reasons,
@@ -131,6 +137,8 @@ export function logProvisional(instanceRoot: string, decision: ProvisionalDecisi
       at: decision.evaluated_at,
       source: decision.source,
       record_id: decision.record_id,
+      record_path: decision.record_path, // the file that was read, so a log line joins back to it
+
       decision: decision.decision,
       reason_code: decision.reason_code,
       reasons: decision.reasons.map((r) => r.code),

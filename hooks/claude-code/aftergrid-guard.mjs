@@ -17,6 +17,7 @@ import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 export const NOT_COVERED = [
   "the hook is not a shell sandbox; source permissions and runtime isolation remain the boundary",
   "HTTP query APIs (curl/wget to a warehouse endpoint), database client libraries inside scripts, interactive sessions and remote shells are not inspected",
+  "shell parameter expansion (`$VAR`, `${VAR}`) is not resolved; SQL that depends on it is reported `uninspected`, never as checked",
   "cost and scan budgets are the adapter's job (docs/contracts/adapters.md), never this hook's",
 ];
 
@@ -99,7 +100,16 @@ function policyFrom(configPath, env) {
 
 // ---------------------------------------------------------------- shell parsing (best effort, fails closed)
 
-/** Pull `$( ... )` and backtick substitutions out so their contents are inspected as commands of their own. */
+/** A substitution leaves this mark where its output would be. It survives tokenizing and quote stripping, so a
+ *  stage can tell that part of its SQL came from a command whose output the hook cannot read — even when literal
+ *  SQL surrounds it. Never a word separator, never a quote, never something SQL or a path can contain. */
+export const SUBSTITUTION_MARK = "agsub";
+export const hasSubstitutionMark = (text) => String(text ?? "").includes(SUBSTITUTION_MARK);
+/** Marks are internal; a verdict shows the human form instead. */
+export const display = (text) => String(text ?? "").replaceAll(SUBSTITUTION_MARK, "$(…)");
+
+/** Pull `$( ... )` and backtick substitutions out so their contents are inspected as commands of their own, and
+ *  leave a mark in their place so the surrounding text is never mistaken for the whole command. */
 export function extractSubstitutions(src) {
   const inner = [];
   let out = "";
@@ -109,9 +119,9 @@ export function extractSubstitutions(src) {
     if (ch === "$" && src[i + 1] === "(") {
       let depth = 1, j = i + 2, body = "";
       while (j < src.length) { if (src[j] === "(") depth++; else if (src[j] === ")" && !--depth) break; body += src[j]; j++; }
-      inner.push(body); out += " "; i = j; continue;
+      inner.push(body); out += SUBSTITUTION_MARK; i = j; continue;
     }
-    if (ch === "`") { let j = i + 1, body = ""; while (j < src.length && src[j] !== "`") body += src[j++]; inner.push(body); out += " "; i = j; continue; }
+    if (ch === "`") { let j = i + 1, body = ""; while (j < src.length && src[j] !== "`") body += src[j++]; inner.push(body); out += SUBSTITUTION_MARK; i = j; continue; }
     out += ch;
   }
   return { outer: out, inner };
@@ -161,9 +171,13 @@ export function splitStages(command) {
 
 const WRAPPERS = new Set(["env", "sudo", "command", "exec", "nohup", "time", "nice"]);
 
-/** Words of one stage, quotes removed, redirections dropped, leading env assignments and wrappers stripped. */
+/** Words of one stage, quotes removed, leading env assignments and wrappers stripped. A redirection is removed
+ *  operator *and* operand: dropping only the operator would leave the file name standing where a positional
+ *  argument is read (`psql -d analytics -c "drop …" > out.txt` once parsed `out.txt` as the database). Input
+ *  redirections are not thrown away: `< file` names SQL the stage will execute, and `<<<text` is that SQL. */
 export function tokenize(text) {
   const words = [];
+  const stdinFiles = [], hereStrings = [];
   let w = "", has = false, quote = null;
   const flush = () => { if (has) words.push(w); w = ""; has = false; };
   for (let i = 0; i < text.length; i++) {
@@ -172,12 +186,30 @@ export function tokenize(text) {
     if (ch === "'" || ch === '"') { quote = ch; has = true; continue; }
     if (ch === "\\") { w += text[++i] ?? ""; has = true; continue; }
     if (/\s/.test(ch)) { flush(); continue; }
-    if (ch === ">" || ch === "<") { flush(); while (i < text.length && !/\s/.test(text[i])) i++; continue; }
+    if (ch === ">" || ch === "<") {
+      // `2>err.log` and `2>&1`: the bare file-descriptor number belongs to the redirection, not to the command.
+      if (has && /^\d+$/.test(w)) { w = ""; has = false; } else flush();
+      let op = "";
+      while (i < text.length && (text[i] === ">" || text[i] === "<" || text[i] === "&")) op += text[i++];
+      while (i < text.length && (text[i] === " " || text[i] === "\t")) i++;
+      let operand = "", q = null, saw = false;
+      for (; i < text.length; i++) {
+        const c = text[i];
+        if (q) { if (c === "\\" && q === '"') { operand += text[++i] ?? ""; continue; } if (c === q) { q = null; continue; } operand += c; saw = true; continue; }
+        if (c === "'" || c === '"') { q = c; saw = true; continue; }
+        if (c === "\\") { operand += text[++i] ?? ""; saw = true; continue; }
+        if (/\s/.test(c)) break;
+        operand += c; saw = true;
+      }
+      i--;
+      if (saw && !op.includes("&")) { if (op === "<<<") hereStrings.push(operand); else if (op === "<") stdinFiles.push(operand); }
+      continue;
+    }
     w += ch; has = true;
   }
   flush();
   while (words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]) || WRAPPERS.has(basename(words[0])))) words.shift();
-  return words;
+  return { words, stdinFiles, hereStrings };
 }
 
 // ---------------------------------------------------------------- SQL inspection
@@ -213,21 +245,26 @@ export const looksLikeSql = (text) => DB_CONTEXT.test(String(text).toLowerCase()
 const verdict = (decision, rule, extra) => ({ version: 1, decision, rule, not_covered: NOT_COVERED, ...extra });
 const PRIORITY = ["not_a_bash_command", "not_a_query_path", "local_artifact", "disposable_database", "query_read", "uninspected"];
 
-/** Exact and `--flag=value` forms first; `clustered` additionally allows psql's `-cSELECT 1` short form, which
- *  must never be tried before the exact forms or `-cmd` would parse as `-c md`. */
-const flagValue = (words, names, { clustered = false } = {}) => {
+/** Every occurrence, in order. psql and the duckdb CLI accept repeated `-c`/`-f` and execute all of them, so
+ *  reading only the first would let a harmless opening statement hide every later one. Exact and `--flag=value`
+ *  forms first; `clustered` additionally allows psql's `-cSELECT 1` short form, which must never be tried before
+ *  the exact forms or `-cmd` would parse as `-c md`. */
+export const flagValues = (words, names, { clustered = false } = {}) => {
+  const found = [];
+  const consumed = new Set();
   for (let i = 1; i < words.length; i++) {
+    if (consumed.has(i)) continue;
+    let matched = false;
     for (const n of names) {
-      if (words[i] === n) return words[i + 1];
-      if (words[i].startsWith(n + "=")) return words[i].slice(n.length + 1);
+      if (words[i] === n) { if (words[i + 1] !== undefined) found.push({ at: i, value: words[i + 1] }); consumed.add(i + 1); matched = true; break; }
+      if (words[i].startsWith(n + "=")) { found.push({ at: i, value: words[i].slice(n.length + 1) }); matched = true; break; }
     }
+    if (matched || !clustered) continue;
+    for (const n of names) if (n.length === 2 && n[0] === "-" && words[i].startsWith(n) && words[i].length > 2) { found.push({ at: i, value: words[i].slice(2) }); break; }
   }
-  if (!clustered) return undefined;
-  for (let i = 1; i < words.length; i++) {
-    for (const n of names) if (n.length === 2 && n[0] === "-" && words[i].startsWith(n) && words[i].length > 2) return words[i].slice(2);
-  }
-  return undefined;
+  return found.sort((a, b) => a.at - b.at).map((f) => f.value);
 };
+
 
 const readSqlFile = (path, cwd) => {
   try {
@@ -239,6 +276,16 @@ const readSqlFile = (path, cwd) => {
 
 const PSQL = new Set(["psql", "pgcli"]);
 const UNINSPECTABLE = new Set(["curl", "wget", "http", "httpie", "nc", "ssh", "scp", "mysql", "sqlcmd", "snowsql", "bq", "clickhouse-client", "python", "python3", "ruby", "perl", "bash", "sh", "zsh", "make"]);
+/** A shell given an inline command holds that command in plain sight; it is inspected as if it had been typed. */
+const SHELLS = new Set(["bash", "sh", "zsh", "ksh", "dash"]);
+/** Interpreters whose inline snippet is inspected the way `node -e` is. A script *file* is still not read. */
+const INLINE_LANGS = new Map([["python", ["-c"]], ["python3", ["-c"]], ["ruby", ["-e"]], ["perl", ["-e"]]]);
+const MAX_WRAPPER_DEPTH = 3;
+/** `-c`, and clustered forms such as `-lc` / `-ec`: the word after it is the command string. */
+const shellInlineCommand = (words) => {
+  for (let i = 1; i < words.length; i++) if (/^-[a-z]*c$/.test(words[i]) && words[i + 1] !== undefined) return words[i + 1];
+  return undefined;
+};
 const PROVISIONING = new Set(["initdb", "pg_ctl", "pg_ctlcluster", "pg_tmp", "createdb", "dropdb", "docker", "podman", "docker-compose"]);
 const LOCAL_TOOLS = new Set(["mkdir", "cp", "mv", "touch", "ls", "cat", "rm", "rmdir", "tee", "sed", "awk", "grep", "git", "pnpm", "npm", "npx", "yarn", "jq", "diff", "head", "tail", "wc", "find", "chmod", "echo", "printf", "aftergrid"]);
 const DUCK_FLAGS_WITH_VALUE = new Set(["-c", "-cmd", "-s", "-f", "-init", "-separator", "-newline", "-nullvalue"]);
@@ -270,12 +317,19 @@ export function psqlTarget(words, env) {
   return t;
 }
 
-/** configured | other | unknown. An unknown or environment-default target counts as configured: fail closed. */
+/** A token the hook cannot resolve to a literal: `$DB`, `${WAREHOUSE}`, `~user`, or the output of a substitution.
+ *  It is never equal to the configured value, so treating it as a different target would fail *open*. */
+export const unresolvedToken = (text) =>
+  typeof text === "string" && (hasSubstitutionMark(text) || /\$\{?[A-Za-z_][A-Za-z0-9_]*\}?/.test(text) || /^~/.test(text));
+
+/** configured | other | unknown. An unknown, unresolvable or environment-default target counts as not ruled out:
+ *  fail closed. Only a target the hook read literally and that differs from the configured one is `other`. */
 export function matchPostgres(target, policy) {
   if (!policy.found || !policy.postgres) return "unknown";
   const { host, database } = policy.postgres;
   if (!host && !database) return "unknown";
   if (!target.explicit) return "configured";
+  if (unresolvedToken(target.host) || unresolvedToken(target.database)) return "unknown";
   if (host && target.host && target.host !== host) return "other";
   if (database && target.database && target.database !== database) return "other";
   return "configured";
@@ -286,6 +340,7 @@ export function matchDuckdb(path, cwd, policy) {
   if (policy.duckdbUnknown) return "configured";
   if (!policy.duckdb) return "unknown";
   if (!path) return "other"; // no file argument: an in-memory database is not the configured source
+  if (unresolvedToken(path)) return "unknown"; // a path the hook cannot resolve is not a path it can rule out
   const abs = realOrResolve(resolve(cwd, path));
   return abs === policy.duckdb || abs.startsWith(policy.duckdb + "/") ? "configured" : "other";
 }
@@ -320,23 +375,38 @@ function classifyStage(stage, ctx) {
 
   if (PSQL.has(prog)) {
     const target = psqlTarget(words, env);
-    return classifySql(stage, ctx, { tool: prog, target: matchPostgres(target, policy), source: `${target.host || "(default host)"}/${target.database || "(default database)"}` });
+    return classifySql(stage, ctx, { tool: prog, target: matchPostgres(target, policy), source: display(`${target.host || "(default host)"}/${target.database || "(default database)"}`) });
   }
   if (prog === "duckdb") {
     const positionals = duckdbPositionals(words);
     const file = positionals[0];
-    return classifySql(stage, ctx, { tool: "duckdb", target: matchDuckdb(file, cwd, policy), source: file ? resolve(cwd, file) : ":memory:", extraSql: positionals.slice(1) });
+    const source = !file ? ":memory:" : unresolvedToken(file) ? display(file) : resolve(cwd, file);
+    return classifySql(stage, ctx, { tool: "duckdb", target: matchDuckdb(file, cwd, policy), source, extraSql: positionals.slice(1) });
   }
   if (prog === "node" || prog === "deno" || prog === "bun") {
-    const script = flagValue(words, ["-e", "--eval", "-p", "--print"]);
-    if (script === undefined) {
+    const scripts = flagValues(words, ["-e", "--eval", "-p", "--print"]);
+    if (!scripts.length) {
       const entry = words.slice(1).find((w) => !w.startsWith("-"));
       if (entry && /(?:^|\/)cli\.ts$|(?:^|\/)aftergrid$/.test(entry)) return verdict("allow", "local_artifact", { tool: prog, message: "aftergrid CLI command: it reads and writes Finding files, and its own SQL runs in the sealed adapter sandbox" });
       return verdict("allow", "uninspected", { tool: prog, uninspected: true, message: `${prog} runs a script file whose contents the hook does not read` });
     }
-    const ops = findOperations(script, { stripStrings: false });
-    if (ops.all.length && looksLikeSql(script)) return blockSql({ tool: prog, target: "unknown", source: "inline script", ops, policy, entry: `${prog} -e` });
-    return verdict("allow", "uninspected", { tool: prog, uninspected: true, message: `${prog} -e snippet with no source write the hook can see` });
+    return inlineSnippet(prog, `${prog} -e`, scripts, policy);
+  }
+  // A shell wrapping a supported entry point (`bash -c "psql -c 'drop …'"`) is one word of indirection, not a
+  // payload beyond the parser: the inner command is classified exactly as if it had been typed directly.
+  if (SHELLS.has(prog)) {
+    const payload = shellInlineCommand(words);
+    if (payload !== undefined && (ctx.depth ?? 0) < MAX_WRAPPER_DEPTH) {
+      const chosen = pickVerdict(classifyCommand(payload, { policy, cwd, env, depth: (ctx.depth ?? 0) + 1 }));
+      if (chosen) return { ...chosen, wrapper: prog, notes: [...(chosen.notes ?? []), `inspected through \`${prog} -c\``] };
+    }
+    return verdict("allow", "uninspected", { tool: prog, uninspected: true, message: payload === undefined ? `${prog} runs a script file whose contents the hook does not read` : `${prog} nests shells deeper than the hook follows` });
+  }
+  if (INLINE_LANGS.has(prog)) {
+    const flags = INLINE_LANGS.get(prog);
+    const scripts = flagValues(words, flags);
+    if (!scripts.length) return verdict("allow", "uninspected", { tool: prog, uninspected: true, message: `${prog} runs a script file whose contents the hook does not read` });
+    return inlineSnippet(prog, `${prog} ${flags[0]}`, scripts, policy);
   }
   if (UNINSPECTABLE.has(prog)) return verdict("allow", "uninspected", { tool: prog, uninspected: true, message: `${prog} is not a supported query entry point and its payload is not inspected` });
   if (LOCAL_TOOLS.has(prog)) {
@@ -347,44 +417,63 @@ function classifyStage(stage, ctx) {
   return verdict("allow", "not_a_query_path", { tool: prog, message: `${prog} is not a supported query entry point` });
 }
 
+/** An inline interpreter snippet (`node -e`, `python3 -c`): a write keyword plus database context is a block. */
+function inlineSnippet(tool, entry, scripts, policy) {
+  const script = scripts.join("\n;\n");
+  const ops = findOperations(script, { stripStrings: false });
+  if (ops.all.length && looksLikeSql(script)) return blockSql({ tool, target: "unknown", source: "inline script", ops, policy, entry });
+  if (hasSubstitutionMark(script)) return verdict("allow", "uninspected", { tool, uninspected: true, message: `${entry} snippet is partly built by a command substitution the hook cannot read` });
+  return verdict("allow", "uninspected", { tool, uninspected: true, message: `${entry} snippet with no source write the hook can see` });
+}
+
+/** Shell parameter expansion: the hook holds the literal `$Q`, never what it expands to. */
+const PARAMETER_EXPANSION = /\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*/;
+
 function classifySql(stage, ctx, info) {
   const { policy, cwd } = ctx;
   const words = stage.words;
   const parts = [];
   const clustered = PSQL.has(info.tool);
-  const cmd = flagValue(words, ["-c", "--command", "-cmd", "-s"], { clustered });
-  if (cmd !== undefined) parts.push(cmd);
+  // Every -c/--command and every -f/--file: psql and duckdb run all of them, so reading only the first would let
+  // an opening `select 1` hide the DDL behind it.
+  for (const cmd of flagValues(words, ["-c", "--command", "-cmd", "-s"], { clustered })) parts.push(cmd);
   for (const sql of info.extraSql ?? []) parts.push(sql);
   for (const body of stage.heredocs) parts.push(body);
-  for (const upstream of ctx.pipedText) parts.push(upstream);
-  const fileArg = flagValue(words, ["-f", "--file", "-init"], { clustered });
-  let unreadFile = null;
-  if (fileArg !== undefined) {
-    const text = readSqlFile(fileArg, cwd);
-    if (text === null) unreadFile = fileArg; else parts.push(text);
+  for (const text of stage.hereStrings ?? []) parts.push(text);
+  for (const upstream of ctx.pipedText ?? []) parts.push(upstream);
+  const fileArgs = [...flagValues(words, ["-f", "--file", "-init"], { clustered }), ...(stage.stdinFiles ?? [])];
+  const unreadFiles = [];
+  for (const fileArg of fileArgs) {
+    const text = hasSubstitutionMark(fileArg) ? null : readSqlFile(fileArg, cwd);
+    if (text === null) unreadFiles.push(display(fileArg)); else parts.push(text);
   }
-  const sql = parts.join("\n;\n");
-  const gaveSql = cmd !== undefined || (info.extraSql ?? []).length > 0;
-  if (!sql.trim() && gaveSql && ctx.hadSubstitution) {
+  // Unreadable SQL is refused, never waved through: one literal character beside a substitution does not make the
+  // substitution readable, so the mark is what decides, not what is left after it.
+  if ([...parts, ...fileArgs].some(hasSubstitutionMark)) {
     return verdict("block", "uninspected_sql", {
-      tool: info.tool, target: info.target, source: info.source,
+      tool: info.tool, target: info.target, source: info.source, uninspected: true,
       message: `${info.tool} is given SQL built by a command substitution, which this hook cannot read`,
       remedy: "pass the SQL literally or in a file, or run the query through `aftergrid check`, where the adapter's statement guard applies",
     });
   }
+  const sql = parts.join("\n;\n");
   const ops = findOperations(sql, { stripStrings: true });
-  if (ops.all.length) {
-    const v = blockSql({ ...info, ops, policy, entry: info.tool });
-    if (v.decision === "block") return v;
-    return v;
-  }
+  if (ops.all.length) return blockSql({ ...info, ops, policy, entry: info.tool });
   const notes = [];
-  if (unreadFile) notes.push(`${unreadFile} could not be read; its SQL was not inspected`);
-  if (!sql.trim()) notes.push("no SQL on this invocation; an interactive session is not inspected");
-  const uninspected = !!unreadFile || !sql.trim();
+  for (const f of unreadFiles) notes.push(`${f} could not be read; its SQL was not inspected`);
+  const expansion = PARAMETER_EXPANSION.test(sql);
+  if (expansion) notes.push("the SQL contains a shell parameter expansion the hook does not resolve; what it expands to was not inspected");
+  if (!sql.trim()) {
+    notes.push((ctx.pipedFrom ?? []).length
+      ? `SQL may be piped in from ${(ctx.pipedFrom ?? []).join(", ")}, whose output the hook does not read`
+      : "no SQL on this invocation; an interactive session is not inspected");
+  }
+  const uninspected = unreadFiles.length > 0 || expansion || !sql.trim();
   return verdict("allow", uninspected ? "uninspected" : "query_read", {
     tool: info.tool, target: info.target, source: info.source, notes, uninspected,
-    message: "read through a supported query path; cost and scan budgets are enforced by the adapter, never by this hook",
+    message: uninspected
+      ? "the SQL on this invocation was not fully readable; it is reported as uninspected rather than as checked"
+      : "read through a supported query path; cost and scan budgets are enforced by the adapter, never by this hook",
   });
 }
 
@@ -407,35 +496,51 @@ function blockSql({ tool, target, source, ops, policy, entry }) {
     tool, target, source, operations: ops.write,
     policy: policy.found ? policy.path : "built-in destructive-command list (no aftergrid.yaml found)",
     message: `${entry} would run ${ops.write.join(", ").toUpperCase()} against ${where}; an Analysis reads, it never writes`,
-    remedy: "read with SELECT only. For an unverified source, record a provisional sign-off under <instance>/provisional/ (docs/contracts/hook.md); for a scratch database, provision a disposable one (initdb/pg_ctl on a temp directory, or a throwaway container)",
+    remedy: "read with SELECT only; a write is not something any sign-off in this Engine unblocks. For a scratch database, provision a disposable one (initdb/pg_ctl on a temp directory, or a throwaway container). A provisional sign-off (docs/contracts/hook.md) covers an exploratory *read* of an unverified source and is evaluated by `evaluateProvisional`, which no command calls yet: it never lifts this block",
   });
 }
 
 // ---------------------------------------------------------------- decision
 
+const isEcho = (s) => ["echo", "printf"].includes(basename(s.words[0] ?? ""));
+
+/** Every stage of one command string (and of each substitution inside it), classified. */
+export function classifyCommand(command, ctx) {
+  const { policy, cwd, env } = ctx;
+  const depth = ctx.depth ?? 0;
+  const results = [];
+  const { outer, inner } = extractSubstitutions(command);
+  for (const text of [outer, ...inner]) {
+    const stages = splitStages(text).map((s) => ({ ...s, ...tokenize(s.text) }));
+    const byPipeline = new Map();
+    for (const s of stages) { if (!byPipeline.has(s.pipeline)) byPipeline.set(s.pipeline, []); byPipeline.get(s.pipeline).push(s); }
+    for (const group of byPipeline.values()) {
+      const heredocs = group.flatMap((s) => s.heredocs);
+      group.forEach((s, k) => {
+        const upstream = group.slice(0, k);
+        const pipedText = upstream.filter(isEcho).flatMap((u) => u.words.slice(1).filter((w) => !w.startsWith("-")));
+        const pipedFrom = upstream.filter((u) => u.words.length && !isEcho(u)).map((u) => basename(u.words[0]));
+        results.push(classifyStage({ ...s, heredocs: group.length > 1 ? heredocs : s.heredocs }, { policy, cwd, env, pipedText, pipedFrom, depth }));
+      });
+    }
+  }
+  return results;
+}
+
+/** A block anywhere decides; otherwise the least-inspected allow is the one reported. */
+export function pickVerdict(results) {
+  const blocked = results.find((r) => r.decision === "block");
+  if (blocked) return blocked;
+  return [...results].sort((a, b) => PRIORITY.indexOf(b.rule) - PRIORITY.indexOf(a.rule))[0];
+}
+
 export function decide({ tool_name, command, cwd = process.cwd(), env = process.env } = {}) {
   if (tool_name && tool_name !== "Bash") return verdict("allow", "not_a_bash_command", { message: `${tool_name} is not inspected by this hook` });
   if (typeof command !== "string" || !command.trim()) return verdict("allow", "not_a_query_path", { message: "no Bash command supplied" });
   const policy = loadPolicy(cwd, env);
-  const { outer, inner } = extractSubstitutions(command);
-  const results = [];
-  for (const [n, text] of [outer, ...inner].entries()) {
-    const stages = splitStages(text).map((s) => ({ ...s, words: tokenize(s.text) }));
-    const byPipeline = new Map();
-    for (const s of stages) { if (!byPipeline.has(s.pipeline)) byPipeline.set(s.pipeline, []); byPipeline.get(s.pipeline).push(s); }
-    for (const group of byPipeline.values()) {
-      const pipedText = group.filter((s) => ["echo", "printf"].includes(basename(s.words[0] ?? ""))).flatMap((s) => s.words.slice(1).filter((w) => !w.startsWith("-")));
-      const heredocs = group.flatMap((s) => s.heredocs);
-      for (const s of group) {
-        results.push(classifyStage({ ...s, heredocs: group.length > 1 ? heredocs : s.heredocs }, { policy, cwd, env, pipedText, hadSubstitution: inner.length > 0 && n === 0 }));
-      }
-    }
-  }
+  const results = classifyCommand(command, { policy, cwd, env, depth: 0 });
   const context = { policy_source: policy.found ? `instance policy ${policy.path}` : "no instance policy found", policy_notes: policy.notes ?? [] };
-  const blocked = results.find((r) => r.decision === "block");
-  if (blocked) return { ...blocked, ...context };
-  results.sort((a, b) => PRIORITY.indexOf(b.rule) - PRIORITY.indexOf(a.rule));
-  return { ...(results[0] ?? verdict("allow", "not_a_query_path", { message: "nothing to inspect" })), ...context };
+  return { ...(pickVerdict(results) ?? verdict("allow", "not_a_query_path", { message: "nothing to inspect" })), ...context };
 }
 
 // ---------------------------------------------------------------- entry point
