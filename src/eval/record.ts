@@ -49,6 +49,13 @@ export type CaseRecord = {
   started: string;
   finished: string;
   cost: { input_tokens: number | null; output_tokens: number | null; usd: number | null };
+  /**
+   * Present only when a *bound* rather than the analyzer decided this case: `budget` when the run's wall-clock
+   * budget was already spent before the case started (outcome `not_run`), `timeout` when the case outran its
+   * per-case timeout (outcome `error`, category infrastructure). Absent on every ordinary case, so an
+   * unbounded `aftergrid eval` writes exactly what it wrote before.
+   */
+  stopped_by?: "budget" | "timeout";
 };
 
 export type EvalSummary = {

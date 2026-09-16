@@ -126,6 +126,123 @@ In the report these arrive as `eval_case_failed` (analytical) and `eval_infrastr
 `null`, never `0`. `skill_versions` reads `version` from each promoted skill's frontmatter and records
 `unversioned` where a skill carries none.
 
+## Nightly
+
+`aftergrid eval nightly` is the scheduled run: the same suite, the same assertions and the same per-case
+records, plus a bound, a run record and a summary a human can act on. Implementation: `src/eval/nightly.ts`,
+`src/eval/compare.ts`, `src/eval/report.ts`. Tests: `src/nightly.test.ts`.
+
+```
+aftergrid eval nightly [--golden <id|all>] [--analyzer fixture|command] [--analyzer-command "<template>"]
+                       [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>]
+                       [--budget-ms N] [--case-timeout-ms N] [--report-issues [--repo owner/repo]]
+                       [--artifact-base <prefix>] [--json]
+aftergrid eval compare <baseline-run-dir> <run-dir> [--dry-run] [--json]
+aftergrid eval report <run-dir> [--repo owner/repo] [--artifact-base <prefix>] [--dry-run] [--json]
+```
+
+**Not a merge gate.** The schedule is `.github/workflows/nightly-eval.yml`. It is `schedule` +
+`workflow_dispatch` only — never `on: pull_request` — and it must not be made a required check. A regression
+found here opens an issue; it never blocks a merge.
+
+### The schedule
+
+Nightly at 04:17 UTC. `workflow_dispatch` takes `sha` (the job checks out **that exact revision**, so a release
+candidate can be evaluated without waiting for the schedule), `model` (recorded with the run; it is a label, not
+a switch), `budget_minutes`, and `report_issues` (opt-in; the issue sink runs only when it is set).
+
+The job runs the **command** analyzer — headless Claude Code invoking `/analyze` — only when the
+`ANTHROPIC_API_KEY` secret is present. Without it the job runs the fixture analyzer and writes in the job
+summary that the model-in-the-loop run was **NOT exercised** and that a green run here says nothing about what
+a model would produce. There is no configuration in which the workflow claims a model ran when none did. The
+run directory is uploaded as an artifact; `summary.md` is posted to the job summary.
+
+### What is written
+
+`<out>/<sha>/` holds the per-case `<case>.json` records and `summary.json` exactly as `aftergrid eval` writes
+them, plus:
+
+- **`run.json`** — `git_sha`, `aftergrid_version`, `plugin_version`, `model` (null when no model ran),
+  `skill_versions`, `analyzer` (`kind`, `exercised`, and the `command_template` with anything credential-shaped
+  replaced by `<redacted>`; an environment *reference* such as `$ANTHROPIC_API_KEY` is kept, because it is how
+  the run was configured), `instance`, `started`/`finished`/`elapsed_ms`, `budget_ms`, `case_timeout_ms`,
+  `partial`, `not_run`, `totals`, `cases` and `failures`.
+- **`summary.md`** — one line per case: `pass`, `analytical failure` with the failing assertion ids and a
+  pointer to the assertion table above, `infrastructure error` with a stable cause word and whether a retry
+  could clear it, or `not run`. Each line links its retained record by relative path.
+- **`comparison.json`** — written by `eval compare`, and appended as a section to `summary.md`.
+
+A `--model` given alongside the **fixture** analyzer names nothing that ran — a replayed Finding is not a model
+run — so `run.json` records `model: null` and the report says why.
+
+`summary.md`, `run.json` and every issue body are built from identifiers, statuses, causes and paths only. They
+never carry an assertion's `observed` text or a record's `reason`, because those can quote numbers read out of a
+Finding's results. That detail stays in the retained `<case>.json`, which is what the summary links to.
+
+### Bounds and partial runs
+
+`--budget-ms` (default 30 minutes) bounds the whole run and `--case-timeout-ms` (default 10 minutes) bounds each
+case. A case that has not started when the budget is spent is recorded `not_run` with `stopped_by: "budget"` and
+is never attempted. A case that outruns its timeout is recorded `error` / `infrastructure` with
+`stopped_by: "timeout"`: nothing is claimed about that Analysis.
+
+`partial: true` means a **bound** stopped the run, and `not_run` names every case that reached no verdict and
+why — `budget` for a case that was not attempted, `declined` for one the analyzer refused (no recorded run).
+A partial run is never reported as a complete one, and `content` stays `incomplete` whenever any case reached no
+verdict, as it does for `aftergrid eval`.
+
+### Fingerprints and dedup
+
+Every failure carries `fingerprint = sha256(case id + assertion id + category)` — never a timestamp, a message,
+a number or a path — so the same failure on two nights, at two revisions, fingerprints identically. A
+case-level infrastructure error uses the assertion id `(run)`.
+
+`aftergrid eval report <run-dir>` (or `--report-issues` on the run itself) files them through an `IssueSink`
+(`find(fingerprint)`, `create({title, body, labels})`, `comment(issue, body)`). The GitHub implementation reads
+the **open** issues carrying the `aftergrid-eval` label and looks for the marker
+`<!-- aftergrid-eval:<fingerprint> -->` in their bodies; when it finds one it comments on that issue instead of
+opening a second. A failure that repeats for a week is one issue with seven comments. The token comes from
+`GITHUB_TOKEN` / `GH_TOKEN` only; the repository comes from the Instance policy (`publication.repository`) or
+`--repo`. A fake sink (`createFakeIssueSink`) is what the tests use: **no test contacts GitHub.**
+
+Only **analytical** failures open an issue. An infrastructure error says the machinery broke, not that the
+Analysis is wrong; it is recorded in `run.json` and `summary.md` and reported as `eval_infrastructure`, and
+filing it as a regression would send a reader to read the wrong thing.
+
+### Regression detection
+
+`aftergrid eval compare <baseline-run-dir> <run-dir>` reads the retained records of both runs — it re-runs
+nothing and re-judges nothing — and classifies each case:
+
+| Classification | Means |
+| --- | --- |
+| `unchanged` | the same verdict on both sides |
+| `regressed` | passed in the baseline, fails now. Reported as `eval_case_failed` |
+| `fixed` | failed in the baseline, passes now |
+| `new` | no baseline record for this case |
+| `infrastructure` | either side errored or failed an infrastructure assertion, so no analytical change is claimed |
+
+Cases the baseline has and the run does not are listed under `missing_from_run`: a hole, not a verdict.
+
+### Exit codes
+
+| Code | Means |
+| --- | --- |
+| 0 | every case that ran passed, and no bound stopped the run |
+| 1 | at least one case failed or errored (analytical or infrastructure), or `compare` found a regression |
+| 2 | usage error or a refusal — including a `--sha` that is not a usable directory name |
+| 4 | the run was **partial** (a budget or a per-case timeout stopped it) and nothing else failed |
+
+A failure outranks partiality: a nightly that found a regression exits 1, and `partial` is in `run.json` and
+`summary.md` either way. Cases the analyzer declined are not failures and do not change the exit code.
+
+### What a nightly still does not do
+
+The command analyzer is still `exercised: false`: no test in this repository runs it and no model runs in this
+suite, so what a real headless `/analyze` prints, how long it takes and what it leaves behind on a crash remain
+untested here. **The first end-to-end golden eval with a live model has not been run**, and neither the
+workflow nor the run record will say otherwise.
+
 ## What an eval never does
 
 - Approve anything. Readiness is reported `unknown` with the reason, and publication stays what

@@ -1,0 +1,178 @@
+# Nightly golden eval (bead ag-nightly-eval-0dv, spec stories 43–44). Contract: docs/contracts/eval.md.
+#
+# This workflow is NOT `on: pull_request` and is NOT a required check. Nightly results are evaluation material:
+# a regression here opens an issue, it never blocks a merge.
+#
+# The model-in-the-loop half runs only when ANTHROPIC_API_KEY is present. Without the secret the job runs the
+# fixture analyzer and says, in the job summary, that the model path was NOT exercised — it never reports a
+# green model run it did not make.
+name: nightly-eval
+
+on:
+  schedule:
+    # 04:17 UTC, nightly. An odd minute so the run does not land in the hour's queue spike.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Exact revision to evaluate (release candidate). Defaults to the default branch."
+        required: false
+        type: string
+      model:
+        description: "Model id to record with the run. Recorded as-is; it is not a switch."
+        required: false
+        type: string
+      budget_minutes:
+        description: "Wall-clock budget for the whole run."
+        required: false
+        default: "30"
+        type: string
+      report_issues:
+        description: "Open or comment on one issue per failure fingerprint."
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  # Reading the previous nightly's artifact, for the comparison. Nothing here writes to a data source.
+  actions: read
+
+concurrency:
+  group: nightly-eval-${{ inputs.sha || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    # Twice the default budget, so the job outlives the run it bounds rather than truncating it.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A manual run evaluates the exact revision it was given, without waiting for the schedule.
+          ref: ${{ inputs.sha || github.sha }}
+      - id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      - name: decide which analyzer this run can honestly use
+        id: analyzer
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "kind=command" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=fixture" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: run the golden suite, bounded
+        id: run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BUDGET_MINUTES: ${{ inputs.budget_minutes || '30' }}
+          MODEL: ${{ inputs.model }}
+          SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set +e
+          BUDGET_MS=$(( BUDGET_MINUTES * 60000 ))
+          CASE_MS=$(( BUDGET_MS / 3 ))
+          ARGS=(--golden all --sha "$SHA" --out eval-runs --budget-ms "$BUDGET_MS" --case-timeout-ms "$CASE_MS" --json)
+          [ -n "$MODEL" ] && ARGS+=(--model "$MODEL")
+          if [ "${{ steps.analyzer.outputs.kind }}" = "command" ]; then
+            # Headless Claude Code running /analyze over the Finding the runner just created. The template is
+            # substituted per argument (there is no shell), and is recorded in run.json with its secrets
+            # redacted. The Finding directory carries the raw ask, the reader and the Question, so the skill
+            # needs the directory rather than the prose. AFTERGRID_FINDING_DIR and AFTERGRID_INSTANCE are in
+            # the child's environment as well.
+            ARGS+=(--analyzer command --analyzer-command "claude -p /analyze --add-dir {finding_dir} --permission-mode acceptEdits --output-format json")
+          else
+            ARGS+=(--analyzer fixture)
+          fi
+          node src/cli.ts eval nightly "${ARGS[@]}" > nightly.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      # A baseline is what makes a failure news: "this passed last night and fails now". When there is no
+      # previous artifact to compare against, the job says so instead of implying a trend.
+      - name: fetch the previous nightly as a baseline
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          prev=$(gh run list --workflow nightly-eval.yml --status completed --limit 10 \
+                   --json databaseId,headSha --jq "[.[] | select(.headSha != \"${{ steps.rev.outputs.sha }}\")][0].databaseId" || true)
+          if [ -n "$prev" ] && [ "$prev" != "null" ]; then
+            gh run download "$prev" --dir baseline-download || true
+            found=$(find baseline-download -maxdepth 3 -name run.json -print -quit 2>/dev/null || true)
+            [ -n "$found" ] && mv "$(dirname "$found")" baseline-run
+          fi
+          [ -d baseline-run ] || echo "No previous nightly artifact was available, so no comparison is claimed." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: compare against the previous nightly
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -d baseline-run ]; then
+            node src/cli.ts eval compare baseline-run "eval-runs/${{ steps.rev.outputs.sha }}" --json > comparison-report.json || true
+          fi
+
+      - name: job summary
+        if: always()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          {
+            if [ -z "$ANTHROPIC_API_KEY" ]; then
+              echo "## Model in the loop: NOT exercised"
+              echo ""
+              echo "The ANTHROPIC_API_KEY secret is absent from this environment, so no model ran. This job"
+              echo "replayed recorded Findings with the fixture analyzer: it exercises the assertion machinery"
+              echo "and says nothing about what a model would produce. Do not read a green run here as evidence"
+              echo "that /analyze works."
+              echo ""
+            else
+              echo "## Model in the loop: exercised via the command analyzer"
+              echo ""
+              echo "The headless analyzer ran. What it produced is recorded per case in the uploaded artifact."
+              echo ""
+            fi
+            echo "Exit code: \`${{ steps.run.outputs.exit_code }}\` (0 clean, 1 a case failed or errored, 2 usage, 4 partial run)."
+            echo ""
+            cat "eval-runs/${{ steps.rev.outputs.sha }}/summary.md" 2>/dev/null || echo "no summary.md was written: the run did not get that far."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: retain the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-eval-${{ steps.rev.outputs.sha }}
+          path: eval-runs/${{ steps.rev.outputs.sha }}/
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Opt-in. One issue per failure fingerprint; a repeat comments on the issue that already exists. This step
+      # re-runs nothing: it reads the run.json the step above wrote.
+      - name: file or update one issue per failure
+        if: ${{ always() && inputs.report_issues }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node src/cli.ts eval report "eval-runs/${{ steps.rev.outputs.sha }}" \
+            --repo "${{ github.repository }}" \
+            --artifact-base "eval-runs/${{ steps.rev.outputs.sha }}" --json | tee issues.json
+        continue-on-error: true
+
+      - name: fail the job only on a failing case, never on a merge gate
+        if: always()
+        run: |
+          # This job is not a required check; the exit code is here so the nightly is visibly red when a case
+          # failed (1) or when a bound left the suite partly unrun (4).
+          exit ${{ steps.run.outputs.exit_code }}

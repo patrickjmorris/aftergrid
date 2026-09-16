@@ -11,6 +11,10 @@ import { execute } from "./commands/execute.ts";
 import { revise } from "./commands/revise.ts";
 import { recordReview, reviewStatus, type ReviewKind } from "./commands/review.ts";
 import { runEval } from "./eval/runner.ts";
+import { nightlyExitCode, runNightly } from "./eval/nightly.ts";
+import { compareCommand } from "./eval/compare.ts";
+import { reportCommand } from "./eval/report.ts";
+import { findInstance } from "./instance.ts";
 import { render } from "./commands/render.ts";
 import { decide } from "./commands/decide.ts";
 import { hook } from "./commands/hook.ts";
@@ -36,6 +40,12 @@ Usage:
   aftergrid review status <finding-dir> [--json]
   aftergrid eval --golden <id|all> [--analyzer fixture|command] [--analyzer-command "<template>"]
                    [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>] [--json]
+  aftergrid eval nightly [--golden <id|all>] [--analyzer fixture|command] [--analyzer-command "<template>"]
+                   [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>]
+                   [--budget-ms N] [--case-timeout-ms N] [--report-issues [--repo owner/repo]]
+                   [--artifact-base <path prefix>] [--json]
+  aftergrid eval compare <baseline-run-dir> <run-dir> [--dry-run] [--json]
+  aftergrid eval report <run-dir> [--repo owner/repo] [--artifact-base <prefix>] [--dry-run] [--json]
   aftergrid render <finding-dir> [--png] [--json]
   aftergrid decide --finding <dir> --owner <name> --date <yyyy-mm-dd> --claims <c1,c2> --action action|inaction
                    --description "<what was done>" --rationale "<why>"
@@ -84,6 +94,13 @@ Lifecycle:
   eval          runs Golden Questions end to end against an analyzer and records what happened per case under
                 <out>/<sha>/. Evaluation material, never a merge gate; analytical and infrastructure failures are
                 recorded apart; it approves nothing and validates no evidence. Contract: docs/contracts/eval.md.
+                nightly runs the same suite inside a wall-clock budget and a per-case timeout, and writes
+                run.json (sha, versions, model, analyzer, budget, partial + the cases it did not reach) and
+                summary.md (one line per case, with a stable fingerprint per failure) beside the per-case
+                records. --report-issues opens ONE issue per failure fingerprint and comments on it thereafter
+                instead of opening a second. Exit codes: 0 clean, 1 a case failed or errored, 2 usage,
+                4 the run was partial. compare classifies two recorded runs as unchanged, regressed, fixed,
+                new or infrastructure into comparison.json. Nightly results are never a merge gate.
   render        validates the source, then writes render/finding.html and render/<chart>.svg (and .png with --png);
                 a draft renders with a draft label, never as reviewed; invalid evidence is refused.
   decide        records one owner Decision against a reviewed Finding revision: one immutable file per record under
@@ -197,6 +214,61 @@ export async function main(argv: string[]): Promise<void> {
     if (sub === "status") out(reviewStatus({ dir }), !!values.json);
     if (!values.kind || !values.reviewer) { process.stderr.write('usage: aftergrid review record <finding-dir> --kind method|question|reader|visual --reviewer "agent:<model id>" [--blocking "..."] [--non-blocking "..."] [--profile <id>] [--date yyyy-mm-dd] [--dry-run] [--json]\n'); process.exit(2); }
     out(recordReview({ dir, kind: values.kind as ReviewKind, reviewer: values.reviewer, blocking: values.blocking, nonBlocking: values["non-blocking"], profile: values.profile, date: values.date, dryRun: !!values["dry-run"] }), !!values.json);
+  }
+  if (cmd === "eval" && sub === "nightly") {
+    // The scheduled run: the same golden suite, bounded, with run.json + summary.md and an optional issue sink.
+    // Contract: docs/contracts/eval.md ("Nightly"). Never a merge gate, and never on: pull_request.
+    const { values } = parseArgs({ args: rest, allowPositionals: true, options: {
+      golden: { type: "string" }, analyzer: { type: "string" }, "analyzer-command": { type: "string" },
+      instance: { type: "string" }, out: { type: "string" }, sha: { type: "string" }, model: { type: "string" },
+      "fixture-root": { type: "string" }, "budget-ms": { type: "string" }, "case-timeout-ms": { type: "string" },
+      "report-issues": { type: "boolean" }, repo: { type: "string" }, "artifact-base": { type: "string" }, json: { type: "boolean" },
+    } });
+    if (values.analyzer !== undefined && values.analyzer !== "fixture" && values.analyzer !== "command") { process.stderr.write(`--analyzer must be fixture or command, got '${values.analyzer}'\n`); process.exit(2); }
+    const ms = (name: string, raw?: string): number | undefined => {
+      if (raw === undefined) return undefined;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) { process.stderr.write(`--${name} must be a non-negative number of milliseconds, got '${raw}'\n`); process.exit(2); }
+      return n;
+    };
+    const report = await runNightly({
+      golden: values.golden, analyzer: values.analyzer === "command" ? "command" : "fixture",
+      analyzerCommand: values["analyzer-command"], instanceDir: values.instance, outDir: values.out,
+      fixtureRoot: values["fixture-root"], sha: values.sha, model: values.model,
+      budgetMs: ms("budget-ms", values["budget-ms"]), caseTimeoutMs: ms("case-timeout-ms", values["case-timeout-ms"]),
+    });
+    if (values["report-issues"]) {
+      const filed = await reportCommand({
+        runDir: report.run_dir,
+        repo: values.repo ?? findInstance(values.instance ?? process.cwd())?.config.publication?.repository ?? null,
+        artifactBase: values["artifact-base"] ?? null,
+      });
+      report.errors.push(...filed.errors);
+      report.info.push(...filed.info);
+    }
+    process.stdout.write((values.json ? JSON.stringify(report, null, 2) : formatHuman(report) + "\n\n" + report.summary_markdown) + "\n");
+    process.exit(nightlyExitCode(report));
+  }
+  if (cmd === "eval" && sub === "report") {
+    // Files the failures a recorded run already holds. It re-runs nothing, so a reporting step can never
+    // overwrite the run it is reporting on.
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
+      repo: { type: "string" }, "artifact-base": { type: "string" }, instance: { type: "string" },
+      "dry-run": { type: "boolean" }, json: { type: "boolean" },
+    } });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write("usage: aftergrid eval report <run-dir> [--repo owner/repo] [--artifact-base <prefix>] [--dry-run] [--json]\n"); process.exit(2); }
+    out(await reportCommand({
+      runDir: dir,
+      repo: values.repo ?? findInstance(values.instance ?? process.cwd())?.config.publication?.repository ?? null,
+      artifactBase: values["artifact-base"] ?? null,
+      dryRun: !!values["dry-run"],
+    }), !!values.json);
+  }
+  if (cmd === "eval" && sub === "compare") {
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { json: { type: "boolean" }, "dry-run": { type: "boolean" } } });
+    if (positionals.length !== 2) { process.stderr.write("usage: aftergrid eval compare <baseline-run-dir> <run-dir> [--dry-run] [--json]\n"); process.exit(2); }
+    out(compareCommand({ baseline: positionals[0]!, run: positionals[1]!, write: !values["dry-run"] }), !!values.json);
   }
   if (cmd === "eval") {
     const { values } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
