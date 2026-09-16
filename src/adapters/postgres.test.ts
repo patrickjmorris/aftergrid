@@ -3,11 +3,14 @@
 // reason printed; nothing here is faked, and the capability matrix in docs/contracts/adapters.md cites this file.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PostgresAdapter, bindNamed, findBinary, guard, openRetained, provisionDisposablePostgres, type DisposablePostgres } from "./postgres.ts";
+import { PostgresAdapter, bindNamed, findBinary, guard, openRetained, provisionDisposablePostgres, workMem, type DisposablePostgres } from "./postgres.ts";
+import { openRetained as openRetainedDuckdb } from "./duckdb.ts";
+import { retainedOpenerFor } from "../commands/check.ts";
 import { AdapterError } from "./contract.ts";
 import { serializeResult } from "./serialize.ts";
 
@@ -77,6 +80,12 @@ after(async () => {
 
 const reader = (extra = {}) => track(new PostgresAdapter({ connection_string_env: "AG_TEST_PG_READER", ...extra }));
 
+/** Engine-side setup for a test's own fixtures, as the instance superuser. */
+async function onSource(url: string, ...statements: string[]) {
+  const c = await pgClient(url);
+  try { for (const s of statements) await c.query(s); } finally { await c.end(); }
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // The statement guard is pure and runs everywhere, with or without a server.
 // ---------------------------------------------------------------------------------------------------------------
@@ -104,6 +113,21 @@ test("statement guard: one SELECT only, comments and literals are not statements
   assert.throws(() => bindNamed("select $who as x", guard("select $who as x"), {}), (e: any) => e.category === "sql_parameter" && /\$who/.test(e.message));
 });
 
+test("quoting an identifier does not exempt a denied function from the guard", () => {
+  // Postgres resolves "pg_read_file" and pg_read_file to the same function, so a guard that only saw bare words
+  // admitted the quoted form — a server-side file read, and a query-running function that walks straight past the
+  // admission cap because EXPLAIN only ever plans the call.
+  for (const sql of [`select "pg_read_file"('/etc/hosts')`, `select "dblink"('', 'select 1')`,
+    `select "query_to_xml"('select count(*) from users', false, false, '')::text as x`,
+    `select "pg_sleep"(10)`, `select "pg_catalog"."pg_read_file"('/etc/hosts')`,
+    `select "PG_READ_FILE"('/etc/hosts')`, `select "lo_import"('/etc/hosts')`]) {
+    assert.throws(() => guard(sql), (e: any) => e instanceof AdapterError && e.category === "sql_policy", sql);
+  }
+  // Double quoting stays the documented escape hatch for a column named after a *keyword*.
+  assert.equal(guard(`select "end", "into" from t`).statements, 1);
+  assert.deepEqual(guard(`select "a""b" from t`).quoted, ['a"b'], "a quoted identifier is unescaped before it is checked");
+});
+
 test("an adapter never accepts a literal connection string, only the name of an environment variable", () => {
   assert.throws(() => new PostgresAdapter({ connection_string_env: "postgresql://user:secret@host/db" }), (e: any) => e.category === "missing_credential");
   const a = new PostgresAdapter({ connection_string_env: "AG_TEST_PG_ABSENT" });
@@ -120,7 +144,8 @@ test("capability matrix is honest: privilege probe supported, limits partial, op
   const caps = a.capabilities();
   assert.equal(caps.privilege_probe.status, "supported");
   assert.equal(caps.resource_limits.status, "partial");
-  assert.match(caps.resource_limits.note, /work_mem is per-operation tuning/);
+  assert.match(caps.resource_limits.note, /work_mem, which is per-operation tuning, not a total memory cap/);
+  assert.match(caps.resource_limits.note, /refused rather than dropped/);
   assert.equal(caps.open_retained.status, "partial");
   assert.match(caps.open_retained.note, /never falls back to the live source/);
   const cat = await a.catalog();
@@ -221,6 +246,12 @@ test("admission: an over-cap scan is rejected even with LIMIT 1, under-cap is ad
   const small = await a.execute("select count(*) as n from platforms", {});
   assert.equal(small.admission.decision, "admitted");
   if (small.admission.decision === "admitted") assert.equal(small.admission.basis, "estimate_under_cap");
+  // The cap cannot be walked past by running the scan inside a query-running function, quoted or bare: EXPLAIN
+  // plans the function call, not the SQL string it runs, so the guard has to refuse it outright.
+  for (const sql of [`select query_to_xml('select count(*) from users', false, false, '')::text as x`,
+    `select "query_to_xml"('select count(*) from users', false, false, '')::text as x`]) {
+    await assert.rejects(a.execute(sql, {}), (e: any) => e.category === "sql_policy" && /reaches outside the query/.test(e.message), sql);
+  }
   // Unknown is a state, never a zero: a statement the planner refuses reports why.
   const unknown = await a.estimate("select * from does_not_exist", {});
   assert.equal(unknown.status, "unknown");
@@ -329,5 +360,184 @@ test("without a local Postgres runtime, rerun is refused with a reason and never
   if (r.admission.decision === "admitted" && r.admission.estimate.status === "unknown") {
     assert.match(r.admission.estimate.reason, /all-text columns because no column types were recorded: platforms/);
   } else assert.fail("a retained rerun records the fallback that admitted it");
+  await s.close();
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Findings from the 2026-09-15 adapter review
+// ---------------------------------------------------------------------------------------------------------------
+
+test("a dropped connection is an adapter error, and a provisioned instance is stopped even if the process never closes it", { skip: SKIP }, async () => {
+  const before = process.listenerCount("exit");
+  const inst = await provisionDisposablePostgres();
+  assert.equal(process.listenerCount("exit"), before + 1, "provisioning registers an exit hook so a crash leaves no postmaster behind");
+  process.env.AG_TEST_PG_DROP = inst.url("postgres");
+  const a = track(new PostgresAdapter({ connection_string_env: "AG_TEST_PG_DROP" }));
+  assert.equal((await a.execute("select 1 as x", {})).rows[0]!.x, 1);
+  // The server goes away under an idle connection. Without an 'error' listener on the Client this is an unhandled
+  // 'error' event, which kills the whole process instead of producing an AdapterError.
+  inst.stop();
+  await new Promise((r) => setTimeout(r, 750));
+  await assert.rejects(a.execute("select 1 as x", {}), (e: any) => e instanceof AdapterError && e.category === "runtime_unavailable", "a lost connection is a runtime state, not a sql_error");
+  await a.close();
+  assert.equal(process.listenerCount("exit"), before, "stop() removes the hook it installed");
+  delete process.env.AG_TEST_PG_DROP;
+});
+
+test("privilege probe: a role that can write the source through a view is not reported as unable to write", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  await onSource(src.instance.url("warehouse"),
+    "create table probe_base (id int not null, v text)",
+    "create view probe_view as select * from probe_base",
+    "create role wh_viewer login",
+    "grant connect on database warehouse to wh_viewer",
+    "grant usage on schema public to wh_viewer",
+    "grant select on probe_base to wh_viewer",
+    "grant select, insert, update, delete on probe_view to wh_viewer");
+  process.env.AG_TEST_PG_VIEWER = src.instance.url("warehouse", "wh_viewer");
+  const a = track(new PostgresAdapter({ connection_string_env: "AG_TEST_PG_VIEWER" }));
+  const p = await a.probePrivileges();
+  assert.equal(p.status, "supported");
+  if (p.status === "supported") {
+    assert.equal(p.can_write, true, JSON.stringify(p));
+    assert.match(p.detail, /views or materialised views/);
+  }
+  await a.close();
+  // The probe's answer is the truth about this role: it really does write the base table through the view.
+  const c = await pgClient(process.env.AG_TEST_PG_VIEWER!);
+  try {
+    await c.query("insert into probe_view values (1, 'written-through-view')");
+    assert.equal((await c.query("select count(*)::int as n from probe_base")).rows[0].n, 1);
+  } finally { await c.end(); }
+  delete process.env.AG_TEST_PG_VIEWER;
+});
+
+test("capture refuses a column a rerun could not restore, and a type the rerun instance lacks is restored as text and recorded", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  await onSource(src.instance.url("warehouse"),
+    "create type mood as enum ('ok','bad')",
+    "create table moods (id int not null, m mood not null)",
+    "insert into moods values (1,'ok'), (2,'bad')",
+    `create table odd_names (id int not null, "userId" text)`,
+    "grant select on moods, odd_names to wh_reader");
+  const a = reader();
+  const dest = scratch("ag-pgenum-");
+  const [inp] = await a.capture(["moods"], dest);
+  assert.equal(inp!.runtime!.columns.find((c) => c.name === "m")!.sql_type, "mood");
+  await assert.rejects(a.capture(["odd_names"], scratch("ag-pgodd-")), (e: any) =>
+    e.category === "unsafe_identifier" && e.location === "odd_names.userId" && /column names must match/.test(e.message),
+    "a hashed extract whose rerun could never restore it is refused at capture, naming the column");
+  await a.close();
+  const s = track(await openRetained(dest, [inp!]));
+  const r = await s.execute("select id, m from moods order by id", {});
+  assert.deepEqual(r.rows.map((x) => x.m), ["ok", "bad"], "the extract still reruns: the enum column is restored as its text rendering");
+  assert.equal(r.columns.find((c) => c.name === "m")!.sql_type, "text");
+  if (r.admission.decision === "admitted" && r.admission.estimate.status === "unknown") {
+    assert.match(r.admission.estimate.reason, /not a built-in type on the rerun instance: moods\.m \(mood\)/);
+  } else assert.fail("the substitution is recorded in the admission, never silent");
+  await s.close();
+});
+
+test("an untyped extract with a comma inside a column name is reported as an unrestorable column, not torn into extra columns", { skip: SKIP }, async () => {
+  const dir = scratch("ag-pghdr-");
+  mkdirSync(join(dir, "inputs"));
+  const csv = 'id,"has,comma",tail\n1,x,y\n';
+  writeFileSync(join(dir, "inputs/odd.csv"), csv);
+  const value = createHash("sha256").update(Buffer.from(csv, "utf8")).digest("hex");
+  await assert.rejects(openRetained(dir, [{ id: "odd", kind: "extract", path: "inputs/odd.csv", content_hash: { value } }]),
+    (e: any) => e.category === "unsafe_identifier" && e.location === "odd.has,comma");
+});
+
+test("a column type with no ordering operator is captured, and a statement that fails mid-capture leaves the session usable", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  await onSource(src.instance.url("warehouse"),
+    "create table docs (id int not null, payload json)",
+    `insert into docs values (1, '{"a":1}'), (2, null)`,
+    "create view boom as select id, 1 / (id - id) as x from docs",
+    "grant select on docs, boom to wh_reader");
+  const a = reader();
+  const dest = scratch("ag-pgjson-");
+  const [inp] = await a.capture(["docs"], dest);
+  assert.match(inp!.source.method, /"payload"::text/, "a column Postgres cannot sort is ordered by its text rendering, and the method says so");
+  const again = await a.capture(["docs"], scratch("ag-pgjson2-"));
+  assert.equal(inp!.content_hash.value, again[0]!.content_hash.value, "the fallback ordering is still deterministic");
+  // A server error inside the capture transaction leaves it aborted; it has to be rolled back, not left open.
+  await assert.rejects(a.capture(["boom"], scratch("ag-pgboom-")), (e: any) => e.category === "sql_error" && /division by zero/.test(e.message));
+  assert.equal((await a.execute("select 1 as one", {})).rows[0]!.one, 1, "the session answers the next statement instead of failing with 25P02");
+  await a.close();
+  const s = track(await openRetained(dest, [inp!]));
+  assert.deepEqual((await s.execute("select id, payload::text as p from docs order by id", {})).rows.map((x) => x.p), ['{"a":1}', null]);
+  await s.close();
+});
+
+test("memory_limit is applied as work_mem or refused, never silently dropped", { skip: SKIP }, async () => {
+  await warehouse();
+  assert.equal(workMem("256 MB"), "256MB");
+  assert.equal(workMem("262144"), "256MB", "a bare number is kB, as Postgres reads it");
+  assert.equal(workMem("1 GB"), "1GB");
+  for (const bad of ["banana", "", "2TB", "1kB"]) {
+    assert.throws(() => new PostgresAdapter({ connection_string_env: "AG_TEST_PG_READER", limits: { memory_limit: bad } }),
+      (e: any) => e instanceof AdapterError && e.category === "resource_limit" && /work_mem/.test(e.message), bad);
+  }
+  const a = reader({ limits: { memory_limit: "256 MB" } });
+  assert.equal((await a.execute("select current_setting('work_mem') as w", {})).rows[0]!.w, "256MB");
+  const dest = scratch("ag-pgmem-");
+  const inputs = await a.capture(["platforms"], dest);
+  await a.close();
+  const s = track(await openRetained(dest, inputs, { memory_limit: "1 GB" }));
+  const r = await s.execute("select current_setting('work_mem') as w", {});
+  assert.equal(r.rows[0]!.w, "1GB");
+  if (r.admission.decision === "admitted" && r.admission.basis === "unknown_estimate_with_enforced_limits") {
+    assert.equal(r.admission.limits.memory_limit, "1GB", "the admission records the limit the session actually applied");
+  } else assert.fail("a retained rerun is admitted on its enforced limits");
+  await s.close();
+});
+
+test("capture is one snapshot across tables: a commit landing between two extracts is invisible to the later one", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  const admin = src.instance.url("warehouse");
+  await onSource(admin,
+    "create table conc_a (id int not null)", "insert into conc_a values (1), (2)",
+    "create table conc_b (id int not null)", "insert into conc_b values (1)",
+    "grant select on conc_a, conc_b to wh_reader");
+  const writer = await pgClient(admin);
+  const a = reader();
+  const dest = scratch("ag-pgconc-");
+  let inputs;
+  try {
+    // The writer holds conc_b, so the capture reads conc_a, then blocks; the insert commits while it waits.
+    await writer.query("begin");
+    await writer.query("lock table conc_b in access exclusive mode");
+    const capturing = a.capture(["conc_a", "conc_b"], dest);
+    await new Promise((r) => setTimeout(r, 300));
+    await writer.query("insert into conc_b values (999)");
+    await writer.query("commit");
+    inputs = await capturing;
+  } finally { await writer.end(); }
+  assert.equal(readFileSync(join(dest, inputs[1]!.path), "utf8"), "id\n1\n", "the later table is read in the snapshot the capture opened, before that insert committed");
+  assert.equal(inputs[0]!.captured_at, inputs[1]!.captured_at);
+  assert.equal(inputs[1]!.source.consistency, "single_transaction");
+  assert.equal((await a.execute("select count(*) as n from conc_b", {})).rows[0]!.n, 2, "the source really did change while the capture was running");
+  await a.close();
+});
+
+test("rerun opens a snapshot with the adapter that captured it; DuckDB stays the default", () => {
+  assert.equal(retainedOpenerFor([{ id: "a", source: { adapter: "postgres" } }]), openRetained);
+  assert.equal(retainedOpenerFor([{ id: "a", source: { adapter: "duckdb" } }]), openRetainedDuckdb);
+  assert.equal(retainedOpenerFor([{ id: "a" }]), openRetainedDuckdb, "an input that records no adapter reruns on DuckDB, exactly as before");
+  assert.equal(retainedOpenerFor([{ id: "a", source: { adapter: "synthetic" } }]), openRetainedDuckdb, "a CSV extract from any other source still reruns on DuckDB");
+  assert.equal(retainedOpenerFor([]), openRetainedDuckdb);
+  assert.throws(() => retainedOpenerFor([{ source: { adapter: "duckdb" } }, { source: { adapter: "postgres" } }]), (e: any) => e.category === "not_implemented");
+});
+
+test("a Postgres-captured snapshot reruns on Postgres, not through DuckDB's types and dialect", { skip: SKIP }, async () => {
+  await warehouse();
+  const a = reader();
+  const dest = scratch("ag-pgsel-");
+  const inputs = await a.capture(["platforms"], dest);
+  await a.close();
+  assert.equal(inputs[0]!.source.adapter, "postgres");
+  const s = track(await retainedOpenerFor(inputs)(dest, inputs));
+  assert.match(String((await s.execute("select version() as v", {})).rows[0]!.v), /PostgreSQL/);
   await s.close();
 });

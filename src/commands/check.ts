@@ -14,8 +14,9 @@ import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
 import { validateDecisionsFor } from "../decisions.ts";
-import { openRetained } from "../adapters/duckdb.ts";
-import { AdapterError } from "../adapters/contract.ts";
+import { openRetained as openRetainedDuckdb } from "../adapters/duckdb.ts";
+import { openRetained as openRetainedPostgres } from "../adapters/postgres.ts";
+import { AdapterError, type RetainedSession } from "../adapters/contract.ts";
 import { serializeResult } from "../adapters/serialize.ts";
 import { sha256 } from "../digest.ts";
 // @ts-ignore: shared Check-shape rule.
@@ -66,6 +67,24 @@ async function verifyPublication(opts: CheckOptions, report: Report) {
   }
 }
 
+export type RetainedOpener = (baseDir: string, inputs: any[], limits?: any) => Promise<RetainedSession>;
+
+/**
+ * Which engine reruns these retained inputs, decided by `snapshot.inputs[].source.adapter`. A Postgres capture
+ * records Postgres column types and is restored on a disposable Postgres, instead of being reread through
+ * DuckDB's inferred types and dialect and still reported as `sql_execution: performed`. Everything else — a
+ * `duckdb` or `synthetic` extract, or an input that names no adapter — reruns on DuckDB exactly as before. One
+ * session cannot mix engines, so a Postgres extract alongside another kind is refused rather than reread.
+ */
+export function retainedOpenerFor(inputs: any[]): RetainedOpener {
+  const adapters = [...new Set((inputs ?? []).map((i: any) => String(i?.source?.adapter ?? "duckdb")))].sort();
+  if (!adapters.includes("postgres")) return openRetainedDuckdb as RetainedOpener;
+  if (adapters.length > 1) {
+    throw new AdapterError("not_implemented", `retained inputs captured by different adapters (${adapters.join(", ")}) cannot be rerun in one session`, "manifest.yaml#/snapshot/inputs");
+  }
+  return openRetainedPostgres as RetainedOpener;
+}
+
 /**
  * Rerun mode: re-execute every recorded execution and Check against the retained inputs (never a live source)
  * and compare with what the manifest recorded. Differences are errors; nothing in the directory is modified.
@@ -73,10 +92,13 @@ async function verifyPublication(opts: CheckOptions, report: Report) {
 async function rerun(dir: string, report: Report) {
   const manifest: any = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8"));
   const current: Record<string, string> = {};
-  const sessions = new Map<string, Awaited<ReturnType<typeof openRetained>>>();
+  const sessions = new Map<string, RetainedSession>();
   const sessionFor = async (inputIds: string[]) => {
     const key = JSON.stringify([...new Set(inputIds)].sort());
-    if (!sessions.has(key)) sessions.set(key, await openRetained(dir, manifest.snapshot.inputs.filter((i: any) => inputIds.includes(i.id))));
+    if (!sessions.has(key)) {
+      const inputs = manifest.snapshot.inputs.filter((i: any) => inputIds.includes(i.id));
+      sessions.set(key, await retainedOpenerFor(inputs)(dir, inputs));
+    }
     return sessions.get(key)!;
   };
   const execParams = (ck: any) => (ck.execution_id ? manifest.executions.find((e: any) => e.id === ck.execution_id) : manifest.executions[0]) ?? { parameters: { analytical_timezone: "UTC" }, input_ids: [] };
