@@ -655,7 +655,7 @@ test("the issue sink pages through the open issues instead of duplicating past t
   const seen: string[] = [];
   const found = createGitHubIssueSink({
     repo: "example/repo", token: null,
-    api: async (_method, path) => { seen.push(path); return page(Number(/page=(\d+)/.exec(path)?.[1] ?? 1), /page=2\b/.test(path)); },
+    api: async (_method, path) => { seen.push(path); return page(Number(/[?&]page=(\d+)/.exec(path)?.[1] ?? 1), /[?&]page=2\b/.test(path)); },
   });
   const hit = await found.find(fingerprint);
   assert.ok(hit, "the marker is on page 2 and a single un-paged GET would have missed it and opened a duplicate");
@@ -731,4 +731,56 @@ test("an empty or non-numeric millisecond bound is a usage error, not a zero bud
     const r = cli(["--golden", "onboarding_checklist_retention", "--out", out, "--sha", "msbad001", "--budget-ms", raw, "--json"]);
     assert.equal(r.status, 2, `--budget-ms '${raw}' was accepted: ${r.stdout.slice(0, 200)}`);
   }
+});
+
+/* ------------------------------------------------ an analyzer that actually runs */
+
+const grepTree = (dir: string, needle: string): string[] =>
+  writtenFiles(dir).filter((f) => f.text.includes(needle)).map((f) => f.path);
+
+test("a credential on the command line reaches no file the run writes even when the analyzer runs and echoes it", async () => {
+  const out = temp();
+  const bin = temp();
+  const secret = "sk-ant-api03-SENTINELRUNS_abcdef";
+  // Echoes every argument back on stderr and fails, the way a CLI rejecting an unknown flag does.
+  const echoer = join(bin, "echoer.sh");
+  writeFileSync(echoer, '#!/bin/sh\necho "unknown option $*" >&2\nexit 1\n', { mode: 0o755 });
+  const crashed = await runNightly({
+    golden: "referral_campaign", analyzer: "command", outDir: out, sha: "echo0001",
+    analyzerCommand: `sh ${echoer} {finding_dir} --api-key=${secret}`, caseTimeoutMs: 10_000,
+  });
+  assert.equal(crashed.cases[0]!.failure_cause, "analyzer_exit_1");
+  assert.match(crashed.cases[0]!.reason, /<redacted>/, "the stderr tail is kept for the record, minus the credential");
+  assert.deepEqual(grepTree(out, secret), [], "the analyzer echoed the credential and it still reached no file");
+
+  // Touches the draft and exits 0, so the case is scored and the rendered argv is recorded as its source.
+  const toucher = join(bin, "toucher.sh");
+  writeFileSync(toucher, '#!/bin/sh\nprintf "\\n# touched by the test analyzer\\n" >> "$1/manifest.yaml"\n', { mode: 0o755 });
+  const out2 = temp();
+  const scored = await runNightly({
+    golden: "referral_campaign", analyzer: "command", outDir: out2, sha: "touch001",
+    analyzerCommand: `sh ${toucher} {finding_dir} --anthropic-api-key ${secret}`, caseTimeoutMs: 10_000,
+  });
+  assert.equal(scored.cases[0]!.failure_cause ?? null, null, "the analyzer produced a Finding, so the case was judged");
+  assert.match(String(scored.cases[0]!.analyzer.source), /--anthropic-api-key <redacted>/);
+  assert.deepEqual(grepTree(out2, secret), []);
+});
+
+test("a grandchild of a timed-out analyzer does not outlive the case", async () => {
+  const out = temp();
+  const bin = temp();
+  const wrapper = join(bin, "wrapper.sh");
+  // The analyzer (sh) starts a grandchild (sleep) and waits on it; only killing the process group reaches sleep.
+  writeFileSync(wrapper, '#!/bin/sh\nsleep 30 &\necho $! > "$1/grandchild.pid"\nwait\n', { mode: 0o755 });
+  const started = Date.now();
+  const report = await runNightly({
+    golden: "referral_campaign", analyzer: "command", outDir: out, sha: "orphan01",
+    analyzerCommand: `sh ${wrapper} ${bin} {finding_dir}`, caseTimeoutMs: 800,
+  });
+  assert.ok(Date.now() - started < 10_000, "the case was abandoned at its bound, not at the grandchild's leisure");
+  assert.equal(report.cases[0]!.failure_category, "infrastructure");
+  const pid = Number(readFileSync(join(bin, "grandchild.pid"), "utf8").trim());
+  assert.ok(pid > 0);
+  await new Promise((r) => setTimeout(r, 200));
+  assert.throws(() => process.kill(pid, 0), /ESRCH/, `sleep ${pid} outlived the case it belonged to`);
 });

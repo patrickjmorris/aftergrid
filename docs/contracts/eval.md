@@ -248,6 +248,11 @@ the word anywhere in the name. A bare token with a provider shape (`ghp_…`, `g
 underscores and dashes included) is redacted wherever it appears. An environment *reference* (`$ANTHROPIC_API_KEY`)
 is kept: it is how the run was configured, not a secret.
 
+The same redaction (`src/eval/redact.ts`) is applied to everything the run writes about how an analyzer was
+invoked, not only to `run.json`'s template: the rendered argv recorded as a case's `analyzer.source`, and the last
+stderr line the command analyzer appends to a failure `reason` (a CLI rejecting an unknown flag echoes the flag,
+credential and all). What an analyzer prints to stdout as its JSON envelope is parsed, never copied.
+
 ### Was a model really in the loop?
 
 `aftergrid eval summary <run-dir>` prints that claim as markdown, and it is the only thing that decides it. A
@@ -267,6 +272,12 @@ Finding's results. That detail stays in the retained `<case>.json`, which is wha
 case. A case that has not started when the budget is spent is recorded `not_run` with `stopped_by: "budget"` and
 is never attempted. A case that outruns its timeout is recorded `error` / `infrastructure` with
 `stopped_by: "timeout"`: nothing is claimed about that Analysis.
+
+The bound reaches the process, not only the record. The command analyzer runs in its own process group and the
+case timeout (or `analyzerTimeoutMs`, when set separately) kills the whole group, so a subprocess the analyzer
+started (a headless harness spawns several) does not keep spending wall clock or API budget after the case was
+recorded as stopped. The timer that enforces the bound holds the event loop open until the case settles: a
+stalled analyzer with no handle of its own cannot let the process drain before the verdict is written.
 
 `partial: true` means a **bound** stopped the run, and `not_run` names every case that reached no verdict and
 why — `budget` for a case that was not attempted, `declined` for one the analyzer refused (no recorded run).
