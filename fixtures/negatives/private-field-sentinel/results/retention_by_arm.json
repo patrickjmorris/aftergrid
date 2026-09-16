@@ -1,0 +1,28 @@
+{
+  "result_id": "retention_by_arm",
+  "execution_id": "ex_retention_by_arm",
+  "row_key": "arm",
+  "columns": [
+    "arm",
+    "signups",
+    "retained",
+    "retained_7d_rate",
+    "internal_note"
+  ],
+  "rows": [
+    {
+      "arm": "checklist",
+      "signups": 624,
+      "retained": 217,
+      "retained_7d_rate": "0.34775641025641024",
+      "internal_note": "PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER"
+    },
+    {
+      "arm": "control",
+      "signups": 653,
+      "retained": 186,
+      "retained_7d_rate": "0.28483920367534454",
+      "internal_note": "PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER"
+    }
+  ]
+}

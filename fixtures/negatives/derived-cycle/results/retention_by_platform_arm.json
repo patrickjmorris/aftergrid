@@ -1,0 +1,47 @@
+{
+  "result_id": "retention_by_platform_arm",
+  "execution_id": "ex_retention_by_platform_arm",
+  "row_key": "platform_arm",
+  "columns": [
+    "platform_arm",
+    "platform_group",
+    "arm",
+    "signups",
+    "retained",
+    "retained_7d_rate"
+  ],
+  "rows": [
+    {
+      "platform_arm": "mobile_checklist",
+      "platform_group": "mobile",
+      "arm": "checklist",
+      "signups": 476,
+      "retained": 176,
+      "retained_7d_rate": "0.3697478991596639"
+    },
+    {
+      "platform_arm": "mobile_control",
+      "platform_group": "mobile",
+      "arm": "control",
+      "signups": 460,
+      "retained": 130,
+      "retained_7d_rate": "0.2826086956521739"
+    },
+    {
+      "platform_arm": "web_checklist",
+      "platform_group": "web",
+      "arm": "checklist",
+      "signups": 148,
+      "retained": 41,
+      "retained_7d_rate": "0.27702702702702703"
+    },
+    {
+      "platform_arm": "web_control",
+      "platform_group": "web",
+      "arm": "control",
+      "signups": 193,
+      "retained": 56,
+      "retained_7d_rate": "0.29015544041450775"
+    }
+  ]
+}

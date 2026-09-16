@@ -1,0 +1,43 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Bound by the renderer to result retention_by_arm. Negative fixture: the second layer aggregates and bins.",
+  "data": {
+    "name": "result"
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "arm",
+          "type": "nominal",
+          "title": null
+        },
+        "x": {
+          "field": "retained_7d_rate",
+          "type": "quantitative",
+          "title": "Came back within 7 days (share of new users)"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text"
+      },
+      "encoding": {
+        "x": {
+          "field": "retained_7d_rate",
+          "type": "quantitative",
+          "aggregate": "mean"
+        },
+        "y": {
+          "field": "signups",
+          "type": "quantitative",
+          "bin": true
+        }
+      }
+    }
+  ]
+}

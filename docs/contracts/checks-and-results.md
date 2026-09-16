@@ -60,3 +60,63 @@ Null and not-available render as "not available"; never as 0, blank or a dash wi
 ## Export and provisional policy reach everything
 
 `export_policy.allowed_fields` governs every value that can reach a Reader: chart data, table cells, prose tokens and the operands of derived values. A reference to a column outside the allowlist fails `export_policy` wherever it appears. Provisional status propagates from results through derived values to Claims; a Claim resting on provisional evidence cannot be rendered.
+
+## Seam-1 negative fixtures
+
+`fixtures/negatives/` holds one small Finding directory per deliberate defect, each with an `expected.yaml`
+(`layer`, `expect`, `category`, `location_pattern`, `defect`, `description`). `src/negatives.test.ts` runs `check` —
+and `render` where the case is about rendering — on a temp copy of every case, asserts the declared category appears
+at a matching location, and rejects any *other* error category: a negative that fails for an unrelated reason, such
+as a missing review or a stale one, proves nothing. The directories are generated and committed by
+`src/negatives-build.ts`, which derives each case from a reviewed exemplar, applies one defect, and re-pins every
+hash and the content digest through the shared `digestOf` / `definitionHash`, so everything is correct except the
+defect. `fixtures/negatives/README.md` is the index.
+
+Each case declares its layer (`docs/contracts/golden-questions.md`). Semantic scenarios — a mix shift, an
+instrumentation break, a coverage gap — are **not** here: they are review concerns with correct numbers, and they
+live in the Golden Questions (`fixtures/instance/analytics/golden/`).
+
+| Case | Layer | `check` reports |
+| --- | --- | --- |
+| `control-valid` | engine_category | no error (the unmodified base) |
+| `control-non-answer` | analytical_outcome | no error: a complete `insufficient_data` Finding with a `minimum_data` Check recorded `fail` |
+| `control-prose-dates-ids` | engine_category | no error: dates, timestamps, numbered headings, ids, definition versions, file paths and `{{literal:…}}` are not data-bearing |
+| `zero-denominator-derived` | engine_category | no error; the render says "not available", never 0 |
+| `nullable-null-not-available` | engine_category | no error; a declared null renders "not available" in prose and in the table |
+| `display-only-rounding` | engine_category | no error; formatting is applied once at render and the saved decimals never reach the page |
+| `private-field-sentinel` | engine_category | no error; the private marker and the non-exported column name are absent from every rendered byte |
+| `forged-attestation` | review_concern | no error, readiness `not_ready`: an `unverified_note` never counts toward publication readiness |
+| `unresolved-reference` | engine_category | `unresolved_reference` |
+| `duplicate-row-key` | engine_category | `duplicate_row_key` |
+| `missing-column` | engine_category | `missing_column` |
+| `untraced-numeral` | engine_category | `untraced_numeral` |
+| `chart-forbidden-transform` | engine_category | `chart_subset` (top-level `transform`) |
+| `chart-layered-aggregate` | engine_category | `chart_subset` (aggregate and bin inside a layer) |
+| `missing-memo-section` | engine_category | `template` |
+| `claim-without-recheck` | engine_category | `schema` |
+| `decision-metric-not-approved` | engine_category | `definition_not_approved` |
+| `definition-version-not-pinned` | engine_category | `definition_version` |
+| `failing-reconciliation-check` | engine_category | `check_failed`; `render` is refused |
+| `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` |
+| `stale-attestation` | engine_category | `stale_attestation` |
+| `artifact-modified-after-attestation` | engine_category | `stale_attestation` (plus a `stale_review` warning, which is never the failure by itself) |
+| `derived-cycle` | engine_category | `derived_cycle` |
+| `derived-unit-mismatch` | engine_category | `unit_mismatch` |
+| `null-in-non-nullable-column` | engine_category | `null_value` |
+| `external-source-missing-type` | engine_category | `schema` |
+| `unsupported-schema-version` | engine_category | `schema` |
+| `provisional-evidence` | engine_category | `provisional_evidence`; `render` is refused, so it is never exported |
+
+### What these fixtures do not enforce
+
+- **No SQL runs.** The retained inputs are trimmed stubs, the Snapshot declares only `artifact_replay`, and the
+  recorded execution and Check outcomes and timestamps are carried over from the exemplar. They are fixture data,
+  not a record of an execution in these directories; `check --mode rerun` is not supported on them.
+- **No approvals, reviews or Decision records.** No case carries a verified publication approval, the `reviews[]`
+  entry names itself as a generated fixture, and the Instance root has no `decisions/` directory on purpose, so a
+  Decision binding can never be the reason a negative fails.
+- **Location granularity is not uniform.** `unit_mismatch` is reported at the operation name (`difference`) because
+  the shared arithmetic helper raises it before a manifest pointer exists; `expected.yaml` records that location as
+  it is rather than pretending it is finer.
+- **A structural rejection stops validation.** `schema` cases report exactly one error and evidence
+  `not_evaluated`, not `invalid`; nothing further is read from the directory.
