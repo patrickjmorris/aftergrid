@@ -10,7 +10,7 @@ Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (
 | capture | Bounded extracts of declared tables written as CSV under `inputs/`, rows in a deterministic order, content hash recorded, consistency declared (`single_transaction`, `per_table`, `unknown`). |
 | open_retained | Loads hash-verified extracts into a fresh sandbox; only the listed inputs are visible; a missing or corrupt extract is an explicit error and never falls back to a live source. |
 | privilege_probe | Whether the connected role can write or run DDL, or `unsupported` with the reason. |
-| cost_estimate | A non-executing planner estimate in backend units, or `unknown` with a reason. `scan_rows` is the largest planned scan; `rows` is the planned output. |
+| cost_estimate | A non-executing planner estimate in backend units, or `unknown` with a reason. `scan_rows` is the largest planned scan; `rows` is the planned output. `unit` names the planner model the numbers came from (`estimated_rows` for DuckDB, `planner_cost` for Postgres, which also carries the planner's abstract `cost`), never an accuracy claim. |
 | statement_guard | Admission: a read is admitted when `scan_rows` is under the cap, or, when the estimate is unknown, only because enforced resource limits apply; a row LIMIT never bounds admission. DDL, DML, multi-statement input and external file access are refused. |
 | resource_limits | What the engine actually enforces, named honestly. |
 | cancellation | A statement past its timeout is interrupted; the connection remains usable; the source is unchanged. |
@@ -32,9 +32,71 @@ Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (
 
 Units: from evidence and definition metadata only (`results[].columns[].unit`), never from SQL types.
 
-## Postgres (v0 target, not yet implemented)
+## Postgres (v0, supported)
 
-Owned by `ag-postgres-adapter-dna`. Expected differences: `privilege_probe` supported via effective privileges; `cost_estimate` via `EXPLAIN` without `ANALYZE` in planner cost units; `resource_limits` partial (`statement_timeout` enforced, `work_mem` is per-operation tuning, hard memory bounds only with an enforcing runtime); `open_retained` restores extracts into a disposable compatible Postgres or reports rerun unavailable while artifact replay stays available.
+Implementation `src/adapters/postgres.ts`. Evidence: `src/adapters/postgres.test.ts`, which provisions its own disposable instance with `initdb`/`pg_ctl` and loads the fixture warehouse into it. The matrix below was produced on PostgreSQL 14.18. Where those binaries are absent the server-backed tests are **skipped with the reason printed** — never faked, and never counted as evidence for this table.
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| execute | supported | typed cells (int as a number when safe, `numeric` as its exact text, UTC `timestamptz`, dates and booleans, null distinct from zero); `$name` mapped to `$1..$n` in first-use order, bound only where the statement declares it |
+| capture | supported | identical hashes across two captures; one `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY` transaction; null / empty string / comma / quote / CR-LF / decimal round trip losslessly |
+| open_retained | **partial** | extracts restored into a disposable Postgres (`initdb` → `pg_ctl` → `CREATE TABLE` from the recorded types → `COPY … FROM` → read-only role); rerun unchanged after the live source was mutated; corrupt → `hash_mismatch`; missing → `missing_file`; undeclared table invisible; **no local runtime → `runtime_unavailable`**, never the live source |
+| privilege_probe | supported | `has_table_privilege` for INSERT/UPDATE/DELETE/TRUNCATE, `has_schema_privilege`/`has_database_privilege` for CREATE, `pg_roles` for superuser/createdb; a writable role reports `can_write: true`, a read-only role `false` |
+| cost_estimate | supported | `EXPLAIN (FORMAT JSON)` without `ANALYZE`; `unit: planner_cost`; `unknown` with the planner's reason when planning fails |
+| statement_guard | supported | DDL/DML/multi-statement/`COPY`/`SELECT … INTO`/`EXPLAIN`/external-file functions refused; an over-cap scan rejected even under `LIMIT 1`; the source row count unchanged afterwards |
+| resource_limits | **partial** | `statement_timeout`, `lock_timeout` and `idle_in_transaction_session_timeout` are enforced by the server; `work_mem` is per-operation tuning, not a cap; no hard memory or CPU bound is claimed |
+| cancellation | supported | a runaway scan is cancelled at its timeout (`57014`) and the session answers the next statement |
+| catalog | supported | `information_schema.columns` for the configured schema |
+
+### Connection and credentials
+
+`PostgresAdapter` takes the **name** of an environment variable (`connection_string_env`), never a connection string: a literal URL is refused at construction, and a missing variable is a `missing_credential` error naming the variable only. No credential reaches a file, a report location or an error message.
+
+### What actually stops a write
+
+Three independent layers, in this order:
+
+1. the token guard below (a filter, and the only one that produces a readable refusal);
+2. `SET default_transaction_read_only = on` on every session, which fails writes with `25006` even for a privileged role;
+3. the connected role's own grants — the enforced boundary. The rerun instance goes further: its analysis role holds `CONNECT`, `USAGE` and `SELECT` and nothing else, with `CREATE` revoked from `PUBLIC`.
+
+Every authored statement is also sent over the extended query protocol, where the server itself refuses multiple commands.
+
+### The statement guard, and what it does **not** enforce
+
+The guard is a conservative tokenizer (`guard()` in `src/adapters/postgres.ts`), not a Postgres parser. It understands line and block comments, string literals, dollar quoting and quoted identifiers, splits top-level statements on `;`, requires exactly one statement starting with `SELECT` or `WITH`, and refuses a denylist of statement keywords and of functions that reach outside the query (`pg_read_file`, `lo_import`, `dblink`, `set_config`, `query_to_xml`, `pg_sleep`, …).
+
+It is deliberately blunt, and the cost is false refusals, not false admissions:
+
+- a bare keyword from the denylist is refused **wherever it appears outside a literal or a quoted identifier** — a column literally named `analyze`, `end` or `into` must be double-quoted;
+- escape (`E'…'`), unicode (`U&'…'`) and bit-string (`B'…'`, `X'…'`) literals are refused outright, because their escaping rules are not modelled;
+- positional parameters (`$1`) are refused; analysis SQL uses `$name`;
+- row-level lock clauses other than `FOR UPDATE` are not specifically refused — they cannot write, and the read-only session and role stop them anyway;
+- it does **not** validate that a statement is semantically read-only. Nothing in aftergrid relies on it alone: layers 2 and 3 above are what a test asserts.
+
+### Admission
+
+`EXPLAIN (FORMAT JSON)` without `ANALYZE` plans but never executes. `scan_rows` is the largest `Plan Rows` anywhere in the plan, so a `Limit` node never bounds admission; `rows` is the root node's `Plan Rows` and `cost` its `Total Cost`. An estimate the planner cannot give is `unknown` with its reason, and an unknown estimate is admitted **only** on the documented fallback (`unknown_estimate_with_enforced_limits`) with the enforced limits recorded in the admission. Planner estimates depend on table statistics: on a never-`ANALYZE`d table Postgres estimates from page counts, and admission then reads that guess, not the truth.
+
+### Capture
+
+One `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY` transaction covers every table, so the extracts are one consistent view (`consistency: single_transaction`). Each table is read as `select * from <schema>.<table> order by 1,2,…,n` and written with the shared lossless CSV writer (`scripts/lib/sql-runner.mjs`): a NULL is an empty unquoted field, an empty string is `""`. Ordering is by every column left to right, which makes the hash stable on one server; it depends on the server's collation, so hashes are comparable across instances only under the same collation.
+
+Alongside the hash, capture records the server version and each column's name, `information_schema` type and nullability — in the `description` (which the Finding manifest schema carries) and in the optional `runtime` field of `RetainedInput` (which it does not; `schema/finding-manifest.schema.json` rejects unknown keys under `snapshot.inputs`). A rerun of an extract with no recorded `runtime` restores every column as `text` and says so in the admission's estimate reason.
+
+### Rerun (`open_retained`)
+
+Hashes are verified before anything is started. Then the Engine provisions a throwaway instance — `initdb` into a temp directory, started by `pg_ctl` on a private unix socket with **no TCP listener** — creates the tables from the recorded column types, loads the verified CSVs with server-side `COPY … FROM`, creates the SELECT-only analysis role, and stops and deletes the whole instance on `close()`. This provisioning is an Engine path; agent-issued SQL never reaches it.
+
+When `initdb`/`pg_ctl` are not on `PATH` (or `AFTERGRID_PG_BINDIR`), rerun fails with `runtime_unavailable` saying that SQL rerun is unavailable here while saved-result artifact replay remains possible (`check --mode artifact`). There is no fallback to the live source, ever.
+
+### Not claimed
+
+- No hard memory or CPU bound. `work_mem` is per-operation tuning; a query can use several times it, and only a hosting runtime (a container memory limit, a cgroup) can bound the backend.
+- No disk quota, no temp-file limit, no connection-count limit beyond the server's own.
+- `pg_cancel_backend` from a second connection is a backstop for `statement_timeout`, not a second guarantee: if it cannot connect, the server-side timeout is still what stops the statement.
+- Cross-instance hash stability under different collations or server versions is not claimed; capture hashes are evidence about one source.
+- PostHog's managed warehouse remains **unvalidated**: no test here connects to it, and nothing in this matrix carries over to it.
 
 ## `check --mode rerun`
 

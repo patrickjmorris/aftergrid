@@ -12,8 +12,13 @@ export type ColumnMeta = { name: string; sql_type: string };
 /** Rows as JSON-safe values: integers as numbers, decimals/dates/timestamps as strings, booleans, null. */
 export type ExecuteResult = { columns: ColumnMeta[]; rows: Record<string, string | number | boolean | null>[]; admission: Admission };
 
+/**
+ * A non-executing planner estimate. `unit` names the planner model the numbers came from, never a promise of
+ * accuracy: `estimated_rows` is DuckDB's estimated cardinality; `planner_cost` is Postgres `EXPLAIN` without
+ * `ANALYZE`, where `rows`/`scan_rows` are plan-row estimates and `cost` is the planner's abstract total cost.
+ */
 export type Estimate =
-  | { status: "estimated"; rows: number; unit: "estimated_rows"; scan_rows: number }
+  | { status: "estimated"; rows: number; unit: "estimated_rows" | "planner_cost"; scan_rows: number; cost?: number }
   | { status: "unknown"; reason: string };
 
 export type Admission =
@@ -28,9 +33,17 @@ export type PrivilegeProbe =
   | { status: "supported"; can_write: boolean; can_ddl: boolean; detail: string };
 
 export type Hash = { algorithm: "sha256"; value: string };
+/**
+ * What a rerun needs to rebuild an extract's table faithfully on a disposable instance of the same engine.
+ * Optional and additive: an adapter that cannot state it omits it, and a rerun then falls back to all-text
+ * columns and says so. The Finding manifest schema does not carry this field, so the same facts are also
+ * summarised in `description`, which it does carry.
+ */
+export type RetainedRuntime = { engine: string; server_version: string; columns: { name: string; sql_type: string; nullable: boolean }[] };
 export type RetainedInput = {
   id: string; kind: "extract"; path: string; content_hash: Hash; captured_at: string; description: string;
   source: { adapter: string; method: string; tables: string[]; consistency: "single_transaction" | "per_table" | "unknown" };
+  runtime?: RetainedRuntime;
 };
 export type CatalogTable = { name: string; columns: { name: string; sql_type: string }[] };
 
