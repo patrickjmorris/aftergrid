@@ -12,7 +12,7 @@ input:
   # The Analysis directory as /checked-analysis leaves it: question resolved, definitions pinned, snapshot
   # captured, queries/executions/results/checks pinned, claims empty, memo unwritten.
   manifest_content_digest: 484da36404f0549e5f6ad9b034d91449076db79b97b0a591eb7e82473e75c782
-  analysis_yaml_sha256: b189789c09500e4dfdd732953d77abd5a8d02d7db13a88ce01b2dbe47ce88ca1
+  analysis_yaml_sha256: 8db87c576dd29cf2e804f287db00347f1a807cfe43775d64bfb691a9c03c8e6f
   reader_profile: generic          # `new finding` default; analysis.yaml names the Reader the writer sets
   finding_state: draft
   finding_outcome: pending
@@ -20,7 +20,7 @@ input:
 output:
   path: output
   manifest_content_digest: e77ab65325415771937762ed907a6d8098cf514c94b65d196b75aafb2e1962cd
-  analysis_yaml_sha256: b189789c09500e4dfdd732953d77abd5a8d02d7db13a88ce01b2dbe47ce88ca1
+  analysis_yaml_sha256: 8db87c576dd29cf2e804f287db00347f1a807cfe43775d64bfb691a9c03c8e6f
   reader_profile: product_owner    # named profile in ../readers.md; exercises the named-profile branch
   finding_state: complete
   finding_outcome: answered

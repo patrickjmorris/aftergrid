@@ -10,7 +10,7 @@ recorded_on: "2026-09-16"
 input:
   path: input
   manifest_content_digest: 75a61c6ec9ae95c70c28c6c3675dd2bb3759c66d644d681efc75448a970193a7
-  analysis_yaml_sha256: e3058d1a0a174034486e65953a736695d79de83250aca8b6129fa4ca31cc7157
+  analysis_yaml_sha256: 30042162df0c88bfabe24ced88120c513f9ffed2e6046adcb1359941f569796f
   reader_profile: generic
   finding_state: draft
   finding_outcome: pending
@@ -18,7 +18,7 @@ input:
 output:
   path: output
   manifest_content_digest: c35176e9e96d887735b5979b2682f1f3240c2118de72785a8684d0ac15fd6b45
-  analysis_yaml_sha256: e3058d1a0a174034486e65953a736695d79de83250aca8b6129fa4ca31cc7157
+  analysis_yaml_sha256: 30042162df0c88bfabe24ced88120c513f9ffed2e6046adcb1359941f569796f
   reader_profile: generic          # the Engine fallback; exercises the generic branch and its disclosure
   finding_state: complete
   finding_outcome: insufficient_data

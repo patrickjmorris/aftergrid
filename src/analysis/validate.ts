@@ -13,6 +13,12 @@
 //   3. A causal Claim carries the design that earns it. `type: causal` with anything but
 //      `causal_basis: randomised_assignment` is an associational Claim wearing a causal word.
 //
+// `probes` is the account of the middle of the analysis, and it is read as a timeline: each entry carries `at`
+// (the harness's clock when the look was taken) and a `kind` of `exploratory`, `dead_end` or `reframe`; a
+// `reframe` says what changed; a dead end is recorded, never deleted. Probes out of `at` order are a WARNING
+// from `analysisWarnings`, not an error — a list written up late is still worth having, and saying so is
+// better than refusing it or quietly re-sorting it.
+//
 // The file is optional. A Finding with no `analysis.yaml` — a hand-authored exemplar, a draft that has not
 // reached the analysis yet — returns no problems, because absence is not a defect. A file at
 // `stage: clarified` is the /grill-question seed: complete for that stage, and not yet required to carry
@@ -30,6 +36,9 @@ export const ANALYSIS_FILE = "analysis.yaml";
 const SCHEMA_PATH = fileURLToPath(new URL("./analysis.schema.json", import.meta.url));
 
 export type AnalysisStage = "clarified" | "analysed";
+/** What a probe was: a look that informed the plan, a path abandoned, or a look that changed the Question. */
+export type ProbeKind = "exploratory" | "dead_end" | "reframe";
+export type Probe = { id: string; at: string; kind: ProbeKind; question: string; observed: string; sql_path?: string; changed_plan?: string };
 export type ExecutionStep = { kind: "probe" | "check" | "query"; id: string; exploratory?: boolean; post_hoc?: boolean; note?: string };
 export type RequestedDerived = { id: string; operation: string; operands: string[]; unit: string; display?: Record<string, unknown>; description?: string };
 export type RequestedExternalSource = { id: string; kind: string; value: number | string; unit: string; source: Record<string, unknown> };
@@ -39,7 +48,7 @@ export type Analysis = {
   reader_profile: string;
   assumptions: { id: string; statement: string; basis: string; settled_by?: string; affects?: string[] }[];
   pre_registered_comparison?: { statement: string; registered_before_cuts: boolean; registered_at?: string; source?: string };
-  probes?: { id: string; kind: "exploratory"; question: string; observed: string; sql_path?: string; changed_plan?: string }[];
+  probes?: Probe[];
   execution_order?: ExecutionStep[];
   candidate_claims?: Record<string, any>[];
   requested_derived?: RequestedDerived[];
@@ -78,6 +87,27 @@ export function analysisStage(analysis: Analysis | null): AnalysisStage {
 const VALUE_REF = /^(?:ref:([a-z][a-z0-9_]{0,63})\.([A-Za-z0-9_-]{1,64})\.([a-z][a-z0-9_]{0,63})|derived:([a-z][a-z0-9_]{0,63})|ext:([a-z][a-z0-9_]{0,63}))$/;
 
 /**
+ * The remedy for one schema error. The stage rule and the probe rules earn their own words, because "fix it
+ * against the schema" is no help to someone who has just been told a probe is missing a field they never knew
+ * about; everything else gets the generic pointer.
+ */
+function remedyFor(e: any): string {
+  const missing: string | undefined = e.params?.missingProperty;
+  const path: string = e.instancePath ?? "";
+  if (missing && ["probes", "execution_order", "candidate_claims", "outcome_recommendation"].includes(missing)) {
+    return "an analysis.yaml that has not reached the analysis yet declares `stage: clarified`; the four evidence sections are required only at `stage: analysed` (docs/contracts/analysis-directory.md)";
+  }
+  if (/^\/probes\/\d+/.test(path)) {
+    if (missing === "at") return "every probe carries `at`, the time the harness's clock read when the look was taken (RFC 3339 with an offset). It is never invented after the fact: a probe whose time was not recorded says so in `observed` rather than carrying a plausible one";
+    if (missing === "kind") return "every probe carries `kind`: `exploratory` for a look that informed the plan, `dead_end` for a path tried or considered and abandoned, `reframe` for a look that changed the Question";
+    if (missing === "changed_plan") return "a `reframe` probe names what changed: record `changed_plan` with the Question change, and the `/grill-question` revisit if one happened — or record the probe as `exploratory` or `dead_end`";
+    if (/\/kind$/.test(path)) return "a probe is `exploratory`, `dead_end` or `reframe`; a dead end is recorded, never deleted";
+    if (/\/at$/.test(path)) return "`at` is an RFC 3339 timestamp with an offset, for example 2026-09-16T11:20:00Z";
+  }
+  return "fix analysis.yaml against src/analysis/analysis.schema.json (docs/contracts/analysis-directory.md)";
+}
+
+/**
  * Every problem with the Analysis file in `dir`, as report entries. Empty when there is no file.
  * `manifest` is optional: without it the cross-reference rules are skipped and the info line says so.
  */
@@ -106,10 +136,7 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
       const detail = e.params?.additionalProperty ? ` ('${e.params.additionalProperty}')`
         : e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues)
         : e.params?.missingProperty ? ` ('${e.params.missingProperty}')` : "";
-      err(`${ANALYSIS_FILE}#${e.instancePath || "/"}`, `${e.message}${detail}`,
-        e.params?.missingProperty && ["probes", "execution_order", "candidate_claims", "outcome_recommendation"].includes(e.params.missingProperty)
-          ? "an analysis.yaml that has not reached the analysis yet declares `stage: clarified`; the four evidence sections are required only at `stage: analysed` (docs/contracts/analysis-directory.md)"
-          : "fix analysis.yaml against src/analysis/analysis.schema.json (docs/contracts/analysis-directory.md)");
+      err(`${ANALYSIS_FILE}#${e.instancePath || "/"}`, `${e.message}${detail}`, remedyFor(e));
     }
     return problems;   // Shape first: the rules below read fields the schema just rejected.
   }
@@ -258,6 +285,36 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   return problems;
 }
 
+/**
+ * What is worth saying about the Analysis file and is not a defect. Empty when there is no file. Never throws.
+ *
+ * Today that is one rule: `probes` is the account of the middle of the analysis, so it is kept in the order the
+ * looks were taken. A probe timestamped before the one above it means the list is not the timeline it reads as
+ * — worth reporting, and not worth refusing a Finding over, because the honest repair is to fix the times, not
+ * to re-sort the list until it looks orderly.
+ */
+export function analysisWarnings(dir: string): Problem[] {
+  let analysis: Analysis | null;
+  try { analysis = readAnalysis(dir); } catch { return []; }
+  const probes = Array.isArray(analysis?.probes) ? analysis!.probes! : [];
+  const warnings: Problem[] = [];
+  // An unparseable or absent `at` is the schema's error to report, so it is skipped rather than double-reported.
+  const timed = probes
+    .map((probe, i) => ({ probe, i, ms: Date.parse(String(probe?.at)) }))
+    .filter((p) => Number.isFinite(p.ms));
+  for (let n = 1; n < timed.length; n++) {
+    const here = timed[n]!, before = timed[n - 1]!;
+    if (here.ms >= before.ms) continue;
+    warnings.push({
+      category: "analysis_contract",
+      location: `${ANALYSIS_FILE}#/probes/${here.i}/at`,
+      message: `probe '${here.probe.id}' is timestamped ${here.probe.at}, earlier than probe '${before.probe.id}' at ${before.probe.at}; probes are read as the timeline of the middle of the analysis`,
+      remedy: "record each probe when it happens, in order. A look taken after a result is recorded where it happened (post_hoc: true on its execution_order step), not moved up the list, and a wrong time is corrected rather than re-sorted around",
+    });
+  }
+  return warnings;
+}
+
 /** One line per fact worth reporting from an Analysis file; empty when there is no file. Never throws. */
 export function analysisSummary(dir: string): string[] {
   let analysis: Analysis | null;
@@ -280,7 +337,10 @@ export function analysisSummary(dir: string): string[] {
   } else {
     lines.push("analysis.yaml: no execution order recorded yet");
   }
-  lines.push(`analysis.yaml: ${(analysis.assumptions ?? []).length} assumption(s), ${(analysis.probes ?? []).length} exploratory probe(s), ${(analysis.candidate_claims ?? []).length} candidate Claim(s)`);
+  const probeList = analysis.probes ?? [];
+  const byKind = (k: ProbeKind) => probeList.filter((p) => p?.kind === k).length;
+  const kinds = `${byKind("exploratory")} exploratory, ${byKind("dead_end")} dead end(s), ${byKind("reframe")} reframe(s)`;
+  lines.push(`analysis.yaml: ${(analysis.assumptions ?? []).length} assumption(s), ${probeList.length} probe(s) (${kinds}), ${(analysis.candidate_claims ?? []).length} candidate Claim(s)`);
   if (!analysis.pre_registered_comparison) lines.push("analysis.yaml: no pre-registered comparison recorded; every Claim here is exploratory");
   else if (!analysis.pre_registered_comparison.registered_before_cuts) lines.push("analysis.yaml: the primary comparison was registered AFTER cuts were explored, and says so");
   for (const n of analysis.needs_input ?? []) lines.push(`analysis.yaml needs input (${n?.kind}, owner ${n?.owner}): ${n?.description}`);

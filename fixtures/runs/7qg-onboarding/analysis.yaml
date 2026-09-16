@@ -33,18 +33,24 @@ pre_registered_comparison:
   registered_at: "2026-07-20T11:40:00Z"
   source: question.primary_comparison in manifest.yaml, settled in clarification round 2 before any data was read
 
+# The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
+# the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
+# the look is taken, which is what the schema and /checked-analysis step 2 require.
 probes:
   - id: p_catalog
+    at: "2026-07-20T12:05:00Z"
     kind: exploratory
     question: Which tables and columns exist, and is there anything that records the onboarding a user actually saw rather than the one they were assigned?
     observed: users carries signed_up_at, platform, onboarding_variant and country; events carries event and timestamp. Nothing records that a user saw the checklist — only the arm they were assigned to.
     changed_plan: The population is "assigned to", not "saw", and the Claim's population field says so. An intention-to-treat comparison is the only one the data supports.
   - id: p_arm_counts
+    at: "2026-07-20T12:20:00Z"
     kind: exploratory
     question: Are both arms large enough for the comparison to be worth running, and are they roughly balanced as random assignment should make them?
     observed: 624 users assigned the checklist and 653 assigned the old onboarding inside the window; both well above the 500-per-arm bar the falsifier needs.
     changed_plan: The falsifier can be written as an evaluable Check. Arm balance became an invariant Check of its own rather than an eyeballed observation.
   - id: p_event_lateness
+    at: "2026-07-20T12:40:00Z"
     kind: exploratory
     question: Do app_open events arrive late enough that the last cohort's seventh day could still be filling in?
     observed: Events for signups up to 2026-07-12 are complete through 2026-07-19 in the extract; nothing after 2026-07-19 is included.

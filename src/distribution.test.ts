@@ -289,3 +289,39 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
   }
   assert.ok(invocations >= 3, `expected the recorded path to be shown as a command, found ${invocations} \`aftergrid record\` invocation(s)`);
 });
+
+// ag-3ce: the middle of an analysis is recorded in place, so the skill a harness ships has to say how.
+test("checked-analysis step 2 records each probe with its time, its kind, and the dead ends kept", () => {
+  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+  const two = step(skill, 2);
+
+  assert.match(two, /`at`/, "step 2 must name the `at` field a probe carries");
+  assert.match(two, /harness's clock/, "and say the time comes from the harness's clock");
+  assert.match(two, /[Nn]ever a time (worked out|invented)/, "and that it is not reconstructed after the fact");
+  for (const kind of ["exploratory", "dead_end", "reframe"]) {
+    assert.match(two, new RegExp(`\`${kind}\``), `step 2 must name the probe kind \`${kind}\``);
+  }
+  assert.match(two, /dead end is recorded, not deleted/i, "step 2 must say a dead end is kept rather than removed");
+  assert.match(two, /reframe[\s\S]{0,400}\/grill-question/, "a reframe must point at the Question change and the revisit");
+  assert.doesNotMatch(two, /Probes are `kind: exploratory`/, "step 2 may no longer say every probe is exploratory");
+
+  // The hand-over reads the same list as the account of the middle, and names what the writer may do with it.
+  const seven = step(skill, 7);
+  assert.match(seven, /`at` order/, "step 7 must hand the probes over in the order they happened");
+  assert.match(seven, /dead end/i, "step 7 must tell the writer the dead ends are there");
+  assert.match(seven, /Limitations/, "and where a dead end may legitimately appear in the Finding");
+
+  // The docs page and the OpenAI prompt carry the same instruction, not a different one.
+  const doc = readFileSync(join(REPO, "docs", "skills", "checked-analysis.md"), "utf8");
+  assert.match(doc, /dead_end/, "the docs page must name the kinds the skill writes");
+  const openai = readFileSync(openaiFile(REPO, "checked-analysis"), "utf8");
+  for (const token of ["at", "dead_end", "reframe"]) {
+    assert.ok(openai.includes(token), `the openai.yaml prompt must carry ${token}`);
+  }
+
+  // And the schema the prose describes really requires both fields, so the two cannot drift apart.
+  const schema: any = JSON.parse(readFileSync(join(REPO, "src", "analysis", "analysis.schema.json"), "utf8"));
+  const probe = schema.properties.probes.items;
+  assert.ok(probe.required.includes("at") && probe.required.includes("kind"), JSON.stringify(probe.required));
+  assert.deepEqual(probe.properties.kind.enum, ["exploratory", "dead_end", "reframe"]);
+});

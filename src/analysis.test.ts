@@ -22,7 +22,7 @@ import { newFinding } from "./commands/new-finding.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
 import { check } from "./commands/check.ts";
-import { validateAnalysisFile } from "./analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings } from "./analysis/validate.ts";
 import { proposeDefinition } from "./analysis/definitions.ts";
 
 const REPO = fileURLToPath(new URL("../", import.meta.url));
@@ -707,7 +707,7 @@ test("candidate Claims may cite values the writer will create, named under reque
 test("a probe taken after a result was seen is recorded where it happened, marked post_hoc", () => {
   const dir = mkdtempSync(join(tmpdir(), "ag-posthoc-"));
   const late = analysedFor({
-    probes: [{ id: "p_late_look", kind: "exploratory", question: "Does the gap hold inside each signup week?", observed: "It does in five of six weeks.", changed_plan: "Nothing: it is a lead for the next experiment." }],
+    probes: [{ id: "p_late_look", at: "2026-07-20T15:40:00Z", kind: "exploratory", question: "Does the gap hold inside each signup week?", observed: "It does in five of six weeks.", changed_plan: "Nothing: it is a lead for the next experiment." }],
   });
   late.execution_order = [...late.execution_order, { kind: "probe", id: "p_late_look", post_hoc: true, note: "Taken after the headline table was read." }];
   writeFileSync(join(dir, "analysis.yaml"), toYaml(late, { lineWidth: 0 }));
@@ -763,4 +763,121 @@ test("the Analysis file's comparison kinds are the manifest's, and the proposed 
   const expression = /case when platform in \('ios', 'android'\) then 'mobile' else 'web' end/;
   assert.match(proposal, expression, "the proposal's canonical SQL is the expression the query ran");
   assert.match(sql, expression, "and the query still uses it");
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// ag-3ce: the middle of the analysis is recorded in place. A probe carries the time it was taken and what
+// kind of look it was, a reframe says what changed, dead ends are kept, and the list reads as a timeline.
+// ---------------------------------------------------------------------------------------------------------
+
+/** One probe, with the given overrides, complete enough to be legal on its own. */
+function probe(over: Record<string, any> = {}): any {
+  return {
+    id: "p_catalog", at: "2026-07-20T12:05:00Z", kind: "exploratory",
+    question: "Does anything record which onboarding a user saw, rather than which they were assigned?",
+    observed: "Nothing does; only the assigned arm is stored.",
+    changed_plan: "The population is 'assigned to', not 'saw'.",
+    ...over,
+  };
+}
+
+test("a probe records when it was taken and what kind of look it was, and both are required", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-probe-kind-"));
+  const write = (probes: any[]) => writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor({ probes }), { lineWidth: 0 }));
+
+  write([probe()]);
+  assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
+
+  const { at: _dropped, ...noTime } = probe();
+  write([noTime]);
+  const untimed = validateAnalysisFile(dir);
+  assert.ok(untimed.some((p) => p.location === "analysis.yaml#/probes/0" && /'at'/.test(p.message)), JSON.stringify(untimed));
+  assert.match(untimed[0]!.remedy ?? "", /harness's clock/, "the remedy says where the time comes from, not just which field is missing");
+  assert.match(untimed[0]!.remedy ?? "", /never invented after the fact/, "and that it is not invented afterwards");
+
+  write([probe({ at: "the morning of the 20th" })]);
+  assert.ok(validateAnalysisFile(dir).some((p) => p.location === "analysis.yaml#/probes/0/at"), "a prose time is not a timestamp");
+
+  const { kind: _noKind, ...unkinded } = probe();
+  write([unkinded]);
+  assert.ok(validateAnalysisFile(dir).some((p) => /'kind'/.test(p.message)), "kind is required");
+
+  write([probe({ kind: "hunch" })]);
+  const wrongKind = validateAnalysisFile(dir);
+  assert.ok(wrongKind.some((p) => p.location === "analysis.yaml#/probes/0/kind"), JSON.stringify(wrongKind));
+  assert.match(JSON.stringify(wrongKind), /dead_end/, "the three kinds are named in the report");
+
+  // All three kinds are legal, and a dead end is a first-class entry rather than something to delete.
+  for (const kind of ["exploratory", "dead_end", "reframe"]) {
+    write([probe({ kind, changed_plan: "Recorded; the plan went the other way." })]);
+    assert.deepEqual(validateAnalysisFile(dir), [], `${kind} is a legal probe kind`);
+  }
+});
+
+test("a reframe probe names what changed, and a reframe that names nothing is refused", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-reframe-"));
+  const write = (probes: any[]) => writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor({ probes }), { lineWidth: 0 }));
+
+  const { changed_plan: _none, ...silent } = probe({ kind: "reframe" });
+  write([silent]);
+  const refused = validateAnalysisFile(dir);
+  assert.ok(refused.some((p) => /^analysis\.yaml#\/probes\/0/.test(p.location) && /'changed_plan'/.test(p.message)), JSON.stringify(refused));
+  assert.ok(refused.some((p) => /grill-question/.test(p.remedy ?? "")), "the remedy points at the Question change and the revisit");
+
+  // An exploratory probe is under no such obligation: `changed_plan` stays optional there.
+  write([{ ...silent, kind: "exploratory" }]);
+  assert.deepEqual(validateAnalysisFile(dir), [], "a look that changed nothing is still a look worth recording");
+
+  write([probe({ kind: "reframe", changed_plan: "Question reframed from 'does video cause ranking' to 'is video associated with ranking'; /grill-question revisited the same afternoon." })]);
+  assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
+});
+
+test("probes out of timeline order are a warning, never an error: the fix is the times, not the sort", async () => {
+  const { dir } = await builtFinding();
+  const ordered = [probe({ id: "p1", at: "2026-07-20T12:05:00Z" }), probe({ id: "p2", at: "2026-07-20T12:40:00Z" })];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor({ probes: ordered }), { lineWidth: 0 }));
+  assert.deepEqual(analysisWarnings(dir), [], "a list in the order it happened has nothing to report");
+
+  const backwards = [ordered[0], probe({ id: "p2", at: "2026-07-20T11:00:00Z" })];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor({ probes: backwards }), { lineWidth: 0 }));
+  const warnings = analysisWarnings(dir);
+  assert.equal(warnings.length, 1, JSON.stringify(warnings));
+  assert.equal(warnings[0]!.location, "analysis.yaml#/probes/1/at");
+  assert.match(warnings[0]!.message, /timeline/, "the message says what the order is for");
+  assert.deepEqual(validateAnalysisFile(dir), [], "and the Analysis is not refused over it");
+
+  // check reports it where a warning goes, and the Finding is not failed over it.
+  const report = await check({ dir, github: null });
+  assert.ok(report.warnings.some((w) => w.location === "analysis.yaml#/probes/1/at"), JSON.stringify(report.warnings));
+  assert.ok(!report.errors.some((e) => /probes/.test(e.location)), JSON.stringify(report.errors));
+
+  // Equal timestamps are non-decreasing: two looks taken in the same minute are not a defect.
+  const together = [probe({ id: "p1", at: "2026-07-20T12:05:00Z" }), probe({ id: "p2", at: "2026-07-20T12:05:00Z" })];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor({ probes: together }), { lineWidth: 0 }));
+  assert.deepEqual(analysisWarnings(dir), [], "non-decreasing, not strictly increasing");
+});
+
+test("every recorded run's probes carry a time and a kind, in order, with the dead end kept", () => {
+  const files = [
+    join(RUNS, "7qg-onboarding", "analysis.yaml"),
+    join(RUNS, "7qg-referral", "analysis.yaml"),
+    join(RUNS, "kpc-numeric", "input", "analysis.yaml"),
+    join(RUNS, "kpc-insufficient", "input", "analysis.yaml"),
+  ];
+  const kinds = new Set<string>();
+  for (const file of files) {
+    const analysis: any = parseYaml(readFileSync(file, "utf8"));
+    assert.ok(analysis.probes.length, `${file}: a recorded run's middle is not empty`);
+    let previous = 0;
+    for (const p of analysis.probes) {
+      const at = Date.parse(p.at);
+      assert.ok(Number.isFinite(at), `${file}: probe ${p.id} has no parseable at`);
+      assert.ok(["exploratory", "dead_end", "reframe"].includes(p.kind), `${file}: probe ${p.id} kind ${p.kind}`);
+      assert.ok(at >= previous, `${file}: probe ${p.id} is timestamped before the one above it`);
+      previous = at;
+      kinds.add(p.kind);
+    }
+    assert.deepEqual(analysisWarnings(join(file, "..")), [], `${file}: recorded probes read as a timeline`);
+  }
+  assert.ok(kinds.has("dead_end"), "a path considered and abandoned is recorded as one, not deleted from the run");
 });

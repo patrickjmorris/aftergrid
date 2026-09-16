@@ -52,13 +52,18 @@ pre_registered_comparison:
 # here and deliberately left out of execution_order: both were taken after the primary comparison had run,
 # and execution_order is grouped probe -> check -> query, so recording them first would misstate the order.
 # The queries they informed are in execution_order below, with the probe named in the note.
+# The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
+# the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
+# the look is taken, which is what the schema and /checked-analysis step 2 require.
 probes:
   - id: p1
+    at: "2026-09-15T22:50:00Z"
     kind: exploratory
     question: Is the difference an artefact of one or two signup weeks?
     observed: The checklist group is ahead in every signup week; the gap moves week to week but never reverses.
     changed_plan: Kept as stability evidence for the primary comparison, not promoted to a Claim of its own. The retention_by_week_arm query was retained.
   - id: p2
+    at: "2026-09-15T23:05:00Z"
     kind: exploratory
     question: Does the difference look the same on mobile and on the web?
     observed: The gap is large on mobile and near zero on the web, with small web groups.

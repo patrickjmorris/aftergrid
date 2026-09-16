@@ -32,7 +32,7 @@ import { retainedOpenerFor } from "./check.ts";
 import { AdapterError, type RetainedSession } from "../adapters/contract.ts";
 import { serializeResult, type DeclaredColumn } from "../adapters/serialize.ts";
 import { contentDigest, sha256 } from "../digest.ts";
-import { validateAnalysisFile, analysisSummary, analysisStage, readAnalysis } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings, analysisSummary, analysisStage, readAnalysis } from "../analysis/validate.ts";
 // @ts-ignore: the shared digest envelope and definition hash, as `check` and the fixture build compute them.
 import { digestOf, definitionHash } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: the shared Check-shape rule.
@@ -271,6 +271,7 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
   let analysisProblems: Problem[] = [];
   try {
     analysisProblems = validateAnalysisFile(dir, doc.toJS());
+    report.warnings.push(...analysisWarnings(dir));   // Probes out of timeline order: said, never refused.
     report.info.push(...analysisSummary(dir));
   } catch (e) {
     analysisProblems = [{
