@@ -103,6 +103,19 @@ Confirmed and fixed:
 
 Not established: the headless `claude -p /analyze --plugin-dir …` invocation has never run; the first scheduled run with the secret is the test. The nightly issue label `aftergrid-eval` must exist before `report_issues` is useful.
 
+### ag-3cp (record) and ag-olp (skills on the recorded path)
+
+ADR 0010 work, same process: worktree implementation (80bf549; olp 8aa9195), adversarial review, fix round (62b4ee7), independent re-verification.
+
+Confirmed and fixed on `record`:
+
+- P1 `--sql` fell back to inline text when the path did not exist, so a typo overwrote the real query file with the path string, re-pinned every hash and the digest, and `check` reported evidence valid. Now a path-shaped argument to nothing is refused, and inline text without a SQL keyword is refused; nothing written.
+- P1 The rendered Data fact keyed off `guarantees` and told the Reader "Retained inputs are kept" with a green mark on a Finding with no retained inputs. Now keyed off `snapshot.inputs`; the recorded state says no copy of the data was kept and the queries cannot be rerun here.
+- P2 The pre-record manifest state `/checked-analysis` writes was schema-invalid, so the "declared but not recorded" warning was unreachable; a harness-recorded execution could still carry an adapter and retained inputs and render as adapter-verified; CSV integer cells were coerced by `Number()` (`7.0`, `1e3`, `0x10`) where the adapter route refuses.
+- P3 Quoted empty CSV strings became NULL, CR stripped mid-field, all-empty trailing row dropped; re-recording a Check left the old evidence file outside the digest; `--executed-at` undocumented and unvalidated; info notes printed on refused runs; exit-code paragraph promised 2 where the code exits 1; the generated exemplar carried two contradictory header comments.
+
+Skills (olp): steps 3 and 6 of `/checked-analysis` now open on the recorded path (harness runs the SQL, `aftergrid record` pins it, Checks are agent-reported with evidence, readiness never ready), the adapter path follows as the upgrade; `/analyze` no longer lists a missing adapter as a halt; three content tests pin the wording to the CLI's actual flags. Left for ag-ag-recorded-path-followups-q2l: setup still requires an adapter; write-finding and revise-finding still read coverage and re-runs from retained inputs.
+
 ## Not covered by this record
 
 - The human Reader session (a2f) and the manual real Finding (db2) are owner gates and were not touched.

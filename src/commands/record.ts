@@ -84,9 +84,14 @@ const TIMESTAMP = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9
  * directory separator. A typo in such a path must not be recorded as the query the harness ran (it would
  * overwrite the real query file with the path string and re-pin every hash over it).
  */
-const looksLikePath = (arg: string) => !/\s/.test(arg) && (/\.sql$/i.test(arg) || arg.includes("/") || arg.includes("\\"));
-/** The cheapest honest test that an inline `--sql` argument is SQL at all, rather than a note about it. */
-const looksLikeSql = (text: string) => /\b(select|with|values)\b/i.test(text);
+const looksLikePath = (arg: string) =>
+  /\.sql$/i.test(arg.trim()) || (!/\s/.test(arg) && (arg.includes("/") || arg.includes("\\")));
+/**
+ * The cheapest honest test that an inline `--sql` argument is SQL at all, rather than a note about it or a path
+ * with a keyword in a directory name (`Sales values/q`): a statement shape, not a bare keyword.
+ */
+const looksLikeSql = (text: string) =>
+  /\bselect\b[\s\S]+\bfrom\b/i.test(text) || /^\s*select\b/i.test(text) || /\bwith\b[\s\S]+\bas\s*\(/i.test(text) || /\bvalues\s*\(/i.test(text);
 
 /**
  * One RFC 4180 record set: a header row of column names plus typed-by-declaration rows.

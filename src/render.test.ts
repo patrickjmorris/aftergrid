@@ -141,3 +141,20 @@ test("a recorded Finding says on the page who ran it, in one line beside the oth
   assert.ok(html.includes("the source, read by duckdb cli; aftergrid recorded the result and did not run the query"), "the value popover does not claim a retained copy");
   assert.ok(!html.includes("retained inputs not recorded"), "and it does not report the recorded path as a missing record");
 });
+
+test("retained inputs with an empty guarantee list are reported as kept but unproven, never as a malformed promise", async () => {
+  // capture leaves guarantees empty and execute empties it when a run saved no result; both are real states.
+  const root = copy();
+  const dir = finding(root, INSUFFICIENT);
+  const mp = join(dir, "manifest.yaml");
+  const m = parseYaml(readFileSync(mp, "utf8"));
+  m.snapshot.guarantees = []; m.attestations = []; m.reviews = [];
+  m.content_digest = digestOf(m, dir);
+  writeFileSync(mp, toYaml(m, { lineWidth: 0 }));
+  const r = await render({ dir, generatedAt: "2026-09-16T12:00:00Z" });
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  const html = readFileSync(join(dir, "render", "finding.html"), "utf8");
+  assert.ok(html.includes('<span class="mk wn">!</span><span><strong>Data</strong> Retained inputs are kept, but no replay or rerun from them has been recorded yet.'), "kept, unproven, with a warning mark");
+  assert.ok(!/are possible\./.test(html), "no guarantee is named when none is held");
+  assert.ok(!/mk ok">✓<\/span><span><strong>Data/.test(html), "the ok mark is reserved for a held guarantee");
+});

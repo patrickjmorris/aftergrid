@@ -273,7 +273,11 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     // nothing and still guarantees artifact_replay, so reading the guarantees as a kept copy would tell a Reader
     // the opposite of what the provenance popover on every value says.
     (m.snapshot.inputs ?? []).length
-      ? fact("ok", "Data", `Retained inputs are kept: ${m.snapshot.guarantees.map((g: string) => esc(g.replace(/_/g, " "))).join(" and ")} are possible.`)
+      ? (m.snapshot.guarantees ?? []).length
+        ? fact("ok", "Data", `Retained inputs are kept: ${m.snapshot.guarantees.map((g: string) => esc(g.replace(/_/g, " "))).join(" and ")} are possible.`)
+        // capture leaves the guarantee list empty and execute empties it when a run saved no result: the copy
+        // exists, nothing has been shown to replay from it yet.
+        : fact("wn", "Data", "Retained inputs are kept, but no replay or rerun from them has been recorded yet.")
       : recordedTools.length
         ? fact("no", "Data", "No copy of the data was kept. The saved results replay byte for byte; the queries cannot be rerun here.")
         : fact("no", "Data", "Inputs were not retained; these numbers are not reproducible."),

@@ -573,3 +573,26 @@ test("the recorded exemplar carries one header, the one its builder writes", () 
   assert.equal(header.filter((l) => /^# Exemplar:/.test(l)).length, 1, "not the source exemplar's header as well, saying the opposite about retained inputs");
   assert.ok(!text.includes("scripts/fixture-tool.mjs build"), "and not the source exemplar's account of how it was pinned");
 });
+
+test("a --sql path with whitespace in it, or a keyword in a directory name, is still a path and not the query", async () => {
+  // "my values/nope.sql" holds a SQL keyword and a space: neither makes it the query the harness ran.
+  const spaced = declaredFinding();
+  const before = readFileSync(join(spaced.dir, "manifest.yaml"), "utf8");
+  const refused = await record({ dir: spaced.dir, tool: "psql", execution: "ex_cancellations", sql: "/tmp/ag-nothing-here/my values/nope.sql", result: toolOutput("r.json", JSON_RESULT) });
+  assert.ok(refused.errors.some((e) => e.category === "missing_file" && e.location === "--sql"), JSON.stringify(refused.errors));
+  assert.equal(readFileSync(join(spaced.dir, "queries", "cancellations.sql"), "utf8"), CANCELLATIONS_SQL);
+  assert.equal(readFileSync(join(spaced.dir, "manifest.yaml"), "utf8"), before);
+
+  // A bare keyword inside a path-like string without .sql is not a statement either.
+  const keyworded = declaredFinding();
+  const alsoRefused = await record({ dir: keyworded.dir, tool: "psql", execution: "ex_cancellations", sql: "/tmp/ag-nothing-here/Sales values/q", result: toolOutput("r.json", JSON_RESULT) });
+  assert.ok(alsoRefused.errors.some((e) => e.location === "--sql"), JSON.stringify(alsoRefused.errors));
+  assert.equal(readFileSync(join(keyworded.dir, "queries", "cancellations.sql"), "utf8"), CANCELLATIONS_SQL);
+
+  // Real statements of every shape the test admits are still accepted inline.
+  for (const sql of ["SELECT 1", "select count(*) as n from subscriptions", "with x as (select 1 as n) select n from x", "values (1, 2)"]) {
+    const ok = declaredFinding();
+    const r = await record({ dir: ok.dir, tool: "psql", execution: "ex_cancellations", sql, result: toolOutput("r.json", JSON_RESULT), params: ["change_date=2026-09-08"] });
+    assert.ok(!r.errors.some((e) => e.location === "--sql"), `${sql}: ${JSON.stringify(r.errors)}`);
+  }
+});

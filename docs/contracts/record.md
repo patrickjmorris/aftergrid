@@ -31,8 +31,9 @@ refused (`invalid_artifact`) before anything is written, rather than pinned and 
 next `check`.
 
 `--sql` is a file when one exists at that path, and otherwise the SQL text itself. Two arguments are refused
-rather than taken as text: one that is **plainly a path to nothing** (no whitespace, and either a `.sql` name or
-a directory separator) and one given **inline that holds no SQL** (no `select`, `with` or `values` in it). Both
+rather than taken as text: one that is **plainly a path to nothing** (a `.sql` name, whitespace or not; or a
+directory separator with no whitespace) and one given **inline that holds no SQL statement** (no `select … from`,
+leading `select`, `with … as (` or `values (` in it, so a keyword inside a directory name does not pass). Both
 would otherwise be written into the declared query file as the query the harness ran, with every hash re-pinned
 over it — a mistyped path is how a Finding ends up with its real query replaced by a 39-byte string that `check`
 reports as valid evidence.
@@ -122,8 +123,8 @@ None of these has a flag to get past it. Nothing is written when any of them fir
 | `result_shape`, `value_type`, `row_key`, `duplicate_row_key`, `null_value` | The result does not match its declared shape. The same `validateResult` the adapter path uses. |
 | `sql_parameter` | No `analytical_timezone`, or a `--params` argument that is not `key=value`. |
 | `unresolved_reference` | `--execution` or `--check` names something the manifest does not declare. |
-| `missing_file` | No SQL at the declared query path and no `--sql`; a `--sql` argument that looks like a file path (no whitespace, and a `.sql` name or a directory separator) with no file there; or the result or evidence file does not exist. |
-| `invalid_artifact` | `--sql` given inline with no `select`, `with` or `values` in it; or an `--executed-at` that is not an RFC 3339 timestamp. |
+| `missing_file` | No SQL at the declared query path and no `--sql`; a `--sql` argument that looks like a file path (a `.sql` name, or a directory separator without whitespace) with no file there; or the result or evidence file does not exist. |
+| `invalid_artifact` | `--sql` given inline with no SQL statement shape in it (a bare keyword is not one); or an `--executed-at` that is not an RFC 3339 timestamp. |
 | `unsafe_path` | Any path inside the Finding that escapes it, or passes through a symlink. Every destination goes through `safePath`; the source may be anywhere, because only its bytes arrive. |
 | `incomplete` | No `--tool`, or not exactly one of `--execution` / `--check`. |
 
