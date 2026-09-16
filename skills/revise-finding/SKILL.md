@@ -104,13 +104,41 @@ review are required** before this revision is published.
 ### `numeric`
 
 Refuse, and say so plainly. `revise` wrote nothing. The request changes a number, a query, a retained input, an
-execution or the evidence a Claim rests on, so it reopens the Analysis:
+execution or the evidence a Claim rests on, so it reopens the Analysis. How it is re-run depends on which data
+path the Instance is on, and the recorded one is the default (ADR 0010).
+
+**Recorded path** — `executions[].mode: recorded`, `snapshot.inputs` empty, the Instance's
+`connection.adapter` absent or `none`. The harness re-runs the query with the tool that ran it the first time,
+and `aftergrid record` writes the new run down:
 
 ```bash
-aftergrid execute <finding-dir>     # re-run the Analysis, then take it through review again
+aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <new-result.json> --sql <file>
 ```
 
-Tell the Operator which file or field made it numeric, and that the Finding on disk is untouched.
+Three things that hold here, and nothing beyond them:
+
+- `record` **re-pins** what it is given — the SQL, the parameters, the result and their hashes, and the
+  `content_digest` over them. It does **not** archive anything and does **not** bump `finding.revision`.
+  `revisions/<N>/` comes from `aftergrid revise --pin` or `--apply`, and step 2 is where that happened.
+- Recording into a revision that carries attestations is **refused** (`stale_attestation`): evidence is inside
+  the digest an approval binds to. Bump `finding.revision` first and record into the new revision, which is
+  what the refusal itself says. Revision N stays readable in `revisions/<N>/`.
+- Pin the reviewed state **before** re-recording, not after. Once the new result is recorded, a `--pin` at the
+  same revision number reports `exists`, because `revisions/<N>/` already archives a different digest — the one
+  somebody reviewed — and `revise` never replaces an archive with a state nobody read.
+
+**Adapter path** — the Instance configures `duckdb` or `postgres` and the Finding holds retained inputs:
+
+```bash
+aftergrid execute <finding-dir>     # re-runs every execution and Check against the retained inputs
+```
+
+Either way the memo is then rewritten against the new results (`/write-finding`), `aftergrid check` and
+`aftergrid render` run again, and the Finding goes through review again: reviews bind the previous digest and
+do not carry.
+
+Tell the Operator which file or field made it numeric, which of the two routes their Instance is on, and that
+the Finding on disk is untouched by `revise`.
 
 ### `unknown`
 

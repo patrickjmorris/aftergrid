@@ -10,7 +10,9 @@
 // read to the analytical window happens in the analysis SQL, which converts to the analytical timezone
 // explicitly; it never happens here.
 //
-// Four refusals, none of them overridable from a flag:
+// Five refusals, none of them overridable from a flag:
+//   - An Instance with no adapter. That is the recorded path (ADR 0010) and the default: there is no source to
+//     copy from, and the refusal names `aftergrid record` rather than a connection to fix.
 //   - `--catalog` reads the catalog and writes nothing at all, so a plan can be checked against the columns that
 //     actually exist before any table is copied.
 //   - A revision carrying attestations is refused. Retained inputs are inside the content digest, so capturing
@@ -86,6 +88,17 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
   report.finding = manifest?.finding?.id ? `${manifest.finding.id} r${manifest.finding.revision}` : undefined;
   report.state = manifest?.finding?.state;
   report.outcome = manifest?.finding?.outcome;
+
+  // An Instance with no adapter is on the recorded path (ADR 0010), which is the default: there is no source
+  // for capture to copy from, and the route that does exist is named here rather than left to be inferred from
+  // "not a supported adapter".
+  const adapterName = String((instance.config as any)?.connection?.adapter ?? "");
+  if (adapterName === "" || adapterName === "none") {
+    err("recorded_path", "aftergrid.yaml#/connection/adapter",
+      `this Instance configures no adapter (${adapterName === "" ? "no connection.adapter" : "connection.adapter: none"}), so there is no source to capture from; nothing was read and nothing was written`,
+      'on the recorded path your harness runs the query and `aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>` writes down the SQL, the parameters, the result and the tool that produced them — the Finding then guarantees artifact_replay. To capture retained inputs instead, configure an adapter first: `aftergrid setup --instance <dir> --adapter duckdb --duckdb-path <file-or-csv-dir>` (or `--adapter postgres --pg-url-env <ENV_VAR_NAME>`).');
+    return report;
+  }
 
   let opened: { adapter: ReturnType<typeof openInstanceAdapter>["adapter"]; description: string };
   try {

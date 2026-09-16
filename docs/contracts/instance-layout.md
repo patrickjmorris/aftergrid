@@ -32,7 +32,10 @@ analytics/
 schema_version: 0.1.0
 instance_root: analytics
 connection:
-  adapter: duckdb | postgres
+  adapter: none | duckdb | postgres   # none is the default: the recorded path (ADR 0010, docs/contracts/record.md),
+                                      # where the harness runs the SQL and `aftergrid record` writes it down.
+                                      # With none, the duckdb/postgres blocks below are absent, `capture` and
+                                      # `execute` refuse with `recorded_path`, and unattended intake stays refused.
   # secrets are referenced, never stored
   duckdb: { path: data/warehouse.duckdb, read_only: true }
   postgres: { url_env: AFTERGRID_PG_URL, statement_timeout_ms: 30000, estimate_cap: 1000000 }

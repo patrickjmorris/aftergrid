@@ -10,6 +10,10 @@ runs every execution and Check against them and observes the outcomes mechanical
 earns `analysis_rerun`, which unlocks `check --mode rerun` and Revisit. That is the whole difference, and it is
 why no further connectors are built: a warehouse the Operator can reach from the harness is reachable enough.
 
+An Instance may therefore configure no adapter at all — `connection: { adapter: none }`, which is what
+`aftergrid setup` writes when no `--adapter` is given (`docs/contracts/setup.md`). `capture` and `execute` then
+refuse with `recorded_path`, naming `aftergrid record`; everything that does not open a source is unaffected.
+
 Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (the seam-2 tests in `src/adapters/*.test.ts`), never assumed. An unsupported required capability fails or takes an explicit, recorded fallback; it never reports a green capability or a zero cost.
 
 ## Behaviours every adapter implements

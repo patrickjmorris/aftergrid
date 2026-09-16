@@ -107,5 +107,14 @@ function sourceLimits(instance: Instance, facts: string[]): Problem[] {
     facts.push("source limits: duckdb read_only=true (declared here; enforced by the adapter)");
     return [];
   }
-  return missing(`connection.adapter is '${adapter || "unset"}', which has no declared limits for an unattended run`, "set connection.adapter to duckdb or postgres with its limits, as docs/contracts/instance-layout.md shows");
+  // `none` (or an absent field) is the recorded path, which is the default and is not a broken Instance — but
+  // an unattended run has no adapter to enforce a limit on a query nobody is watching, so it is still refused,
+  // with the same category and the reason stated in the Instance's own terms.
+  if (adapter === "none" || adapter === "") {
+    return missing(
+      "this Instance configures no adapter (the recorded path, ADR 0010), so an unattended run has no adapter to enforce a statement timeout or a row cap on a query nobody is watching",
+      "run this Analysis attended — your harness runs the SQL and `aftergrid record` writes down what it ran — or configure an adapter with its limits (`aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>`, or `--adapter postgres --pg-url-env <ENV_VAR_NAME>`), as docs/contracts/instance-layout.md shows",
+    );
+  }
+  return missing(`connection.adapter is '${adapter}', which has no declared limits for an unattended run`, "set connection.adapter to duckdb or postgres with its limits, as docs/contracts/instance-layout.md shows");
 }

@@ -10,7 +10,8 @@ asked for:
 - **interpretation** — the same numbers saying something else. Put to you first; applied on your say-so; Method
   and Question review are then required.
 - **numeric** — a different number. Refused. Nothing is written, and you are told which file or field made it
-  numeric and that the Analysis reopens.
+  numeric and that the Analysis reopens — on the recorded path by your harness re-running the query and
+  `aftergrid record` writing it down, on the adapter path by `aftergrid execute`.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`). Revising
 a reviewed Finding bumps its revision and drops its publication approval, so a human asks for it.
@@ -50,6 +51,14 @@ allowed to make. The `differences` list names the field that forced the class.
 evidence tokens, not English: rewording a Claim from "came back more often than" to "came back because of"
 keeps every token. Method review is what catches that, and this skill never claims to have reviewed anything.
 
+**How do I re-run a numeric change when nothing was retained?** Your harness re-runs the query with the tool
+that ran it before, and `aftergrid record <dir> --tool "<name>" --execution <id> --result <file>` writes the new
+run down. `record` re-pins the SQL, the parameters, the result and the content digest; it does **not** archive
+anything and does **not** bump `finding.revision`. Archiving is `aftergrid revise --pin` or `--apply`, and it
+belongs **before** the re-record: afterwards a `--pin` at the same revision number reports `exists`, because
+`revisions/<N>/` already holds the digest somebody reviewed. If the revision carries an approval, `record`
+refuses outright (`stale_attestation`) and tells you to bump `finding.revision` and record into the new one.
+
 **It says `unknown`.** There is no baseline to compare against. Run `aftergrid revise <dir> --pin` on the
 Finding as it was reviewed, or pass `--baseline <dir>` naming a copy of it.
 
@@ -72,5 +81,6 @@ interpretation change at the moment it reaches the page — the same cost that e
 - An interpretation change is put to you **before** it is applied, and afterwards you are told Method and
   Question review are required.
 - A numeric request is refused, the Finding on disk is untouched, and you are given the command that reopens
-  the Analysis.
+  the Analysis on the path your Instance is actually on: `aftergrid record` where nothing was retained,
+  `aftergrid execute` where it was.
 - Nothing in the summary claims a revision is reviewed or approved.

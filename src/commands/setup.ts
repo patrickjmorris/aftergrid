@@ -28,7 +28,12 @@ import { runSmoke } from "../setup/smoke.ts";
 export type SetupOptions = {
   /** Instance root. Default: `analytics/` under the current directory. */
   instanceDir?: string;
-  adapter?: "duckdb" | "postgres";
+  /**
+   * Which backend this Instance reads, or `none` — the default. `none` is the recorded path of ADR 0010: the
+   * harness runs the SQL and `aftergrid record` writes down what it ran. An adapter is the upgrade that earns
+   * `analysis_rerun`, `check --mode rerun` and Revisit; it is not a prerequisite for a Finding.
+   */
+  adapter?: "duckdb" | "postgres" | "none";
   /** DuckDB: a `.duckdb` file or a directory of `<table>.csv` files, inside the Instance. */
   duckdbPath?: string;
   /** Postgres: the NAME of the environment variable holding the connection string. Never the string itself. */
@@ -77,9 +82,11 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   report.evidence = "not_evaluated";
 
   const instanceRoot = resolve(opts.instanceDir ?? join(cwd, "analytics"));
-  const adapter = opts.adapter ?? "duckdb";
-  if (adapter !== "duckdb" && adapter !== "postgres") {
-    err("value_type", "--adapter", `'${adapter}' is not a supported adapter`, "use --adapter duckdb or --adapter postgres");
+  // No `--adapter` is the recorded path (ADR 0010), not a missing input: the harness owns the data path and
+  // `aftergrid record` writes down what it ran. duckdb and postgres are the upgrade, asked for by name.
+  const adapter = opts.adapter ?? "none";
+  if (adapter !== "duckdb" && adapter !== "postgres" && adapter !== "none") {
+    err("value_type", "--adapter", `'${adapter}' is not a supported adapter`, "use --adapter duckdb, --adapter postgres, or --adapter none (the default: the recorded path, where your harness runs the SQL and `aftergrid record` writes it down)");
     report.syntax = "invalid";
     return report;
   }
@@ -140,8 +147,10 @@ export async function setup(opts: SetupOptions): Promise<Report> {
       return report;
     }
     connectionSpec = { adapter: "duckdb", duckdbPath: rel };
-  } else {
+  } else if (adapter === "postgres") {
     connectionSpec = { adapter: "postgres", urlEnv: opts.pgUrlEnv! };
+  } else {
+    connectionSpec = { adapter: "none" };
   }
 
   const files = scaffoldFiles({
@@ -169,10 +178,16 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   if (!dryRun) record("scaffold", "completed", `${outcomes.filter((o) => o.status === "created").length} created, ${differs.length} kept and different`);
 
   // ---- step 2: hard dependencies --------------------------------------------------------------------------
+  // The DuckDB binding is hard for an Instance that reads through it. On the recorded path nothing in the
+  // Engine opens it, so its absence is reported as what it is — an upgrade that is not available yet — rather
+  // than as a missing requirement of a route that does not use it.
+  const duckdbBinding = await checkDuckDbBinding();
   const deps: DependencyResult[] = [
     checkNodeVersion(),
     findSkillsBundle(opts.skillsSearchPaths ?? defaultSkillsSearchPaths(cwd, env)),
-    await checkDuckDbBinding(),
+    adapter === "none"
+      ? { ...duckdbBinding, hard: false, detail: `${duckdbBinding.detail}${duckdbBinding.status === "present" ? "" : " — not needed on the recorded path, which runs no SQL from the Engine; it is needed to configure the duckdb adapter later"}` }
+      : duckdbBinding,
   ];
   if (adapter === "postgres") deps.push(checkPostgresRuntime());
   for (const d of deps) {
@@ -189,19 +204,34 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   if (!dryRun) record("dependencies", hardDepsOk ? "completed" : "incomplete", deps.map((d) => `${d.id}=${d.status}`).join(" "));
 
   // ---- step 3: connection and capabilities ----------------------------------------------------------------
-  const connection = await validateConnection({
-    instanceRoot,
-    connection: adapter === "duckdb" ? { adapter: "duckdb", path: duckdbAbs } : { adapter: "postgres", urlEnv: opts.pgUrlEnv! },
-  });
-  report.errors.push(...connection.problems);
-  report.warnings.push(...connection.warnings);
-  for (const line of connection.info) report.info.push(`connection: ${line}`);
-  if (connection.sqlExecuted) report.sql_execution = "performed";
-  const connectionOk = connection.validated && connection.problems.length === 0;
-  report.info.push(stepLine("connection", connectionOk ? "completed" : "incomplete", connectionOk
-    ? `${adapter} source opened and its capability matrix read from the adapter itself`
-    : `the ${adapter} source was not validated; nothing about its safety is claimed`));
-  if (!dryRun) record("connection", connectionOk ? "completed" : "incomplete", `${adapter} validated=${connection.validated}`);
+  // With no adapter there is no connection to validate, and nothing here pretends otherwise: the step is
+  // `skipped`, `sql_execution` stays `not_performed`, and what is unavailable is named rather than left to be
+  // discovered by a command that refuses later.
+  let connectionSettled: boolean;
+  if (adapter === "none") {
+    connectionSettled = true;
+    report.info.push("connection: no adapter is configured, so nothing was opened, no statement ran and no privilege was probed. This Instance is on the recorded path (ADR 0010): your harness runs the SQL with its own tool and `aftergrid record <finding-dir> --tool \"<name>\" …` writes down the query, the parameters, the result and the tool that produced them.");
+    report.info.push("connection: what a Finding gets here — artifact_replay, so the saved results replay byte for byte and every hash is verified by `aftergrid check`. What it does not get — analysis_rerun: `aftergrid capture` and `aftergrid execute` refuse and name `aftergrid record`, `aftergrid check --mode rerun` answers `rerun_unavailable`, and a Finding that cannot be rerun cannot be revisited.");
+    report.info.push("connection: unattended intake stays refused while there is no adapter — source limits are an adapter's to declare, and preflight reports `source_limits_missing` (docs/contracts/intake.md).");
+    report.info.push("connection: to upgrade, rerun setup with --adapter duckdb --duckdb-path <file-or-csv-dir>, or --adapter postgres --pg-url-env <ENV_VAR_NAME>. aftergrid.yaml is never overwritten, so copy the connection block setup prints into your own file.");
+    report.info.push(stepLine("connection", "skipped", "no adapter was configured; the recorded path is the default and needs none. Nothing about any source's safety is claimed, because no source was opened."));
+    if (!dryRun) record("connection", "skipped", "adapter=none (recorded path)");
+  } else {
+    const connection = await validateConnection({
+      instanceRoot,
+      connection: adapter === "duckdb" ? { adapter: "duckdb", path: duckdbAbs } : { adapter: "postgres", urlEnv: opts.pgUrlEnv! },
+    });
+    report.errors.push(...connection.problems);
+    report.warnings.push(...connection.warnings);
+    for (const line of connection.info) report.info.push(`connection: ${line}`);
+    if (connection.sqlExecuted) report.sql_execution = "performed";
+    const connectionOk = connection.validated && connection.problems.length === 0;
+    connectionSettled = connectionOk;
+    report.info.push(stepLine("connection", connectionOk ? "completed" : "incomplete", connectionOk
+      ? `${adapter} source opened and its capability matrix read from the adapter itself`
+      : `the ${adapter} source was not validated; nothing about its safety is claimed`));
+    if (!dryRun) record("connection", connectionOk ? "completed" : "incomplete", `${adapter} validated=${connection.validated}`);
+  }
 
   // ---- step 4: the guardrail hook -------------------------------------------------------------------------
   let hookActive = false;
@@ -273,12 +303,12 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   }
 
   // ---- what setup is, and is not, saying ------------------------------------------------------------------
-  const complete = !dryRun && hardDepsOk && connectionOk && (hookActive || false) && preflight.status === "ok" && state.steps.smoke?.status === "completed" && differs.length === 0;
+  const complete = !dryRun && hardDepsOk && connectionSettled && (hookActive || false) && preflight.status === "ok" && state.steps.smoke?.status === "completed" && differs.length === 0;
   report.content = complete ? "complete" : "incomplete";
   if (!complete && !dryRun) {
     const outstanding = [
       hardDepsOk ? null : "a hard dependency is missing",
-      connectionOk ? null : "the source connection was not validated",
+      connectionSettled ? null : "the source connection was not validated",
       hookActive ? null : opts.skipHook ? "the guardrail hook was skipped" : "the guardrail hook is not active",
       preflight.status === "ok" ? null : `publication preflight is ${preflight.status}`,
       state.steps.smoke?.status === "completed" ? null : "the end-to-end smoke did not pass",
@@ -298,6 +328,9 @@ export async function setup(opts: SetupOptions): Promise<Report> {
     report.info.push("dry run: nothing was written — no scaffold, no setup state, no hook entry, no smoke Finding.");
   }
 
+  if (adapter === "none") {
+    report.info.push("adapter: not configured. Findings in this Instance are produced on the recorded path — your harness runs the SQL, `aftergrid record` writes down what it ran, and the Finding guarantees artifact_replay. `aftergrid capture` and `aftergrid execute` refuse here, `check --mode rerun` answers rerun_unavailable, and Revisit is unavailable until an adapter is configured and the inputs are captured. That is a stated cost of the default route, not a failed step.");
+  }
   report.info.push("what setup did not verify: that your data is correct, that the trusted approver will read a Finding, that the guard covers a query path it says it does not cover, and that any Finding is approved. docs/contracts/setup.md lists the limits in full.");
   return report;
 }

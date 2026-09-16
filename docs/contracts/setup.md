@@ -9,15 +9,19 @@ line produces the same Instance in a terminal, in CI and inside an agent session
 
 ```bash
 aftergrid setup --instance analytics \
-  --adapter duckdb --duckdb-path data/warehouse.duckdb \
   --owner-name "Dana Okafor" --owner-contact dana@example.com \
   --repository loop-example/analytics --automation-login loop-aftergrid-bot --trusted-approver dana-okafor
 ```
 
+That is the whole command on the default route. **`--adapter` is optional**: with none of it, the Instance is
+written for the **recorded path** (ADR 0010), where the Operator's harness runs the SQL and `aftergrid record`
+writes down what it ran. `--adapter duckdb --duckdb-path data/warehouse.duckdb` (or `--adapter postgres
+--pg-url-env AFTERGRID_PG_URL`) is the **upgrade** the same Instance takes later.
+
 | Flag | Meaning |
 | --- | --- |
 | `--instance <dir>` | Instance root. Default `analytics/` under the current directory. |
-| `--adapter duckdb\|postgres` | Which backend the Instance reads. Default `duckdb`. |
+| `--adapter none\|duckdb\|postgres` | Which backend the Instance reads. **Default `none`**, and omitting the flag means the same thing: no adapter, the recorded path. `none` is not a refusal and not an incomplete setup. |
 | `--duckdb-path <file-or-csv-dir>` | DuckDB only, required. A `.duckdb` file or a directory of `<table>.csv`, **inside** the Instance root: the path is resolved through `safePath`, exactly as the guardrail hook resolves it later. |
 | `--pg-url-env <ENV_VAR_NAME>` | Postgres only, required. The **name** of an environment variable. The URL is read from the environment at runtime and only the variable name is written to `aftergrid.yaml`. |
 | `--owner-name`, `--owner-contact` | The Operator a Reader's flag reaches. |
@@ -31,6 +35,38 @@ aftergrid setup --instance analytics \
 
 `setup(opts)` additionally takes `github` / `preflightClient` (an injectable `PreflightClient`), `skillsSearchPaths`,
 `env`, `cwd` and `now`. These are test seams, not flags.
+
+## No adapter is the default route, not a gap
+
+An Instance that configures no adapter is complete. ADR 0010 makes the recorded path the default and the
+adapter the exception, and setup writes exactly that:
+
+```yaml
+connection:
+  # …why this Instance is on the recorded path, and how to upgrade…
+  adapter: none
+```
+
+**Why an explicit `adapter: none` rather than an absent `connection:` block.** Both are handled safely by every
+reader — `openInstanceAdapter` (`src/analysis/source.ts`) treats anything that is not `duckdb` or `postgres` as
+no adapter, and `sourceLimits` (`src/intake/preflight.ts`) reads a missing field as an empty string — so the
+choice is about what the file *says*. `adapter: none` says the Operator chose the recorded path; an absent block
+says nothing, and reads like a file somebody deleted a section out of. The scaffolded block carries the reason
+and the upgrade command in comments beside it.
+
+What every consumer does with it:
+
+| Command | On an adapterless Instance |
+| --- | --- |
+| `aftergrid record` | Works. This is the route: the harness ran the SQL, `record` pins the query, the parameters, the result and the tool. `snapshot.guarantees` is `[artifact_replay]`. |
+| `aftergrid check` (`--mode artifact`) | Works, unchanged. Every hash is verified. |
+| `aftergrid check --mode rerun` | `rerun_unavailable`, for the reason it always gives: the executions were recorded rather than run by aftergrid, or there are no retained inputs. Nothing about this is new; a recorded Finding is refused the same way in an Instance that *has* an adapter. |
+| `aftergrid capture` | Refused with `recorded_path` at `aftergrid.yaml#/connection/adapter`. There is no source to copy from. The remedy names `aftergrid record …` and, second, the `setup --adapter …` upgrade. |
+| `aftergrid execute` | Refused with `recorded_path` when the Finding has no retained inputs — which is every Finding on this route, because `capture` is what creates them. A Finding that already holds retained extracts still executes against them: `execute` reads the extracts and never the Instance connection, so refusing it over a config field that is not consulted would be a refusal with no reason behind it. |
+| `aftergrid render`, `decide`, `review`, `revise` | Unaffected. None of them opens a source. |
+| `aftergrid intake` (unattended) | Still refused, with its existing `source_limits_missing`, and the message now says why in the Instance's own terms: there is no adapter to enforce a statement timeout or a row cap on a query nobody is watching. Run the Analysis attended, or configure an adapter. |
+| The guardrail hook | Unaffected. `policyFrom` records `connection.adapter` and gates on none of it; with no adapter it simply has no configured source path to recognise, and every refusal it makes is the one it made before. |
+| Publication readiness | Unaffected. It is a fact about a Finding, verified per Finding, and no route to it runs through a connection. |
 
 ## The six steps
 
@@ -58,7 +94,7 @@ would advertise a Reader who does not exist.
 | --- | --- | --- |
 | Node 22.18+ or 24+ | yes | `process.versions.node`. The 23 line reports `unknown` with its reason: it is not a line aftergrid is tested on. |
 | `mattpocock-skills` | yes | A directory named `grilling` **and** one named `writing-for-agents`, each holding a `SKILL.md`, under the Claude Code skill/plugin directories (or `AFTERGRID_SKILLS_PATH`). Missing → the exact install line. |
-| DuckDB prebuilt binding | yes | `@duckdb/node-api` imports and exposes `DuckDBInstance`. |
+| DuckDB prebuilt binding | only with an adapter | `@duckdb/node-api` imports and exposes `DuckDBInstance`. Hard for `--adapter duckdb` and `--adapter postgres` (a Postgres rerun opens retained extracts through DuckDB). With no adapter the Engine opens it for nothing, so its absence is a **warning** naming it as an upgrade that is not available yet, never a missing requirement of a route that does not use it. |
 | `initdb` / `pg_ctl` | no | Postgres only. Absent → `rerun unavailable, artifact replay available`; a rerun never falls back to the live source. |
 
 A missing hard dependency is an **error with a remedy** and does not stop the remaining steps: you see every
@@ -68,6 +104,13 @@ problem in one run, fix them, and rerun. A bounded directory walk that ran out o
 ### 3. connection and capabilities
 
 Validated through the real adapters, never through a config field.
+
+**No adapter.** The step is `skipped`, and nothing is claimed about a source that was never opened:
+`sql_execution` stays `not_performed` and no capability matrix is printed. What is reported instead is what the
+route gives (`artifact_replay`, verified hashes, the `aftergrid record` invocation that produces it) and what it
+does not (`capture` and `execute` refuse, `check --mode rerun` answers `rerun_unavailable`, Revisit is
+unavailable, unattended intake stays refused with `source_limits_missing`), plus the `setup --adapter …` line
+that upgrades it. A skipped connection step does **not** make the setup `incomplete`.
 
 **DuckDB.** The source is opened by `DuckDbAdapter` (a `.duckdb` file `READ_ONLY`, or a CSV directory
 materialised into a sealed in-memory database) and its catalogue is read, so the report is evidence that a
@@ -154,8 +197,9 @@ nothing is overwritten, so redoing all of them is safe.
 
 - `syntax` — `invalid` when the options cannot be honoured (no source, a literal URL where a variable name
   belongs). Nothing is written in that case.
-- `content` — `complete` only when every hard dependency was found, the connection validated, the hook is
-  active, preflight is `ok`, the smoke passed and no scaffold file differs. Otherwise `incomplete`, with one
+- `content` — `complete` only when every hard dependency was found, the connection **settled** (validated, or
+  skipped because no adapter was asked for), the hook is active, preflight is `ok`, the smoke passed and no
+  scaffold file differs. Otherwise `incomplete`, with one
   info line naming exactly what is outstanding. A setup with no GitHub token is therefore `incomplete`, because
   the publication identities are unverified; that is the honest state, not a failure.
 - `evidence` — always `not_evaluated`. Evidence validity is a fact about a Finding, and setup has none. The
@@ -165,7 +209,8 @@ nothing is overwritten, so redoing all of them is safe.
   readiness is a fact about a Finding, verified per Finding by `aftergrid check`; the reasons list says so.
 
 New categories: `dependency_missing` (a hard dependency was not found) and `write_capable_role` (the connected
-Postgres role can change the source). Reused: `solo_setup_invalid`, `policy_untrusted`, `missing_credential`,
+Postgres role can change the source). `recorded_path` is not a setup category — setup reports the recorded path
+in `info`, and it is `capture` and `execute` that refuse with it. Reused: `solo_setup_invalid`, `policy_untrusted`, `missing_credential`,
 `missing_file`, `unsafe_path`, `runtime_unavailable`, `hook_not_installed`, `hook_self_test_failed`, `exists`,
 `incomplete`, `invalid_artifact`, `value_type`, `check_failed`.
 

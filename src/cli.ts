@@ -26,7 +26,7 @@ import { exitCodeFor, formatHuman, type Report } from "./report.ts";
 const HELP = `aftergrid — produce Findings a non-data Reader can understand, inspect and act on.
 
 Usage:
-  aftergrid setup [--instance <dir>] [--adapter duckdb|postgres] [--duckdb-path <file-or-csv-dir>]
+  aftergrid setup [--instance <dir>] [--adapter none|duckdb|postgres] [--duckdb-path <file-or-csv-dir>]
                   [--pg-url-env <ENV_VAR_NAME>] [--owner-name "<name>"] [--owner-contact <contact>]
                   [--repository owner/repo] [--automation-login <bot>] [--trusted-approver <login> ...]
                   [--settings <claude settings.json>] [--skip-hook] [--dry-run] [--json]
@@ -74,6 +74,9 @@ Lifecycle:
                 Finding runs new -> check -> draft render. It never overwrites a file, never writes a
                 credential (Postgres is named by environment variable), and records which steps completed in
                 <instance>/.aftergrid-setup.json so a rerun resumes. --dry-run writes nothing at all.
+                --adapter is OPTIONAL: without it, the Instance is written for the recorded path (ADR 0010) —
+                your harness runs the SQL and aftergrid record writes down what it ran. --adapter
+                duckdb|postgres is the upgrade that earns capture, execute, check --mode rerun and Revisit.
   new finding   creates an explicitly incomplete draft with fresh ids; never overwrites an existing Finding.
   check         reports four separate facts: syntax, content completeness, evidence validity, publication readiness.
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
@@ -165,10 +168,11 @@ export async function main(argv: string[]): Promise<void> {
       "automation-login": { type: "string" }, "trusted-approver": { type: "string", multiple: true },
       settings: { type: "string" }, "skip-hook": { type: "boolean" }, "dry-run": { type: "boolean" }, json: { type: "boolean" },
     } });
-    if (values.adapter !== undefined && values.adapter !== "duckdb" && values.adapter !== "postgres") { process.stderr.write(`--adapter must be duckdb or postgres, got '${values.adapter}'\n`); process.exit(2); }
+    if (values.adapter !== undefined && values.adapter !== "duckdb" && values.adapter !== "postgres" && values.adapter !== "none") { process.stderr.write(`--adapter must be none, duckdb or postgres, got '${values.adapter}'\n`); process.exit(2); }
     out(await setup({
       instanceDir: values.instance,
-      adapter: values.adapter === "postgres" ? "postgres" : "duckdb",
+      // Omitting --adapter is the recorded path (ADR 0010), not a defaulted duckdb: the adapter is the upgrade.
+      adapter: values.adapter === "postgres" ? "postgres" : values.adapter === "duckdb" ? "duckdb" : "none",
       duckdbPath: values["duckdb-path"],
       pgUrlEnv: values["pg-url-env"],
       ownerName: values["owner-name"],

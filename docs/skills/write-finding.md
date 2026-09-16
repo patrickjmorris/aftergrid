@@ -3,7 +3,8 @@
 ## What it does
 
 `/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence `/checked-analysis`
-pinned — the Question, the retained inputs, the queries, the saved results, the Checks and `analysis.yaml` —
+pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+results, the Checks, any retained inputs, and `analysis.yaml` —
 and writes the half a Reader meets: `memo.md` in the six fixed sections, typed Claims, a chart or a table
 behind every number, and the export policy, coverage and Reader profile the render needs.
 
@@ -45,6 +46,15 @@ sample size, effect size or set of controls promotes an associational Claim. The
 in `candidate_claims[].comparison.description`, which its schema requires on every `associational` and
 `causal` candidate. `skills/write-finding/references/claim-typing.md` has the four questions that settle a
 type.
+
+**Where do the coverage dates come from when nothing was retained?** From the recorded parameters. On the
+recorded path — the default (ADR 0010), where the harness ran the queries and `aftergrid record` wrote them
+down — `coverage.data_from` and `coverage.data_to` are read off the executions' own parameters, with
+`data_to` coming from the recorded `executed_at` where the SQL read up to the moment it ran. On the adapter
+path they come from the retained inputs, which may run wider or narrower than the Question's window. A date
+that is in neither place is a `needs_input` item, never a choice the skill makes. The Appendix says which of
+the two it was: on the recorded path it names the tool that ran each query and states that no copy of the data
+was kept.
 
 **Where does a threshold or a target come from?** From the Analysis, or from nowhere. A typed external
 source carries the value `analysis.yaml` recorded for it; where the Analysis recorded none, the skill writes

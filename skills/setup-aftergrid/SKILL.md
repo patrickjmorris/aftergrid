@@ -1,6 +1,6 @@
 ---
 name: setup-aftergrid
-description: Set up an aftergrid Instance in this repository — scaffold the layout, check the dependencies, validate the warehouse connection, install the guardrail hook and report what is still missing.
+description: Set up an aftergrid Instance in this repository — scaffold the layout, check the dependencies, validate the warehouse connection when the team has asked for one, install the guardrail hook and report what is still missing. An adapter is optional; the recorded path is the default.
 disable-model-invocation: true
 ---
 
@@ -19,11 +19,6 @@ There are no prompts: every input is a flag. Ask the user for each one you do no
 Do not guess a GitHub login, an owner contact or a warehouse path.
 
 - **Instance directory.** Default `analytics/`. Take the default unless the user names another.
-- **Backend.** `duckdb` or `postgres`.
-  - DuckDB: the path to a `.duckdb` file or a directory of `<table>.csv` files, **inside the Instance root**.
-  - Postgres: the **name** of the environment variable holding the connection string (for example
-    `AFTERGRID_PG_URL`) and confirmation that it points at a **read-only** role. Never ask for the URL, never
-    paste it into a command line, and never write it into a file. A write-capable role is refused.
 - **Owner.** Name and contact — the person a Reader's flag reaches.
 - **Publication.** The repository (`owner/repo`) where Finding pull requests are opened, the automation login
   that opens them, and one or more trusted approver logins. The automation login must not be a trusted
@@ -33,12 +28,36 @@ Do not guess a GitHub login, an owner contact or a warehouse path.
 If the user does not have the publication identities yet, run setup without them. The Instance still works and
 still renders drafts; the report will say publication is not configured.
 
+### Do not ask for a backend unless they want one
+
+**An adapter is optional, and not asking for one is the default.** aftergrid's default route is the **recorded
+path**: the user's own harness runs the SQL with whatever tool it already has — an MCP server, `psql`, a
+warehouse CLI — and `aftergrid record` writes down the query, the parameters, the result and the tool that
+produced them. A Finding built that way is complete, checkable and renderable, and its saved results replay
+byte for byte. Nothing about setup, `/grill-question`, `/analyze` or a published Finding needs a backend.
+
+Ask **one** question about it, and only this one: *do you want aftergrid to be able to re-run these queries
+itself later — for `check --mode rerun` and for Revisit?* A "no", a "not yet" or an "I don't know" is `none`:
+run setup with no `--adapter` and say what that means. Never ask for a warehouse path or a connection variable
+before that answer is yes.
+
+Only when it is yes:
+
+- **DuckDB**: the path to a `.duckdb` file or a directory of `<table>.csv` files, **inside the Instance root**.
+- **Postgres**: the **name** of the environment variable holding the connection string (for example
+  `AFTERGRID_PG_URL`) and confirmation that it points at a **read-only** role. Never ask for the URL, never
+  paste it into a command line, and never write it into a file. A write-capable role is refused.
+
+An adapter can be added later against the same Instance, so "not yet" costs nothing that a second run of setup
+does not give back.
+
 ## 2. Run it
+
+The default: no `--adapter`, and no source flags to go with it.
 
 ```bash
 node src/cli.ts setup \
   --instance analytics \
-  --adapter duckdb --duckdb-path data/warehouse.duckdb \
   --owner-name "<name>" --owner-contact "<contact>" \
   --repository <owner>/<repo> --automation-login <bot-login> --trusted-approver <human-login>
 ```
@@ -46,9 +65,10 @@ node src/cli.ts setup \
 `node src/cli.ts` is the Engine checkout. Where aftergrid is installed as a package, the same command is
 `aftergrid setup …` — same flags, same report.
 
-Postgres instead of the DuckDB flags:
+Only if the user asked for rerun and Revisit, add **one** of these:
 
 ```bash
+  --adapter duckdb --duckdb-path data/warehouse.duckdb
   --adapter postgres --pg-url-env AFTERGRID_PG_URL
 ```
 
@@ -67,7 +87,7 @@ to fix in a single run.
 | --- | --- |
 | `scaffold` | Files were created or kept. A file reported as *differs from what setup would write* was **kept**: your edits won, and nothing was lost. |
 | `dependencies` | Node, `mattpocock-skills` and the DuckDB binding were all found. |
-| `connection` | The source was actually opened and its capability matrix read from the adapter. For DuckDB, "role probing unsupported" is correct and expected — DuckDB has no roles, and the safety is the read-only file policy. It is not a missing safety policy. |
+| `connection` | The source was actually opened and its capability matrix read from the adapter. For DuckDB, "role probing unsupported" is correct and expected — DuckDB has no roles, and the safety is the read-only file policy. It is not a missing safety policy. **With no adapter this step is `skipped`, and a skipped connection is not an incomplete setup** — nothing was opened because nothing needed to be. Relay the route and its cost from the lines the report prints; do not describe it as something still to fix. |
 | `hook` | The guard is installed **and** its self-test just blocked a write and allowed a read. If only the first is true, the report says so; do not call it active. |
 | `publication_preflight` | The policy is self-consistent and, with a token, every login resolved to a distinct real account. This says nothing about any Finding being approved. |
 | `smoke` | A throwaway Finding went `new` → `check` → draft `render` in a temporary copy. Your Instance holds only the scaffold. |
@@ -79,6 +99,9 @@ Every error carries a remedy. Apply them and rerun the same command.
 - **`dependency_missing` for mattpocock-skills** — run the install line in the remedy
   (`claude plugins install mattpocock-skills`, or `npx skills@latest add mattpocock/skills`). `/grill-question`
   depends on `grilling` and `writing-for-agents`.
+- **A `runtime_unavailable` warning about the DuckDB binding, on an Instance with no adapter** — nothing to
+  fix. The Engine opens no source on the recorded path; the warning says the duckdb upgrade is not installable
+  yet, not that this setup is broken.
 - **`missing_credential`** — export the named environment variable and rerun.
 - **`write_capable_role`** — create a read-only role with the `GRANT` statements in the remedy and point the
   connection string at it. Do not look for a flag to accept the write-capable role; there is not one.
@@ -94,7 +117,18 @@ Every error carries a remedy. Apply them and rerun the same command.
 Summarise the six steps as they were reported, name what is outstanding and give the next command:
 `/grill-question` to sharpen a raw ask into a Question, then `aftergrid new finding <slug>`.
 
-Two things to say, and to keep saying:
+Say which data path this Instance is on, in the report's own words:
+
+- **No adapter.** Queries are run by their own tool and written down with
+  `aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>`. The Finding guarantees
+  `artifact_replay`: the saved results replay byte for byte and every hash is checked. `aftergrid capture` and
+  `aftergrid execute` refuse here and say so, `aftergrid check --mode rerun` answers `rerun_unavailable`,
+  Revisit is unavailable, and unattended intake stays refused (`source_limits_missing`). That is the stated
+  cost of the default route, not a failure, and rerunning setup with `--adapter …` buys it back later.
+- **An adapter.** The extra it bought — `capture`, `execute`, `check --mode rerun` and Revisit — plus whatever
+  the connection step reported about the source itself.
+
+Two more things to say, and to keep saying:
 
 - The guardrail hook is **not a shell sandbox**. It blocks writes and DDL through supported query paths. Source
   permissions and runtime isolation remain the boundary; `docs/contracts/hook.md` lists what is not covered.

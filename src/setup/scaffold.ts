@@ -11,10 +11,19 @@ import { renderDecisionIndex } from "../commands/decide.ts";
 export type ScaffoldStatus = "created" | "kept" | "kept_differs" | "would_create" | "would_keep" | "would_keep_differs";
 export type ScaffoldOutcome = { rel: string; path: string; status: ScaffoldStatus };
 
-/** What goes into `connection:`. The Postgres URL is never a value here: only the NAME of an environment variable. */
+/**
+ * What goes into `connection:`. The Postgres URL is never a value here: only the NAME of an environment variable.
+ *
+ * `none` is the default and the recorded path (ADR 0010): the harness runs the SQL and `aftergrid record` writes
+ * down what it ran. It is written as an explicit `adapter: none` rather than as an absent `connection:` block,
+ * because every reader of the field already treats "not duckdb, not postgres" as no adapter — `src/analysis/
+ * source.ts`, `src/intake/preflight.ts` — and an explicit value says the Operator chose the recorded path, where
+ * an absent block reads as a file somebody edited a section out of.
+ */
 export type ConnectionSpec =
   | { adapter: "duckdb"; duckdbPath: string }
-  | { adapter: "postgres"; urlEnv: string };
+  | { adapter: "postgres"; urlEnv: string }
+  | { adapter: "none" };
 
 export type ScaffoldSpec = {
   /** Directory name of the Instance root, written as `instance_root`. */
@@ -45,6 +54,20 @@ function aftergridYaml(spec: ScaffoldSpec): string {
       `    path: ${yamlString(spec.connection.duckdbPath)}`,
       "    # DuckDB has no roles: the safety here is that the engine opens the file READ_ONLY on every statement.",
       "    read_only: true",
+    );
+  } else if (spec.connection.adapter === "none") {
+    lines.push(
+      "  # No adapter. This Instance is on the RECORDED path, which is the default (ADR 0010): your harness runs",
+      "  # the SQL with whatever tool it has and `aftergrid record` writes down the query, the parameters, the",
+      "  # result and the tool that produced them. A Finding built that way is complete, checkable and",
+      "  # renderable, and it guarantees artifact_replay: the saved results replay byte for byte.",
+      "  # Unavailable until an adapter is configured: `aftergrid capture` and `aftergrid execute` (they refuse",
+      "  # here, naming `aftergrid record`), `check --mode rerun`, Revisit, and unattended intake, whose source",
+      "  # limits are an adapter's to declare.",
+      "  # To upgrade, rerun `aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>` (or",
+      "  # `--adapter postgres --pg-url-env <ENV_VAR_NAME>`) and copy the block it prints in. Setup never",
+      "  # overwrites this file: it will report that your copy differs and leave it alone.",
+      "  adapter: none",
     );
   } else {
     lines.push(

@@ -16,8 +16,8 @@ Every input is a flag on the command; the skill's first job is to collect them i
 | Input | Notes |
 | --- | --- |
 | Instance directory | Defaults to `analytics/`. |
-| Backend | `duckdb` (a `.duckdb` file or a directory of `<table>.csv` files, inside the Instance root) or `postgres`. |
-| Postgres connection | The **name** of the environment variable holding the connection string, never the string. A write-capable role is refused, and there is no flag that accepts one. |
+| Backend | **Optional, and asked about only once.** With no `--adapter`, the Instance is written for the recorded path: your harness runs the SQL and `aftergrid record` writes down what it ran. The skill asks one question — do you want aftergrid to be able to re-run these queries itself, for `check --mode rerun` and Revisit? — and only a yes turns into `duckdb` (a `.duckdb` file or a directory of `<table>.csv` files, inside the Instance root) or `postgres`. |
+| Postgres connection | Only when the answer was Postgres. The **name** of the environment variable holding the connection string, never the string. A write-capable role is refused, and there is no flag that accepts one. |
 | Owner | Name and contact — where a Reader's flag lands. |
 | Publication | `owner/repo`, the automation login that opens Finding pull requests, and one or more trusted approver logins. The automation login may not be a trusted approver. |
 | Hook settings | Path to the Claude Code settings file, if not `<repo>/.claude/settings.json`. |
@@ -34,7 +34,10 @@ Each of these is a separate step in the report, reported `completed`, `incomplet
 - **dependencies** — Node's version, the `mattpocock-skills` skills (`grilling` and `writing-for-agents`), and the
   prebuilt DuckDB binding. A missing one carries the exact install line.
 - **connection** — the source was really opened and its capability matrix was read from the adapter. For DuckDB,
-  "role probing unsupported" is the correct answer, not a gap.
+  "role probing unsupported" is the correct answer, not a gap. With no adapter the step is **skipped** and the
+  report says what the recorded path gives (`artifact_replay`, verified hashes, `aftergrid record`) and what it
+  costs (`capture` and `execute` refuse, `check --mode rerun` is `rerun_unavailable`, Revisit and unattended
+  intake are unavailable). A skipped connection does not make the setup incomplete.
 - **hook** — the guard is installed **and** its self-test just blocked a write and allowed a read. Installed
   without a passing self-test is reported as exactly that.
 - **publication_preflight** — whether the policy could ever produce a verified approval. Without a GitHub token
@@ -59,6 +62,10 @@ The full contract, including every limit: [`docs/contracts/setup.md`](../contrac
 ## It's working if
 
 - The skill asks for the inputs it does not have, in one round, and guesses no login, contact or warehouse path.
+- It does not ask for a warehouse path or a connection variable at all until you have said you want rerun and
+  Revisit. No answer, or "not yet", sets the Instance up on the recorded path.
+- On an adapterless Instance, the summary names `aftergrid record` as the route and lists what is unavailable,
+  rather than reporting the missing adapter as something still to fix.
 - The summary it gives back names each of the six steps with the word the command used for it.
 - `unknown` survives into the summary as `unknown`.
 - The hook is described as protecting something only when the self-test line is in the output.

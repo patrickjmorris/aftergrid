@@ -9,6 +9,8 @@ import { join, relative } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { setup } from "./commands/setup.ts";
 import { newFinding } from "./commands/new-finding.ts";
+import { capture } from "./commands/capture.ts";
+import { execute } from "./commands/execute.ts";
 import { HOOK_COMMAND } from "./commands/hook.ts";
 import { checkNodeVersion, findSkillsBundle } from "./setup/dependencies.ts";
 import { publicationPreflight, type PreflightClient } from "./setup/preflight.ts";
@@ -403,4 +405,86 @@ test("the setup state records completed steps and survives a corrupt file", asyn
   assert.ok(r.warnings.some((w) => w.category === "invalid_artifact" && /setup state file could not be read/.test(w.message)));
   assert.match(step(r, "smoke"), /completed/, "an unreadable state simply redoes the step");
   assert.equal(JSON.parse(readFileSync(statePath, "utf8")).steps.scaffold.status, "completed");
+});
+
+/* ---------------------------------------------------------- the recorded path: an Instance with no adapter */
+//
+// ADR 0010: the adapter is an upgrade, not a prerequisite. Setup must accept an Instance that configures none,
+// say what that costs, and every command that needs a source must refuse it by naming the route that works.
+
+/** The same fixture, set up the way an Operator with no adapter runs it: no --adapter, no source flags. */
+const recorded = (f: ReturnType<typeof fixture>) => ({ ...base(f), adapter: undefined, duckdbPath: undefined });
+
+test("setup with no --adapter writes an Instance on the recorded path and says what is unavailable", async () => {
+  const f = fixture();
+  const r = await setup({ ...recorded(f), skipHook: true });
+
+  assert.equal(r.syntax, "ok", `an adapterless setup is not a usage error: ${JSON.stringify(r.errors)}`);
+  assert.equal(r.errors.length, 0, `no errors: ${JSON.stringify(r.errors)}`);
+
+  const config: any = parseYaml(readFileSync(join(f.instance, "aftergrid.yaml"), "utf8"));
+  assert.equal(config.connection.adapter, "none", "the recorded path is stated in the file, not left as an absent block");
+  assert.equal(config.connection.duckdb, undefined);
+  assert.equal(config.connection.postgres, undefined);
+
+  // The connection step is skipped and says so; nothing is claimed about a source that was never opened.
+  assert.match(step(r, "connection"), /skipped/);
+  assert.match(step(r, "connection"), /no adapter/);
+  assert.equal(r.sql_execution, "not_performed", "no statement ran, so none is reported");
+
+  // What the Operator is told they have, and what they do not.
+  const text = info(r);
+  assert.match(text, /aftergrid record/, "the report names the command that produces evidence on this route");
+  assert.match(text, /artifact_replay/);
+  assert.match(text, /rerun_unavailable/);
+  assert.match(text, /Revisit/);
+  assert.match(text, /source_limits_missing/, "unattended intake stays refused, and the report says with which category");
+
+  // The DuckDB binding is an upgrade here, not a hard requirement of a route that never opens it.
+  assert.equal(r.errors.some((e) => e.category === "dependency_missing" && e.location === "duckdb_binding"), false);
+
+  // The whole chain still runs: a Finding goes new -> check -> draft render with no adapter anywhere.
+  assert.match(step(r, "smoke"), /completed/);
+  assert.match(step(r, "dependencies"), /completed/);
+});
+
+test("capture on an adapterless Instance refuses with recorded_path and names `aftergrid record`", async () => {
+  const f = fixture();
+  await setup({ ...recorded(f), skipHook: true });
+  const created = newFinding({ slug: "no-adapter", ask: "does it?", instanceDir: f.instance, date: "2026-09-16" });
+  assert.equal(created.errors.length, 0, JSON.stringify(created.errors));
+  const dir = join(f.instance, "findings", "2026-09-16-no-adapter");
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const r = await capture({ dir, tables: ["users"], instanceDir: f.instance });
+
+  const problem = r.errors.find((e) => e.category === "recorded_path");
+  assert.ok(problem, `expected a recorded_path refusal, got ${JSON.stringify(r.errors)}`);
+  assert.equal(problem!.location, "aftergrid.yaml#/connection/adapter");
+  assert.match(problem!.message, /configures no adapter/);
+  assert.match(problem!.remedy!, /aftergrid record/);
+  assert.match(problem!.remedy!, /--adapter duckdb/, "the upgrade is named too, so the refusal is not a dead end");
+  assert.equal(r.sql_execution, "not_performed");
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
+  assert.deepEqual(readdirSync(join(dir, "inputs")).filter((n) => n !== ".gitkeep"), [], "no extract was written");
+});
+
+test("execute on an adapterless Instance refuses with recorded_path rather than sending the Operator to capture", async () => {
+  const f = fixture();
+  await setup({ ...recorded(f), skipHook: true });
+  const created = newFinding({ slug: "no-adapter-execute", ask: "does it?", instanceDir: f.instance, date: "2026-09-16" });
+  assert.equal(created.errors.length, 0, JSON.stringify(created.errors));
+  const dir = join(f.instance, "findings", "2026-09-16-no-adapter-execute");
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const r = await execute({ dir, instanceDir: f.instance });
+
+  const problem = r.errors.find((e) => e.category === "recorded_path");
+  assert.ok(problem, `expected a recorded_path refusal, got ${JSON.stringify(r.errors)}`);
+  assert.equal(problem!.location, "aftergrid.yaml#/connection/adapter");
+  assert.match(problem!.remedy!, /aftergrid record/);
+  assert.equal(problem!.remedy!.includes("aftergrid capture <finding-dir> --tables"), false,
+    "capture refuses here too, so a remedy that points at it would send the Operator in a circle");
+  assert.equal(r.sql_execution, "not_performed");
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
 });

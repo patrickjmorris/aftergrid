@@ -157,8 +157,20 @@ more often", not "Retention by arm" or "Who was counted").
   `private_marker` are the Instance's, already set, and you leave them byte-identical — `private_marker`
   above all, because both the memo scan in `check` and the output-byte refusal in `render` only run when it
   is present, so dropping it disables the Instance's private-content sentinel without failing anything.
-- `coverage` says in plain words what data this Finding covers and what it leaves out. Take `data_from` and
-  `data_to` from the retained inputs, which may run wider or narrower than the Question's window.
+- `coverage` says in plain words what data this Finding covers and what it leaves out. Its two dates come from
+  what was actually run — never from the Question's window, never from today, and never from a date that reads
+  right.
+  - **On the recorded path** — the default (ADR 0010): the harness ran the queries, `aftergrid record` wrote
+    them down, `executions[].mode` is `recorded` and `snapshot.inputs` is empty. Take the window from the
+    **recorded parameters** of the executions the Claims rest on: `data_from` is the parameter that opens it,
+    `data_to` the parameter that closes it — or, where the SQL reads up to the moment it ran, the recorded
+    execution's `executed_at`. Say in `coverage.description` that nothing was retained, so the saved results
+    replay exactly as they were recorded and cannot be recomputed here.
+  - **On the adapter path** — `aftergrid capture` retained the inputs and `aftergrid execute` ran against them.
+    Take `data_from` and `data_to` from the retained inputs, which may run wider or narrower than the
+    Question's window.
+  - A date that is in neither the parameters nor the retained inputs is a `needs_input` item with its owner —
+    go back to step 2. Inventing one is the failure this ordering exists to catch.
 - `reader.profile` is the profile `analysis.yaml` names. When it is `generic`, say so in **How we checked**:
   a Reader is owed the knowledge that the memo was written for nobody in particular.
 
@@ -186,7 +198,11 @@ answer-first here and let that skill sharpen it.
 - **What would change our mind** — the Question's falsifier in plain words, then each Claim's Recheck policy
   in plain words, then the earliest date a re-check means anything. Where `question.falsifier.kind` is
   `not_evaluable`, say that none can be written yet and name who owns that.
-- **Appendix** — query ids and paths, result ids, retained inputs, parameters.
+- **Appendix** — query ids and paths, result ids, the parameters, and **what was run and by which tool**. On
+  the recorded path that is the tool `executions[].executed_by.tool` names, and the Appendix says plainly that
+  no copy of the data was kept: what was run is in the manifest — the query text, the parameters, the tool, and
+  the hash of everything it produced, including each agent-reported Check's evidence file. On the adapter path
+  it is the retained inputs, listed.
 
 **Done when** the sections and markers are exactly as above and every numeral in the file sits inside a
 token or on the allowed list in `docs/contracts/reference-grammar.md`.
@@ -209,9 +225,11 @@ Fix what you introduced: an unresolved token, an untraced numeral, a missing sec
 outside the subset, a column outside `allowed_fields`, a heading that no longer matches its Claim sentence,
 a stale digest.
 
-A failure that is not yours belongs to whoever owns it. A failing required Check, a hash mismatch on a
-retained input, a rerun mismatch, or a decision metric whose definition is not approved is the Analysis or
-the Instance: report the category and location and stop. Reopening the Analysis is `/analyze`'s call.
+A failure that is not yours belongs to whoever owns it. A failing required Check, a `hash_mismatch` on a
+recorded result, on a Check's evidence file or on a retained input, a rerun mismatch, or a decision metric
+whose definition is not approved is the Analysis or the Instance: report the category and location and stop.
+Reopening the Analysis is `/analyze`'s call. A `rerun_unavailable` on the recorded path is not a failure at
+all — it is what that route guarantees, and the memo says so rather than treating it as something to fix.
 
 **Three passes is the maximum.** When `check` still reports an error you introduced after a third pass,
 stop and hand back a `needs_attention` result naming the error category, its location and what you tried. A

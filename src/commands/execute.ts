@@ -102,6 +102,16 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
 
   const inputs: any[] = manifest.snapshot?.inputs ?? [];
   if (!inputs.length) {
+    // With no retained inputs there is nothing to run against. Which remedy is honest depends on the Instance:
+    // an Instance with an adapter can capture them; an Instance with none is on the recorded path (ADR 0010),
+    // where `capture` refuses too, so pointing at it would send the Operator in a circle.
+    const adapterName = String((instance.config as any)?.connection?.adapter ?? "");
+    if (adapterName === "" || adapterName === "none") {
+      err("recorded_path", "aftergrid.yaml#/connection/adapter",
+        `this Finding has no retained inputs and this Instance configures no adapter (${adapterName === "" ? "no connection.adapter" : "connection.adapter: none"}) to capture any with, so there is nothing for execute to run and it never reads a live source`,
+        'on the recorded path your harness runs the query and `aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>` writes down the SQL, the parameters, the result and the tool that produced them; the Finding then guarantees artifact_replay and `check --mode rerun` answers rerun_unavailable. To earn analysis_rerun instead, configure an adapter (`aftergrid setup --instance <dir> --adapter duckdb --duckdb-path <file-or-csv-dir>`), then `aftergrid capture` and rerun this command. Nothing was run and nothing was written.');
+      return report;
+    }
     err("incomplete", "manifest.yaml#/snapshot/inputs", "this Finding has no retained inputs, and execute never reads a live source",
       "run `aftergrid capture <finding-dir> --tables …` first; the Analysis runs on the extracts it captured");
     return report;

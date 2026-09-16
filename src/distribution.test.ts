@@ -273,8 +273,15 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
     join("skills", "analyze", "SKILL.md"),
     join("skills", "analyze", "agents", "openai.yaml"),
     join("skills", "analyze", "references", "halting.md"),
+    join("skills", "setup-aftergrid", "SKILL.md"),
+    join("skills", "setup-aftergrid", "agents", "openai.yaml"),
+    join("skills", "write-finding", "SKILL.md"),
+    join("skills", "revise-finding", "SKILL.md"),
     join("docs", "skills", "checked-analysis.md"),
     join("docs", "skills", "analyze.md"),
+    join("docs", "skills", "setup-aftergrid.md"),
+    join("docs", "skills", "write-finding.md"),
+    join("docs", "skills", "revise-finding.md"),
   ];
 
   let invocations = 0;
@@ -288,4 +295,114 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
     }
   }
   assert.ok(invocations >= 3, `expected the recorded path to be shown as a command, found ${invocations} \`aftergrid record\` invocation(s)`);
+});
+
+/* ------------------------------ the remaining adapter assumptions on the recorded path (ag-…-q2l) */
+//
+// Three skills still read as though an adapter were the world: setup made `--adapter` a required input,
+// /write-finding took coverage from retained inputs that a recorded Finding does not have, and /revise-finding
+// sent every numeric revision to `aftergrid execute`. What is asserted here is what a later edit would quietly
+// undo — that the adapter is stated as optional, that the recorded source of a date is written before the
+// retained one, and that the recorded re-run is named.
+
+test("the setup skill says the adapter is optional and shows the command without one", () => {
+  const skill = readFileSync(join(REPO, "skills", "setup-aftergrid", "SKILL.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "setup-aftergrid.md"), "utf8");
+  const openai = readFileSync(join(REPO, "skills", "setup-aftergrid", "agents", "openai.yaml"), "utf8");
+
+  assert.match(skill, /adapter is optional/i, "the skill must say the adapter is optional in those words");
+  assert.match(skill, /recorded path/i, "and name the route that is the default instead");
+  assert.match(skill, /aftergrid record/, "the skill must name the command that produces evidence without an adapter");
+  assert.match(doc, /Optional/i, "the docs page must say the same about the backend input");
+  assert.match(doc, /aftergrid record/);
+  assert.match(openai, /optional/i, "the OpenAI prompt must not ask for a backend as though it were required");
+
+  // The command the skill tells a model to run first carries no --adapter: the flag is the upgrade, shown after.
+  const blocks = [...skill.matchAll(/```bash\n([\s\S]*?)```/g)].map((m) => m[1]!);
+  const first = blocks.find((b) => /\bsetup\b/.test(b));
+  assert.ok(first, "the skill must still show the setup command");
+  assert.equal(/--adapter/.test(first!), false, `the first setup command must run without an adapter, got:\n${first}`);
+  assert.ok(blocks.some((b) => /--adapter duckdb/.test(b)) && blocks.some((b) => /--adapter postgres/.test(b)),
+    "both upgrades must still be shown, as the exception");
+});
+
+test("every `aftergrid setup` flag the skills name is one the CLI parses", () => {
+  const cli = readFileSync(join(REPO, "src", "cli.ts"), "utf8");
+  const branch = cli.slice(cli.indexOf('if (cmd === "setup") {'), cli.indexOf('if (cmd === "new") {'));
+  assert.ok(branch.length > 0 && branch.includes("parseArgs"), "could not find the setup branch of the CLI");
+  const declared = new Set<string>();
+  for (const m of branch.matchAll(/(?:"([a-z][a-z-]*)"|\b([a-z][a-z-]*)):\s*\{\s*type:/g)) declared.add((m[1] ?? m[2])!);
+  for (const required of ["instance", "adapter", "duckdb-path", "pg-url-env", "owner-name", "owner-contact", "repository", "automation-login", "trusted-approver"]) {
+    assert.ok(declared.has(required), `the CLI no longer declares --${required}, and the skills still tell a model to pass it`);
+  }
+  // `none` is a value the CLI accepts, so a skill may write it without inventing a flag.
+  assert.match(branch, /"none"/, "the CLI must accept --adapter none, which is what an optional adapter means");
+
+  const pages = [
+    join("skills", "setup-aftergrid", "SKILL.md"),
+    join("skills", "setup-aftergrid", "agents", "openai.yaml"),
+    join("docs", "skills", "setup-aftergrid.md"),
+    join("skills", "revise-finding", "SKILL.md"),
+    join("skills", "write-finding", "SKILL.md"),
+  ];
+  for (const page of pages) {
+    const text = readFileSync(join(REPO, page), "utf8").replace(/\\\n\s*/g, " ");
+    for (const line of text.matchAll(/(?:aftergrid|cli\.ts) setup\b[^\n`]*/g)) {
+      for (const flag of line[0].matchAll(/--([a-z][a-z-]*)/g)) {
+        assert.ok(declared.has(flag[1]!), `${page} tells a model to run \`aftergrid setup --${flag[1]}\`, which the CLI does not parse`);
+      }
+    }
+  }
+});
+
+test("write-finding step 7 takes coverage from the recorded parameters before the retained inputs", () => {
+  const skill = readFileSync(join(REPO, "skills", "write-finding", "SKILL.md"), "utf8");
+  const seven = step(skill, 7);
+
+  const recorded = seven.indexOf("recorded parameters");
+  const retained = seven.indexOf("retained inputs");
+  assert.notEqual(recorded, -1, "step 7 must say the window comes from the recorded parameters");
+  assert.notEqual(retained, -1, "step 7 must still name the retained inputs as the adapter path's source");
+  assert.ok(recorded < retained, "the recorded path is the default: its source of a date is written first");
+  assert.match(seven, /executed_at/, "step 7 must name where data_to comes from when the SQL read up to the moment it ran");
+  assert.match(seven, /needs_input/, "a date in neither place is a needs_input item, never an invented one");
+
+  // The Appendix says what was run and by which tool, because on this route there is no retained input to list.
+  const eight = step(skill, 8);
+  assert.match(eight, /what was run and by which tool/i);
+  assert.match(eight, /executed_by\.tool/, "the Appendix names the field the tool is read from");
+
+  // Integrity: a hash mismatch is not only a retained input's to have.
+  const ten = step(skill, 10);
+  assert.match(ten, /hash_mismatch|hash mismatch/);
+  assert.match(ten, /recorded result/, "step 10 must cover a mismatch on a recorded result");
+  assert.match(ten, /evidence file/, "and on a Check's evidence file");
+
+  const doc = readFileSync(join(REPO, "docs", "skills", "write-finding.md"), "utf8");
+  assert.match(doc, /recorded parameters/, "the docs page must answer it in the same words");
+});
+
+test("revise-finding sends a numeric revision on the recorded path to `aftergrid record`", () => {
+  const skill = readFileSync(join(REPO, "skills", "revise-finding", "SKILL.md"), "utf8");
+  const start = skill.search(/^### `numeric`$/m);
+  assert.notEqual(start, -1, "no `numeric` branch heading");
+  const rest = skill.slice(start);
+  const afterHeading = rest.indexOf("\n") + 1;          // past the `### ` line itself, not one character into it
+  const end = rest.slice(afterHeading).search(/^#{2,3} /m);
+  const numeric = end === -1 ? rest : rest.slice(0, afterHeading + end);
+
+  const recorded = numeric.indexOf("aftergrid record");
+  const adapter = numeric.indexOf("aftergrid execute");
+  assert.notEqual(recorded, -1, "the numeric branch must name `aftergrid record` as the recorded re-run");
+  assert.notEqual(adapter, -1, "and must still name `aftergrid execute` for the adapter path");
+  assert.ok(recorded < adapter, "the recorded path is the default, the adapter path the exception");
+
+  // Only what the contracts hold: record re-pins, and archiving is revise's.
+  assert.match(numeric, /does \*\*not\*\* archive/, "record archives nothing, and the skill must say so");
+  assert.match(numeric, /finding\.revision/, "record does not bump the revision either");
+  assert.match(numeric, /stale_attestation/, "recording into an approved revision is refused, by that category");
+  assert.match(numeric, /revisions\/<N>\//, "the archive is revise --pin's, and the skill names where it lives");
+
+  const doc = readFileSync(join(REPO, "docs", "skills", "revise-finding.md"), "utf8");
+  assert.match(doc, /aftergrid record/, "the docs page must give the same route");
 });
