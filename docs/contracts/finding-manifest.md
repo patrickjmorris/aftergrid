@@ -68,7 +68,7 @@ JSON Schema (`schema/finding-manifest.schema.json`) enforces field shapes, enums
 
 ## Attestations and trust
 
-`attestations[]` records who approved what, bound to a digest. The only v0 source that counts toward readiness is `github_pr_review`: a current, non-dismissed APPROVED review at the exact `commit_sha`, by a login on the Instance's trusted allowlist, verified through the API. The allowlist lives in the Instance policy file, not in this manifest, so a Finding cannot approve itself. `unverified_note` exists so an informal "looks good" can be recorded and is visibly not an approval. Definition approvals use the same source types and bind the definition content hash.
+`attestations[]` records who approved what, bound to a digest. The only v0 source that counts toward readiness is `github_pr_review`: a current, non-dismissed APPROVED review at the exact `commit_sha`, by a login on the Instance's trusted allowlist, verified through the API. The allowlist lives in the Instance policy file, not in this manifest, so a Finding cannot approve itself. `unverified_note` exists so an informal "looks good" can be recorded and is visibly not an approval. Definition approvals use the same source types and bind the definition content hash. The verification rules, the trusted Instance policy they read, the human round trip and what is deliberately not enforced are in `docs/contracts/publication.md`.
 
 ## Export policy and the Reader render
 
