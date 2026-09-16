@@ -12,6 +12,12 @@
 //     content digest they bind to, nothing is written and the report says to bump the revision.
 //   - **Rebinding trust.** `attestations` and `reviews` are never written, refreshed or dropped. A run that
 //     changes the content leaves them stale, which is exactly what `check` is there to report.
+//   - **An outcome nobody can reproduce.** A Check that resolves to no execution has no recorded input set, and
+//     `check --mode rerun` would run it against none of the retained inputs. It is refused before any SQL runs
+//     rather than recorded as a pass the rerun contradicts.
+//
+// `snapshot.guarantees` records what this run observed: `artifact_replay` and `analysis_rerun` are written only
+// when an execution actually produced a saved result, never as a closing assertion.
 //
 // Engine failures and business results stay apart: a SQL error, a bad Check shape or a result that does not
 // match its declared columns aborts the run and writes nothing; a Check that honestly records `fail` is data
@@ -26,7 +32,7 @@ import { retainedOpenerFor } from "./check.ts";
 import { AdapterError, type RetainedSession } from "../adapters/contract.ts";
 import { serializeResult, type DeclaredColumn } from "../adapters/serialize.ts";
 import { contentDigest, sha256 } from "../digest.ts";
-import { validateAnalysisFile, analysisSummary } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisSummary, analysisStage, readAnalysis } from "../analysis/validate.ts";
 // @ts-ignore: the shared digest envelope and definition hash, as `check` and the fixture build compute them.
 import { digestOf, definitionHash } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: the shared Check-shape rule.
@@ -100,9 +106,27 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
       "run `aftergrid capture <finding-dir> --tables …` first; the Analysis runs on the extracts it captured");
     return report;
   }
-  if (!(manifest.executions ?? []).length && !(manifest.checks ?? []).length) {
+  const executions: any[] = manifest.executions ?? [];
+  if (!executions.length && !(manifest.checks ?? []).length) {
     err("incomplete", "manifest.yaml#/executions", "there is nothing to run: no executions and no Checks are declared",
       "write the applicable Checks first, then the analysis queries, and declare both in the manifest");
+    return report;
+  }
+
+  // A Check runs against the execution named by its `execution_id`, or the first execution when it names none
+  // (docs/contracts/checks-and-results.md). A Check that resolves to no execution has no recorded table set, and
+  // `check --mode rerun` would run it against no retained inputs at all — so an outcome recorded here would be
+  // one nobody can reproduce. Refuse it before any SQL runs rather than pin a pass the rerun contradicts.
+  const executionFor = (ck: any): any | undefined => (ck.execution_id ? executions.find((e: any) => e.id === ck.execution_id) : executions[0]);
+  const unbound = (manifest.checks ?? []).filter((ck: any) => !executionFor(ck));
+  if (unbound.length) {
+    for (const ck of unbound) {
+      err("execution_binding", `checks/${ck.id}`,
+        ck.execution_id
+          ? `Check ${ck.id} names execution '${ck.execution_id}', and no execution with that id is declared`
+          : `Check ${ck.id} names no execution_id and this Finding declares no executions, so nothing records which retained inputs and parameters it runs against`,
+        "bind the Check to a declared execution with execution_id; a Check runs against that execution's retained inputs and parameters, and `aftergrid check --mode rerun` resolves it the same way. Nothing was run and nothing was written.");
+    }
     return report;
   }
 
@@ -122,8 +146,9 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     if (!sessions.has(key)) sessions.set(key, await opener(dir, inputs.filter((i: any) => inputIds.includes(i.id))));
     return sessions.get(key)!;
   };
-  const paramsFor = (ck: any) =>
-    (ck.execution_id ? manifest.executions.find((e: any) => e.id === ck.execution_id) : manifest.executions?.[0]) ?? { parameters: { analytical_timezone: "UTC" }, input_ids: inputs.map((i: any) => i.id) };
+  // No fallback: every Check resolved to an execution above, and inventing one here is what let `execute` and
+  // `check --mode rerun` disagree about which tables a Check reads.
+  const paramsFor = (ck: any) => executionFor(ck)!;
 
   const staged = new Map<string, Buffer>();     // finding-relative path -> bytes, written only if everything ran
   const pins: [(string | number)[], unknown][] = [];
@@ -166,7 +191,7 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
       const sql = readFileSync(safePath(dir, ck.path), "utf8");
       set(["checks", i, "content_hash"], { algorithm: "sha256", value: sha256(Buffer.from(sql, "utf8")) });
       const ex = paramsFor(ck);
-      const session = await sessionFor(ex.input_ids?.length ? ex.input_ids : inputs.map((x: any) => x.id));
+      const session = await sessionFor(ex.input_ids);   // exactly the set `check --mode rerun` will use
       const got = await session.execute(sql, ex.parameters ?? {});
       const { outcome, detail } = checkOutcome(got.columns.map((c) => c.name), got.rows, ck.path);
       outcomes[ck.id] = outcome;
@@ -184,7 +209,10 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
 
   // Everything ran. Stage the manifest changes and decide whether they may be written at all.
   for (const [path, value] of pins) doc.setIn(path, value);
-  doc.setIn(["snapshot", "guarantees"], ["artifact_replay", "analysis_rerun"]);
+  // A guarantee is a thing this run observed, never a thing the command asserts on its way out: with no
+  // execution there is no saved artifact to replay and no analysis to rerun, so the list stays empty.
+  const replayed = executions.length > 0 && staged.size > 0;
+  doc.setIn(["snapshot", "guarantees"], replayed ? ["artifact_replay", "analysis_rerun"] : []);
   const next: any = doc.toJS();
   let stagedDigest: { algorithm: "sha256"; value: string };
   try {
@@ -215,7 +243,9 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
   writeFileSync(safePath(dir, "manifest.yaml"), doc.toString({ lineWidth: 0 }));
   report.sql_execution = "performed";
   report.info.push(`pinned content digest ${pinned.value}`);
-  report.info.push("snapshot.guarantees: artifact_replay and analysis_rerun — this run replayed the saved SQL on the retained inputs, so both were observed, not assumed");
+  report.info.push(replayed
+    ? "snapshot.guarantees: artifact_replay and analysis_rerun — this run replayed the saved SQL on the retained inputs, so both were observed, not assumed"
+    : "snapshot.guarantees is empty: this run saved no result, so there is no artifact to replay and no analysis to rerun; the guarantees are not claimed");
   report.info.push("attestations and reviews were not written; if this run changed the content, `check` will report them stale");
 
   // Checks as facts, in the categories `check` uses.
@@ -236,10 +266,30 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     }
   }
 
-  // The Analysis file, when there is one.
-  const analysisProblems = validateAnalysisFile(dir, doc.toJS());
+  // The Analysis file, when there is one. It is read AFTER the evidence has been written, so a defect in it is
+  // reported as a problem and never allowed to throw away the report of a run that already happened.
+  let analysisProblems: Problem[] = [];
+  try {
+    analysisProblems = validateAnalysisFile(dir, doc.toJS());
+    report.info.push(...analysisSummary(dir));
+  } catch (e) {
+    analysisProblems = [{
+      category: "invalid_artifact", location: "analysis.yaml", message: `analysis.yaml could not be read: ${(e as Error).message}`,
+      remedy: "the evidence above was written and pinned; fix analysis.yaml against src/analysis/analysis.schema.json and run `aftergrid check`",
+    }];
+  }
   report.errors.push(...analysisProblems);
-  report.info.push(...analysisSummary(dir));
+  // Completeness is required of the finished working record, not of the seed mid-run: /checked-analysis runs
+  // this command before it fills analysis.yaml in, so a `stage: clarified` file is reported, never rejected.
+  try {
+    if (analysisStage(readAnalysis(dir)) === "clarified") {
+      report.warnings.push({
+        category: "incomplete", location: "analysis.yaml#/stage",
+        message: "analysis.yaml is still the clarification seed (stage: clarified): the probes, execution order, candidate Claims and outcome recommendation the writer reads are not recorded yet",
+        remedy: "fill them in and set stage: analysed; `aftergrid execute` then reports no analysis_contract error when the working record is complete",
+      });
+    }
+  } catch { /* an unreadable analysis.yaml was already reported above */ }
   if (!analysisProblems.length && !existsSync(`${dir}/analysis.yaml`)) {
     report.info.push("no analysis.yaml here: the evidence is pinned, but the assumptions, probes, execution order and candidate Claims the writer reads are not recorded yet");
   }

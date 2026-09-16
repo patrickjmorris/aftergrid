@@ -49,10 +49,15 @@ Done when: every table and column the plan names exists, and each probe has an `
 aftergrid capture <finding-dir> --tables <a,b,c>
 ```
 
-Bounded extracts land in `<finding-dir>/inputs/` and `manifest.yaml#/snapshot/inputs` records each with a
-content hash, the adapter, the method and the consistency the adapter actually gives. Bound the extract one
-period either side of the window, so converting to the analytical timezone cannot drop a row at an edge, and say
-so in the input's description.
+Whole-table extracts land in `<finding-dir>/inputs/` and `manifest.yaml#/snapshot/inputs` records each with a
+content hash, the adapter, the method and the consistency the adapter actually gives. **`capture` applies no
+window, filter or row bound** — there is no flag for one — and `source.method` records the read it performed.
+Bounding to the window is the analysis SQL's job (step 5), which converts to the analytical timezone explicitly,
+so an edge row is kept or dropped by the SQL rather than by how wide the extract happened to be.
+
+`--description` replaces the adapter's default ("Whole-table extract of …") and lands inside the content digest,
+where every later reader takes it for provenance. Say what was captured and when. A description calling the
+extract bounded, filtered or limited is refused, because nothing applied one.
 
 Every later step reads these files. Nothing after this point reads the source.
 
@@ -80,8 +85,13 @@ A `minimum_data` Check that records `fail` is a **business result**: the Finding
 Write only the Checks that apply. A reconciliation Check needs an approved definition to reconcile against; when
 there is none, that is a `needs_input` of kind `definition_approval`, not a Check invented to fill the table.
 
-Done when: every applicable Check has a file under `checks/`, a manifest entry with its `kind`, `required` and
-`description`, and an entry in `analysis.yaml#/execution_order` — all of them before the first `query` entry.
+Every Check binds to an execution: `execution_id` names the execution whose retained inputs and parameters it
+runs against, and a Check that names none uses the first. That binding is what `check --mode rerun` resolves
+too, so a Check that resolves to no execution is refused rather than run against a table set nobody recorded.
+
+Done when: every applicable Check has a file under `checks/`, a manifest entry with its `kind`, `required`,
+`description` and its `execution_id`, and an entry in `analysis.yaml#/execution_order` — all of them before the
+first `query` entry.
 
 ## 5. Write the analysis SQL
 
@@ -107,6 +117,11 @@ when a query errors, a Check has the wrong shape or a result does not match its 
 
 Read the report as facts, not a verdict. `check_failed` on a `required` Check means the Analysis does not
 establish what it asserts. A revision carrying attestations is refused: bump `finding.revision` first.
+`snapshot.guarantees` is set by what this run observed: with no execution and no saved result it stays empty,
+because there is nothing to replay.
+
+At this point `analysis.yaml` is still the clarification seed (`stage: clarified`). `execute` says so as a
+warning and does not treat it as an error — step 7 is where it becomes the working record.
 
 Then:
 
@@ -119,22 +134,31 @@ with no `rerun_mismatch`.
 
 ## 7. Fill analysis.yaml
 
-Everything the writer reads and cannot re-derive:
+Set `stage: analysed` and fill in everything the writer reads and cannot re-derive:
 
 - `reader_profile`, and `assumptions` — one entry per choice the Question did not settle, each with its `basis`.
   `unverified` is an honest basis; writing it down never upgrades it.
 - `pre_registered_comparison`, with `registered_before_cuts` telling the truth.
-- `probes` from step 2, and `execution_order` from steps 4 and 5, in the order written and run.
+- `probes` from step 2, and `execution_order` from steps 4 and 5, in the order written and run. A probe taken
+  after a result was seen is recorded where it happened, with `post_hoc: true` — the label is the record, and
+  moving the step up the list to look orderly is the thing it exists to prevent.
 - `candidate_claims` — for each: the draft sentence, `type` (descriptive, associational, causal), evidence
-  references, comparison, population, window, exclusions, limitations, and a `recheck_draft`. One Claim is
-  `answer_bearing: true` and carries the `material_caveat`; `not_automatically_evaluable` with a reason and an
+  references, comparison, population, window, exclusions, limitations, and a `recheck_draft`. A `causal` Claim
+  also carries `causal_basis: randomised_assignment`; without that design the Claim is associational. One Claim
+  is `answer_bearing: true` and carries the `material_caveat`; `not_automatically_evaluable` with a reason and an
   owner is a complete Recheck answer, not a gap.
+- Every evidence reference resolves to a cell that exists: `ref:<result>.<row_key>.<column>` names a row the
+  query actually produced. A value the *writer* will create is named first — `requested_derived` for a
+  derivation, `requested_external_sources` for a typed target or assumption — and then cited as `derived:<id>`
+  or `ext:<id>`. Each definition a Claim's numbers rest on goes in `definition_refs` and must be pinned in
+  `manifest.definitions` at that version.
 - `outcome_recommendation` — `answered`, `inconclusive`, `insufficient_data` or `needs_reframing`, with the
-  reason. A non-answer also carries `what_would_be_needed`.
+  reason. Every outcome except `answered` also carries `what_would_be_needed`, and the schema requires it.
 - `needs_input` for anything left to a named owner.
 
-Done when `aftergrid execute <finding-dir>` reports no `analysis_contract` error: the shape is right, every
-Check precedes every query in `execution_order`, and every evidence reference resolves in the manifest.
+Done when `aftergrid execute <finding-dir>` reports no `analysis_contract` error and no `stage: clarified`
+warning: the shape is right, every Check precedes every query in `execution_order`, and every reference
+resolves — to a saved cell, a requested value, or a pinned definition.
 
 ## 8. Hand over
 

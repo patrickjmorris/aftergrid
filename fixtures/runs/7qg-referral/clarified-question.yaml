@@ -10,6 +10,11 @@ question:
   decision: Whether to run the referral campaign again next quarter.
   metric: { id: retained_7d, version: 2 }
   population: Users with a referral_signup event dated September 2026 in New York time, compared with users who signed up in the same month without one.
-  window: { start: "2026-09-01", end: "2026-09-30", timezone: America/New_York, description: The campaign ran the whole calendar month; coverage in the Instance stops at 2026-09-14, so the later cohorts have not had seven days. }
+  # The description is quoted: it carries a comma, and an unquoted value in a flow mapping ends at one.
+  window:
+    start: "2026-09-01"
+    end: "2026-09-30"
+    timezone: America/New_York
+    description: "The campaign ran the whole calendar month; coverage in the Instance stops at 2026-09-14, so the later cohorts have not had seven days."
   primary_comparison: 7-day retention of referred September signups versus non-referred September signups.
   unresolved: [ falsifier ]

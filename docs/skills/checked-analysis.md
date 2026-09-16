@@ -35,6 +35,11 @@ the capture that copies the declared tables into the Finding. After that, `after
 extracts, verifies every hash, and reports `missing_file` or `hash_mismatch` rather than fall back to the source.
 There is no flag that changes this.
 
+**Does the capture only take the rows my window needs?** No — it copies whole tables, and the recorded
+`source.method` says so. The window is applied in the analysis SQL, which converts to the analytical timezone
+explicitly, so nothing depends on how wide the extract is. A `--description` claiming the extract was bounded or
+filtered is refused, because provenance inside the content digest may not describe a read that did not happen.
+
 **What happens when a Check fails?** It depends on which Check, and the distinction is deliberate. A failing
 `minimum_data` Check is a business result: the Finding's outcome becomes `insufficient_data` and the memo says
 what is missing. A failing `required` invariant or reconciliation Check means the Analysis does not establish
@@ -66,7 +71,11 @@ window.
 - Each probe records what it asked *and* what it observed, and at least one of them changed the plan.
 - `aftergrid execute` reports `sql performed` with no errors, and `aftergrid check --mode rerun` reports evidence
   `valid` with no `rerun_mismatch`.
-- `snapshot.guarantees` was set by a run that actually happened, not by capturing the inputs.
+- `snapshot.guarantees` was set by a run that actually happened, not by capturing the inputs — and it is empty
+  when the run saved no result, because there is then nothing to replay.
+- Every Check names the execution it runs against, so `check --mode rerun` resolves it to the same retained
+  inputs `execute` used; a Check that resolves to no execution is refused instead of quietly passing.
+- Every evidence reference names a cell that exists, and a causal Claim records `causal_basis`.
 - Every assumption the Question did not settle has an entry with an honest `basis` — including `unverified`.
 - A halted run names each `needs_input` item with an owner, and neither the state nor the outcome is rounded up.
 - A non-answer carries `what_would_be_needed`, so `insufficient_data` is usable rather than a shrug.

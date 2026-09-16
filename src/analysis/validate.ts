@@ -1,15 +1,22 @@
 // The Analysis file (`analysis.yaml`) beside `manifest.yaml` in a Finding directory.
 // Contract: docs/contracts/analysis-directory.md. Schema: src/analysis/analysis.schema.json.
 //
-// Two rules the JSON Schema cannot state, and they are the point of the file:
+// Three rules the JSON Schema cannot state, and they are the point of the file:
 //   1. Checks are written and run BEFORE the final analysis queries. `execution_order` is grouped
-//      probe -> check -> query, and a Check recorded after a query is an error, not a note.
-//   2. Everything the Analysis names must exist in the manifest: an execution_order id resolves to a
-//      manifest Check or query, a probe id resolves to a declared probe, and a candidate Claim's evidence
-//      resolves to a saved result set, a declared derived value or a typed external source.
+//      probe -> check -> query, and a Check recorded after a query is an error, not a note. A probe taken
+//      after a query is recorded where it happened and marked `post_hoc: true`, because hiding it would be
+//      the dishonest option.
+//   2. Everything the Analysis names must exist: an execution_order id resolves to a manifest Check or query,
+//      a probe id resolves to a declared probe, a candidate Claim's evidence resolves to a saved result CELL
+//      (result, row key and column, read from results/*.json), to a declared or requested derived value, or to
+//      a typed external source; and a Claim's definition_refs resolve in manifest.definitions at that version.
+//   3. A causal Claim carries the design that earns it. `type: causal` with anything but
+//      `causal_basis: randomised_assignment` is an associational Claim wearing a causal word.
 //
 // The file is optional. A Finding with no `analysis.yaml` — a hand-authored exemplar, a draft that has not
-// reached the analysis yet — returns no problems, because absence is not a defect.
+// reached the analysis yet — returns no problems, because absence is not a defect. A file at
+// `stage: clarified` is the /grill-question seed: complete for that stage, and not yet required to carry
+// probes, execution order, candidate Claims or an outcome.
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -22,16 +29,22 @@ import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 export const ANALYSIS_FILE = "analysis.yaml";
 const SCHEMA_PATH = fileURLToPath(new URL("./analysis.schema.json", import.meta.url));
 
-export type ExecutionStep = { kind: "probe" | "check" | "query"; id: string; exploratory?: boolean; note?: string };
+export type AnalysisStage = "clarified" | "analysed";
+export type ExecutionStep = { kind: "probe" | "check" | "query"; id: string; exploratory?: boolean; post_hoc?: boolean; note?: string };
+export type RequestedDerived = { id: string; operation: string; operands: string[]; unit: string; display?: Record<string, unknown>; description?: string };
+export type RequestedExternalSource = { id: string; kind: string; value: number | string; unit: string; source: Record<string, unknown> };
 export type Analysis = {
   schema_version: string;
+  stage?: AnalysisStage;
   reader_profile: string;
   assumptions: { id: string; statement: string; basis: string; settled_by?: string; affects?: string[] }[];
   pre_registered_comparison?: { statement: string; registered_before_cuts: boolean; registered_at?: string; source?: string };
-  probes: { id: string; kind: "exploratory"; question: string; observed: string; sql_path?: string; changed_plan?: string }[];
-  execution_order: ExecutionStep[];
-  candidate_claims: Record<string, any>[];
-  outcome_recommendation: { outcome: "answered" | "inconclusive" | "insufficient_data" | "needs_reframing"; reason: string; what_would_be_needed?: string[] };
+  probes?: { id: string; kind: "exploratory"; question: string; observed: string; sql_path?: string; changed_plan?: string }[];
+  execution_order?: ExecutionStep[];
+  candidate_claims?: Record<string, any>[];
+  requested_derived?: RequestedDerived[];
+  requested_external_sources?: RequestedExternalSource[];
+  outcome_recommendation?: { outcome: "answered" | "inconclusive" | "insufficient_data" | "needs_reframing"; reason: string; what_would_be_needed?: string[] };
   needs_input?: { kind: string; description: string; owner: string; requested_at?: string; blocks?: string[] }[];
   notes?: string[];
 };
@@ -52,6 +65,14 @@ export function readAnalysis(dir: string): Analysis | null {
   try { path = safePath(dir, ANALYSIS_FILE); } catch { return null; }
   if (!existsSync(path)) return null;
   return parseYaml(readFileSync(path, "utf8")) as Analysis;
+}
+
+/**
+ * Which stage the file declares. Absent means `analysed`: a file written before the field existed is the
+ * complete working record it always was, and never becomes a seed by omission.
+ */
+export function analysisStage(analysis: Analysis | null): AnalysisStage {
+  return analysis?.stage === "clarified" ? "clarified" : "analysed";
 }
 
 const VALUE_REF = /^(?:ref:([a-z][a-z0-9_]{0,63})\.([A-Za-z0-9_-]{1,64})\.([a-z][a-z0-9_]{0,63})|derived:([a-z][a-z0-9_]{0,63})|ext:([a-z][a-z0-9_]{0,63}))$/;
@@ -86,13 +107,27 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
         : e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues)
         : e.params?.missingProperty ? ` ('${e.params.missingProperty}')` : "";
       err(`${ANALYSIS_FILE}#${e.instancePath || "/"}`, `${e.message}${detail}`,
-        "fix analysis.yaml against src/analysis/analysis.schema.json (docs/contracts/analysis-directory.md)");
+        e.params?.missingProperty && ["probes", "execution_order", "candidate_claims", "outcome_recommendation"].includes(e.params.missingProperty)
+          ? "an analysis.yaml that has not reached the analysis yet declares `stage: clarified`; the four evidence sections are required only at `stage: analysed` (docs/contracts/analysis-directory.md)"
+          : "fix analysis.yaml against src/analysis/analysis.schema.json (docs/contracts/analysis-directory.md)");
     }
     return problems;   // Shape first: the rules below read fields the schema just rejected.
   }
 
+  const probes = analysis.probes ?? [];
+  const order = analysis.execution_order ?? [];
+  const claims = analysis.candidate_claims ?? [];
+  const requestedDerived = analysis.requested_derived ?? [];
+  const requestedExternal = analysis.requested_external_sources ?? [];
+
   // --- ids are unique within their list ---
-  for (const [list, items] of [["assumptions", analysis.assumptions], ["probes", analysis.probes], ["candidate_claims", analysis.candidate_claims]] as const) {
+  for (const [list, items] of [
+    ["assumptions", analysis.assumptions],
+    ["probes", probes],
+    ["candidate_claims", claims],
+    ["requested_derived", requestedDerived],
+    ["requested_external_sources", requestedExternal],
+  ] as const) {
     const seen = new Set<string>();
     (items as { id: string }[]).forEach((item, i) => {
       if (seen.has(item.id)) err(`${ANALYSIS_FILE}#/${list}/${i}/id`, `'${item.id}' is used twice in ${list}`, "ids are unique within their list");
@@ -103,26 +138,36 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   // --- rule 1: Checks come before the analysis queries ---
   const RANK: Record<ExecutionStep["kind"], number> = { probe: 0, check: 1, query: 2 };
   let highest = 0;
-  analysis.execution_order.forEach((step, i) => {
+  order.forEach((step, i) => {
+    if (step.post_hoc) return;   // A post-hoc probe is recorded where it happened; see rule 1 above.
     if (RANK[step.kind] < highest) {
       err(`${ANALYSIS_FILE}#/execution_order/${i}`,
         `${step.kind} '${step.id}' is recorded after a ${highest === 2 ? "query" : "check"}; execution_order is grouped probe -> check -> query`,
         step.kind === "check"
           ? "write and run the applicable Checks before the final analysis SQL, then record them in that order; do not reorder the list to match SQL you already ran"
-          : "record probes before the Checks they informed");
+          : "record probes before the Checks they informed, or mark a look taken after a result with post_hoc: true");
     }
     highest = Math.max(highest, RANK[step.kind]);
   });
   const seenSteps = new Set<string>();
-  analysis.execution_order.forEach((step, i) => {
+  order.forEach((step, i) => {
     const key = `${step.kind}:${step.id}`;
     if (seenSteps.has(key)) err(`${ANALYSIS_FILE}#/execution_order/${i}`, `${step.kind} '${step.id}' is recorded twice`, "each probe, Check and query appears once");
     seenSteps.add(key);
   });
 
+  // --- rule 3: a causal Claim carries the design that earns it ---
+  claims.forEach((claim, i) => {
+    if (claim.type === "causal" && claim.causal_basis !== "randomised_assignment") {
+      err(`${ANALYSIS_FILE}#/candidate_claims/${i}/causal_basis`,
+        `candidate Claim '${claim.id}' is type causal with causal_basis '${claim.causal_basis}'`,
+        "a causal Claim is earned by a design that supports it, normally random assignment: record causal_basis: randomised_assignment, or make the Claim associational and say in the memo what the comparison does and does not establish");
+    }
+  });
+
   // --- rule 2: everything named exists ---
-  const probeIds = new Set(analysis.probes.map((p) => p.id));
-  for (const [i, step] of analysis.execution_order.entries()) {
+  const probeIds = new Set(probes.map((p) => p.id));
+  for (const [i, step] of order.entries()) {
     if (step.kind === "probe" && !probeIds.has(step.id)) {
       problems.push({ category: "unresolved_reference", location: `${ANALYSIS_FILE}#/execution_order/${i}/id`, message: `probe '${step.id}' is not declared under probes`, remedy: "declare it under probes with what it asked and what it showed, or drop the step" });
     }
@@ -132,7 +177,7 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   }
   const manifestChecks = new Set((manifest.checks ?? []).map((c: any) => c.id));
   const manifestQueries = new Set((manifest.queries ?? []).map((q: any) => q.id));
-  for (const [i, step] of analysis.execution_order.entries()) {
+  for (const [i, step] of order.entries()) {
     if (step.kind === "check" && !manifestChecks.has(step.id)) {
       problems.push({ category: "unresolved_reference", location: `${ANALYSIS_FILE}#/execution_order/${i}/id`, message: `Check '${step.id}' is not in manifest.yaml#/checks`, remedy: "declare the Check in the manifest with its path and kind, or remove the step" });
     }
@@ -143,41 +188,101 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   const results = new Map((manifest.results ?? []).map((r: any) => [r.id, r]));
   const derived = new Set((manifest.derived ?? []).map((d: any) => d.id));
   const externals = new Set((manifest.external_sources ?? []).map((x: any) => x.id));
+  const requestedDerivedIds = new Set(requestedDerived.map((d) => d.id));
+  const requestedExternalIds = new Set(requestedExternal.map((x) => x.id));
+
+  // Saved rows, read once per result. `null` means the file is not there (or not readable) to resolve against:
+  // the manifest validator reports a missing or corrupt result file, and this one does not double-report it.
+  const rowCache = new Map<string, any[] | null>();
+  const rowsOf = (res: any): any[] | null => {
+    if (!rowCache.has(res.id)) {
+      let rows: any[] | null = null;
+      try {
+        const parsed = JSON.parse(readFileSync(safePath(dir, res.path), "utf8"));
+        rows = Array.isArray(parsed?.rows) ? parsed.rows : null;
+      } catch { rows = null; }
+      rowCache.set(res.id, rows);
+    }
+    return rowCache.get(res.id)!;
+  };
+
   const refProblem = (location: string, ref: string): void => {
     const m = VALUE_REF.exec(ref);
     if (!m) { problems.push({ category: "unresolved_reference", location, message: `malformed reference '${ref}'`, remedy: "use ref:<result>.<row_key>.<column>, derived:<id> or ext:<id> (docs/contracts/reference-grammar.md)" }); return; }
     if (m[1]) {
       const res: any = results.get(m[1]);
       if (!res) { problems.push({ category: "unresolved_reference", location, message: `result '${m[1]}' is not in manifest.yaml#/results`, remedy: "run `aftergrid execute` so the result exists, or fix the id" }); return; }
-      if (!(res.columns ?? []).some((c: any) => c.name === m[3])) problems.push({ category: "missing_column", location, message: `column '${m[3]}' is not declared on result '${m[1]}'`, remedy: "declare the column on the result set or fix the reference" });
+      if (!(res.columns ?? []).some((c: any) => c.name === m[3])) {
+        problems.push({ category: "missing_column", location, message: `column '${m[3]}' is not declared on result '${m[1]}'`, remedy: "declare the column on the result set or fix the reference" });
+        return;
+      }
+      const rows = rowsOf(res);
+      if (rows === null) return;   // Nothing saved to resolve against yet; the manifest validator owns that report.
+      const matched = rows.filter((row: any) => String(row?.[res.row_key]) === m[2]);
+      if (matched.length === 0) {
+        problems.push({ category: "unresolved_reference", location, message: `row key '${m[2]}' is not in result '${m[1]}'`, remedy: `row keys are the values of the '${res.row_key}' column in ${res.path}; fix the key or the query that was supposed to produce that row` });
+      } else if (matched.length > 1) {
+        problems.push({ category: "duplicate_row_key", location, message: `row key '${m[2]}' matches ${matched.length} rows in result '${m[1]}'`, remedy: "row keys must be unique; fix the query or the declared row_key column" });
+      }
       return;
     }
-    if (m[4] && !derived.has(m[4])) problems.push({ category: "unresolved_reference", location, message: `derived value '${m[4]}' is not in manifest.yaml#/derived`, remedy: "declare it under derived with its operation, operands and unit" });
-    if (m[5] && !externals.has(m[5])) problems.push({ category: "unresolved_reference", location, message: `external source '${m[5]}' is not in manifest.yaml#/external_sources`, remedy: "declare it under external_sources with a typed source" });
+    if (m[4] && !derived.has(m[4]) && !requestedDerivedIds.has(m[4])) {
+      problems.push({ category: "unresolved_reference", location, message: `derived value '${m[4]}' is in neither manifest.yaml#/derived nor requested_derived`, remedy: "declare it under requested_derived with its operation, operands and unit — the writer turns that into manifest.derived — or fix the id" });
+    }
+    if (m[5] && !externals.has(m[5]) && !requestedExternalIds.has(m[5])) {
+      problems.push({ category: "unresolved_reference", location, message: `external source '${m[5]}' is in neither manifest.yaml#/external_sources nor requested_external_sources`, remedy: "declare it under requested_external_sources with its typed source — the writer turns that into manifest.external_sources — or fix the id" });
+    }
   };
-  analysis.candidate_claims.forEach((claim, i) => {
+
+  requestedDerived.forEach((d, i) => {
+    (d.operands ?? []).forEach((ref, j) => refProblem(`${ANALYSIS_FILE}#/requested_derived/${i}/operands/${j}`, ref));
+  });
+
+  const definitions = new Map((manifest.definitions ?? []).map((d: any) => [d.id, d]));
+  claims.forEach((claim, i) => {
     (claim.evidence ?? []).forEach((ref: string, j: number) => refProblem(`${ANALYSIS_FILE}#/candidate_claims/${i}/evidence/${j}`, ref));
     if (claim.recheck_draft?.mode === "automatic") {
       (claim.recheck_draft.evidence ?? []).forEach((ref: string, j: number) => refProblem(`${ANALYSIS_FILE}#/candidate_claims/${i}/recheck_draft/evidence/${j}`, ref));
     }
+    (claim.definition_refs ?? []).forEach((ref: any, j: number) => {
+      const location = `${ANALYSIS_FILE}#/candidate_claims/${i}/definition_refs/${j}`;
+      const pinned: any = definitions.get(ref.id);
+      if (!pinned) {
+        problems.push({ category: "unresolved_reference", location, message: `definition '${ref.id}' is not in manifest.yaml#/definitions`, remedy: "pin every definition the Analysis uses in manifest.definitions with its kind, lifecycle and content hash (docs/contracts/analysis-directory.md step (b))" });
+      } else if (pinned.version !== ref.version) {
+        problems.push({ category: "definition_version", location, message: `definition '${ref.id}' is pinned at version ${pinned.version} and this Claim names version ${ref.version}`, remedy: "read the version the manifest pins, or pin the version the Analysis read" });
+      }
+    });
   });
 
   return problems;
 }
 
-/** One line per fact worth reporting from a valid Analysis file; empty when there is no file. */
+/** One line per fact worth reporting from an Analysis file; empty when there is no file. Never throws. */
 export function analysisSummary(dir: string): string[] {
   let analysis: Analysis | null;
   try { analysis = readAnalysis(dir); } catch { return []; }
   if (!analysis) return [];
-  const order = analysis.execution_order.map((s) => `${s.kind}:${s.id}${s.exploratory ? " (exploratory)" : ""}`).join(" -> ");
-  const lines = [
-    `analysis.yaml: Reader ${analysis.reader_profile}, recommends ${analysis.outcome_recommendation.outcome} — ${analysis.outcome_recommendation.reason}`,
-    `analysis.yaml execution order: ${order}`,
-    `analysis.yaml: ${analysis.assumptions.length} assumption(s), ${analysis.probes.length} exploratory probe(s), ${analysis.candidate_claims.length} candidate Claim(s)`,
-  ];
+  const lines: string[] = [];
+  const stage = analysisStage(analysis);
+  if (stage === "clarified") {
+    lines.push(`analysis.yaml: Reader ${analysis.reader_profile ?? "unrecorded"}, stage clarified — the Question's seed is recorded and the working record of the run is not filled in yet`);
+  } else if (analysis.outcome_recommendation) {
+    lines.push(`analysis.yaml: Reader ${analysis.reader_profile ?? "unrecorded"}, recommends ${analysis.outcome_recommendation.outcome} — ${analysis.outcome_recommendation.reason}`);
+  } else {
+    lines.push(`analysis.yaml: Reader ${analysis.reader_profile ?? "unrecorded"}, no outcome_recommendation recorded yet`);
+  }
+  if (Array.isArray(analysis.execution_order) && analysis.execution_order.length) {
+    const order = analysis.execution_order
+      .map((s) => `${s?.kind}:${s?.id}${s?.exploratory ? " (exploratory)" : ""}${s?.post_hoc ? " (post-hoc)" : ""}`)
+      .join(" -> ");
+    lines.push(`analysis.yaml execution order: ${order}`);
+  } else {
+    lines.push("analysis.yaml: no execution order recorded yet");
+  }
+  lines.push(`analysis.yaml: ${(analysis.assumptions ?? []).length} assumption(s), ${(analysis.probes ?? []).length} exploratory probe(s), ${(analysis.candidate_claims ?? []).length} candidate Claim(s)`);
   if (!analysis.pre_registered_comparison) lines.push("analysis.yaml: no pre-registered comparison recorded; every Claim here is exploratory");
   else if (!analysis.pre_registered_comparison.registered_before_cuts) lines.push("analysis.yaml: the primary comparison was registered AFTER cuts were explored, and says so");
-  for (const n of analysis.needs_input ?? []) lines.push(`analysis.yaml needs input (${n.kind}, owner ${n.owner}): ${n.description}`);
+  for (const n of analysis.needs_input ?? []) lines.push(`analysis.yaml needs input (${n?.kind}, owner ${n?.owner}): ${n?.description}`);
   return lines;
 }

@@ -49,8 +49,10 @@ settled or explicitly recorded as unsettled with its reason.
 
 ## 4. Write it down
 
-Follow *Writing the result*. `question` and `reader` in `manifest.yaml`; `reader_profile`, `assumptions`,
-`pre_registered_comparison` and any `needs_input` in `analysis.yaml`.
+Follow *Writing the result*. `question` and `reader` in `manifest.yaml`; `stage: clarified`, `reader_profile`,
+`assumptions`, `pre_registered_comparison` and any `needs_input` in `analysis.yaml`. `stage: clarified` is what
+says this file is a seed: without it the Analysis file is read as a finished working record and `check` reports
+the probes, execution order, candidate Claims and outcome it is missing.
 
 A part that is not settled stays **absent** from the manifest and named in `question.unresolved`. A falsifier
 you cannot run is not written at all.
@@ -58,7 +60,8 @@ you cannot run is not written at all.
 New definitions go to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval block. An
 approved definition is read, never edited.
 
-Done when `aftergrid check <finding-dir>` runs clean of schema errors and reports the state you intended:
+Done when `aftergrid check <finding-dir>` runs clean of schema errors and reports the state you intended.
+Evidence is `valid` in every row below: nothing is wrong with the evidence, there is none yet.
 
 | What you settled | `question.state` | What `check` reports |
 | --- | --- | --- |
