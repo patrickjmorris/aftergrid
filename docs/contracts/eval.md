@@ -12,6 +12,11 @@ aftergrid eval --golden <id|all> --analyzer fixture|command
                [--instance <dir>] [--out <dir>] [--sha <git sha>] [--json]
 ```
 
+`--sha` names one directory component under `--out`, so it is validated in `runEval` — the one place both
+`aftergrid eval` and `aftergrid eval nightly` pass through. A revision name that is not `[A-Za-z0-9][A-Za-z0-9._-]{0,63}`
+is refused as `unsafe_path` before any case runs and nothing is written. (`eval` reports it as an error, so it
+exits 1; `eval nightly` exits 2 — see the exit-code table below.)
+
 ## What one case does
 
 1. Copy the Instance to a throwaway directory, without its `findings/`. The real Instance is never written to,
@@ -29,12 +34,44 @@ With no `--out`, nothing is written and the report says so.
 | `--analyzer` | What it is | Exercised |
 | --- | --- | --- |
 | `fixture` | Replays a recorded run: a prepared Finding directory at `fixtures/runs/<golden id>/output`, or `fixtures/runs/4ka-<golden id>/output`. Declines when neither exists. | yes — `src/eval.test.ts` |
-| `command` | Shells out to a headless `/analyze` and reads its last JSON line. Tokens `{finding_dir}`, `{raw_ask}`, `{instance}`, `{golden}`, `{reader}` are substituted per argument; there is no shell. | **no** |
+| `command` | Shells out to a headless `/analyze` and reads its last JSON line. Tokens `{finding_dir}`, `{raw_ask}`, `{instance}`, `{golden}`, `{reader}`, `{repo_root}` and `{max_cost_usd}` are substituted per argument; there is no shell, so a quoted token would keep its quotes. | **no model**; its failure paths are |
 
 `exercised: false` travels into the run record and the report. No model runs in this repository's test suite,
-so what a real analyzer prints, how long it takes and what it leaves behind on a crash are untested here.
+so what a real analyzer prints and how long it takes are untested here.
 
 **The first end-to-end golden eval with a live model has not been run.**
+
+### When the command analyzer has "produced" a Finding
+
+`aftergrid new finding` writes a **draft** manifest.yaml into the Finding directory before the analyzer starts,
+so the presence of a manifest proves nothing. A Finding is produced only when
+
+1. the command exited **0**, and
+2. the draft manifest is no longer byte-for-byte the one `new finding` wrote.
+
+Anything else is infrastructure: the case is an `error` with **zero assertions** and a stable `failure_cause`.
+Scoring a draft against the Golden Question would fail every expectation at once and manufacture a fleet of
+analytical regressions out of a broken orchestrator.
+
+| `failure_cause` | Means | A retry may clear it |
+| --- | --- | --- |
+| `analyzer_exit_<code>` | the command exited non-zero | yes |
+| `analyzer_spawn_failed` | the binary could not be started (ENOENT, permissions) | no |
+| `analyzer_killed` | the child was killed before it exited (a timeout or a signal) | yes |
+| `analyzer_wrote_nothing` | it exited 0 and left the draft exactly as `new finding` wrote it | yes |
+
+An analyzer that prints `{"status":"declined", ...}` has made a judgement rather than crashed: that case stays
+`not_run`.
+
+### Cost
+
+`--max-cost-usd` (default 2) is substituted into the template as `{max_cost_usd}`. **The runner meters
+nothing.** The bound is enforced by the headless CLI's own `--max-budget-usd`; the runner only hands the number
+over and records it in `run.json` under `budget.max_cost_usd`. What it records as *spent* is what the analyzer
+reported in its `--output-format json` envelope — `total_cost_usd` into `cost.usd`, `usage.input_tokens` and
+`usage.output_tokens` into the token fields — and `null` wherever the envelope said nothing. `run.json`'s
+`totals.cost_usd` is the sum over the cases that reported a figure, and `null` when none did. A cost is never
+fabricated, and an unknown cost is never `0`.
 
 ## The assertions
 
@@ -122,8 +159,9 @@ In the report these arrive as `eval_case_failed` (analytical) and `eval_infrastr
 }
 ```
 
-`model` is null when no model ran. Every cost field is null until something reports one: an unknown cost is
-`null`, never `0`. `skill_versions` reads `version` from each promoted skill's frontmatter and records
+`model` is **only ever what a case reported**, and `null` otherwise. `--model` is a label on the invocation,
+not evidence: a run whose analyzer never produced a Finding names no model, in the per-case records and in
+`run.json` alike. Every cost field is null until something reports one: an unknown cost is `null`, never `0`. `skill_versions` reads `version` from each promoted skill's frontmatter and records
 `unversioned` where a skill carries none.
 
 ## Nightly
@@ -152,10 +190,29 @@ candidate can be evaluated without waiting for the schedule), `model` (recorded 
 a switch), `budget_minutes`, and `report_issues` (opt-in; the issue sink runs only when it is set).
 
 The job runs the **command** analyzer — headless Claude Code invoking `/analyze` — only when the
-`ANTHROPIC_API_KEY` secret is present. Without it the job runs the fixture analyzer and writes in the job
-summary that the model-in-the-loop run was **NOT exercised** and that a green run here says nothing about what
-a model would produce. There is no configuration in which the workflow claims a model ran when none did. The
-run directory is uploaded as an artifact; `summary.md` is posted to the job summary.
+`ANTHROPIC_API_KEY` secret is present. That branch installs the CLI it is about to shell out to
+(`npm i -g @anthropic-ai/claude-code`, unpinned on purpose: pinning would evaluate an old orchestrator against
+today's skills), and the template it passes is
+
+```
+claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode acceptEdits \
+       --max-budget-usd {max_cost_usd} --output-format json
+```
+
+`/analyze` is a skill of **this repository's plugin**, and the Finding lives in a `mkdtemp` copy of the
+Instance, so the plugin has to be loaded explicitly; `{repo_root}` is the Engine checkout the runner resolves
+from its own module URL. Whether that invocation does what it says is still unverified: no model has run it.
+
+Without the secret the job runs the fixture analyzer. Either way the job summary's claim comes from
+`aftergrid eval summary` reading `run.json`, never from the secret being set, so there is no configuration in
+which the workflow claims a model ran when none did. The run directory is uploaded as an artifact; `summary.md`
+is posted to the job summary.
+
+`budget_minutes` and `max_cost_usd` are free-text dispatch inputs and are validated in the shell before they
+reach arithmetic or a flag. The baseline for the comparison is the most recent completed, non-cancelled run of
+this workflow **on the default branch**, and the chosen run id is printed into the job summary. Issue filing
+runs on the schedule as well as on a dispatch that asked for it: `inputs` is null on a schedule, so gating on
+`inputs.report_issues` alone would mean the nightly that actually runs every night never filed what it found.
 
 ### What is written
 
@@ -166,14 +223,39 @@ them, plus:
   `skill_versions`, `analyzer` (`kind`, `exercised`, and the `command_template` with anything credential-shaped
   replaced by `<redacted>`; an environment *reference* such as `$ANTHROPIC_API_KEY` is kept, because it is how
   the run was configured), `instance`, `started`/`finished`/`elapsed_ms`, `budget_ms`, `case_timeout_ms`,
-  `partial`, `not_run`, `totals`, `cases` and `failures`.
+  `partial`, `not_run`, `budget.max_cost_usd`, `totals` (the eval's counts plus `cost_usd`, null when no case
+  reported one), `cases` and `failures`. Each case that the analyzer itself broke on also carries
+  `failure_cause`.
 - **`summary.md`** — one line per case: `pass`, `analytical failure` with the failing assertion ids and a
   pointer to the assertion table above, `infrastructure error` with a stable cause word and whether a retry
   could clear it, or `not run`. Each line links its retained record by relative path.
 - **`comparison.json`** — written by `eval compare`, and appended as a section to `summary.md`.
 
 A `--model` given alongside the **fixture** analyzer names nothing that ran — a replayed Finding is not a model
-run — so `run.json` records `model: null` and the report says why.
+run — so `run.json` records `model: null` and the report says why. The fixture analyzer runs no command either,
+so `command_template` is `null` for it whatever `--analyzer-command` said.
+
+A run reports that it "covered every selected case" only when every case reached a verdict. A declined or
+errored case is a hole, and the run names the cases instead of claiming coverage over them.
+
+### Redaction
+
+`redactCommand` splits each token on its **first `=`** before judging it, so `--api-key=VALUE` and
+`--api-key VALUE` are the same case. A name is credential-shaped by **suffix**
+(`/(^|[-_])(api[-_]?key|key|token|secret|password|passwd|credential|pat|auth)s?$/i`), so an unfamiliar
+`--anthropic-api-key` is caught without anyone adding it to a list; the environment-assignment form also matches
+the word anywhere in the name. A bare token with a provider shape (`ghp_…`, `github_pat_…`, `sk-…`, `xox…`,
+underscores and dashes included) is redacted wherever it appears. An environment *reference* (`$ANTHROPIC_API_KEY`)
+is kept: it is how the run was configured, not a secret.
+
+### Was a model really in the loop?
+
+`aftergrid eval summary <run-dir>` prints that claim as markdown, and it is the only thing that decides it. A
+present `ANTHROPIC_API_KEY` is **not** evidence — the secret is set long before an analyzer crashes — so the
+claim rests on three facts held together in `run.json`: `analyzer.kind === "command"`, `totals.pass + totals.fail > 0`,
+and `model !== null`. Anything less prints `Model in the loop: NOT exercised` with the reason (the fixture
+analyzer ran / no case reached a verdict / no case reported a model). The workflow's job summary calls this
+command rather than matching strings in a shell.
 
 `summary.md`, `run.json` and every issue body are built from identifiers, statuses, causes and paths only. They
 never carry an assertion's `observed` text or a record's `reason`, because those can quote numbers read out of a
@@ -201,7 +283,10 @@ case-level infrastructure error uses the assertion id `(run)`.
 (`find(fingerprint)`, `create({title, body, labels})`, `comment(issue, body)`). The GitHub implementation reads
 the **open** issues carrying the `aftergrid-eval` label and looks for the marker
 `<!-- aftergrid-eval:<fingerprint> -->` in their bodies; when it finds one it comments on that issue instead of
-opening a second. A failure that repeats for a week is one issue with seven comments. The token comes from
+opening a second. It **pages**: a single `per_page=100` request stops looking at the hundredth open issue and
+would re-file everything past it every night. Paging stops at a short page (the end of the list) or at 20 pages;
+if the window is exhausted with no answer the sink **refuses** — an `api_error` saying `search window exhausted`
+— and creates nothing, because a missing issue is recoverable and a nightly stream of duplicates is not. A failure that repeats for a week is one issue with seven comments. The token comes from
 `GITHUB_TOKEN` / `GH_TOKEN` only; the repository comes from the Instance policy (`publication.repository`) or
 `--repo`. A fake sink (`createFakeIssueSink`) is what the tests use: **no test contacts GitHub.**
 
@@ -216,13 +301,20 @@ nothing and re-judges nothing — and classifies each case:
 
 | Classification | Means |
 | --- | --- |
-| `unchanged` | the same verdict on both sides |
+| `unchanged` | the same verdict on both sides — or the same absence of one on both sides |
 | `regressed` | passed in the baseline, fails now. Reported as `eval_case_failed` |
 | `fixed` | failed in the baseline, passes now |
 | `new` | no baseline record for this case |
+| `no_verdict` | exactly one side reached a verdict (`pass` or `fail`). A case that passed and now declines has not held its pass, and one that never ran and now fails has not regressed from one |
 | `infrastructure` | either side errored or failed an infrastructure assertion, so no analytical change is claimed |
 
-Cases the baseline has and the run does not are listed under `missing_from_run`: a hole, not a verdict.
+`no_verdict` is counted and rendered separately from `unchanged`, in `comparison.json` and in the section
+appended to `summary.md`: reporting a hole as stability is how a suite quietly stops testing anything.
+
+Cases the baseline has and the run does not are listed under `missing_from_run`: a hole, not a verdict. A record
+file on either side that cannot be read back as a case record is listed under `malformed` (and warned about),
+which is a different hole from a missing one and calls for a different fix. A record carrying no `assertions`
+array at all is compared as having no failing assertions rather than crashing the comparison.
 
 ### Exit codes
 
@@ -234,13 +326,17 @@ Cases the baseline has and the run does not are listed under `missing_from_run`:
 | 4 | the run was **partial** (a budget or a per-case timeout stopped it) and nothing else failed |
 
 A failure outranks partiality: a nightly that found a regression exits 1, and `partial` is in `run.json` and
-`summary.md` either way. Cases the analyzer declined are not failures and do not change the exit code.
+`summary.md` either way. Cases the analyzer declined are not failures and do not change the exit code. **These
+codes have not changed.** `.github/workflows/ci.yml` runs the fixture suite on every push and tolerates exit 1
+(`|| test $? -eq 1`), because an eval is never a merge gate; 2 (usage or refusal) and 3 still fail the check.
 
 ### What a nightly still does not do
 
-The command analyzer is still `exercised: false`: no test in this repository runs it and no model runs in this
-suite, so what a real headless `/analyze` prints, how long it takes and what it leaves behind on a crash remain
-untested here. **The first end-to-end golden eval with a live model has not been run**, and neither the
+The command analyzer is still `exercised: false`: **no model runs in this suite**, so what a real headless
+`/analyze` prints, how long it takes and what it costs remain untested here. Its *failure* handling is tested,
+with stand-in binaries (`/usr/bin/false`, a path that does not exist, `/usr/bin/true`), and so is the cost
+parsing, with a script that prints the envelope shape — neither of which establishes that the real invocation
+in the workflow is well-formed. **The first end-to-end golden eval with a live model has not been run**, and neither the
 workflow nor the run record will say otherwise.
 
 ## What an eval never does

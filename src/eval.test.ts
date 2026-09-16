@@ -450,3 +450,91 @@ test("insufficient evidence with clean reviews continues: too little data is an 
   });
   assert.equal(decision.next, "continue", "an insufficient-data Finding with clean reviews is a completed Analysis");
 });
+
+/* ------------------------------------------------------------------ the command analyzer, for real */
+
+// These four run the REAL command analyzer — the one no model exercises — against binaries that stand in for
+// the ways a headless orchestrator fails: a non-zero exit, a binary that is not there, and one that exits
+// clean having written nothing. A draft manifest already exists when the analyzer starts (`new finding` wrote
+// it), so "there is a manifest.yaml" is not evidence the analyzer produced anything.
+const PRICE_RUN = join(REPO, "fixtures", "runs", "4ka-price_change_cancellations", "output");
+
+test("an analyzer that exits non-zero is infrastructure, with no assertion and no analytical verdict", async () => {
+  const report = await runEval({ golden: "referral_campaign", analyzer: "command", analyzerCommand: "/usr/bin/false {finding_dir}" });
+  const record = report.cases[0]!;
+  assert.equal(record.outcome, "error", record.reason);
+  assert.equal(record.failure_category, "infrastructure");
+  assert.deepEqual(record.assertions, [], "a crashed analyzer is not a wrong answer: nothing was asserted");
+  assert.equal(record.failure_cause, "analyzer_exit_1");
+  assert.ok(report.errors.every((e) => e.category !== "eval_case_failed"), JSON.stringify(report.errors));
+});
+
+test("an analyzer binary that does not exist is infrastructure, not a declined case", async () => {
+  const report = await runEval({ golden: "referral_campaign", analyzer: "command", analyzerCommand: "/nonexistent-aftergrid-analyzer {finding_dir}" });
+  const record = report.cases[0]!;
+  assert.equal(record.outcome, "error", record.reason);
+  assert.equal(record.failure_category, "infrastructure");
+  assert.equal(record.failure_cause, "analyzer_spawn_failed");
+  assert.deepEqual(record.assertions, []);
+});
+
+test("an analyzer that exits clean without touching the draft Finding produced nothing, and the run says so", async () => {
+  const report = await runEval({ golden: "referral_campaign", analyzer: "command", analyzerCommand: "/usr/bin/true {finding_dir}" });
+  const record = report.cases[0]!;
+  assert.equal(record.outcome, "error", record.reason);
+  assert.equal(record.failure_cause, "analyzer_wrote_nothing",
+    "the draft manifest `new finding` wrote is unchanged, so nothing was produced");
+  assert.deepEqual(record.assertions, [], "asserting a draft against a Golden Question would manufacture failures");
+});
+
+test("a produced Finding records the cost the analyzer reported, and never one it did not", async () => {
+  const script = join(temp(), "analyzer.mjs");
+  writeFileSync(script, [
+    'import { cpSync, rmSync } from "node:fs";',
+    'const [dir, source] = process.argv.slice(2);',
+    'rmSync(dir, { recursive: true, force: true });',
+    'cpSync(source, dir, { recursive: true });',
+    'console.log(JSON.stringify({ type: "result", subtype: "success", total_cost_usd: 0.1234, usage: { input_tokens: 111, output_tokens: 22 } }));',
+  ].join("\n"));
+
+  const report = await runEval({
+    golden: "price_change_cancellations", analyzer: "command",
+    analyzerCommand: `${process.execPath} ${script} {finding_dir} ${PRICE_RUN}`,
+  });
+  const record = report.cases[0]!;
+  assert.equal(record.outcome, "pass", record.reason);
+  assert.deepEqual(record.cost, { input_tokens: 111, output_tokens: 22, usd: 0.1234 });
+
+  // Silence is null, never zero: an analyzer that reports no cost leaves the field unknown.
+  const quiet = join(temp(), "quiet.mjs");
+  writeFileSync(quiet, [
+    'import { cpSync, rmSync } from "node:fs";',
+    'const [dir, source] = process.argv.slice(2);',
+    'rmSync(dir, { recursive: true, force: true });',
+    'cpSync(source, dir, { recursive: true });',
+    'console.log(JSON.stringify({ type: "result" }));',
+  ].join("\n"));
+  const unknown = await runEval({
+    golden: "price_change_cancellations", analyzer: "command",
+    analyzerCommand: `${process.execPath} ${quiet} {finding_dir} ${PRICE_RUN}`,
+  });
+  assert.deepEqual(unknown.cases[0]!.cost, { input_tokens: null, output_tokens: null, usd: null });
+});
+
+/* ------------------------------------------------------------------ what a record may claim */
+
+test("a --model given to the fixture analyzer names nothing that ran, in every per-case record", async () => {
+  const report = await runEval({ golden: "all", analyzer: "fixture", model: "claude-not-actually-run" });
+  for (const record of report.cases) {
+    assert.equal(record.model, null, `${record.case} recorded a model no case reported`);
+  }
+});
+
+test("a --sha that is not a usable directory name is refused by `eval` itself, and nothing is written", async () => {
+  const out = join(temp(), "records");
+  const report = await runEval({ golden: "all", analyzer: "fixture", outDir: out, sha: "../escape" });
+  assert.ok(report.errors.some((e) => e.category === "unsafe_path"), JSON.stringify(report.errors));
+  assert.equal(report.syntax, "invalid");
+  assert.equal(existsSync(join(out, "..", "escape")), false, "a revision name never becomes a path outside --out");
+  assert.deepEqual(report.cases, [], "the refusal happens before any case runs");
+});

@@ -8,6 +8,7 @@
 // whose own reference query no longer reproduces its value are all `infrastructure`, reported apart from the
 // `analytical` verdicts.
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
@@ -25,6 +26,17 @@ import {
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const DEFAULT_INSTANCE = join(REPO_ROOT, "fixtures", "instance", "analytics");
 const DEFAULT_FIXTURE_RUNS = join(REPO_ROOT, "fixtures", "runs");
+
+/**
+ * The per-case spend ceiling substituted into an analyzer template as `{max_cost_usd}`.
+ *
+ * The runner does not meter anything: it hands the number to the analyzer, which is what enforces it (the
+ * headless CLI's own `--max-budget-usd`). What the runner records is what the analyzer *reported* spending.
+ */
+export const DEFAULT_MAX_COST_USD = 2;
+
+/** A revision name has to be usable as one directory component: `--sha` can come from a workflow input. */
+export const SHA_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 /* ------------------------------------------------------------------ goldens */
 
@@ -103,11 +115,24 @@ export type AnalyzerContext = {
   /** The Finding directory `aftergrid new finding` just created, inside a throwaway copy of the Instance. */
   findingDir: string;
   instanceRoot: string;
+  /** This Engine checkout. An analyzer that must load the shipped plugin (`/analyze`) needs to be told where it is. */
+  repoRoot: string;
+  /** The spend ceiling the analyzer is asked to enforce on itself, in US dollars. */
+  maxCostUsd: number;
 };
 
+/** What an analyzer said it spent. Every field is null unless the analyzer reported a figure: never a zero, never a guess. */
+export type AnalyzerCost = { input_tokens: number | null; output_tokens: number | null; usd: number | null };
+
 export type AnalyzerOutcome =
-  | { status: "produced"; finding_dir: string; source?: string | null; model?: string | null }
-  | { status: "declined"; reason: string };
+  | { status: "produced"; finding_dir: string; source?: string | null; model?: string | null; cost?: AnalyzerCost | null }
+  /** The analyzer ran and refused the case. Not a failure: the case is `not_run`. */
+  | { status: "declined"; reason: string }
+  /**
+   * The analyzer broke. This is infrastructure — the case is an `error` with no assertion — and `cause` is the
+   * stable word summary.md and any issue body will carry. It is never a verdict on the Analysis.
+   */
+  | { status: "failed"; cause: string; reason: string };
 
 export interface Analyzer {
   readonly name: string;
@@ -147,6 +172,8 @@ export function renderAnalyzerCommand(template: string, ctx: AnalyzerContext): s
     "{instance}": ctx.instanceRoot,
     "{golden}": ctx.golden.id,
     "{reader}": ctx.golden.reader,
+    "{repo_root}": ctx.repoRoot,
+    "{max_cost_usd}": String(ctx.maxCostUsd),
   };
   const tokens = template.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) throw new Error("--analyzer-command is empty");
@@ -156,9 +183,16 @@ export function renderAnalyzerCommand(template: string, ctx: AnalyzerContext): s
 /**
  * Shells out to a headless `/analyze` and reads its last JSON line.
  *
- * **Not exercised.** No test in this repository runs it and no model runs in CI, so what a real orchestrator
- * prints, how long it takes and what it leaves behind on a crash are untested. `exercised: false` travels into
- * the run record and the report rather than letting a green suite imply coverage.
+ * **Not exercised by a model.** No model runs in this repository's suite, so what a real orchestrator prints
+ * and how long it takes are untested; `exercised: false` travels into the run record and the report rather than
+ * letting a green suite imply coverage. The *failure* paths below are exercised, by binaries that stand in for
+ * the ways an orchestrator breaks (`src/eval.test.ts`).
+ *
+ * What counts as "produced" is deliberately narrow. `aftergrid new finding` has already written a draft
+ * manifest.yaml into the Finding directory before the analyzer starts, so the presence of a manifest proves
+ * nothing: a crashed analyzer would be scored against the Golden Question and every expectation would "fail",
+ * manufacturing analytical failures out of a broken orchestrator. A Finding is produced only when the command
+ * exited 0 **and** the draft manifest is no longer the one `new finding` wrote.
  */
 export function createCommandAnalyzer(opts: { command: string; timeoutMs?: number; spawnImpl?: typeof spawn; model?: string | null }): Analyzer {
   return {
@@ -169,6 +203,9 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
       try { argv = renderAnalyzerCommand(opts.command, ctx); }
       catch (e) { return Promise.resolve({ status: "declined", reason: (e as Error).message } as AnalyzerOutcome); }
       const spawnFn = opts.spawnImpl ?? spawn;
+      // The draft as it stands before the analyzer touches it. An analyzer that leaves this unchanged produced
+      // nothing, whatever its exit code said.
+      const draft = manifestDigest(ctx.findingDir);
       return new Promise<AnalyzerOutcome>((resolvePromise) => {
         let child: ReturnType<typeof spawn>;
         try {
@@ -179,30 +216,70 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
             timeout: opts.timeoutMs,
           });
         } catch (e) {
-          resolvePromise({ status: "declined", reason: `analyzer command could not start: ${(e as Error).message}` });
+          resolvePromise({ status: "failed", cause: "analyzer_spawn_failed", reason: `the analyzer command could not start: ${(e as Error).message}` });
           return;
         }
         let out = "", err = "";
         child.stdout?.on("data", (c) => { out += String(c); });
         child.stderr?.on("data", (c) => { err += String(c); });
-        child.on("error", (e) => resolvePromise({ status: "declined", reason: `analyzer command failed to run: ${e.message}` }));
+        child.on("error", (e) => resolvePromise({ status: "failed", cause: "analyzer_spawn_failed", reason: `the analyzer command failed to run: ${e.message}` }));
         child.on("close", (code) => {
           const parsed = lastJsonLine(out);
           const dir = parsed && typeof parsed.finding_dir === "string" && parsed.finding_dir.trim()
             ? (isAbsolute(parsed.finding_dir) ? parsed.finding_dir : join(ctx.instanceRoot, parsed.finding_dir))
             : ctx.findingDir;
+          const tail = err.trim() ? `: ${err.trim().split("\n").slice(-1)[0]}` : "";
+          // An analyzer that says it declined has made a judgement, and that is not a crash.
           if (parsed && parsed.status === "declined") {
             resolvePromise({ status: "declined", reason: String(parsed.reason ?? "the analyzer declined without a reason") });
             return;
           }
-          if (existsSync(join(dir, "manifest.yaml"))) {
-            resolvePromise({ status: "produced", finding_dir: resolve(dir), source: argv.join(" "), model: opts.model ?? null });
+          if (code !== 0) {
+            resolvePromise({
+              status: "failed",
+              cause: code === null ? "analyzer_killed" : `analyzer_exit_${code}`,
+              reason: code === null
+                ? `the analyzer command was killed before it exited (a timeout or a signal)${tail}`
+                : `the analyzer command exited ${code}${tail}`,
+            });
             return;
           }
-          resolvePromise({ status: "declined", reason: `analyzer command exited ${code} and left no Finding at ${dir}${err.trim() ? `: ${err.trim().split("\n").slice(-1)[0]}` : ""}` });
+          const produced = existsSync(join(dir, "manifest.yaml"))
+            && !(resolve(dir) === resolve(ctx.findingDir) && draft !== null && manifestDigest(dir) === draft);
+          if (produced) {
+            resolvePromise({ status: "produced", finding_dir: resolve(dir), source: argv.join(" "), model: opts.model ?? null, cost: costFromEnvelope(parsed) });
+            return;
+          }
+          resolvePromise({
+            status: "failed",
+            cause: "analyzer_wrote_nothing",
+            reason: `the analyzer command exited 0 and left the draft Finding at ${dir} exactly as \`new finding\` wrote it${tail}`,
+          });
         });
       });
     },
+  };
+}
+
+/** The bytes of a Finding's manifest, or null when there is none to compare against. */
+function manifestDigest(dir: string): string | null {
+  try { return createHash("sha256").update(readFileSync(join(dir, "manifest.yaml"))).digest("hex"); }
+  catch { return null; }
+}
+
+/**
+ * What the headless CLI's `--output-format json` envelope said the run cost.
+ *
+ * Only what is actually there: a missing or non-finite figure stays null, because an eval that records 0 where
+ * it means "unknown" makes a spend look free.
+ */
+export function costFromEnvelope(parsed: Record<string, unknown> | null): AnalyzerCost {
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const usage = (parsed?.usage ?? null) as Record<string, unknown> | null;
+  return {
+    input_tokens: num(usage?.input_tokens),
+    output_tokens: num(usage?.output_tokens),
+    usd: num(parsed?.total_cost_usd),
   };
 }
 
@@ -454,6 +531,11 @@ export type EvalOptions = {
   caseTimeoutMs?: number;
   /** Passed to the command analyzer, so the child process itself is bounded and not merely abandoned. */
   analyzerTimeoutMs?: number;
+  /**
+   * The per-case spend ceiling substituted into an analyzer template as `{max_cost_usd}`, in US dollars.
+   * The runner meters nothing; the analyzer enforces it. Defaults to `DEFAULT_MAX_COST_USD`.
+   */
+  maxCostUsd?: number;
 };
 
 /** A promise that resolves after `ms`, without holding the event loop open on its own. */
@@ -472,6 +554,9 @@ type CasePatch = {
   assertions?: Assertion[];
   analyzerSource?: string | null;
   model?: string | null;
+  /** The stable word for an infrastructure failure the analyzer itself reported. */
+  failureCause?: string;
+  cost?: CaseRecord["cost"];
   sqlExecuted?: boolean;
 };
 
@@ -483,6 +568,8 @@ function applyPatch(record: CaseRecord, patch: CasePatch): void {
   if (patch.assertions) record.assertions = patch.assertions;
   if (patch.analyzerSource !== undefined) record.analyzer.source = patch.analyzerSource;
   if (patch.model !== undefined) record.model = patch.model;
+  if (patch.failureCause !== undefined) record.failure_cause = patch.failureCause;
+  if (patch.cost) record.cost = patch.cost;
 }
 
 /** The warehouse the golden reference queries read, taken from the Instance's connection profile. */
@@ -543,6 +630,15 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
   report.readiness = "unknown";
   report.readiness_reasons.push("an eval never approves a Finding: publication readiness is decided by `aftergrid check` against a human APPROVED review");
 
+  // The revision names a directory under `--out`, and it can come from a flag or from a workflow input. Both
+  // entry points (`eval` and `eval nightly`) share this check, so neither can write outside the directory it
+  // was given.
+  if (opts.sha !== undefined && !SHA_RE.test(opts.sha)) {
+    report.errors.push({ category: "unsafe_path", location: "--sha", message: `'${opts.sha}' is not a usable revision name`, remedy: "pass a git sha, tag or branch name made of letters, digits, dot, dash or underscore" });
+    report.syntax = "invalid";
+    return report;
+  }
+
   const instanceDir = resolve(opts.instanceDir ?? DEFAULT_INSTANCE);
   if (!existsSync(join(instanceDir, "aftergrid.yaml"))) {
     report.errors.push({ category: "missing_file", location: instanceDir, message: "no aftergrid.yaml here", remedy: "pass --instance <dir> pointing at an Instance root" });
@@ -596,6 +692,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
   const now = opts.now ?? (() => new Date());
   const runStarted = now().toISOString();
   const date = opts.date ?? runStarted.slice(0, 10);
+  const maxCostUsd = opts.maxCostUsd ?? DEFAULT_MAX_COST_USD;
   const caseTimeoutMs = opts.caseTimeoutMs && opts.caseTimeoutMs > 0 ? opts.caseTimeoutMs : null;
   const deadline = opts.budgetMs !== undefined && opts.budgetMs >= 0 ? now().getTime() + opts.budgetMs : null;
 
@@ -611,7 +708,8 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
         analyzer: { name: analyzer.name, exercised: analyzer.exercised, source: null },
         finding: { dir: null, id: null, state: null, outcome: null },
         assertions: [],
-        model: opts.model ?? null,
+        // Only a case that ran can name the model that ran it. `--model` is a label on the run, not evidence.
+        model: null,
         skill_versions: skillVersions,
         plugin_version: plugin,
         git_sha: sha,
@@ -639,7 +737,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
             patch.finding!.dir = findingDir;
             let produced: AnalyzerOutcome;
             try {
-              produced = await analyzer.analyze({ golden, rawAsk: golden.raw_ask, findingDir, instanceRoot: temp });
+              produced = await analyzer.analyze({ golden, rawAsk: golden.raw_ask, findingDir, instanceRoot: temp, repoRoot: REPO_ROOT, maxCostUsd });
             } catch (e) {
               produced = { status: "declined", reason: `__threw__: ${(e as Error).message}` };
             }
@@ -647,13 +745,20 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
               patch.outcome = "error";
               patch.failure_category = "infrastructure";
               patch.reason = `the analyzer threw: ${produced.reason.slice("__threw__: ".length)}`;
+            } else if (produced.status === "failed") {
+              // The analyzer broke. Nothing is asserted, so nothing is claimed about the Analysis.
+              patch.outcome = "error";
+              patch.failure_category = "infrastructure";
+              patch.reason = produced.reason;
+              patch.failureCause = produced.cause;
             } else if (produced.status === "declined") {
               patch.outcome = "not_run";
               patch.failure_category = null;
               patch.reason = produced.reason;
             } else {
               patch.analyzerSource = produced.source ?? null;
-              patch.model = produced.model ?? record.model;
+              patch.model = produced.model ?? null;
+              if (produced.cost) patch.cost = produced.cost;
               patch.finding!.dir = produced.finding_dir;
               const assessed = await assess(produced.finding_dir, golden, adapter, referenceUnavailable, definitions);
               patch.sqlExecuted = assessed.sqlExecuted;

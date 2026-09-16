@@ -20,7 +20,7 @@ import {
   type NightlyReport,
 } from "./eval/nightly.ts";
 import { compareCommand, compareRuns } from "./eval/compare.ts";
-import { createFakeIssueSink, markerFor, reportCommand, reportFailures } from "./eval/report.ts";
+import { createFakeIssueSink, createGitHubIssueSink, markerFor, reportCommand, reportFailures } from "./eval/report.ts";
 
 const REPO = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const INSTANCE = join(REPO, "fixtures", "instance", "analytics");
@@ -301,7 +301,8 @@ test("compare classifies a regression and a fix from the retained records, and w
 
   const baseDir = join(baselineOut, "base0001");
   const headDir = join(regressedOut, "head0001");
-  assert.equal(readCaseRecords(baseDir).length, loadGoldens(INSTANCE).length, "run.json and summary.json are not case records");
+  assert.equal(readCaseRecords(baseDir).records.length, loadGoldens(INSTANCE).length, "run.json and summary.json are not case records");
+  assert.deepEqual(readCaseRecords(baseDir).malformed, [], "every retained record reads back");
 
   const report = compareCommand({ baseline: baseDir, run: headDir });
   const comparison = report.comparison!;
@@ -477,4 +478,257 @@ test("a fingerprint is a function of the case, the assertion and the category, a
   const tuesday = failuresOf({ ...base, reason: "outcome: expected 2", started: "2026-09-17T00:00:00Z", finished: "2026-09-17T00:09:00Z" });
   assert.deepEqual(monday.map((f) => f.fingerprint), tuesday.map((f) => f.fingerprint));
   assert.equal(monday[0]!.fingerprint, a);
+});
+
+/* ------------------------------------------------------------------ the command analyzer is not a verdict */
+
+/** A per-case record written by hand, for the comparison classes that need one side to have no verdict. */
+function writeRecord(dir: string, id: string, patch: Record<string, unknown>): void {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${id}.json`), JSON.stringify({
+    schema_version: "0.1.0", case: id, outcome: "pass", failure_category: null, reason: "",
+    analyzer: { name: "fixture", exercised: true, source: null },
+    finding: { dir: null, id: null, state: null, outcome: null }, assertions: [], model: null,
+    skill_versions: {}, plugin_version: null, git_sha: null, aftergrid_version: null,
+    started: "2026-09-16T00:00:00Z", finished: "2026-09-16T00:00:01Z",
+    cost: { input_tokens: null, output_tokens: null, usd: null }, ...patch,
+  }, null, 2) + "\n");
+}
+
+test("a crashed command analyzer is scored as infrastructure for every case, and opens no analytical issue", () => {
+  const out = temp();
+  const cli = spawnSync(process.execPath, [
+    join(REPO, "src", "cli.ts"), "eval", "nightly", "--golden", "all",
+    "--analyzer", "command", "--analyzer-command", "/usr/bin/false {finding_dir}",
+    "--out", out, "--sha", "crash001", "--json",
+  ], { encoding: "utf8", cwd: REPO });
+  assert.equal(cli.status, 1, cli.stderr);
+  const report = JSON.parse(cli.stdout);
+
+  for (const c of report.cases) {
+    assert.equal(c.outcome, "error", `${c.case}: ${c.reason}`);
+    assert.equal(c.failure_category, "infrastructure");
+    assert.deepEqual(c.assertions, [], `${c.case} was asserted against a draft the analyzer never wrote`);
+    assert.equal(c.failure_cause, "analyzer_exit_1");
+  }
+  const run = JSON.parse(readFileSync(join(out, "crash001", RUN_FILE), "utf8"));
+  assert.ok(run.failures.length >= 1);
+  assert.ok(run.failures.every((f: any) => f.category === "infrastructure"), JSON.stringify(run.failures.slice(0, 3)));
+  assert.ok(run.failures.every((f: any) => f.assertion_id === RUN_LEVEL_ASSERTION), "one run-level failure per case, not one per invented assertion");
+  assert.equal(run.model, null, "no case reported a model, so the run names none");
+});
+
+test("a model named on the command line is never recorded when no case reported one", async () => {
+  const out = temp();
+  const report = await runNightly({
+    golden: "referral_campaign", analyzer: "command", analyzerCommand: "/usr/bin/false {finding_dir}",
+    outDir: out, sha: "model002", model: "claude-never-ran",
+  });
+  assert.equal(report.run.model, null, "the flag is a label; only a case that ran can name a model");
+  assert.equal(readFileSync(join(out, "model002", RUN_FILE), "utf8").includes("claude-never-ran"), false);
+});
+
+test("an analyzer command template is recorded only for the analyzer that would run it", async () => {
+  const out = temp();
+  const report = await runNightly({
+    golden: "onboarding_checklist_retention", analyzer: "fixture", outDir: out, sha: "tmpl0001",
+    analyzerCommand: "claude -p /analyze --plugin-dir {repo_root} {finding_dir}",
+  });
+  assert.equal(report.run.analyzer.command_template, null, "the fixture analyzer runs no command, so it records none");
+});
+
+/* ------------------------------------------------------------------ what a clean run may claim */
+
+test("a run with cases that reached no verdict never says it covered every selected case", async () => {
+  const partlyDeclined = await runNightly({ golden: "all", analyzer: "fixture", outDir: temp(), sha: "cover001" });
+  assert.ok(partlyDeclined.run.totals.not_run > 0, "the shipped goldens include cases with no recorded run");
+  assert.equal(partlyDeclined.run.partial, false, "no bound stopped it: the hole is the analyzer declining");
+  assert.equal(partlyDeclined.info.some((i) => /covered every selected case/.test(i)), false,
+    `a run with a hole in it never claims full coverage: ${JSON.stringify(partlyDeclined.info)}`);
+  assert.ok(partlyDeclined.info.some((i) => /reached no verdict/.test(i)), JSON.stringify(partlyDeclined.info));
+
+  const whole = await runNightly({ golden: "onboarding_checklist_retention", analyzer: "fixture", outDir: temp(), sha: "cover002" });
+  assert.ok(whole.info.some((i) => /covered every selected case/.test(i)), JSON.stringify(whole.info));
+});
+
+test("a run records the cost its cases reported, and null when none did", async () => {
+  const report = await runNightly({ golden: "onboarding_checklist_retention", analyzer: "fixture", outDir: temp(), sha: "cost0001" });
+  assert.equal(report.run.totals.cost_usd, null, "a replayed Finding cost nothing to produce, and no case claimed a figure");
+  assert.equal(report.run.budget.max_cost_usd, 2, "the per-case ceiling the CLI is asked to enforce is recorded");
+});
+
+/* ------------------------------------------------------------------ the summary's own claim */
+
+test("`eval summary` gates 'model in the loop' on the recorded run, not on a secret", () => {
+  const out = temp();
+  const summary = (dir: string) => spawnSync(process.execPath, [join(REPO, "src", "cli.ts"), "eval", "summary", dir], { encoding: "utf8", cwd: REPO });
+
+  const fixtureDir = join(out, "gate0001");
+  mkdirSync(fixtureDir, { recursive: true });
+  const base = {
+    schema_version: "0.1.0", kind: "nightly", git_sha: "gate0001", aftergrid_version: null, plugin_version: null,
+    model: null, skill_versions: {}, analyzer: { kind: "fixture", exercised: true, command_template: null },
+    instance: "", started: "", finished: "", elapsed_ms: 0, budget_ms: 0, case_timeout_ms: 0,
+    budget: { max_cost_usd: 2 }, partial: false, not_run: [],
+    totals: { cases: 1, pass: 1, fail: 0, error: 0, not_run: 0, analytical_failures: 0, infrastructure_failures: 0, cost_usd: null },
+    cases: [], failures: [], not_exercised: [],
+  };
+  const write = (patch: Record<string, unknown>) => writeFileSync(join(fixtureDir, RUN_FILE), JSON.stringify({ ...base, ...patch }, null, 2));
+
+  write({});
+  assert.match(summary(fixtureDir).stdout, /Model in the loop: NOT exercised/);
+  assert.match(summary(fixtureDir).stdout, /fixture/, "the reason names what actually ran");
+
+  // The command analyzer ran, but every case broke before a verdict: still not exercised.
+  write({ analyzer: { kind: "command", exercised: false, command_template: "claude -p /analyze" }, model: "claude-x",
+    totals: { ...base.totals, pass: 0, fail: 0, error: 1 } });
+  const noCase = summary(fixtureDir).stdout;
+  assert.match(noCase, /Model in the loop: NOT exercised/);
+  assert.match(noCase, /no case reached a verdict/);
+
+  // The command analyzer ran, cases reached verdicts, and a case named the model.
+  write({ analyzer: { kind: "command", exercised: false, command_template: "claude -p /analyze" }, model: "claude-x" });
+  assert.match(summary(fixtureDir).stdout, /Model in the loop: exercised/);
+
+  // Cases ran under the command analyzer but no case named a model: the claim is not earned.
+  write({ analyzer: { kind: "command", exercised: false, command_template: "claude -p /analyze" }, model: null });
+  const noModel = summary(fixtureDir).stdout;
+  assert.match(noModel, /Model in the loop: NOT exercised/);
+  assert.match(noModel, /no case reported a model/);
+
+  const missing = summary(join(out, "nope"));
+  assert.equal(missing.status, 2, "a directory that is not a run is a usage error, not a green claim");
+});
+
+/* ------------------------------------------------------------------ comparison */
+
+test("a case that lost or gained its verdict is not 'unchanged'", () => {
+  const baseDir = temp(), runDir = temp();
+  writeRecord(baseDir, "a", { outcome: "pass" });
+  writeRecord(runDir, "a", { outcome: "not_run", failure_category: null });
+  writeRecord(baseDir, "b", { outcome: "fail", failure_category: "analytical", assertions: [{ id: "outcome", status: "fail", category: "analytical", expected: "x", observed: "y" }] });
+  writeRecord(runDir, "b", { outcome: "not_run", failure_category: null });
+  writeRecord(baseDir, "c", { outcome: "not_run", failure_category: null });
+  writeRecord(runDir, "c", { outcome: "fail", failure_category: "analytical", assertions: [{ id: "outcome", status: "fail", category: "analytical", expected: "x", observed: "y" }] });
+  writeRecord(baseDir, "d", { outcome: "not_run", failure_category: null });
+  writeRecord(runDir, "d", { outcome: "not_run", failure_category: null });
+
+  const comparison = compareRuns(baseDir, runDir);
+  const byCase = Object.fromEntries(comparison.cases.map((c) => [c.case, c.classification]));
+  assert.equal(byCase["a"], "no_verdict", "a case that passed and now did not run has not held its verdict");
+  assert.equal(byCase["b"], "no_verdict");
+  assert.equal(byCase["c"], "no_verdict", "a case that was never judged and now fails is not a regression from a pass");
+  assert.equal(byCase["d"], "unchanged", "two declines really are the same non-verdict");
+  assert.equal(comparison.totals.unchanged, 1);
+  assert.equal(comparison.totals.no_verdict, 3);
+  assert.equal(comparison.totals.regressed, 0, "a lost verdict is never reported as a regression in the Analysis");
+});
+
+test("a record without assertions, and one that is not JSON, are reported rather than crashing the comparison", () => {
+  const baseDir = temp(), runDir = temp();
+  writeRecord(baseDir, "a", { outcome: "pass" });
+  // A record written by an older schema, or truncated: it has no `assertions` array at all.
+  const legacy = JSON.parse(readFileSync(join(baseDir, "a.json"), "utf8"));
+  delete legacy.assertions;
+  legacy.outcome = "fail";
+  legacy.failure_category = "analytical";
+  writeFileSync(join(runDir, "a.json"), JSON.stringify(legacy, null, 2));
+  writeFileSync(join(runDir, "broken.json"), "{ this is not json");
+
+  const comparison = compareRuns(baseDir, runDir);
+  assert.deepEqual(comparison.cases.find((c) => c.case === "a")!.failing_assertions, []);
+  assert.deepEqual(comparison.malformed.run.map((p) => p.replace(/^.*\//, "")), ["broken.json"]);
+  assert.deepEqual(comparison.malformed.baseline, []);
+
+  const report = compareCommand({ baseline: baseDir, run: runDir });
+  assert.ok(report.warnings.some((w) => /malformed/.test(w.message)), JSON.stringify(report.warnings));
+  assert.match(readFileSync(join(runDir, SUMMARY_FILE), "utf8"), /broken\.json/);
+});
+
+/* ------------------------------------------------------------------ the issue sink, past the first page */
+
+test("the issue sink pages through the open issues instead of duplicating past the first hundred", async () => {
+  const fingerprint = fingerprintFor("referral_campaign", "outcome", "analytical");
+  const page = (n: number, withMarker: boolean) =>
+    Array.from({ length: 100 }, (_, i) => ({ number: n * 1000 + i, title: `issue ${n}.${i}`, body: withMarker && i === 7 ? `body\n${markerFor(fingerprint)}\n` : "unrelated body", html_url: null }));
+
+  const seen: string[] = [];
+  const found = createGitHubIssueSink({
+    repo: "example/repo", token: null,
+    api: async (_method, path) => { seen.push(path); return page(Number(/page=(\d+)/.exec(path)?.[1] ?? 1), /page=2\b/.test(path)); },
+  });
+  const hit = await found.find(fingerprint);
+  assert.ok(hit, "the marker is on page 2 and a single un-paged GET would have missed it and opened a duplicate");
+  assert.equal(seen.length, 2, JSON.stringify(seen));
+  assert.match(seen[1]!, /page=2/);
+
+  // A short page is the end of the list, and it is not an error.
+  const absent = createGitHubIssueSink({
+    repo: "example/repo", token: null,
+    api: async () => [{ number: 1, title: "t", body: "nothing here" }],
+  });
+  assert.equal(await absent.find(fingerprint), null);
+
+  // Every page full and no marker: the window was exhausted, so the sink refuses rather than duplicating.
+  let calls = 0;
+  const endless = createGitHubIssueSink({
+    repo: "example/repo", token: null,
+    api: async (_m, path) => { calls++; return page(Number(/page=(\d+)/.exec(path)?.[1] ?? 1), false); },
+  });
+  await assert.rejects(() => endless.find(fingerprint), /search window exhausted/);
+  assert.equal(calls, 20, "the paging is bounded");
+
+  const run = (await runNightly({ golden: "referral_campaign", analyzer: "fixture", fixtureRoot: injectedRun("referral_campaign"), outDir: temp(), sha: "page0001" })).run;
+  const filed = await reportFailures({ run, sink: endless });
+  assert.deepEqual(filed.created, [], "a sink that could not finish the search creates nothing");
+  assert.ok(filed.errors.some((e) => /search window exhausted/.test(e.message)), JSON.stringify(filed.errors));
+});
+
+/* ------------------------------------------------------------------ redaction */
+
+test("the redactor removes a credential however it was spelled on the command line", () => {
+  // --flag=value, with the value glued to the flag.
+  assert.equal(
+    redactCommand("claude --api-key=sk-ant-api03-abcdefghijklmnop {finding_dir}"),
+    "claude --api-key=<redacted> {finding_dir}",
+  );
+  // A flag name the old list did not know, matched by its shape rather than by an enumeration.
+  assert.equal(
+    redactCommand("claude --anthropic-api-key hunter2-not-a-known-shape {finding_dir}"),
+    "claude --anthropic-api-key <redacted> {finding_dir}",
+  );
+  // A bare provider-shaped token carrying an underscore.
+  assert.equal(
+    redactCommand("claude sk-ant-api03-Abc_defGHI-jklmnop {golden}"),
+    "claude <redacted> {golden}",
+  );
+  assert.equal(redactCommand("claude ghp_nightly_test_sentinel_token_do_not_log {golden}"), "claude <redacted> {golden}");
+  // An environment reference is how the run was configured, and is not a secret.
+  assert.equal(redactCommand("claude --api-key=$ANTHROPIC_API_KEY {golden}"), "claude --api-key=$ANTHROPIC_API_KEY {golden}");
+  assert.equal(redactCommand("claude --max-budget-usd 2 --output-format json"), "claude --max-budget-usd 2 --output-format json");
+});
+
+test("no spelling of a credential reaches run.json or summary.md", async () => {
+  const out = temp();
+  const report = await runNightly({
+    golden: "referral_campaign", analyzer: "command", outDir: out, sha: "redact01", caseTimeoutMs: 5_000,
+    analyzerCommand: `/usr/bin/false --api-key=${SENTINEL_TOKEN} --anthropic-api-key ${SENTINEL_TOKEN} sk-ant-api03-${SENTINEL_TOKEN} {finding_dir}`,
+  });
+  const template = report.run.analyzer.command_template!;
+  assert.equal(template.includes(SENTINEL_TOKEN), false, template);
+  assert.equal(template.split("<redacted>").length - 1, 3, template);
+  for (const file of [RUN_FILE, SUMMARY_FILE]) {
+    assert.equal(readFileSync(join(out, "redact01", file), "utf8").includes(SENTINEL_TOKEN), false, `${file} carried the credential`);
+  }
+});
+
+/* ------------------------------------------------------------------ the CLI's own numbers */
+
+test("an empty or non-numeric millisecond bound is a usage error, not a zero budget", () => {
+  const cli = (args: string[]) => spawnSync(process.execPath, [join(REPO, "src", "cli.ts"), "eval", "nightly", ...args], { encoding: "utf8", cwd: REPO });
+  const out = temp();
+  for (const raw of ["", "  ", "abc", "Infinity"]) {
+    const r = cli(["--golden", "onboarding_checklist_retention", "--out", out, "--sha", "msbad001", "--budget-ms", raw, "--json"]);
+    assert.equal(r.status, 2, `--budget-ms '${raw}' was accepted: ${r.stdout.slice(0, 200)}`);
+  }
 });

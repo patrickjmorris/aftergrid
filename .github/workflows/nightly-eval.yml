@@ -27,8 +27,13 @@ on:
         required: false
         default: "30"
         type: string
+      max_cost_usd:
+        description: "Spend ceiling handed to each analyzer invocation, in US dollars."
+        required: false
+        default: "2"
+        type: string
       report_issues:
-        description: "Open or comment on one issue per failure fingerprint."
+        description: "Open or comment on one issue per failure fingerprint. The scheduled run always files."
         required: false
         default: false
         type: boolean
@@ -61,13 +66,17 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
-      - name: decide which analyzer this run can honestly use
+      - name: decide which analyzer this run can honestly use, and install it
         id: analyzer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -n "$ANTHROPIC_API_KEY" ]; then
             echo "kind=command" >> "$GITHUB_OUTPUT"
+            # Nothing on a runner provides `claude`, and the command branch shells out to it. Latest, on
+            # purpose: pinning a version here would quietly evaluate an old orchestrator against today's skills.
+            npm i -g @anthropic-ai/claude-code
+            claude --version
           else
             echo "kind=fixture" >> "$GITHUB_OUTPUT"
           fi
@@ -77,21 +86,32 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BUDGET_MINUTES: ${{ inputs.budget_minutes || '30' }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd || '2' }}
           MODEL: ${{ inputs.model }}
           SHA: ${{ steps.rev.outputs.sha }}
         run: |
           set +e
+          # budget_minutes is a free-text workflow_dispatch input. Validate it before it reaches arithmetic:
+          # an empty or non-numeric value would otherwise become a zero budget and skip every case.
+          case "$BUDGET_MINUTES" in
+            ''|*[!0-9]*) echo "budget_minutes must be an integer number of minutes, got '$BUDGET_MINUTES'" >&2; exit 2;;
+          esac
           BUDGET_MS=$(( BUDGET_MINUTES * 60000 ))
           CASE_MS=$(( BUDGET_MS / 3 ))
-          ARGS=(--golden all --sha "$SHA" --out eval-runs --budget-ms "$BUDGET_MS" --case-timeout-ms "$CASE_MS" --json)
+          ARGS=(--golden all --sha "$SHA" --out eval-runs --budget-ms "$BUDGET_MS" --case-timeout-ms "$CASE_MS" --max-cost-usd "$MAX_COST_USD" --json)
           [ -n "$MODEL" ] && ARGS+=(--model "$MODEL")
           if [ "${{ steps.analyzer.outputs.kind }}" = "command" ]; then
-            # Headless Claude Code running /analyze over the Finding the runner just created. The template is
-            # substituted per argument (there is no shell), and is recorded in run.json with its secrets
-            # redacted. The Finding directory carries the raw ask, the reader and the Question, so the skill
-            # needs the directory rather than the prose. AFTERGRID_FINDING_DIR and AFTERGRID_INSTANCE are in
-            # the child's environment as well.
-            ARGS+=(--analyzer command --analyzer-command "claude -p /analyze --add-dir {finding_dir} --permission-mode acceptEdits --output-format json")
+            # Headless Claude Code running /analyze over the Finding the runner just created.
+            #
+            # /analyze is a skill of THIS repository's plugin, and the Finding lives in a mkdtemp copy of the
+            # Instance, so the plugin has to be loaded explicitly: --plugin-dir {repo_root} is substituted with
+            # the Engine checkout. --max-budget-usd {max_cost_usd} is the spend ceiling, enforced by the CLI
+            # itself; the runner substitutes what --max-cost-usd configured and records what the run reported
+            # spending. The template is substituted per argument (there is no shell, so a quoted token would
+            # keep its quotes) and is recorded in run.json with its secrets redacted. The Finding directory
+            # carries the raw ask, the reader and the Question, so the skill needs the directory rather than
+            # the prose; AFTERGRID_FINDING_DIR and AFTERGRID_INSTANCE are in the child's environment as well.
+            ARGS+=(--analyzer command --analyzer-command "claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode acceptEdits --max-budget-usd {max_cost_usd} --output-format json")
           else
             ARGS+=(--analyzer fixture)
           fi
@@ -107,14 +127,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          prev=$(gh run list --workflow nightly-eval.yml --status completed --limit 10 \
-                   --json databaseId,headSha --jq "[.[] | select(.headSha != \"${{ steps.rev.outputs.sha }}\")][0].databaseId" || true)
+          # The baseline has to be comparable: the same branch (a feature branch's nightly is not this one's
+          # yesterday) and a run that actually finished (a cancelled run recorded nothing to compare against).
+          prev=$(gh run list --workflow nightly-eval.yml --branch "${{ github.event.repository.default_branch }}" \
+                   --status completed --limit 10 \
+                   --json databaseId,headSha,conclusion \
+                   --jq "[.[] | select(.headSha != \"${{ steps.rev.outputs.sha }}\") | select(.conclusion != \"cancelled\")][0].databaseId" || true)
           if [ -n "$prev" ] && [ "$prev" != "null" ]; then
             gh run download "$prev" --dir baseline-download || true
             found=$(find baseline-download -maxdepth 3 -name run.json -print -quit 2>/dev/null || true)
             [ -n "$found" ] && mv "$(dirname "$found")" baseline-run
           fi
-          [ -d baseline-run ] || echo "No previous nightly artifact was available, so no comparison is claimed." >> "$GITHUB_STEP_SUMMARY"
+          if [ -d baseline-run ]; then
+            echo "Baseline: run id \`$prev\` on \`${{ github.event.repository.default_branch }}\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No previous nightly artifact was available, so no comparison is claimed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: compare against the previous nightly
         if: always()
@@ -126,24 +154,14 @@ jobs:
 
       - name: job summary
         if: always()
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # Whether a model was really in the loop is decided from the recorded run, never from the secret
+          # being set: the secret is present long before an analyzer crashes, and a job that read it as
+          # evidence would claim a model run nobody made. `eval summary` applies the rule in one place.
           {
-            if [ -z "$ANTHROPIC_API_KEY" ]; then
-              echo "## Model in the loop: NOT exercised"
-              echo ""
-              echo "The ANTHROPIC_API_KEY secret is absent from this environment, so no model ran. This job"
-              echo "replayed recorded Findings with the fixture analyzer: it exercises the assertion machinery"
-              echo "and says nothing about what a model would produce. Do not read a green run here as evidence"
-              echo "that /analyze works."
-              echo ""
-            else
-              echo "## Model in the loop: exercised via the command analyzer"
-              echo ""
-              echo "The headless analyzer ran. What it produced is recorded per case in the uploaded artifact."
-              echo ""
-            fi
+            node src/cli.ts eval summary "eval-runs/${{ steps.rev.outputs.sha }}" \
+              || echo "## Model in the loop: NOT exercised"$'\n\n'"No run.json was written: the run did not get far enough to record what it did."
+            echo ""
             echo "Exit code: \`${{ steps.run.outputs.exit_code }}\` (0 clean, 1 a case failed or errored, 2 usage, 4 partial run)."
             echo ""
             cat "eval-runs/${{ steps.rev.outputs.sha }}/summary.md" 2>/dev/null || echo "no summary.md was written: the run did not get that far."
@@ -161,7 +179,9 @@ jobs:
       # Opt-in. One issue per failure fingerprint; a repeat comments on the issue that already exists. This step
       # re-runs nothing: it reads the run.json the step above wrote.
       - name: file or update one issue per failure
-        if: ${{ always() && inputs.report_issues }}
+        # `inputs` is null on a schedule, so gating on inputs.report_issues alone would mean the scheduled
+        # nightly — the one that actually runs every night — never filed anything it found.
+        if: ${{ always() && (github.event_name == 'schedule' || inputs.report_issues) }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -11,7 +11,7 @@ import { execute } from "./commands/execute.ts";
 import { revise } from "./commands/revise.ts";
 import { recordReview, reviewStatus, type ReviewKind } from "./commands/review.ts";
 import { runEval } from "./eval/runner.ts";
-import { nightlyExitCode, runNightly } from "./eval/nightly.ts";
+import { nightlyExitCode, readRun, renderModelSummary, runNightly } from "./eval/nightly.ts";
 import { compareCommand } from "./eval/compare.ts";
 import { reportCommand } from "./eval/report.ts";
 import { findInstance } from "./instance.ts";
@@ -39,11 +39,13 @@ Usage:
                    [--date yyyy-mm-dd] [--dry-run] [--json]
   aftergrid review status <finding-dir> [--json]
   aftergrid eval --golden <id|all> [--analyzer fixture|command] [--analyzer-command "<template>"]
-                   [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>] [--json]
+                   [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>]
+                   [--max-cost-usd N] [--json]
   aftergrid eval nightly [--golden <id|all>] [--analyzer fixture|command] [--analyzer-command "<template>"]
                    [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>]
-                   [--budget-ms N] [--case-timeout-ms N] [--report-issues [--repo owner/repo]]
+                   [--budget-ms N] [--case-timeout-ms N] [--max-cost-usd N] [--report-issues [--repo owner/repo]]
                    [--artifact-base <path prefix>] [--json]
+  aftergrid eval summary <run-dir>
   aftergrid eval compare <baseline-run-dir> <run-dir> [--dry-run] [--json]
   aftergrid eval report <run-dir> [--repo owner/repo] [--artifact-base <prefix>] [--dry-run] [--json]
   aftergrid render <finding-dir> [--png] [--json]
@@ -98,7 +100,9 @@ Lifecycle:
                 run.json (sha, versions, model, analyzer, budget, partial + the cases it did not reach) and
                 summary.md (one line per case, with a stable fingerprint per failure) beside the per-case
                 records. --report-issues opens ONE issue per failure fingerprint and comments on it thereafter
-                instead of opening a second. Exit codes: 0 clean, 1 a case failed or errored, 2 usage,
+                instead of opening a second. summary prints, as markdown, whether a model was really in the
+                loop — decided from run.json (the command analyzer, a case that reached a verdict, a case that
+                named the model), never from a secret being set. Exit codes: 0 clean, 1 a case failed or errored, 2 usage,
                 4 the run was partial. compare classifies two recorded runs as unchanged, regressed, fixed,
                 new or infrastructure into comparison.json. Nightly results are never a merge gate.
   render        validates the source, then writes render/finding.html and render/<chart>.svg (and .png with --png);
@@ -222,13 +226,22 @@ export async function main(argv: string[]): Promise<void> {
       golden: { type: "string" }, analyzer: { type: "string" }, "analyzer-command": { type: "string" },
       instance: { type: "string" }, out: { type: "string" }, sha: { type: "string" }, model: { type: "string" },
       "fixture-root": { type: "string" }, "budget-ms": { type: "string" }, "case-timeout-ms": { type: "string" },
+      "max-cost-usd": { type: "string" },
       "report-issues": { type: "boolean" }, repo: { type: "string" }, "artifact-base": { type: "string" }, json: { type: "boolean" },
     } });
     if (values.analyzer !== undefined && values.analyzer !== "fixture" && values.analyzer !== "command") { process.stderr.write(`--analyzer must be fixture or command, got '${values.analyzer}'\n`); process.exit(2); }
+    // `Number("")` is 0, and an empty workflow input is not a zero budget: it is a mistake, and a run that
+    // silently took it would skip every case and report a partial suite as if that had been asked for.
     const ms = (name: string, raw?: string): number | undefined => {
       if (raw === undefined) return undefined;
-      const n = Number(raw);
-      if (!Number.isFinite(n) || n < 0) { process.stderr.write(`--${name} must be a non-negative number of milliseconds, got '${raw}'\n`); process.exit(2); }
+      const n = raw.trim() === "" ? Number.NaN : Number(raw);
+      if (!Number.isFinite(n) || n < 0) { process.stderr.write(`--${name} must be a non-negative, finite number of milliseconds, got '${raw}'\n`); process.exit(2); }
+      return n;
+    };
+    const usd = (raw?: string): number | undefined => {
+      if (raw === undefined) return undefined;
+      const n = raw.trim() === "" ? Number.NaN : Number(raw);
+      if (!Number.isFinite(n) || n <= 0) { process.stderr.write(`--max-cost-usd must be a positive, finite dollar amount, got '${raw}'\n`); process.exit(2); }
       return n;
     };
     const report = await runNightly({
@@ -236,6 +249,7 @@ export async function main(argv: string[]): Promise<void> {
       analyzerCommand: values["analyzer-command"], instanceDir: values.instance, outDir: values.out,
       fixtureRoot: values["fixture-root"], sha: values.sha, model: values.model,
       budgetMs: ms("budget-ms", values["budget-ms"]), caseTimeoutMs: ms("case-timeout-ms", values["case-timeout-ms"]),
+      maxCostUsd: usd(values["max-cost-usd"]),
     });
     if (values["report-issues"]) {
       const filed = await reportCommand({
@@ -248,6 +262,17 @@ export async function main(argv: string[]): Promise<void> {
     }
     process.stdout.write((values.json ? JSON.stringify(report, null, 2) : formatHuman(report) + "\n\n" + report.summary_markdown) + "\n");
     process.exit(nightlyExitCode(report));
+  }
+  if (cmd === "eval" && sub === "summary") {
+    // Whether a model was really in the loop, as markdown for a job summary. It reads the recorded run and
+    // judges nothing else: a present API key is not evidence that an analyzer produced anything.
+    const { positionals } = parseArgs({ args: rest, allowPositionals: true, options: {} });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write("usage: aftergrid eval summary <run-dir>\n"); process.exit(2); }
+    const run = readRun(dir);
+    if (!run) { process.stderr.write(`no run.json at ${dir}: point at the <out>/<sha> directory \`aftergrid eval nightly\` wrote\n`); process.exit(2); }
+    process.stdout.write(renderModelSummary(run));
+    process.exit(0);
   }
   if (cmd === "eval" && sub === "report") {
     // Files the failures a recorded run already holds. It re-runs nothing, so a reporting step can never
@@ -274,10 +299,15 @@ export async function main(argv: string[]): Promise<void> {
     const { values } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
       golden: { type: "string" }, analyzer: { type: "string" }, "analyzer-command": { type: "string" },
       instance: { type: "string" }, out: { type: "string" }, sha: { type: "string" }, model: { type: "string" },
-      "fixture-root": { type: "string" }, json: { type: "boolean" },
+      "fixture-root": { type: "string" }, "max-cost-usd": { type: "string" }, json: { type: "boolean" },
     } });
     if (values.analyzer !== undefined && values.analyzer !== "fixture" && values.analyzer !== "command") { process.stderr.write(`--analyzer must be fixture or command, got '${values.analyzer}'\n`); process.exit(2); }
-    out(await runEval({ golden: values.golden, analyzer: values.analyzer === "command" ? "command" : "fixture", analyzerCommand: values["analyzer-command"], instanceDir: values.instance, outDir: values.out, fixtureRoot: values["fixture-root"], sha: values.sha, model: values.model }), !!values.json);
+    let maxCostUsd: number | undefined;
+    if (values["max-cost-usd"] !== undefined) {
+      maxCostUsd = values["max-cost-usd"].trim() === "" ? Number.NaN : Number(values["max-cost-usd"]);
+      if (!Number.isFinite(maxCostUsd) || maxCostUsd <= 0) { process.stderr.write(`--max-cost-usd must be a positive, finite dollar amount, got '${values["max-cost-usd"]}'\n`); process.exit(2); }
+    }
+    out(await runEval({ golden: values.golden, analyzer: values.analyzer === "command" ? "command" : "fixture", analyzerCommand: values["analyzer-command"], instanceDir: values.instance, outDir: values.out, fixtureRoot: values["fixture-root"], sha: values.sha, model: values.model, maxCostUsd }), !!values.json);
   }
   if (cmd === "render") {
     const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: { png: { type: "boolean" }, json: { type: "boolean" } } });
