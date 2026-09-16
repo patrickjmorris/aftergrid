@@ -1,7 +1,7 @@
 // One self-contained, reader-safe HTML page from validated source. Layout follows the reviewed reference
 // (fixtures/.../render/finding.template.html). Every interpolation is escaped; every number is a resolved token;
 // only exported result columns reach the page, its tables, its charts or its metadata.
-import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { Marked, type Tokens } from "marked";
 // @ts-ignore: shared helpers.
 import { escapeHtml, safePath } from "../../scripts/fixture-safety.mjs";
@@ -30,7 +30,7 @@ export const CSS = `
   details { border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.8rem; margin: 0.75rem 0; }
   summary { cursor: pointer; font-weight: 600; padding: 0.2rem 0; }
   figure { margin: 1rem 0; } figcaption { font-size: 0.95rem; color: var(--muted); margin-top: 0.4rem; }
-  svg { width: 100%; height: auto; display: block; }
+  svg { width: 100%; height: auto; display: block; background: #fff; }
   table { border-collapse: collapse; width: 100%; font-size: 0.95rem; margin: 0.5rem 0; }
   caption { text-align: left; font-weight: 600; padding: 0.3rem 0; }
   th, td { text-align: left; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -46,7 +46,6 @@ export const CSS = `
   @media (max-width: 30rem) { dl.who { grid-template-columns: 1fr; } dl.who dt { margin-top: 0.4rem; } table { display: block; overflow-x: auto; } h1 { font-size: 1.4rem; } }
 `;
 
-const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked", "What would change our mind", "Appendix"];
 const TYPE_LABEL: Record<string, [string, string]> = {
   causal: ["Cause and effect", "This claim says one thing caused another; it is only supported when the comparison was designed for that, such as random assignment."],
   associational: ["Pattern, not proof", "This claim describes a pattern seen after the fact; it does not establish a cause."],
@@ -95,8 +94,16 @@ function mailto(manifest: any, claimId?: string): string {
 export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svgs: Record<string, string> }> {
   const { manifest: m, results, dir } = inp;
   const esc = escapeHtml as (s: string) => string;
-  const R = (text: string, loc: string) => markdown(resolveTokens(m, results, text, loc, (s) => s));
-  const RI = (text: string, loc: string) => resolveTokens(m, results, text, loc); // inline, escaped
+  // Parse authored Markdown before inserting token values, so data cannot create tags, links or blocks.
+  const R = (text: string, loc: string) => {
+    const prefix = `AGTOKEN${randomUUID().replaceAll("-", "")}X`;
+    const values: string[] = [];
+    const source = resolveTokens(m, results, text, loc, (value) => {
+      values.push(value); return `${prefix}${values.length - 1}END`;
+    });
+    return markdown(source).replace(new RegExp(`${prefix}(\\d+)END`, "g"), (_m, i) => esc(values[Number(i)]!));
+  };
+  const RI = (text: string, loc: string) => esc(resolveTokens(m, results, text, loc, (s) => s));
   const memo = parseMemo(inp.memo);
   const section = (name: string) => memo.sections.find((s) => s.name === name)?.body ?? "";
   const allowed = new Set<string>(m.export_policy.allowed_fields);
@@ -113,22 +120,31 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     const cols = res.columns.map((c: any) => c.name).filter((n: string) => allowed.has(`${ch.result_id}.${n}`));
     const rows = tableCells(m, results, ch.result_id, cols);
     figures[`chart:${ch.id}`] = `<figure>${svg}<figcaption>${description}</figcaption>
-<details><summary>The numbers behind this chart</summary><table><caption>${title}</caption><thead><tr>${cols.map((c: string) => `<th scope="col">${esc(c.replace(/_/g, " "))}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.cells.map((c, i) => i === 0 ? `<th scope="row">${c}</th>` : `<td class="num">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></details></figure>`;
+<details><summary>The numbers behind this chart</summary><table><caption>${title}</caption><thead><tr>${cols.map((c: string) => `<th scope="col">${esc(c.replace(/_/g, " "))}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.cells.map((c, i) => i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td class="num">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></details></figure>`;
   }
   for (const t of m.tables) {
     const cols = t.columns.map((c: any) => c.name);
     const rows = tableCells(m, results, t.result_id, cols, t.row_keys);
-    figures[`table:${t.id}`] = `<table><caption>${esc(t.title)}</caption><thead><tr>${t.columns.map((c: any, i: number) => `<th scope="col"${i ? ' class="num"' : ""}>${esc(c.label)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.cells.map((c, i) => i === 0 ? `<th scope="row">${c}</th>` : `<td class="num">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>${t.caption ? `<p class="flag">${esc(t.caption)}</p>` : ""}`;
+    figures[`table:${t.id}`] = `<table><caption>${esc(t.title)}</caption><thead><tr>${t.columns.map((c: any, i: number) => `<th scope="col"${i ? ' class="num"' : ""}>${esc(c.label)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.cells.map((c, i) => i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td class="num">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>${t.caption ? `<p class="flag">${esc(t.caption)}</p>` : ""}`;
   }
-  const splice = (html: string) => html.replace(/<!-- (chart|table): ([a-z0-9_]+) -->/g, (_x, k, id) => figures[`${k}:${id}`] ?? "");
-  const mdWithMarkers = (text: string, loc: string) => splice(R(text.replace(/<!-- (chart|table): ([a-z0-9_]+) -->/g, "\n\n<!-- $1: $2 -->\n\n"), loc)).replace(/&lt;!-- (chart|table): ([a-z0-9_]+) --&gt;/g, (_x, k, id) => figures[`${k}:${id}`] ?? "");
+  const mdWithMarkers = (text: string, loc: string) => {
+    const prefix = `AGFIGURE${randomUUID().replaceAll("-", "")}X`;
+    const placed: string[] = [];
+    // Skip value tokens: their contents are data, even if they contain a marker-looking comment.
+    const source = text.replace(/\{\{(?:ref|derived|ext|literal):[^}]*\}\}|<!-- (chart|table): ([a-z0-9_]+) -->/g, (raw, kind, id) => {
+      if (!kind) return raw;
+      placed.push(figures[`${kind}:${id}`] ?? "");
+      return `\n\n${prefix}${placed.length - 1}END\n\n`;
+    });
+    return R(source, loc).replace(new RegExp(`(?:<p>)?${prefix}(\\d+)END(?:</p>)?`, "g"), (_m, i) => placed[Number(i)]!);
+  };
 
   // Answer + material caveat together.
   const answerBearing = m.claims.filter((c: any) => c.answer_bearing);
   const answerBody = section("Answer").replace(/<!-- material_caveat -->[\s\S]*$/, "");
   const caveats = answerBearing.map((c: any) => `<div class="caveat"><strong>The one thing that would change this</strong><p>${RI(c.material_caveat, `claim ${c.id} caveat`)}</p></div>`).join("");
 
-  const draft = inp.readiness === "ready" ? "" : `<p class="draft" role="status">${esc(inp.content === "complete" ? "Draft. No one has approved this Finding for publication yet. Numbers are checked; the conclusion is not yet reviewed by a person." : "Incomplete draft. The analysis is not finished; nothing here is a result yet.")}${inp.readinessReasons.length ? ` <span class="flag">(${esc(inp.readinessReasons.join("; "))})</span>` : ""}</p>`;
+  const draft = inp.readiness === "ready" ? "" : `<p class="draft" role="status">${esc(inp.content === "complete" ? "Draft. Publication approval has not been verified. Saved evidence passed validation; SQL was not rerun. Recorded reviews are listed below." : "Incomplete draft. The analysis is not finished; nothing here is a result yet.")}${inp.readinessReasons.length ? ` <span class="flag">(${esc(inp.readinessReasons.join("; "))})</span>` : ""}</p>`;
 
   const claimsHtml = m.claims.map((c: any) => {
     const [label, hint] = TYPE_LABEL[c.type] ?? TYPE_LABEL.descriptive!;
@@ -202,6 +218,5 @@ ${R(section("Appendix"), "Appendix")}
 </body>
 </html>
 `;
-  void SECTIONS; void existsSync; void readFileSync;
   return { html, svgs };
 }

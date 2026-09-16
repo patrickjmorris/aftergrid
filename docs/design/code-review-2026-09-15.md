@@ -36,3 +36,21 @@ The earlier product-contract corrections remain intact: generic Reader fallback,
 These changes harden the existing fixture tools. They do not deliver the planned production adapter, publication approval verifier, full Vega-Lite renderer or operating-system sandbox. The SQL settings follow [DuckDB's security guidance](https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview); their limits are explicit in the fixture README.
 
 The exemplar bead still needs the agreed session with a real non-data Reader. Automated evidence checks and this code review do not close that gate.
+
+
+## Follow-up: CLI, adapters and renderer
+
+The review continued through `d7aeb4d`, covering the extracted validator, CLI, Decision records, DuckDB adapter, retained sessions, synthetic Golden Questions and new Markdown/chart renderer. Collaborator fixes were independently checked: 44, 53, 60, 63, 67 and then 71 passing tests as the implementation grew. The adapter corrections seal every connection path, isolate failed opens, serialize calls and close, preserve CSV NULL versus empty strings, format pre-epoch timestamps correctly, and bound source materialization as well as query execution. Decision validation now treats other revisions as unverified and rejects self/cyclic supersession. Golden Questions no longer claim immature cohorts or causal certainty unsupported by their saved data.
+
+### Renderer corrections
+
+Six new regression tests failed against `d7aeb4d`. The root causes were context-dependent escaping, output writes interleaved with path checks, and separately implemented validation/status reporting. The fixes:
+
+- **P1 — HTML injection:** Claim text surrounding tokens and text-valued table cells were emitted raw. Both now receive HTML escaping. Resolved values are inserted after Markdown parsing, so text cannot create links, images or markup.
+- **P1 — evidence destruction:** a validated SQL file at `render/finding.html` was overwritten by rendering. Generated output now has a reserved directory, including protection for pinned definitions and case variants of the directory name.
+- **P2 — partial and stale exports:** an unsafe later SVG destination was discovered only after overwriting HTML. All destinations are now checked and staged first; recoverable replacement errors roll back. Successful renders remove obsolete chart files and PNG previews that otherwise could retain formerly exportable data. Authored templates remain untouched.
+- **P2 — validation divergence:** render now uses the same artifact/Decision checks as `check`, so a broken Decision binding cannot pass through rendering.
+- **P2 — misleading provenance:** mismatched renderer/style pins force a visibly labelled draft preview; review bindings remain unchanged. The draft banner reports unavailable publication verification and saved-evidence validation without denying recorded reviews or claiming SQL was rerun.
+- **P2 — chart range and resource lifetime:** decimal-to-number overflow is rejected instead of producing an invalid chart. Vega views and WASM rasterizers/images are released on completion or error. Charts have a light background so their fixed dark text remains readable in dark mode.
+
+Nine added regression tests cover these boundaries. The full suite passes **80 tests**, including both exemplar renders and private export sentinels. This is a code and behavior review; it does not constitute a visual accessibility audit or the outstanding human Reader session. Output replacement assumes one writer; it does not promise atomic recovery after process termination or hostile concurrent filesystem mutation.

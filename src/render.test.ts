@@ -21,7 +21,7 @@ test("both exemplars render: factual values agree across prose, tables and chart
   const html = readFileSync(join(finding(root, NUMERIC), "render", "finding.html"), "utf8");
   for (const v of ["34.8%", "28.5%", "6.3 pp", "1,277", "8.7 pp"]) assert.ok(html.includes(v), v);
   assert.ok(!html.includes("0.3477") && !html.includes("0.284839"), "raw decimals never reach the page; display formatting applied once");
-  assert.ok(/class="draft"/.test(html) && /No one has approved/.test(html), "draft label");
+  assert.ok(/class="draft"/.test(html) && /Publication approval has not been verified/.test(html), "draft label");
   assert.ok(/<div class="answer">[\s\S]*?<\/div>\s*<div class="caveat">/.test(html), "answer and material caveat together");
   const mailtos = [...html.matchAll(/href="(mailto:[^"]+)"/g)].map((m) => decodeURIComponent(m[1]!));
   assert.ok(mailtos.length >= 3);
