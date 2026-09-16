@@ -23,7 +23,7 @@ import { sha256 } from "../digest.ts";
 import { checkOutcome } from "../../scripts/lib/sql-runner.mjs";
 import { assessReadiness } from "../publication/readiness.ts";
 import { createGitHubClient, tokenFromEnv, type GitHubClient } from "../publication/github.ts";
-import { validateAnalysisFile } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings } from "../analysis/validate.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun"; github?: GitHubClient | null };
@@ -229,7 +229,10 @@ export function checkArtifact(opts: CheckOptions): Report {
     }
   }
   // The Analysis file, when the directory has one (docs/contracts/analysis-directory.md).
-  if (manifest) report.errors.push(...validateAnalysisFile(dir, manifest));
+  if (manifest) {
+    report.errors.push(...validateAnalysisFile(dir, manifest));
+    report.warnings.push(...analysisWarnings(dir));   // Probes out of timeline order: said, never refused.
+  }
   report.evidence = report.errors.length ? "invalid" : "valid";
   report.sql_execution = "not_performed";
   if (out.recordedCheckOutcomes) report.info.push("recorded Check outcomes (history, not re-executed): " + Object.entries(out.recordedCheckOutcomes).map(([k, v]) => `${k}=${v}`).join(", "));

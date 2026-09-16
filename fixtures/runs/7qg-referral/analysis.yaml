@@ -29,13 +29,18 @@ pre_registered_comparison:
   registered_at: "2026-09-15T09:20:00Z"
   source: question.primary_comparison in manifest.yaml, settled in clarification round 1 before any data was read
 
+# The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
+# the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
+# the look is taken, which is what the schema and /checked-analysis step 2 require.
 probes:
   - id: p_referral_signal
+    at: "2026-09-15T09:45:00Z"
     kind: exploratory
     question: Is there a field or table that names the campaign a user came through, or only the referral_signup event?
     observed: Neither users nor acquisition carries a campaign id. The only signal is the referral_signup event in events.
     changed_plan: The population is "users with a referral_signup event in the window", and the limitation that this cannot distinguish this campaign from any other referral in the same month is recorded on the Claim.
   - id: p_referred_counts
+    at: "2026-09-15T10:20:00Z"
     kind: exploratory
     question: How many referred users are there in the window, and how many of them have had seven full days by the coverage date?
     observed: 12 referred users in September 2026, of whom 5 had not completed seven days by 2026-09-14. Seven users have a mature seven-day window.

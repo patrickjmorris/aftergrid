@@ -75,6 +75,15 @@ definition may back a supporting or diagnostic Claim with its status shown. It c
 decision metric. If the Question's decision metric is the one that is only proposed, the run stops with a
 `needs_input` item of kind `definition_approval` naming you.
 
+**Where does the middle of the analysis go — the dead ends, the days that went nowhere?** Into
+`analysis.yaml#/probes`, in place, as it happens. Each entry carries `at` (the harness's clock at the time,
+never a time reconstructed afterwards) and a `kind`: `exploratory` for a look that informed the plan,
+`dead_end` for a path tried or considered and abandoned, `reframe` for a look that changed the Question, which
+must then say what changed. Dead ends are kept, not deleted, and the list is read in `at` order as the timeline
+of the run — `check` warns when it is out of order rather than refusing it, because the honest repair is the
+times and not the sort. The writer may cite a dead end in a Finding's Limitations; it may never turn one into a
+number.
+
 **How are exploratory cuts kept from becoming the headline?** The primary comparison is registered in
 `analysis.yaml` before any cut is explored, with `registered_before_cuts` telling the truth about when. A cut
 decided afterwards is marked `exploratory: true` in `execution_order`, and its Claim carries
@@ -94,6 +103,8 @@ window.
   history agrees with that order.
 - Every exploratory cut is labelled in `execution_order` and in the Claim resting on it.
 - Each probe records what it asked *and* what it observed, and at least one of them changed the plan.
+- Every probe carries `at` and `kind`, the entries are in `at` order, and the dead ends are still there. The
+  middle of the analysis is legible from the list alone: where it went, what it abandoned, what it reframed.
 - On the recorded path: every declared execution and Check has been recorded with the tool that ran it,
   `aftergrid check` reports evidence `valid` with no `recorded_path` warning left, and the handover says the
   Check outcomes were reported rather than executed.

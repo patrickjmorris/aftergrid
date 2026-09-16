@@ -125,3 +125,10 @@ own result. When no evaluable falsifier exists yet, leave `falsifier` out, list 
 A second pass over the same Finding asks only about parts in `question.unresolved` and about `needs_input` items
 whose owner has answered since. Restate the settled parts back to the Operator as a list they can correct —
 a correction is cheap and a re-interrogation is not.
+
+**When the analysis sends the Question back.** Where a look mid-run changes the Question rather than the plan —
+the metric cannot be computed, the population is not the one the decision needs, the ask turns out to be
+associational — record it in `analysis.yaml#/probes` as a `kind: reframe` entry with its `at`, what it asked,
+what it showed, and a `changed_plan` naming the Question before and after and pointing at this revisit if one
+was run. The probe is where the reframe is visible afterwards; `question.unresolved` and the manifest carry only
+the Question as it ended up.

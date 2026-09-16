@@ -33,7 +33,7 @@ import { findInstance } from "../instance.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { serializeResult, type DeclaredColumn } from "../adapters/serialize.ts";
 import { contentDigest, sha256 } from "../digest.ts";
-import { validateAnalysisFile } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings } from "../analysis/validate.ts";
 // @ts-ignore: the shared digest envelope, as `check`, `execute` and the fixture build compute it.
 import { digestOf } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment and structural rules.
@@ -314,7 +314,10 @@ export async function record(opts: RecordOptions): Promise<Report> {
 
   // The Analysis file, when there is one, is read AFTER the evidence is written, so a defect in it is reported
   // and never throws away the report of a recording that already happened.
-  try { report.errors.push(...validateAnalysisFile(dir, doc.toJS())); }
+  try {
+    report.errors.push(...validateAnalysisFile(dir, doc.toJS()));
+    report.warnings.push(...analysisWarnings(dir));   // Probes out of timeline order: said, never refused.
+  }
   catch (e) {
     err("invalid_artifact", "analysis.yaml", `analysis.yaml could not be read: ${(e as Error).message}`,
       "the evidence above was written and pinned; fix analysis.yaml against src/analysis/analysis.schema.json and run `aftergrid check`");

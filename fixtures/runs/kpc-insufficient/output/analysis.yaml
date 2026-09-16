@@ -69,8 +69,12 @@ pre_registered_comparison:
 # p1 is a look at the retained query and p2 is a comparison deliberately not run. Neither is evidence for a
 # Claim. They are declared here and left out of execution_order: p1 reads the query's own result, and
 # execution_order is grouped probe -> check -> query, so recording it first would misstate the order.
+# The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
+# the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
+# the look is taken, which is what the schema and /checked-analysis step 2 require.
 probes:
   - id: p1
+    at: "2026-09-15T23:05:00Z"
     kind: exploratory
     question: How much has accumulated since the change, and how far is that from the policy minimum?
     observed: Seven full days and 67 cancellations against a minimum of 28 days and 300 cancellations, on 887
@@ -78,7 +82,8 @@ probes:
     changed_plan: The minimum-data Check became the point of the run rather than a gate in front of it, and
       the cancellations_since_change query was retained as the evidence for c1.
   - id: p2
-    kind: exploratory
+    at: "2026-09-15T23:20:00Z"
+    kind: dead_end
     question: Should a partial post-change week be set against full pre-change weeks?
     observed: Not run. The first days after a price change mix announcement reactions with ordinary
       cancellations, so the comparison would set unlike things against each other.

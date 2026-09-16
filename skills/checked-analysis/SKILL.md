@@ -43,10 +43,31 @@ Look for the three things that most often make a plan impossible: a column the p
 not have; a distinction the plan needs (which variant a user *saw*, not which they were *assigned*) that nothing
 records; and a timestamp whose lateness would make the last cohort of the window look thin.
 
-Record each probe in `analysis.yaml#/probes` with what it asked, what it showed and what the plan did about it.
-Probes are `kind: exploratory` and are never evidence for a Claim.
+Record each probe in `analysis.yaml#/probes`, **as it happens**, with:
 
-Done when: every table and column the plan names exists, and each probe has an `observed` line.
+- `at` — the time from the harness's clock at that moment, RFC 3339 with an offset. Never a time worked out
+  afterwards: if a look was not written down when it was taken, say so in `observed` rather than invent one.
+- `kind` — `exploratory` for a look that informed the plan, `dead_end` for a path tried or considered and
+  abandoned, `reframe` for a look that changed the Question itself.
+- `question`, `observed`, and `changed_plan`: what it asked, what it showed, and what the plan did about it.
+
+This list is the account of the middle of the analysis, not a catalog-probe log, and it keeps growing after
+step 2 — every later look, including one taken after a result was seen, is recorded here where it happened
+(with `post_hoc: true` on its `execution_order` step), in `at` order.
+
+**A dead end is recorded, not deleted.** A query that was wrong, a cut that showed nothing, a comparison
+decided against — each is a `dead_end` entry saying what it asked, what it showed and what was done instead.
+Deleting it makes the run look like it went straight to the answer, which is the one thing the list exists to
+prevent.
+
+**A `reframe` points at the change.** Its `changed_plan` names what the Question now is and what it was — and
+the `/grill-question` revisit, if the reframe was big enough to send the Question back for sharpening. A
+`reframe` with nothing in `changed_plan` is refused by `aftergrid check`.
+
+Probes are never evidence for a Claim.
+
+Done when: every table and column the plan names exists, and each probe has an `at`, a `kind` and an `observed`
+line.
 
 ## 3. Retain the inputs — only where an adapter runs the SQL
 
@@ -215,9 +236,16 @@ Set `stage: analysed` and fill in everything the writer reads and cannot re-deri
 - `reader_profile`, and `assumptions` — one entry per choice the Question did not settle, each with its `basis`.
   `unverified` is an honest basis; writing it down never upgrades it.
 - `pre_registered_comparison`, with `registered_before_cuts` telling the truth.
-- `probes` from step 2, and `execution_order` from steps 4 and 5, in the order written and run. A probe taken
-  after a result was seen is recorded where it happened, with `post_hoc: true` — the label is the record, and
-  moving the step up the list to look orderly is the thing it exists to prevent.
+- `probes` from step 2 **and from every step since**, in `at` order: this is the account of the middle of the
+  analysis handed to the writer, dead ends included. Each entry carries its `at`, its `kind` (`exploratory`,
+  `dead_end`, `reframe`), what it asked, what it showed and what the plan did; a `reframe` names the Question
+  change and the `/grill-question` revisit if there was one. The writer may cite a dead end in the Finding's
+  Limitations — "we looked at X and it showed nothing" is a real limitation — and may never turn one into a
+  number.
+- `execution_order` from steps 4 and 5, in the order written and run. A probe taken after a result was seen is
+  recorded where it happened, with `post_hoc: true` — the label is the record, and moving the step up the list
+  to look orderly is the thing it exists to prevent. Probes out of `at` order are reported as a warning: fix
+  the times, do not re-sort the list.
 - `candidate_claims` — for each: the draft sentence, `type` (descriptive, associational, causal), evidence
   references, comparison, population, window, exclusions, limitations, and a `recheck_draft`. A `causal` Claim
   also carries `causal_basis: randomised_assignment`; without that design the Claim is associational. One Claim
@@ -244,6 +272,10 @@ change belongs here, and a request to change a number reopens this skill at step
 
 Say which of the four outcomes was recommended and why, name every `needs_input` item with its owner, and state
 which Claims rest on an exploratory cut or a proposed definition.
+
+Hand over `probes` as the account of the middle: in `at` order, dead ends and reframes included, so the writer
+can see where the analysis went and why it went there. Name any `reframe` explicitly — the Question the Finding
+answers is not the Question the run started with — and say which dead ends are worth a line in Limitations.
 
 Say which data path produced the evidence. On the recorded path that is four facts, all of them the writer's to
 carry into **How we checked**: which tool ran the queries and Checks, that the Check outcomes are agent-reported

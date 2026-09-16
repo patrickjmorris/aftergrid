@@ -58,19 +58,33 @@
     },
     "probes": {
       "type": "array",
-      "description": "Exploratory looks at the catalog or the data taken before the plan was committed, and post-hoc looks taken after a result was seen. Always exploratory; never evidence for a Claim.",
+      "description": "The middle of the analysis, recorded in place: every look at the catalog or the data taken before the plan was committed, every post-hoc look taken after a result was seen, every dead end and every reframe, each with the time it happened. A dead end is recorded, never deleted. Always exploratory; never evidence for a Claim. Entries are kept in non-decreasing `at` order so the list reads as a timeline (`validateAnalysisFile` warns when they are not).",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "kind", "question", "observed"],
+        "required": ["id", "at", "kind", "question", "observed"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
-          "kind": { "const": "exploratory" },
+          "at": {
+            "$ref": "#/$defs/timestamp",
+            "description": "When the probe was taken, RFC 3339 with an offset, read from the harness's clock at the time. Never a time invented afterwards to make the list look orderly: a probe whose time is unknown is a probe that was not recorded when it happened, and saying so in `observed` is the honest move."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["exploratory", "dead_end", "reframe"],
+            "description": "What this look was. `exploratory`: a look that informed the plan. `dead_end`: a path tried or considered and abandoned, kept so the middle of the analysis is visible afterwards. `reframe`: a look that changed the Question itself, which must then say what changed in `changed_plan`."
+          },
           "question": { "type": "string", "minLength": 1, "description": "What the probe was trying to find out." },
           "observed": { "type": "string", "minLength": 1, "description": "What it actually showed, in plain words." },
           "sql_path": { "$ref": "#/$defs/relpath", "description": "A retained probe query. A probe that was not retained omits this." },
-          "changed_plan": { "type": "string", "minLength": 1, "description": "What the plan did because of it." }
-        }
+          "changed_plan": { "type": "string", "minLength": 1, "description": "What the plan did because of it. Required on a `reframe`, where it names the Question change and the `/grill-question` revisit if one happened; a `dead_end` uses it to say what was done instead." }
+        },
+        "allOf": [
+          {
+            "if": { "required": ["kind"], "properties": { "kind": { "const": "reframe" } } },
+            "then": { "required": ["changed_plan"] }
+          }
+        ]
       }
     },
     "execution_order": {

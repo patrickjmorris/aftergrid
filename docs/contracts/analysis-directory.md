@@ -92,8 +92,8 @@ assumptions:                    # one per choice the Question did not settle
   - { id, statement, basis: operator_answer|catalog_probe|instance_document|engine_default|unverified, settled_by?, affects? }
 pre_registered_comparison:      # required for an `answered` recommendation
   { statement, registered_before_cuts, registered_at?, source? }
-probes:                         # exploratory looks at the catalog or the data; never evidence
-  - { id, kind: exploratory, question, observed, sql_path?, changed_plan? }
+probes:                         # the middle of the analysis, in the order it happened; never evidence
+  - { id, at, kind: exploratory|dead_end|reframe, question, observed, sql_path?, changed_plan? }
 execution_order:                # probe -> check -> query, in the order written and run
   - { kind: probe|check|query, id, exploratory?, post_hoc?, note? }
 candidate_claims:
@@ -121,6 +121,34 @@ because `/checked-analysis` runs `execute` at step (d) before it writes the work
 `outcome_recommendation`. A file with no `stage` is read as `analysed`, so a file written before the field
 existed keeps its meaning and no file becomes a seed by omitting a line.
 
+### The middle of the analysis lives in `probes`
+
+The start of an Analysis is the Question and the end is the Finding; what happened in between used to be
+nowhere. It is here, in the one list, extended rather than replaced — which is the answer to the open question
+in `docs/design/hands-on-scope-2026-09-16.md`: the mid-analysis log is `analysis.yaml#/probes`, in place, and
+not a new file.
+
+Every entry carries:
+
+- **`at`** — when the look was taken, RFC 3339 with an offset, read from the harness's clock **at the time**.
+  It is required, on every entry, because a timestamp added afterwards from memory is a guess wearing the
+  clothes of a record. A look whose time was never noted says so in `observed` instead of carrying a plausible
+  one.
+- **`kind`** — `exploratory` (a look that informed the plan), `dead_end` (a path tried or considered and
+  abandoned) or `reframe` (a look that changed the Question itself). **A dead end is recorded, never deleted**:
+  the list is the account of where the analysis went, and an account with the wrong turns removed is a map
+  drawn after arriving.
+- **`changed_plan`** — what the plan did about it. Optional on an `exploratory` probe, **required on a
+  `reframe`**, where it names the Question change and the `/grill-question` revisit if one happened.
+
+The list is read as a timeline, so it is kept in non-decreasing `at` order. Out-of-order entries are a
+**warning** (`analysisWarnings`), never an error: the repair is to correct the times, not to re-sort the list
+until it looks orderly, and a run written up late is still worth having. A look taken *after* a result was seen
+is still recorded where it happened, with `post_hoc: true` on its `execution_order` step.
+
+Probes are never evidence for a Claim. The writer reads them as the account of the middle and may cite a dead
+end in a Finding's Limitations; it may not turn one into a number.
+
 ### The rules the shape alone does not carry
 
 Enforced by the schema (`src/analysis/analysis.schema.json`):
@@ -131,6 +159,8 @@ Enforced by the schema (`src/analysis/analysis.schema.json`):
   valid complete outcomes, and each **requires** a non-empty `what_would_be_needed` — that is what makes them
   usable rather than a shrug.
 - **A causal Claim declares its design.** `type: causal` requires `causal_basis`.
+- **A probe is timestamped and kinded.** Every entry requires `at` and `kind`, and a `reframe` requires
+  `changed_plan`, so a reframe that names nothing that changed is refused.
 - **`comparison.kind` is the manifest's enum**, value for value, because the writer copies it through unchanged.
 
 Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
@@ -149,6 +179,9 @@ Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
   `randomised_assignment` is refused, and the remedy is to make the Claim associational.
 - **A Claim's `definition_refs` are pinned.** Each resolves in `manifest.definitions` at the same version, so a
   Diagnostic grouping a Claim rests on is traced rather than assumed.
+- **`probes` reads as a timeline.** A probe timestamped before the one above it is reported by
+  `analysisWarnings(dir)` as a **warning** with the location of the offending `at` — `check`, `execute` and
+  `record` print it, and none of them refuses the Finding over it.
 
 The `requested_*` lists exist because `derived` and `external_sources` are fields `/write-finding` owns: they are
 empty while the Analysis directory is the Analysis directory. Naming a requested value here lets a candidate
