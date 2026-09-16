@@ -9,7 +9,15 @@
     "node": ">=22.18"
   },
   "skills": [
-    "./skills/setup-aftergrid"
+    "./skills/analysis-review",
+    "./skills/analyze",
+    "./skills/checked-analysis",
+    "./skills/grill-question",
+    "./skills/iterate-visual",
+    "./skills/revise-finding",
+    "./skills/setup-aftergrid",
+    "./skills/shape-narrative",
+    "./skills/write-finding"
   ],
   "files": [
     "bin",

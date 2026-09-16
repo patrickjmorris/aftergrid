@@ -30,6 +30,9 @@ jobs:
       - run: node src/cli.ts check fixtures/negatives/control-valid --json
       - run: node src/cli.ts check fixtures/negatives/unresolved-reference --json || test $? -eq 1
       - run: node src/cli.ts hook status --settings /tmp/ag-settings.json --json
+      - run: node src/cli.ts check fixtures/runs/kpc-numeric/output --mode rerun --json
+      - run: node src/cli.ts check fixtures/runs/kpc-insufficient/output --mode rerun --json
+      - run: node src/cli.ts eval --golden all --analyzer fixture --json
       - name: setup scaffolds a fresh Instance end to end (skills bundle faked; CI runners have no Claude Code plugins)
         shell: bash
         run: |

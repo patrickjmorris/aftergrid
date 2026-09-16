@@ -45,21 +45,18 @@ Promoted:
 
 - **[setup-aftergrid](./setup-aftergrid/SKILL.md)** — user-invoked. Collect the inputs, run `aftergrid setup`,
   read the report, name what is still missing. Docs: [docs/skills/setup-aftergrid.md](../docs/skills/setup-aftergrid.md).
+- **[analyze](./analyze/SKILL.md)** — user-invoked. The only orchestrator: raw ask to reviewed Finding draft, halting with a precise reason. Docs: [docs/skills/analyze.md](../docs/skills/analyze.md).
+- **[grill-question](./grill-question/SKILL.md)** — user-invoked. Interview the Operator in rounds until a raw ask is a Question, and write it into a Finding. Docs: [docs/skills/grill-question.md](../docs/skills/grill-question.md).
+- **[revise-finding](./revise-finding/SKILL.md)** — user-invoked. Classify Operator feedback with `aftergrid revise`, apply presentation changes as a new revision, say what a numeric or interpretation change reopens. Docs: [docs/skills/revise-finding.md](../docs/skills/revise-finding.md).
+- **[analysis-review](./analysis-review/SKILL.md)** — model-invoked. Method, Question and Reader reviewers over a complete Finding, recorded in the manifest. Docs: [docs/skills/analysis-review.md](../docs/skills/analysis-review.md).
+- **[checked-analysis](./checked-analysis/SKILL.md)** — model-invoked. Probe the catalog, capture the retained inputs, write the applicable Checks before the analysis SQL, execute on the retained inputs, fill `analysis.yaml`. Docs: [docs/skills/checked-analysis.md](../docs/skills/checked-analysis.md).
+- **[iterate-visual](./iterate-visual/SKILL.md)** — model-invoked. Render each chart, look at the PNG, score it against the visual rubric, revise up to three times, hand back what still fails. Docs: [docs/skills/iterate-visual.md](../docs/skills/iterate-visual.md).
+- **[shape-narrative](./shape-narrative/SKILL.md)** — model-invoked. Answer first, each Evidence heading states its Claim, each chart title states its Claim, the Reader's words. Docs: [docs/skills/shape-narrative.md](../docs/skills/shape-narrative.md).
+- **[write-finding](./write-finding/SKILL.md)** — model-invoked. Turn a checked Analysis directory into a Finding: memo.md in the six fixed sections, typed Claims, charts and tables, every value bound. Docs: [docs/skills/write-finding.md](../docs/skills/write-finding.md).
 
-Pending. These are the v0 skill set from `docs/design/v0-design-2026-09-15.md`; none of them is scaffolded here,
-because they all wait on the manual-Finding gate (`ag-manual-real-finding-db2`): a hand-authored real Finding with
-Reader feedback comes before any skill that writes one.
-
-| Skill | Kind | Bead |
-| --- | --- | --- |
-| `/grill-question` | user-invoked | `ag-grill-checked-analysis-7qg` |
-| `/checked-analysis` | model-invoked | `ag-grill-checked-analysis-7qg` |
-| `/analyze` | user-invoked | `ag-review-analyze-golden-4ka` |
-| `/analysis-review` | model-invoked | `ag-review-analyze-golden-4ka` |
-| `/write-finding` | model-invoked | `ag-write-finding-narrative-kpc` |
-| `/shape-narrative` | model-invoked | `ag-write-finding-narrative-kpc` |
-| `/iterate-visual` | model-invoked | `ag-iterate-visual-revise-kn3` |
-| `/revise-finding` | user-invoked | `ag-iterate-visual-revise-kn3` |
+All nine v0 skills are promoted. The manual-Finding gate (`ag-manual-real-finding-db2`) was relaxed by the owner on
+2026-09-16 so the chain could be authored on synthetic fixtures; the real Finding with real Reader feedback stays an
+open owner gate for the milestone, and every skill's recorded runs say plainly that no model was in the loop.
 
 ## Installing these skills
 

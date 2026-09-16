@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { newFinding } from "./commands/new-finding.ts";
 import { setup } from "./commands/setup.ts";
 import { check } from "./commands/check.ts";
+import { capture } from "./commands/capture.ts";
+import { execute } from "./commands/execute.ts";
+import { revise } from "./commands/revise.ts";
+import { recordReview, reviewStatus, type ReviewKind } from "./commands/review.ts";
+import { runEval } from "./eval/runner.ts";
 import { render } from "./commands/render.ts";
 import { decide } from "./commands/decide.ts";
 import { hook } from "./commands/hook.ts";
@@ -22,6 +27,15 @@ Usage:
                   [--settings <claude settings.json>] [--skip-hook] [--dry-run] [--json]
   aftergrid new finding <slug> [--ask "<raw ask>"] [--reader <profile-id>] [--instance <dir>] [--date yyyy-mm-dd]
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
+  aftergrid capture <finding-dir> --tables <a,b> [--catalog] [--instance <dir>] [--description "<text>"] [--json]
+  aftergrid execute <finding-dir> [--instance <dir>] [--json]
+  aftergrid revise <finding-dir> --pin|--classify|--apply [--baseline <dir>] [--force] [--json]
+  aftergrid review record <finding-dir> --kind method|question|reader|visual --reviewer "agent:<model id>"
+                   [--blocking "<finding>" ...] [--non-blocking "<finding>" ...] [--profile <reader-profile>]
+                   [--date yyyy-mm-dd] [--dry-run] [--json]
+  aftergrid review status <finding-dir> [--json]
+  aftergrid eval --golden <id|all> [--analyzer fixture|command] [--analyzer-command "<template>"]
+                   [--instance <dir>] [--out <dir>] [--sha <git sha>] [--model <model id>] [--json]
   aftergrid render <finding-dir> [--png] [--json]
   aftergrid decide --finding <dir> --owner <name> --date <yyyy-mm-dd> --claims <c1,c2> --action action|inaction
                    --description "<what was done>" --rationale "<why>"
@@ -48,6 +62,28 @@ Lifecycle:
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
                 --mode rerun re-executes every recorded query and Check against the retained inputs (never a
                 live source) and reports any difference from what the manifest recorded. Nothing is modified.
+  capture       copies the named source tables into the Finding as retained inputs with content hashes and
+                honest source metadata (docs/contracts/analysis-directory.md). --catalog reads the tables and
+                columns and writes nothing. It refuses a revision carrying attestations and never sets a Snapshot
+                guarantee: a guarantee is established by running the analysis, not by capturing inputs.
+  execute       runs every declared execution and Check against the retained inputs (never a live source),
+                writes results/*.json and pins SQL hashes, result hashes, Check outcomes and the content digest.
+                A SQL error, a malformed Check or a result that does not match its declared columns writes
+                nothing; a Check that records fail is data and is written down. It refuses to change content an
+                attestation binds to, and never writes a review or an attestation.
+  revise        says what a change to a pinned Finding costs, then applies it or refuses. --pin archives the
+                Finding under revisions/<N>/ as the baseline; --classify calls every difference presentation,
+                interpretation or numeric and writes nothing; --apply makes a presentation or interpretation
+                change revision N+1, archives its predecessor, re-renders and re-checks; a numeric change is
+                refused with the instruction to reopen the Analysis. Reviews and approvals are reported stale,
+                never carried forward. Conservative, not a semantic classifier: docs/contracts/revise.md.
+  review        record appends one agent review to the manifest, bound to the digest the files hash to now,
+                and refuses when they no longer match. It never writes an attestation and never reports
+                readiness: an agent review completes a draft, a human APPROVED review approves it. status
+                reprints what is recorded, what is stale, and whether /analyze continues or halts.
+  eval          runs Golden Questions end to end against an analyzer and records what happened per case under
+                <out>/<sha>/. Evaluation material, never a merge gate; analytical and infrastructure failures are
+                recorded apart; it approves nothing and validates no evidence. Contract: docs/contracts/eval.md.
   render        validates the source, then writes render/finding.html and render/<chart>.svg (and .png with --png);
                 a draft renders with a draft label, never as reviewed; invalid evidence is refused.
   decide        records one owner Decision against a reviewed Finding revision: one immutable file per record under
@@ -123,6 +159,53 @@ export async function main(argv: string[]): Promise<void> {
     if (!dir) { process.stderr.write("usage: aftergrid check <finding-dir>\n"); process.exit(2); }
     if (values.mode !== undefined && values.mode !== "artifact" && values.mode !== "rerun") { process.stderr.write(`--mode must be artifact or rerun, got '${values.mode}'\n`); process.exit(2); }
     out(await check({ dir, mode: values.mode === "rerun" ? "rerun" : "artifact" }), !!values.json);
+  }
+  if (cmd === "capture") {
+    const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: { tables: { type: "string" }, catalog: { type: "boolean" }, instance: { type: "string" }, description: { type: "string" }, json: { type: "boolean" } } });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write("usage: aftergrid capture <finding-dir> --tables a,b [--catalog] [--json]\n"); process.exit(2); }
+    if (!values.catalog && !values.tables) { process.stderr.write("name the tables to capture: --tables a,b (or --catalog to read the catalog and write nothing)\n"); process.exit(2); }
+    out(await capture({ dir, tables: values.tables?.split(",").map((t) => t.trim()).filter(Boolean), catalog: !!values.catalog, instanceDir: values.instance, description: values.description }), !!values.json);
+  }
+  if (cmd === "execute") {
+    const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: { instance: { type: "string" }, json: { type: "boolean" } } });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write("usage: aftergrid execute <finding-dir> [--json]\n"); process.exit(2); }
+    out(await execute({ dir, instanceDir: values.instance }), !!values.json);
+  }
+  if (cmd === "revise") {
+    const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
+      pin: { type: "boolean" }, classify: { type: "boolean" }, apply: { type: "boolean" },
+      baseline: { type: "string" }, force: { type: "boolean" }, json: { type: "boolean" },
+    } });
+    const dir = positionals[0];
+    const usage = "usage: aftergrid revise <finding-dir> --pin|--classify|--apply [--baseline <dir>] [--force] [--json]\n";
+    if (!dir) { process.stderr.write(usage); process.exit(2); }
+    const modes = (["pin", "classify", "apply"] as const).filter((m) => values[m]);
+    if (modes.length !== 1) { process.stderr.write("name exactly one of --pin, --classify or --apply\n" + usage); process.exit(2); }
+    out(await revise({ dir, mode: modes[0]!, baseline: values.baseline, force: !!values.force }), !!values.json);
+  }
+  if (cmd === "review") {
+    if (sub !== "record" && sub !== "status") { process.stderr.write("usage: aftergrid review record|status <finding-dir> [...]\n"); process.exit(2); }
+    const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
+      kind: { type: "string" }, reviewer: { type: "string" }, blocking: { type: "string", multiple: true },
+      "non-blocking": { type: "string", multiple: true }, profile: { type: "string" }, date: { type: "string" },
+      "dry-run": { type: "boolean" }, json: { type: "boolean" },
+    } });
+    const dir = positionals[0];
+    if (!dir) { process.stderr.write(`usage: aftergrid review ${sub} <finding-dir>\n`); process.exit(2); }
+    if (sub === "status") out(reviewStatus({ dir }), !!values.json);
+    if (!values.kind || !values.reviewer) { process.stderr.write('usage: aftergrid review record <finding-dir> --kind method|question|reader|visual --reviewer "agent:<model id>" [--blocking "..."] [--non-blocking "..."] [--profile <id>] [--date yyyy-mm-dd] [--dry-run] [--json]\n'); process.exit(2); }
+    out(recordReview({ dir, kind: values.kind as ReviewKind, reviewer: values.reviewer, blocking: values.blocking, nonBlocking: values["non-blocking"], profile: values.profile, date: values.date, dryRun: !!values["dry-run"] }), !!values.json);
+  }
+  if (cmd === "eval") {
+    const { values } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
+      golden: { type: "string" }, analyzer: { type: "string" }, "analyzer-command": { type: "string" },
+      instance: { type: "string" }, out: { type: "string" }, sha: { type: "string" }, model: { type: "string" },
+      "fixture-root": { type: "string" }, json: { type: "boolean" },
+    } });
+    if (values.analyzer !== undefined && values.analyzer !== "fixture" && values.analyzer !== "command") { process.stderr.write(`--analyzer must be fixture or command, got '${values.analyzer}'\n`); process.exit(2); }
+    out(await runEval({ golden: values.golden, analyzer: values.analyzer === "command" ? "command" : "fixture", analyzerCommand: values["analyzer-command"], instanceDir: values.instance, outDir: values.out, fixtureRoot: values["fixture-root"], sha: values.sha, model: values.model }), !!values.json);
   }
   if (cmd === "render") {
     const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: { png: { type: "boolean" }, json: { type: "boolean" } } });
