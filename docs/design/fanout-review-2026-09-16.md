@@ -116,6 +116,12 @@ Confirmed and fixed on `record`:
 
 Skills (olp): steps 3 and 6 of `/checked-analysis` now open on the recorded path (harness runs the SQL, `aftergrid record` pins it, Checks are agent-reported with evidence, readiness never ready), the adapter path follows as the upgrade; `/analyze` no longer lists a missing adapter as a halt; three content tests pin the wording to the CLI's actual flags. Left for ag-ag-recorded-path-followups-q2l: setup still requires an adapter; write-finding and revise-finding still read coverage and re-runs from retained inputs.
 
+### ag-3ce (probes) and ag-ag-recorded-path-followups-q2l (adapterless setup)
+
+Same process, bounded reviews. Probes (ef73e4b, closing fixes 3e95ade): `at` and `kind` required on every probe, reframe needs `changed_plan`, out-of-order times warn; review found only Low items (duplicate if/then error, warning remedies not printed, migration rule unstated, a test aimed at the wrong step), all fixed.
+
+Adapterless setup (e08b5fa, fixes 68809d6): `setup` defaults to `adapter: none`; capture refuses `recorded_path`; execute refuses only on a Finding with no retained inputs. Review found one High: every remedy told the Operator to rerun `setup --adapter …`, which never overwrites an existing aftergrid.yaml, so the upgrade route was a no-op that reported the connection step completed and pointed back at itself. Setup now prints the connection block when the file is kept and every remedy says to set `connection.adapter` in the file. Also fixed: unconditional "execute and rerun unavailable" wording (both run on retained inputs), the DuckDB-binding warning claiming no SQL runs on this route, rerun remedies naming a `capture` that refuses, source flags without `--adapter` silently dropped, the `new finding` coverage sentinel (1970-01-01) passing `check` as complete, and "approval" where `record` refuses any attestation. pack-smoke gained an adapterless step through the packed binary.
+
 ## Not covered by this record
 
 - The human Reader session (a2f) and the manual real Finding (db2) are owner gates and were not touched.
