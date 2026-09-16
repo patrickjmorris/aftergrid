@@ -1,0 +1,9 @@
+interface:
+  display_name: "Checked analysis"
+  short_description: "Run one Analysis on retained inputs, Checks first, and leave an Analysis directory the writer can consume"
+  default_prompt: "Run the checked analysis for this Finding: probe the catalog, capture the retained inputs, write the applicable Checks before the analysis SQL, execute on the retained inputs, and fill analysis.yaml."
+policy:
+  # Model-invoked, matching `user-invocable: false` in SKILL.md. `/analyze` reaches for it mid-run, and it is
+  # where the clarification procedure lives that `/grill-question` also points at, so no user-invoked skill has
+  # to call another one.
+  allow_implicit_invocation: true

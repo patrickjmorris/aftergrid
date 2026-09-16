@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/patrickjmorris/aftergrid/src/analysis/analysis.schema.json",
+  "title": "aftergrid Analysis file",
+  "description": "analysis.yaml: the working record of one Analysis, beside manifest.yaml in a Finding directory. Contract: docs/contracts/analysis-directory.md. It lives under src/ rather than schema/ because schema/ holds the artifacts a Reader-facing Finding is validated against; this one is an Engine-internal working record the writer consumes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reader_profile",
+    "assumptions",
+    "probes",
+    "execution_order",
+    "candidate_claims",
+    "outcome_recommendation"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1.0" },
+    "reader_profile": {
+      "$ref": "#/$defs/id",
+      "description": "The Reader profile id this Analysis is aimed at, from the Instance's readers.md. `generic` when the Instance names none."
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Every choice the Analysis made that the Question did not settle. An empty list asserts that nothing was assumed.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement", "basis"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "statement": { "type": "string", "minLength": 1 },
+          "basis": {
+            "type": "string",
+            "enum": ["operator_answer", "catalog_probe", "instance_document", "engine_default", "unverified"],
+            "description": "Where the assumption came from. `unverified` is honest and allowed; writing it down never upgrades it."
+          },
+          "settled_by": { "type": "string", "minLength": 1, "description": "Who or what settled it: a person, a document path, a probe id." },
+          "affects": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "pre_registered_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "registered_before_cuts"],
+      "description": "The primary comparison, written down before any cut was explored. Required for an `answered` recommendation.",
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "registered_before_cuts": {
+          "type": "boolean",
+          "description": "false is a legitimate, reportable state: the comparison was settled after exploration, and every Claim resting on it is exploratory."
+        },
+        "registered_at": { "$ref": "#/$defs/timestamp" },
+        "source": { "type": "string", "minLength": 1, "description": "Where it was registered: the Question in manifest.yaml, a clarification round, an experiment plan." }
+      }
+    },
+    "probes": {
+      "type": "array",
+      "description": "Exploratory looks at the catalog or the data taken before the plan was committed. Always exploratory; never evidence for a Claim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "question", "observed"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": { "const": "exploratory" },
+          "question": { "type": "string", "minLength": 1, "description": "What the probe was trying to find out." },
+          "observed": { "type": "string", "minLength": 1, "description": "What it actually showed, in plain words." },
+          "sql_path": { "$ref": "#/$defs/relpath", "description": "A retained probe query. A probe that was not retained omits this." },
+          "changed_plan": { "type": "string", "minLength": 1, "description": "What the plan did because of it." }
+        }
+      }
+    },
+    "execution_order": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every probe, Check and analysis query in the order it was written and run. Grouped probe -> check -> query; a Check recorded after an analysis query is an error.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["probe", "check", "query"] },
+          "id": { "$ref": "#/$defs/id" },
+          "exploratory": { "type": "boolean", "description": "A query cut that was not pre-registered. Its Claims carry comparison.pre_registered false." },
+          "note": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "candidate_claims": {
+      "type": "array",
+      "description": "Draft Claims for the writer. The writer sharpens the sentence; it never changes the evidence, comparison, population, window or type.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "sentence_draft", "type", "numeric", "evidence", "comparison", "population", "window", "exclusions", "limitations", "recheck_draft"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "sentence_draft": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["descriptive", "associational", "causal"] },
+          "numeric": { "type": "boolean" },
+          "answer_bearing": { "type": "boolean" },
+          "evidence": { "type": "array", "items": { "$ref": "#/$defs/value_ref" } },
+          "comparison": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "pre_registered"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["none", "variant_vs_control", "period_over_period", "segment_vs_segment", "vs_target"] },
+              "description": { "type": "string", "minLength": 1 },
+              "pre_registered": { "type": "boolean" }
+            }
+          },
+          "population": { "type": "string", "minLength": 1 },
+          "window": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end", "timezone"],
+            "properties": {
+              "start": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "end": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "timezone": { "type": "string", "minLength": 1 },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          },
+          "exclusions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "material_caveat": { "type": "string", "minLength": 1, "description": "Required on the answer-bearing Claim: the caveat that would change the conclusion." },
+          "recheck_draft": {
+            "type": "object",
+            "description": "The Recheck policy in draft. `not_automatically_evaluable` with a reason and an owner is a complete answer, not a gap.",
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["mode", "predicate", "method", "evidence", "minimum_data", "window_policy"],
+                "properties": {
+                  "mode": { "const": "automatic" },
+                  "predicate": { "type": "string", "minLength": 1, "description": "The proposition in words: subject, operator, threshold, unit, direction." },
+                  "method": { "type": "string", "minLength": 1 },
+                  "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/value_ref" } },
+                  "minimum_data": { "type": "string", "minLength": 1 },
+                  "window_policy": { "type": "string", "enum": ["fixed_window", "advancing_window"] },
+                  "not_comparable_when": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["mode", "reason", "owner"],
+                "properties": {
+                  "mode": { "const": "not_automatically_evaluable" },
+                  "reason": { "type": "string", "minLength": 1 },
+                  "owner": { "type": "string", "minLength": 1 },
+                  "review_hint": { "type": "string", "minLength": 1 }
+                }
+              }
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "enum": ["associational", "causal"] } }, "required": ["type"] },
+            "then": { "properties": { "comparison": { "required": ["description"], "properties": { "kind": { "not": { "const": "none" } } } } } }
+          },
+          {
+            "if": { "properties": { "answer_bearing": { "const": true } }, "required": ["answer_bearing"] },
+            "then": { "required": ["material_caveat"] }
+          },
+          {
+            "if": { "properties": { "numeric": { "const": true } }, "required": ["numeric"] },
+            "then": { "properties": { "evidence": { "minItems": 1 } } }
+          }
+        ]
+      }
+    },
+    "outcome_recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "reason"],
+      "description": "What the Analysis concluded. The writer records it as finding.outcome; it never upgrades it.",
+      "properties": {
+        "outcome": { "type": "string", "enum": ["answered", "inconclusive", "insufficient_data", "needs_reframing"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "what_would_be_needed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "For a non-answer: what would have to be true before the Question can be answered."
+        }
+      }
+    },
+    "needs_input": {
+      "type": "array",
+      "description": "What the Analysis stopped for. Each item is specific enough that the named owner can act without asking back.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "description", "owner"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["clarification", "definition_approval", "provisional_signoff", "data_access", "other"] },
+          "description": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "requested_at": { "$ref": "#/$defs/timestamp" },
+          "blocks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["outcome_recommendation"],
+        "properties": { "outcome_recommendation": { "required": ["outcome"], "properties": { "outcome": { "const": "answered" } } } }
+      },
+      "then": {
+        "required": ["pre_registered_comparison"],
+        "properties": {
+          "needs_input": { "maxItems": 0 },
+          "candidate_claims": {
+            "minItems": 1,
+            "contains": { "required": ["answer_bearing"], "properties": { "answer_bearing": { "const": true } } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "relpath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\./)[A-Za-z0-9_./-]+$" },
+    "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "value_ref": {
+      "type": "string",
+      "pattern": "^(ref:[a-z][a-z0-9_]{0,63}\\.[A-Za-z0-9_-]{1,64}\\.[a-z][a-z0-9_]{0,63}|derived:[a-z][a-z0-9_]{0,63}|ext:[a-z][a-z0-9_]{0,63})$"
+    }
+  }
+}

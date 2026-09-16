@@ -1,0 +1,155 @@
+# The Analysis file /checked-analysis leaves beside manifest.yaml. Contract: docs/contracts/analysis-directory.md.
+# Recorded by hand for fixtures/runs/7qg-onboarding; validated against the exemplar Finding's manifest by
+# src/analysis.test.ts. No model was in the loop.
+schema_version: 0.1.0
+reader_profile: product_owner
+
+assumptions:
+  - id: a_assignment_random
+    statement: Assignment to the checklist or the old onboarding was randomised per user at signup, inside the experiment window. This is what makes the headline Claim causal rather than associational.
+    basis: operator_answer
+    settled_by: Dana Okafor, clarification round 4
+    affects: [c1]
+  - id: a_window_bound_one_day
+    statement: The retained extracts run one day either side of the window (2026-05-31 to 2026-07-13 UTC) so that converting to New York time cannot drop a signup at either edge.
+    basis: engine_default
+    settled_by: capture bound chosen by the Analysis, recorded in snapshot.inputs[].description
+    affects: [c1, c2]
+  - id: a_came_back_means_open
+    statement: "\"Came back\" is an app_open event on any of the seven days after the signup day, per the approved retained_7d v2 definition. It says nothing about what the user did in the app."
+    basis: instance_document
+    settled_by: analytics/definitions/retained_7d.md (lifecycle approved, version 2)
+    affects: [c1, c2]
+  - id: a_platform_grouping
+    statement: iOS and Android signups are grouped as "mobile" and browser signups as "web". This grouping is a proposed Diagnostic calculation (proposed-definitions/platform_group.md); it is not approved and backs an exploratory Claim only.
+    basis: unverified
+    settled_by: proposed by the Analysis; no Operator approval requested, because no decision rests on it
+    affects: [c2]
+
+pre_registered_comparison:
+  statement: 7-day retention of users assigned the checklist versus users assigned the old onboarding, over the whole experiment window, both arms together.
+  registered_before_cuts: true
+  registered_at: "2026-07-20T11:40:00Z"
+  source: question.primary_comparison in manifest.yaml, settled in clarification round 2 before any data was read
+
+probes:
+  - id: p_catalog
+    kind: exploratory
+    question: Which tables and columns exist, and is there anything that records the onboarding a user actually saw rather than the one they were assigned?
+    observed: users carries signed_up_at, platform, onboarding_variant and country; events carries event and timestamp. Nothing records that a user saw the checklist — only the arm they were assigned to.
+    changed_plan: The population is "assigned to", not "saw", and the Claim's population field says so. An intention-to-treat comparison is the only one the data supports.
+  - id: p_arm_counts
+    kind: exploratory
+    question: Are both arms large enough for the comparison to be worth running, and are they roughly balanced as random assignment should make them?
+    observed: 624 users assigned the checklist and 653 assigned the old onboarding inside the window; both well above the 500-per-arm bar the falsifier needs.
+    changed_plan: The falsifier can be written as an evaluable Check. Arm balance became an invariant Check of its own rather than an eyeballed observation.
+  - id: p_event_lateness
+    kind: exploratory
+    question: Do app_open events arrive late enough that the last cohort's seventh day could still be filling in?
+    observed: Events for signups up to 2026-07-12 are complete through 2026-07-19 in the extract; nothing after 2026-07-19 is included.
+    changed_plan: Coverage is declared as data_to 2026-07-19, and the memo says nothing after that date is counted.
+
+# Grouped probe -> check -> query. Every Check was written and run before the first analysis query, so no Check
+# was written to fit a number that had already been seen.
+execution_order:
+  - kind: probe
+    id: p_catalog
+  - kind: probe
+    id: p_arm_counts
+  - kind: probe
+    id: p_event_lateness
+  - kind: check
+    id: unique_users
+    note: Invariant. Written before any rate was computed.
+  - kind: check
+    id: arm_balance
+    note: Invariant. Random assignment should produce arms of similar size.
+  - kind: check
+    id: retained_7d_reconcile
+    note: Reconciliation against the approved retained_7d v2 SQL, computed a second way.
+  - kind: check
+    id: falsifier_lift
+    note: The Question's falsifier, expected outcome pass; NULL below 500 users per arm.
+  - kind: query
+    id: retention_by_arm
+    note: The pre-registered primary comparison.
+  - kind: query
+    id: retention_by_week_arm
+    note: Stability of the primary comparison across signup weeks.
+  - kind: query
+    id: retention_by_platform_arm
+    exploratory: true
+    note: Decided after seeing the overall result. Its Claim carries pre_registered false.
+
+candidate_claims:
+  - id: c1
+    sentence_draft: New users who saw the checklist came back within a week more often than new users who did not.
+    type: causal
+    numeric: true
+    answer_bearing: true
+    evidence:
+      - ref:retention_by_arm.checklist.retained_7d_rate
+      - ref:retention_by_arm.control.retained_7d_rate
+      - ref:retention_by_arm.checklist.signups
+      - ref:retention_by_arm.control.signups
+      - derived:lift
+      - ext:keep_threshold
+    comparison:
+      kind: variant_vs_control
+      description: Users assigned the checklist compared with users assigned the old onboarding, assigned at random when they signed up.
+      pre_registered: true
+    population: Every user who signed up between 2026-06-01 and 2026-07-12 (New York time) and was randomly assigned to one of the two onboardings.
+    window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
+    exclusions:
+      - Users who signed up before 2026-06-01 or after 2026-07-12 were not part of the experiment and are not counted.
+    limitations:
+      - '"Came back" means opened the app on any of the next seven days; it says nothing about what they did in the app.'
+      - Six weeks of signups in early summer; a different season could behave differently.
+    material_caveat: This is a fair comparison only because the two groups were assigned at random. The agreed bar is a rule for acting on the result, not a promise that the gap stays that size.
+    recheck_draft:
+      mode: automatic
+      predicate: The lift (checklist rate minus control rate) is at least the agreed threshold, higher is better, in ratio units.
+      method: difference_in_proportions
+      evidence:
+        - ref:retention_by_arm.checklist.retained_7d_rate
+        - ref:retention_by_arm.control.retained_7d_rate
+      minimum_data: The smaller arm holds at least 500 users.
+      window_policy: fixed_window
+      not_comparable_when:
+        - the retained_7d definition version changes
+        - assignment stops being random (for example a full rollout), so no control arm exists
+  - id: c2
+    sentence_draft: The difference shows up on phones and not on the web.
+    type: associational
+    numeric: true
+    evidence:
+      - ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate
+      - ref:retention_by_platform_arm.mobile_control.retained_7d_rate
+      - ref:retention_by_platform_arm.web_checklist.retained_7d_rate
+      - ref:retention_by_platform_arm.web_control.retained_7d_rate
+      - derived:mobile_lift
+      - derived:web_lift
+    comparison:
+      kind: variant_vs_control
+      description: Checklist versus old onboarding inside each platform group. This split was not planned before the experiment; it is a follow-up look.
+      pre_registered: false
+    population: The same users, split by whether they signed up on the iPhone or Android app (mobile) or in a browser (web).
+    window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - This split was decided after seeing the overall result, so it is a lead to test, not a settled fact.
+      - The web groups are small, so the web number moves a lot with a handful of users.
+      - The grouping of platforms into mobile and web is a proposed Diagnostic calculation, not an approved Metric definition.
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: An exploratory split has no pre-registered threshold; whether the platform difference persists is a judgement for the next experiment, not a number to re-test.
+      owner: Dana Okafor
+      review_hint: On Revisit, re-read the platform table and decide whether a platform-specific experiment is warranted.
+
+outcome_recommendation:
+  outcome: answered
+  reason: The pre-registered comparison ran on retained inputs, every required Check passed, the falsifier recorded its expected outcome with both arms above the minimum-data bar, and the difference clears the threshold the team agreed before the experiment.
+
+notes:
+  - The writer sets finding.outcome from outcome_recommendation and turns each candidate Claim into a Claim. It does not change a query, a result, a definition or a Claim's type, comparison, population or window.
+  - c2 rests on an exploratory cut and a proposed Diagnostic calculation; it is a supporting Claim and can never be the headline.

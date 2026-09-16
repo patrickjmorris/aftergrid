@@ -1,0 +1,18 @@
+# What /grill-question writes into the Finding's manifest.yaml. These two blocks are copied in verbatim;
+# nothing else in the manifest is touched. Recorded by hand for fixtures/runs/7qg-onboarding (no model in loop).
+reader:
+  profile: product_owner
+question:
+  id: onboarding_checklist_retention
+  raw_ask: Did the onboarding checklist help new users come back?
+  state: resolved
+  decision: Whether to keep the onboarding checklist for all new users or remove it.
+  metric: { id: retained_7d, version: 2 }
+  population: Users who signed up between 2026-06-01 and 2026-07-12 and were randomly assigned to see the checklist or not.
+  window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York, description: Six weeks of signups; the last cohort had its full seven days by 2026-07-19. }
+  primary_comparison: 7-day retention of users assigned the checklist versus users assigned the old onboarding, over the whole experiment window.
+  falsifier:
+    kind: check
+    check_id: falsifier_lift
+    expected_outcome: pass
+    statement: If the checklist arm's 7-day retention is not at least 3 percentage points above the control arm's, the checklist did not help enough to keep.
