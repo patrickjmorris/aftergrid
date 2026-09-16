@@ -1,0 +1,30 @@
+{
+  "run_id": "first-pass-passes",
+  "recorded": "Hand-authored. No live model produced this run; it is the record of what /iterate-visual must do when the first render already reads.",
+  "rubric": "skills/iterate-visual/references/visual-rubric.md",
+  "chart_id": "retention_by_arm_chart",
+  "result_id": "retention_by_arm",
+  "passes": [
+    {
+      "pass": 1,
+      "spec": "pass-1.vl.json",
+      "items": [
+        { "id": "declutter", "verdict": "yes", "note": "No gridlines, no tick marks, no border; the value axis is off because every value is written on its bar." },
+        { "id": "one_message", "verdict": "yes", "note": "Two bars, one comparison: checklist against control." },
+        { "id": "title_states_claim", "verdict": "yes", "note": "The title is the Claim sentence with both shares in it, not an axis label." },
+        { "id": "direct_labels", "verdict": "yes", "note": "A layered text mark writes 34.8% and 28.5% beside their bars; no legend and no axis to trace." },
+        { "id": "grey_plus_accent", "verdict": "yes", "note": "The control bar is grey; only the checklist bar carries the accent the Claim is about." },
+        { "id": "colorblind_safe", "verdict": "yes", "note": "Accent and grey differ in lightness as well as hue; the bars stay distinct rendered without colour." },
+        { "id": "axis_not_truncated", "verdict": "yes", "note": "The value scale runs 0 to 0.5, so each bar's length is its share." }
+      ],
+      "score": 7
+    }
+  ],
+  "outcome": {
+    "kind": "accepted",
+    "spec": "pass-1.vl.json",
+    "passes_used": 1,
+    "note": "Every rubric item passed on the first look, so the loop stopped. Three passes is a maximum, never a quota."
+  },
+  "variants": []
+}

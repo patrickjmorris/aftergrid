@@ -1,0 +1,65 @@
+{
+  "run_id": "three-passes-still-failing",
+  "recorded": "Hand-authored. No live model produced this run; it is the record of what /iterate-visual must do when three passes are not enough.",
+  "rubric": "skills/iterate-visual/references/visual-rubric.md",
+  "chart_id": "retention_by_week_arm_chart",
+  "result_id": "retention_by_week_arm",
+  "passes": [
+    {
+      "pass": 1,
+      "spec": "pass-1.vl.json",
+      "items": [
+        { "id": "declutter", "verdict": "no", "note": "Horizontal gridlines behind twelve bars, and a tick label on every one; no value is read off them." },
+        { "id": "one_message", "verdict": "yes", "note": "One comparison, repeated across six weeks: checklist against control." },
+        { "id": "title_states_claim", "verdict": "no", "note": "The title reads 'Retention by signup week and arm', which names the axes rather than the Claim." },
+        { "id": "direct_labels", "verdict": "no", "note": "The legend in the top right has to be read before either colour means anything." },
+        { "id": "grey_plus_accent", "verdict": "no", "note": "Both arms carry a saturated categorical colour, so neither is the one the Claim is about." },
+        { "id": "colorblind_safe", "verdict": "yes", "note": "The two default hues differ in lightness; the bars stay distinct rendered without colour." },
+        { "id": "axis_not_truncated", "verdict": "no", "note": "The value axis runs 20% to 45%, so a three-point gap looks like a doubling." }
+      ],
+      "score": 2,
+      "revision": "Turn the gridlines off, drop the legend, put the control arm in grey and the checklist arm in the accent, and rewrite charts[].title to the Claim sentence."
+    },
+    {
+      "pass": 2,
+      "spec": "pass-2.vl.json",
+      "items": [
+        { "id": "declutter", "verdict": "yes", "note": "Gridlines and legend are gone; what is left is twelve bars, six week labels and a value axis." },
+        { "id": "one_message", "verdict": "yes", "note": "Unchanged: one comparison across six weeks." },
+        { "id": "title_states_claim", "verdict": "yes", "note": "The title is now the Claim sentence with the two shares in it." },
+        { "id": "direct_labels", "verdict": "no", "note": "With the legend gone, nothing on the image says which bar is which arm; the Reader has to be told." },
+        { "id": "grey_plus_accent", "verdict": "yes", "note": "Control is grey, checklist is the single accent." },
+        { "id": "colorblind_safe", "verdict": "yes", "note": "Accent and grey differ in lightness; distinct without hue." },
+        { "id": "axis_not_truncated", "verdict": "no", "note": "The value axis still runs 20% to 45%." }
+      ],
+      "score": 5,
+      "revision": "Set the value scale domain to 0–0.5 and add a layered text mark writing each share above its bar."
+    },
+    {
+      "pass": 3,
+      "spec": "pass-3.vl.json",
+      "items": [
+        { "id": "declutter", "verdict": "yes", "note": "No gridlines, no legend, no border." },
+        { "id": "one_message", "verdict": "yes", "note": "Unchanged: one comparison across six weeks." },
+        { "id": "title_states_claim", "verdict": "yes", "note": "Unchanged from pass 2." },
+        { "id": "direct_labels", "verdict": "no", "note": "Twelve labels at this width overlap their neighbours: four of the six week pairs render as one smudged string, so no value is readable." },
+        { "id": "grey_plus_accent", "verdict": "yes", "note": "Unchanged from pass 2." },
+        { "id": "colorblind_safe", "verdict": "yes", "note": "Unchanged from pass 2." },
+        { "id": "axis_not_truncated", "verdict": "yes", "note": "The value axis now runs 0 to 50%, so bar length is proportional to the share." }
+      ],
+      "score": 6
+    }
+  ],
+  "outcome": {
+    "kind": "returned_to_operator",
+    "spec": "pass-3.vl.json",
+    "passes_used": 3,
+    "failing_items": ["direct_labels"],
+    "next_step": "Twelve direct labels do not fit this chart at Reader width, and the validated Vega-Lite subset has no per-row offset to stagger them. Two ways out, and the choice is the Operator's: show the six weeks as two labelled lines instead of twelve bars, so only two labels are needed; or keep the bars, drop the labels and carry the weekly numbers in the Claim's table instead. Three passes is a maximum, so this chart is not recorded as passing and is not rendered into the Finding until one of those is chosen.",
+    "note": "Six of seven items pass. The score is not the acceptance test: one failing item returns the chart."
+  },
+  "variants": [
+    { "chart_id": "retention_by_week_arm_legend", "variant_of": "retention_by_week_arm_chart", "result_id": "retention_by_week_arm", "spec": "pass-1.vl.json", "why_rejected": "Legend and truncated axis; kept so the Operator can see what was tried." },
+    { "chart_id": "retention_by_week_arm_truncated", "variant_of": "retention_by_week_arm_chart", "result_id": "retention_by_week_arm", "spec": "pass-2.vl.json", "why_rejected": "Decluttered but still starts the value axis at 20%." }
+  ]
+}

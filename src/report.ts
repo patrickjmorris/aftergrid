@@ -7,6 +7,8 @@ export type Category =
   | "unsafe_path" | "path_collision" | "duplicate_id" | "execution_binding" | "result_shape" | "value_type" | "derived_arity" | "check_error"
   | "decision_binding" | "decision_conflict" | "render_error" | "rerun_mismatch" | "admission" | "cancelled" | "resource_limit" | "sql_error" | "invalid_artifact" | "sql_policy" | "sql_parameter" | "check_shape" | "stale_review" | "minimum_data"
   | "policy_untrusted" | "solo_setup_invalid" | "tampered_output"
+  // revision (docs/contracts/revise.md): a requested change that costs more than a re-render
+  | "reopens_analysis"
   | "hook_not_installed" | "hook_self_test_failed"
   | "runtime_unavailable" | "missing_credential"
   | "dependency_missing" | "write_capable_role"
@@ -22,7 +24,7 @@ export type Category =
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
 
 export type Report = {
-  command: "new" | "check" | "render" | "decide" | "hook" | "setup" | "intake" | "plugin" | "capture" | "execute";
+  command: "new" | "check" | "render" | "decide" | "hook" | "setup" | "intake" | "plugin" | "capture" | "execute" | "revise" | "review" | "eval";
   finding?: string;
   state?: string;
   outcome?: string;
@@ -53,5 +55,6 @@ export function formatHuman(r: Report): string {
 }
 
 /** Exit codes: 0 clean, 1 errors found, 2 usage or refused action, 3 not implemented. */
+const REFUSALS = new Set<Category>(["exists", "reopens_analysis"]);
 export const exitCodeFor = (r: Report): number =>
-  r.errors.some((e) => e.category === "not_implemented") ? 3 : r.errors.some((e) => e.category === "exists") ? 2 : r.errors.length ? 1 : 0;
+  r.errors.some((e) => e.category === "not_implemented") ? 3 : r.errors.some((e) => REFUSALS.has(e.category)) ? 2 : r.errors.length ? 1 : 0;
