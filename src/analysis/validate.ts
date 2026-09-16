@@ -132,7 +132,12 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
 
   const check = validator();
   if (!check(analysis)) {
-    for (const e of check.errors ?? []) {
+    // An `if`/`then` miss reports twice: the precise error inside the `then` and a second "must match then
+    // schema" at the same path. The second one only repeats the first with a generic remedy, so it is dropped
+    // when a sibling at that path already says what is wrong.
+    const errors = (check.errors ?? []).filter((e, _, all) =>
+      !((e.keyword === "if" || e.keyword === "then") && all.some((o) => o !== e && o.instancePath.startsWith(e.instancePath) && o.keyword !== "if" && o.keyword !== "then")));
+    for (const e of errors) {
       const detail = e.params?.additionalProperty ? ` ('${e.params.additionalProperty}')`
         : e.params?.allowedValues ? " " + JSON.stringify(e.params.allowedValues)
         : e.params?.missingProperty ? ` ('${e.params.missingProperty}')` : "";

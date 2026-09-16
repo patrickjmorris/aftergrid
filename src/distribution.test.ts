@@ -423,10 +423,11 @@ test("checked-analysis step 2 records each probe with its time, its kind, and th
   assert.doesNotMatch(two, /Probes are `kind: exploratory`/, "step 2 may no longer say every probe is exploratory");
 
   // The hand-over reads the same list as the account of the middle, and names what the writer may do with it.
-  const seven = step(skill, 7);
-  assert.match(seven, /`at` order/, "step 7 must hand the probes over in the order they happened");
-  assert.match(seven, /dead end/i, "step 7 must tell the writer the dead ends are there");
-  assert.match(seven, /Limitations/, "and where a dead end may legitimately appear in the Finding");
+  const eight = step(skill, 8);
+  assert.match(eight, /`at` order/, "step 8 must hand the probes over in the order they happened");
+  assert.match(eight, /dead end/i, "step 8 must tell the writer the dead ends are there");
+  assert.match(eight, /Limitations/, "and where a dead end may legitimately appear in the Finding");
+  assert.match(eight, /reframe/, "and name a reframe explicitly, since the Question answered is not the one the run started with");
 
   // The docs page and the OpenAI prompt carry the same instruction, not a different one.
   const doc = readFileSync(join(REPO, "docs", "skills", "checked-analysis.md"), "utf8");

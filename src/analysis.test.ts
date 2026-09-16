@@ -823,6 +823,7 @@ test("a reframe probe names what changed, and a reframe that names nothing is re
   const refused = validateAnalysisFile(dir);
   assert.ok(refused.some((p) => /^analysis\.yaml#\/probes\/0/.test(p.location) && /'changed_plan'/.test(p.message)), JSON.stringify(refused));
   assert.ok(refused.some((p) => /grill-question/.test(p.remedy ?? "")), "the remedy points at the Question change and the revisit");
+  assert.equal(refused.length, 1, `one precise problem, not a second 'must match then schema' echo: ${JSON.stringify(refused)}`);
 
   // An exploratory probe is under no such obligation: `changed_plan` stays optional there.
   write([{ ...silent, kind: "exploratory" }]);

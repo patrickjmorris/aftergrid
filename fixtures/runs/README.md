@@ -55,7 +55,8 @@ renders into a temporary copy instead.
 
 By hand, and deliberately. A recorded run exists to notice a change, so re-pinning it to match new behaviour
 is a decision, not a chore: change the files, re-pin `content_digest` with `digestOf` from
-`scripts/lib/validate-finding.mjs`, update both digests and the `verification` block in `run.yaml`, and say in
+`scripts/lib/validate-finding.mjs`, update both digests and the `verification` block in `run.yaml`, re-pin
+`analysis_yaml_sha256` on both sides when `analysis.yaml` changed (it sits outside the content digest), and say in
 the pull request what the skill now does differently.
 
 # Recorded runs

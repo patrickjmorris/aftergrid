@@ -60,7 +60,7 @@ export function formatHuman(r: Report): string {
   if (r.checks_reported_by_agent) lines.push("  checks: reported by the harness, not executed by aftergrid");
   for (const reason of r.readiness_reasons) lines.push(`  readiness: ${reason}`);
   for (const e of r.errors) lines.push(`  error ${e.category} at ${e.location}: ${e.message}${e.remedy ? " -> " + e.remedy : ""}`);
-  for (const w of r.warnings) lines.push(`  warning ${w.category} at ${w.location}: ${w.message}`);
+  for (const w of r.warnings) lines.push(`  warning ${w.category} at ${w.location}: ${w.message}${w.remedy ? " -> " + w.remedy : ""}`);
   for (const i of r.info) lines.push(`  note: ${i}`);
   return lines.join("\n");
 }

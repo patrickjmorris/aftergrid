@@ -123,6 +123,8 @@ existed keeps its meaning and no file becomes a seed by omitting a line.
 
 ### The middle of the analysis lives in `probes`
 
+`at` and `kind` are required on every probe, with no back-compat rule: an `analysis.yaml` written before 2026-09-16 with a probe that lacks them is refused by `check`, `execute`, `record` and `review status` (and an intake run that completes on it is marked needs-attention) until its times are backfilled from a real record or `observed` says the time was not written down. No such file exists in this repository; the first real Analysis is written after the field.
+
 The start of an Analysis is the Question and the end is the Finding; what happened in between used to be
 nowhere. It is here, in the one list, extended rather than replaced — which is the answer to the open question
 in `docs/design/hands-on-scope-2026-09-16.md`: the mid-analysis log is `analysis.yaml#/probes`, in place, and

@@ -58,7 +58,7 @@
     },
     "probes": {
       "type": "array",
-      "description": "The middle of the analysis, recorded in place: every look at the catalog or the data taken before the plan was committed, every post-hoc look taken after a result was seen, every dead end and every reframe, each with the time it happened. A dead end is recorded, never deleted. Always exploratory; never evidence for a Claim. Entries are kept in non-decreasing `at` order so the list reads as a timeline (`validateAnalysisFile` warns when they are not).",
+      "description": "The middle of the analysis, recorded in place: every look at the catalog or the data taken before the plan was committed, every post-hoc look taken after a result was seen, every dead end and every reframe, each with the time it happened. A dead end is recorded, never deleted. Always exploratory; never evidence for a Claim. Entries are kept in non-decreasing `at` order so the list reads as a timeline (`analysisWarnings` warns when they are not).",
       "items": {
         "type": "object",
         "additionalProperties": false,
