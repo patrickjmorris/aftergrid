@@ -1,6 +1,7 @@
 # The Analysis file for the referral run: the Checks ran, the numbers are real, and the honest outcome is
 # insufficient_data. Contract: docs/contracts/analysis-directory.md. Recorded by hand, no model in loop.
 schema_version: 0.1.0
+stage: analysed
 reader_profile: product_owner
 
 assumptions:

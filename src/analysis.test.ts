@@ -16,6 +16,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { newFinding } from "./commands/new-finding.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
@@ -325,9 +327,16 @@ test("the recorded onboarding run is an Analysis the writer can consume against 
   const exploratory = analysis.execution_order.filter((s: any) => s.exploratory);
   assert.ok(exploratory.length, "the exploratory cut is labelled as one in the execution order");
   for (const step of exploratory) {
+    // No `if (claim)`: a run that labels a cut exploratory and rests no Claim on it, or names the Claim's
+    // evidence after something else, would otherwise pass this loop without asserting anything.
     const claim = analysis.candidate_claims.find((c: any) => (c.evidence ?? []).some((r: string) => r.startsWith(`ref:${step.id}.`)));
-    if (claim) assert.equal(claim.comparison.pre_registered, false, `${claim.id} rests on an exploratory cut and says so`);
+    assert.ok(claim, `the exploratory cut ${step.id} has a candidate Claim whose evidence names it`);
+    assert.equal(claim.comparison.pre_registered, false, `${claim.id} rests on an exploratory cut and says so`);
   }
+  // The causal Claim names the design that earns it, and the only design that does.
+  const causal = analysis.candidate_claims.filter((c: any) => c.type === "causal");
+  assert.ok(causal.length, "the headline Claim of this run is causal");
+  for (const c of causal) assert.equal(c.causal_basis, "randomised_assignment", `${c.id} is causal only because assignment was random`);
 
   // The clarified Question is the manifest.question block, and it never invented a falsifier it could not run.
   const question: any = parseYaml(readFileSync(join(dir, "clarified-question.yaml"), "utf8")).question;
@@ -355,7 +364,64 @@ test("the recorded referral run ends in insufficient_data with a specific needs-
   assert.equal(question.falsifier, undefined, "an unresolved Question never carries a fabricated falsifier");
 });
 
-test("repeated clarification re-asks nothing: every settled part of the Question is already in the recorded artifacts", () => {
+/**
+ * Parts a round asked about although they were already settled — by the Instance before round 1, or by an
+ * earlier round's answers. Empty means no round re-interrogated anything.
+ */
+function reAskedParts(rounds: any): { round: number | string; part: string }[] {
+  const settled = new Set<string>((rounds.settled_before_round_1 ?? []).map((s: any) => s.part));
+  const offences: { round: number | string; part: string }[] = [];
+  for (const round of rounds.rounds ?? []) {
+    for (const part of round.asked ?? []) if (settled.has(part)) offences.push({ round: round.round, part });
+    for (const part of round.answered ?? []) settled.add(part);
+  }
+  for (const part of rounds.re_entry?.asked ?? []) if (settled.has(part)) offences.push({ round: "re_entry", part });
+  return offences;
+}
+
+test("repeated clarification re-asks nothing: no round asks about a part the Instance or an earlier round had settled", () => {
+  const PARTS = ["decision", "reader", "metric", "population", "window", "primary_comparison", "falsifier"];
+  for (const run of ["7qg-onboarding", "7qg-referral"]) {
+    const rounds: any = parseYaml(readFileSync(join(RUNS, run, "clarification-rounds.yaml"), "utf8"));
+    const question: any = parseYaml(readFileSync(join(RUNS, run, "clarified-question.yaml"), "utf8")).question;
+    const unresolved: string[] = question.unresolved ?? [];
+
+    assert.deepEqual(reAskedParts(rounds), [], `${run}: a round asked about a part that was already settled`);
+
+    // The negative control: the same checker on a copy whose last round re-asks something round 1 settled.
+    const mutated = structuredClone(rounds);
+    const firstAnswered = (mutated.rounds ?? []).flatMap((r: any) => r.answered ?? [])[0];
+    assert.ok(firstAnswered, `${run}: the recorded rounds settle at least one part`);
+    mutated.rounds.push({ round: 99, asked: [firstAnswered], answered: [firstAnswered] });
+    assert.deepEqual(reAskedParts(mutated), [{ round: 99, part: firstAnswered }],
+      `${run}: the re-asking check must fail on a run that re-asks a settled part`);
+
+    // A second pass asks only what is still open, and restates the rest instead of re-interrogating it.
+    for (const part of rounds.re_entry?.asked ?? []) {
+      assert.ok(unresolved.includes(part), `${run}: the re-entry pass asks '${part}', which the Question does not list as unresolved`);
+    }
+    for (const part of rounds.re_entry?.restated ?? []) {
+      assert.ok(!unresolved.includes(part), `${run}: '${part}' is restated as settled but listed in question.unresolved`);
+    }
+
+    // What the rounds settled is exactly what the Question records as settled, part for part.
+    const settledByRounds = new Set<string>([
+      ...(rounds.settled_before_round_1 ?? []).map((s: any) => s.part),
+      ...(rounds.rounds ?? []).flatMap((r: any) => r.answered ?? []),
+    ]);
+    const settledInQuestion = new Set(PARTS.filter((part) => (part === "reader" ? true : question[part] !== undefined)));
+    assert.deepEqual([...settledByRounds].sort(), [...settledInQuestion].sort(),
+      `${run}: the rounds and the recorded Question disagree about which parts are settled`);
+    for (const part of unresolved) {
+      assert.ok(!settledByRounds.has(part), `${run}: '${part}' is listed unresolved but a round recorded it as answered`);
+    }
+    for (const part of PARTS) {
+      assert.ok(settledByRounds.has(part) || unresolved.includes(part), `${run}: '${part}' is neither settled nor listed unresolved`);
+    }
+  }
+});
+
+test("the recorded runs keep the Question and the Analysis consistent about what is settled", () => {
   for (const run of ["7qg-onboarding", "7qg-referral"]) {
     const recorded: any = parseYaml(readFileSync(join(RUNS, run, "clarified-question.yaml"), "utf8"));
     const question = recorded.question;
@@ -367,4 +433,334 @@ test("repeated clarification re-asks nothing: every settled part of the Question
     assert.ok(question.raw_ask, `${run}: the raw ask is kept verbatim beside the sharpened Question`);
     assert.equal(recorded.reader.profile, analysis.reader_profile, `${run}: the Reader is named once and agrees across the two files`);
   }
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// Regressions from the 2026-09-16 review of ag-grill-checked-analysis-7qg. Each test names the defect it keeps
+// fixed, and each one fails on the code as it stood before that review.
+// ---------------------------------------------------------------------------------------------------------
+
+/** A complete `stage: analysed` Analysis for the Finding `builtFinding()` produces, with the given overrides. */
+function analysedFor(overrides: Record<string, any> = {}): any {
+  return {
+    schema_version: "0.1.0",
+    stage: "analysed",
+    reader_profile: "product_owner",
+    assumptions: [],
+    probes: [],
+    execution_order: [{ kind: "check", id: "unique_users" }, { kind: "check", id: "both_arms_large_enough" }, { kind: "query", id: "retention_by_arm" }],
+    candidate_claims: [{
+      id: "c1",
+      sentence_draft: "Users assigned the checklist came back within a week at the rate the table records.",
+      type: "descriptive",
+      numeric: true,
+      evidence: ["ref:retention_by_arm.checklist.retained_7d_rate"],
+      comparison: { kind: "none", pre_registered: true },
+      population: "Users assigned to either onboarding inside the window.",
+      window: { start: "2026-06-01", end: "2026-07-12", timezone: "America/New_York" },
+      exclusions: [],
+      limitations: ["Recorded for a regression test, not for a Reader."],
+      recheck_draft: { mode: "not_automatically_evaluable", reason: "This Claim exists to exercise reference resolution.", owner: "An Operator" },
+    }],
+    outcome_recommendation: { outcome: "inconclusive", reason: "A fixture Analysis, not a real one.", what_would_be_needed: ["A real Question behind it."] },
+    ...overrides,
+  };
+}
+
+test("capture refuses a --description that claims a bound it never applied, and its own description says whole table", async () => {
+  const instanceRoot = scratchInstance();
+  newFinding({ slug: "bound-claim", ask: "Anything.", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  const dir = join(instanceRoot, "findings", "2026-07-20-bound-claim");
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const refused = await capture({ dir, tables: ["users"], description: "Signups 2026-05-31 to 2026-07-13 UTC (bounded one day either side of the window so timezone conversion cannot drop a row)." });
+  const problem = refused.errors.find((e) => e.location === "--description");
+  assert.ok(problem, JSON.stringify(refused.errors));
+  assert.match(problem!.message, /capture applies no bound/);
+  assert.match(problem!.remedy ?? "", /analysis SQL/);
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "a refused description writes nothing");
+  assert.ok(!existsSync(join(dir, "inputs", "users.csv")), "and reads nothing");
+
+  // A description that describes what was captured is accepted, and the recorded provenance stays honest.
+  const ok = await capture({ dir, tables: ["users"], description: "Every user row as it stood on 2026-07-20." });
+  assert.deepEqual(ok.errors, [], JSON.stringify(ok.errors));
+  const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  assert.equal(m.snapshot.inputs[0].description, "Every user row as it stood on 2026-07-20.");
+  assert.match(m.snapshot.inputs[0].source.method, /^select \* from users/, "the method records the read that actually happened");
+
+  // With no --description at all, the adapter's own wording says how much of the table it took.
+  newFinding({ slug: "plain-capture", ask: "Anything.", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  const plainDir = join(instanceRoot, "findings", "2026-07-20-plain-capture");
+  const plain = await capture({ dir: plainDir, tables: ["users"] });
+  assert.deepEqual(plain.errors, [], JSON.stringify(plain.errors));
+  const plainManifest: any = parseYaml(readFileSync(join(plainDir, "manifest.yaml"), "utf8"));
+  assert.match(plainManifest.snapshot.inputs[0].description, /[Ww]hole-table extract/);
+});
+
+test("the /grill-question seed is a valid Analysis file at stage clarified, and check reports its evidence valid", async () => {
+  const instanceRoot = scratchInstance();
+  newFinding({ slug: "seeded", ask: "Did anything change?", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  const dir = join(instanceRoot, "findings", "2026-07-20-seeded");
+
+  // Exactly the sections docs/contracts/analysis-directory.md gives /grill-question, plus the stage.
+  const seed: any = {
+    schema_version: "0.1.0",
+    stage: "clarified",
+    reader_profile: "product_owner",
+    assumptions: [{ id: "a_window_timezone", statement: "The window is read in America/New_York.", basis: "operator_answer", settled_by: "An Operator, round 2" }],
+    pre_registered_comparison: { statement: "Checklist arm versus control arm over the window.", registered_before_cuts: true },
+    needs_input: [{ kind: "clarification", description: "How many users per arm are enough for the comparison to be worth running?", owner: "An Operator" }],
+  };
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(seed, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir), [], "the documented seed is a complete artifact for its stage");
+
+  const report = await check({ dir, github: null });
+  assert.deepEqual(report.errors, [], JSON.stringify(report.errors));
+  assert.equal(report.evidence, "valid", "a Question with no analysis behind it yet is not invalid evidence");
+
+  // Absence of `stage` still means `analysed`: a seed does not become complete by omitting the field.
+  const { stage: _dropped, ...noStage } = seed;
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(noStage, { lineWidth: 0 }));
+  const problems = validateAnalysisFile(dir);
+  const missing = problems.map((p) => p.message).join(" | ");
+  for (const section of ["probes", "execution_order", "candidate_claims", "outcome_recommendation"]) {
+    assert.match(missing, new RegExp(`'${section}'`), `a file with no stage is still required to carry ${section}`);
+  }
+  assert.match(problems[0]!.remedy ?? "", /stage: clarified/, "and the remedy names the stage that makes a seed legal");
+});
+
+test("execute reports a partial analysis.yaml as a problem instead of throwing away the report of a run that happened", async () => {
+  const { dir } = await builtFinding();
+  writeFileSync(join(dir, "analysis.yaml"), "schema_version: 0.1.0\nreader_profile: generic\n");
+
+  const ran = await execute({ dir });   // before the fix this threw a TypeError out of analysisSummary
+  assert.equal(ran.sql_execution, "performed", "the evidence was written, and the report says so");
+  assert.ok(ran.errors.some((e) => e.category === "analysis_contract"), JSON.stringify(ran.errors));
+  assert.ok(existsSync(join(dir, "results", "retention_by_arm.json")), "the results of the run are on disk");
+  const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  assert.equal(m.checks.find((c: any) => c.id === "unique_users").outcome, "pass");
+
+  // A clarified seed mid-run is reported, never rejected: /checked-analysis executes before it fills the file.
+  writeFileSync(join(dir, "analysis.yaml"), toYaml({
+    schema_version: "0.1.0", stage: "clarified", reader_profile: "product_owner", assumptions: [],
+  }, { lineWidth: 0 }));
+  const seeded = await execute({ dir });
+  assert.deepEqual(seeded.errors, [], JSON.stringify(seeded.errors));
+  assert.ok(seeded.warnings.some((w) => w.location === "analysis.yaml#/stage"), JSON.stringify(seeded.warnings));
+  assert.ok(seeded.info.some((i) => /stage clarified/.test(i)), JSON.stringify(seeded.info));
+});
+
+test("execute refuses a Check that resolves to no execution, rather than record a pass check --mode rerun contradicts", async () => {
+  const { dir } = await builtFinding();
+  const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  m.executions = [];
+  m.results = [];
+  m.queries = [];
+  m.checks = [{ id: "unique_users", kind: "invariant", path: "checks/unique_users.sql", required: true, outcome: "not_run", description: "No user is counted twice.", content_hash: { algorithm: "sha256", value: "0".repeat(64) } }];
+  m.export_policy.allowed_fields = [];
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(m, { lineWidth: 0 }));
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const refused = await execute({ dir });
+  const problem = refused.errors.find((e) => e.category === "execution_binding");
+  assert.ok(problem, JSON.stringify(refused.errors));
+  assert.match(problem!.message, /no execution/);
+  assert.match(problem!.remedy ?? "", /rerun/);
+  assert.equal(refused.sql_execution, "not_performed");
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
+
+  const after: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  assert.equal(after.checks[0].outcome, "not_run", "no outcome was recorded for a Check nobody can rerun");
+  assert.deepEqual(after.snapshot.guarantees, [], "and no replay or rerun guarantee was claimed for a run with no result");
+
+  // A Check naming an execution that does not exist is the same defect: the structural rule reaches it first,
+  // and it is refused before any SQL runs rather than run against every retained input.
+  m.checks[0].execution_id = "ex_that_never_existed";
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(m, { lineWidth: 0 }));
+  const named = await execute({ dir });
+  assert.ok(named.errors.some((e) => /execution/i.test(e.message)), JSON.stringify(named.errors));
+  assert.equal(named.sql_execution, "not_performed");
+  assert.equal(parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8")).checks[0].outcome, "not_run");
+});
+
+test("both recorded Question blocks parse as intended and validate against the Finding manifest schema", () => {
+  const schema: any = JSON.parse(readFileSync(join(REPO, "schema/finding-manifest.schema.json"), "utf8"));
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  addFormats(ajv);
+  const validateQuestion = ajv.compile({ ...schema.properties.question, $defs: schema.$defs });
+
+  for (const run of ["7qg-onboarding", "7qg-referral"]) {
+    const recorded: any = parseYaml(readFileSync(join(RUNS, run, "clarified-question.yaml"), "utf8"));
+    assert.ok(validateQuestion(recorded.question), `${run}: ${JSON.stringify(validateQuestion.errors)}`);
+    // The window is where an unquoted comma silently split a description into a fifth, null-valued key.
+    assert.deepEqual(Object.keys(recorded.question.window).filter((k) => !["start", "end", "timezone", "description"].includes(k)), [],
+      `${run}: question.window carries a key the schema does not allow — quote any value containing a comma`);
+    for (const [key, value] of Object.entries(recorded.question.window)) {
+      assert.notEqual(value, null, `${run}: question.window.${key} parsed as null`);
+    }
+  }
+});
+
+test("a candidate Claim's evidence must resolve to a cell that exists, not merely to a declared column", async () => {
+  const { dir } = await builtFinding();
+  assert.deepEqual((await execute({ dir })).errors, []);
+  const manifest: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor(), { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir, manifest), [], "a reference to a row the query produced resolves");
+
+  const bogus = analysedFor();
+  bogus.candidate_claims[0].evidence = ["ref:retention_by_arm.no_such_arm.retained_7d_rate"];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(bogus, { lineWidth: 0 }));
+  const problems = validateAnalysisFile(dir, manifest);
+  const rowKey = problems.find((p) => p.category === "unresolved_reference" && /row key 'no_such_arm'/.test(p.message));
+  assert.ok(rowKey, JSON.stringify(problems));
+  assert.match(rowKey!.remedy ?? "", /arm/);
+
+  // Two rows under one key is the other way a reference fails to name one cell.
+  const saved = JSON.parse(readFileSync(join(dir, "results", "retention_by_arm.json"), "utf8"));
+  saved.rows.push(structuredClone(saved.rows[0]));
+  writeFileSync(join(dir, "results", "retention_by_arm.json"), JSON.stringify(saved, null, 2) + "\n");
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor(), { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir, manifest).some((p) => p.category === "duplicate_row_key"), "a duplicated row key is reported");
+});
+
+test("a non-answer must say what would be needed, so the contract's fourth rule is enforced and not merely described", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-nonanswer-"));
+  const base: any = parseYaml(readFileSync(join(RUNS, "7qg-referral", "analysis.yaml"), "utf8"));
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(base, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
+
+  for (const outcome of ["inconclusive", "insufficient_data", "needs_reframing"]) {
+    const stripped = structuredClone(base);
+    stripped.outcome_recommendation = { outcome, reason: base.outcome_recommendation.reason };
+    writeFileSync(join(dir, "analysis.yaml"), toYaml(stripped, { lineWidth: 0 }));
+    const problems = validateAnalysisFile(dir);
+    assert.ok(problems.some((p) => /what_would_be_needed/.test(p.message)), `${outcome}: ${JSON.stringify(problems)}`);
+  }
+
+  const empty = structuredClone(base);
+  empty.outcome_recommendation.what_would_be_needed = [];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(empty, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir).length, "an empty list is not an answer to what would be needed");
+});
+
+test("a causal candidate Claim carries the design that earns it, and no other value passes", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-causal-"));
+  const causal = analysedFor();
+  causal.candidate_claims[0].type = "causal";
+  causal.candidate_claims[0].comparison = { kind: "variant_vs_control", description: "Checklist arm versus control arm.", pre_registered: true };
+
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(causal, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir).some((p) => /causal_basis/.test(p.message)), "a causal Claim with no recorded design is refused");
+
+  const unearned = structuredClone(causal);
+  unearned.candidate_claims[0].causal_basis = "none";
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(unearned, { lineWidth: 0 }));
+  const refused = validateAnalysisFile(dir);
+  const problem = refused.find((p) => p.category === "analysis_contract" && /type causal with causal_basis 'none'/.test(p.message));
+  assert.ok(problem, JSON.stringify(refused));
+  assert.match(problem!.remedy ?? "", /associational/);
+
+  const earned = structuredClone(causal);
+  earned.candidate_claims[0].causal_basis = "randomised_assignment";
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(earned, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
+});
+
+test("candidate Claims may cite values the writer will create, named under requested_derived and requested_external_sources", async () => {
+  const { dir } = await builtFinding();
+  assert.deepEqual((await execute({ dir })).errors, []);
+  const manifest: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  assert.deepEqual(manifest.derived, [], "an Analysis directory has no derived values yet");
+  assert.deepEqual(manifest.external_sources, [], "and no external sources yet");
+
+  const requesting = analysedFor({
+    requested_derived: [{
+      id: "lift", operation: "difference", unit: "ratio",
+      operands: ["ref:retention_by_arm.checklist.retained_7d_rate", "ref:retention_by_arm.control.retained_7d_rate"],
+      description: "Checklist rate minus control rate; the writer declares it in manifest.derived.",
+    }],
+    requested_external_sources: [{
+      id: "keep_threshold", kind: "target", value: "0.03", unit: "ratio",
+      source: { type: "document", description: "The experiment plan's agreed bar.", date: "2026-05-20", owner: "An Operator" },
+    }],
+  });
+  requesting.candidate_claims[0].evidence = ["ref:retention_by_arm.checklist.retained_7d_rate", "derived:lift", "ext:keep_threshold"];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(requesting, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir, manifest), [], JSON.stringify(validateAnalysisFile(dir, manifest)));
+
+  // An id that is requested nowhere still fails, and the remedy names where to declare it.
+  const unrequested = structuredClone(requesting);
+  unrequested.candidate_claims[0].evidence = ["derived:nowhere"];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(unrequested, { lineWidth: 0 }));
+  const problems = validateAnalysisFile(dir, manifest);
+  assert.ok(problems.some((p) => p.category === "unresolved_reference" && /requested_derived/.test(p.remedy ?? "")), JSON.stringify(problems));
+
+  // A requested derived value's own operands are resolved too.
+  const badOperand = structuredClone(requesting);
+  badOperand.requested_derived[0].operands = ["ref:retention_by_arm.no_such_arm.retained_7d_rate"];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(badOperand, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir, manifest).some((p) => /row key 'no_such_arm'/.test(p.message)), "a requested value cannot be built from a cell that does not exist");
+});
+
+test("a probe taken after a result was seen is recorded where it happened, marked post_hoc", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-posthoc-"));
+  const late = analysedFor({
+    probes: [{ id: "p_late_look", kind: "exploratory", question: "Does the gap hold inside each signup week?", observed: "It does in five of six weeks.", changed_plan: "Nothing: it is a lead for the next experiment." }],
+  });
+  late.execution_order = [...late.execution_order, { kind: "probe", id: "p_late_look", post_hoc: true, note: "Taken after the headline table was read." }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(late, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
+
+  // Without the label it is an ordering violation, so the label is a record and not a loophole.
+  const unlabelled = structuredClone(late);
+  delete unlabelled.execution_order.at(-1).post_hoc;
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(unlabelled, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir).some((p) => /recorded after a query/.test(p.message)), "an unlabelled late probe is still an ordering error");
+
+  // And post_hoc belongs to a probe: a Check cannot claim it to escape the ordering rule.
+  const sneaked = structuredClone(late);
+  sneaked.execution_order = [...analysedFor().execution_order, { kind: "check", id: "unique_users", post_hoc: true }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(sneaked, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir).length, "post_hoc is only ever a property of a probe");
+});
+
+test("a candidate Claim's definition_refs resolve in manifest.definitions at the version the Analysis read", async () => {
+  const { dir } = await builtFinding();
+  assert.deepEqual((await execute({ dir })).errors, []);
+  const manifest: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+
+  const pinned = analysedFor();
+  pinned.candidate_claims[0].definition_refs = [{ id: "returned_within_7_days", version: 1 }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(pinned, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir, manifest), [], JSON.stringify(validateAnalysisFile(dir, manifest)));
+
+  const untraced = structuredClone(pinned);
+  untraced.candidate_claims[0].definition_refs = [{ id: "platform_group", version: 1 }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(untraced, { lineWidth: 0 }));
+  const problems = validateAnalysisFile(dir, manifest);
+  assert.ok(problems.some((p) => p.category === "unresolved_reference" && /platform_group/.test(p.message)), JSON.stringify(problems));
+
+  const wrongVersion = structuredClone(pinned);
+  wrongVersion.candidate_claims[0].definition_refs = [{ id: "returned_within_7_days", version: 2 }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(wrongVersion, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir, manifest).some((p) => p.category === "definition_version"), "reading a version the manifest does not pin is a defect");
+});
+
+test("the Analysis file's comparison kinds are the manifest's, and the proposed grouping is the SQL that ran", () => {
+  const analysisSchema: any = JSON.parse(readFileSync(join(REPO, "src/analysis/analysis.schema.json"), "utf8"));
+  const manifestSchema: any = JSON.parse(readFileSync(join(REPO, "schema/finding-manifest.schema.json"), "utf8"));
+  assert.deepEqual(
+    analysisSchema.properties.candidate_claims.items.properties.comparison.properties.kind.enum,
+    manifestSchema.$defs.claim.properties.comparison.properties.kind.enum,
+    "the writer copies comparison.kind through unchanged, so the two enums cannot disagree",
+  );
+
+  // The proposed Diagnostic and the query that produced the numbers it describes must say the same thing.
+  const proposal = readFileSync(join(RUNS, "7qg-onboarding", "proposed-definitions", "platform_group.md"), "utf8");
+  const sql = readFileSync(join(EXEMPLAR, "queries", "retention_by_platform_arm.sql"), "utf8");
+  const expression = /case when platform in \('ios', 'android'\) then 'mobile' else 'web' end/;
+  assert.match(proposal, expression, "the proposal's canonical SQL is the expression the query ran");
+  assert.match(sql, expression, "and the query still uses it");
 });

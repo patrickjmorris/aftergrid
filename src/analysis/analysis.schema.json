@@ -8,14 +8,15 @@
   "required": [
     "schema_version",
     "reader_profile",
-    "assumptions",
-    "probes",
-    "execution_order",
-    "candidate_claims",
-    "outcome_recommendation"
+    "assumptions"
   ],
   "properties": {
     "schema_version": { "const": "0.1.0" },
+    "stage": {
+      "type": "string",
+      "enum": ["clarified", "analysed"],
+      "description": "How far this file has been filled in. `clarified` is the seed /grill-question writes: reader_profile, assumptions, pre_registered_comparison and needs_input, with no evidence recorded yet — a complete artifact for that stage, not a defective one. `analysed` is the working record /checked-analysis leaves once the run has happened, and it requires probes, execution_order, candidate_claims and outcome_recommendation. Absent means `analysed`, so a file written before this field existed keeps its meaning."
+    },
     "reader_profile": {
       "$ref": "#/$defs/id",
       "description": "The Reader profile id this Analysis is aimed at, from the Instance's readers.md. `generic` when the Instance names none."
@@ -57,7 +58,7 @@
     },
     "probes": {
       "type": "array",
-      "description": "Exploratory looks at the catalog or the data taken before the plan was committed. Always exploratory; never evidence for a Claim.",
+      "description": "Exploratory looks at the catalog or the data taken before the plan was committed, and post-hoc looks taken after a result was seen. Always exploratory; never evidence for a Claim.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -75,7 +76,7 @@
     "execution_order": {
       "type": "array",
       "minItems": 1,
-      "description": "Every probe, Check and analysis query in the order it was written and run. Grouped probe -> check -> query; a Check recorded after an analysis query is an error.",
+      "description": "Every probe, Check and analysis query in the order it was written and run. Grouped probe -> check -> query; a Check recorded after an analysis query is an error. A probe taken after a query is recorded where it happened, with `post_hoc: true`.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -84,8 +85,18 @@
           "kind": { "type": "string", "enum": ["probe", "check", "query"] },
           "id": { "$ref": "#/$defs/id" },
           "exploratory": { "type": "boolean", "description": "A query cut that was not pre-registered. Its Claims carry comparison.pre_registered false." },
+          "post_hoc": {
+            "type": "boolean",
+            "description": "Only on a probe: this look was taken after a result was already seen. It is exempt from the probe -> check -> query grouping because hiding it would be the dishonest option, and everything it informs is exploratory."
+          },
           "note": { "type": "string", "minLength": 1 }
-        }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "post_hoc": { "const": true } }, "required": ["post_hoc"] },
+            "then": { "properties": { "kind": { "const": "probe" } } }
+          }
+        ]
       }
     },
     "candidate_claims": {
@@ -99,15 +110,37 @@
           "id": { "$ref": "#/$defs/id" },
           "sentence_draft": { "type": "string", "minLength": 1 },
           "type": { "type": "string", "enum": ["descriptive", "associational", "causal"] },
+          "causal_basis": {
+            "type": "string",
+            "enum": ["randomised_assignment", "none"],
+            "description": "The design that earns a causal Claim. Required when type is causal, where the only value the validator accepts is randomised_assignment; `none` on a causal Claim is refused and the Claim is associational."
+          },
           "numeric": { "type": "boolean" },
           "answer_bearing": { "type": "boolean" },
           "evidence": { "type": "array", "items": { "$ref": "#/$defs/value_ref" } },
+          "definition_refs": {
+            "type": "array",
+            "description": "Every definition this Claim's numbers rest on, at the version that was read. Each must appear in manifest.definitions at the same version, so a Diagnostic grouping a Claim displays is traced rather than assumed.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "version"],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "version": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
           "comparison": {
             "type": "object",
             "additionalProperties": false,
             "required": ["kind", "pre_registered"],
             "properties": {
-              "kind": { "type": "string", "enum": ["none", "variant_vs_control", "period_over_period", "segment_vs_segment", "vs_target"] },
+              "kind": {
+                "type": "string",
+                "enum": ["none", "baseline_period", "cohort_vs_cohort", "variant_vs_control", "target"],
+                "description": "The same enum as claims[].comparison.kind in schema/finding-manifest.schema.json: the writer copies this value through unchanged, so the two lists cannot disagree."
+              },
               "description": { "type": "string", "minLength": 1 },
               "pre_registered": { "type": "boolean" }
             }
@@ -165,6 +198,10 @@
             "then": { "properties": { "comparison": { "required": ["description"], "properties": { "kind": { "not": { "const": "none" } } } } } }
           },
           {
+            "if": { "properties": { "type": { "const": "causal" } }, "required": ["type"] },
+            "then": { "required": ["causal_basis"] }
+          },
+          {
             "if": { "properties": { "answer_bearing": { "const": true } }, "required": ["answer_bearing"] },
             "then": { "required": ["material_caveat"] }
           },
@@ -173,6 +210,59 @@
             "then": { "properties": { "evidence": { "minItems": 1 } } }
           }
         ]
+      }
+    },
+    "requested_derived": {
+      "type": "array",
+      "description": "Derived values a candidate Claim needs and the writer will declare in manifest.derived. The Analysis names the operation and the operands; it does not compute the number. Candidate evidence may cite these ids as `derived:<id>` before manifest.derived exists.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "operation", "operands", "unit"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "operation": { "type": "string", "enum": ["difference", "ratio", "percent_of", "percent_change", "sum", "min", "max"] },
+          "operands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/value_ref" } },
+          "unit": { "$ref": "#/$defs/unit" },
+          "display": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["integer", "decimal", "percent", "percentage_points", "currency_usd", "text", "date"] },
+              "decimals": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "thousands_separator": { "type": "boolean" }
+            }
+          },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "requested_external_sources": {
+      "type": "array",
+      "description": "Typed values that do not come from a query — a target, an assumption, an external reference — which a candidate Claim needs and the writer will declare in manifest.external_sources. Candidate evidence may cite these ids as `ext:<id>` before manifest.external_sources exists.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "value", "unit", "source"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "kind": { "type": "string", "enum": ["target", "assumption", "external_reference"] },
+          "value": { "type": ["number", "string"] },
+          "unit": { "$ref": "#/$defs/unit" },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "description", "date"],
+            "properties": {
+              "type": { "type": "string", "enum": ["document", "person", "policy", "url", "prior_finding"] },
+              "description": { "type": "string", "minLength": 1 },
+              "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "owner": { "type": "string", "minLength": 1 },
+              "location": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
       }
     },
     "outcome_recommendation": {
@@ -186,9 +276,21 @@
         "what_would_be_needed": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "description": "For a non-answer: what would have to be true before the Question can be answered."
+          "description": "For a non-answer: what would have to be true before the Question can be answered. Required for every outcome except `answered` — it is what makes a non-answer usable."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["outcome"],
+            "properties": { "outcome": { "not": { "const": "answered" } } }
+          },
+          "then": {
+            "required": ["what_would_be_needed"],
+            "properties": { "what_would_be_needed": { "minItems": 1 } }
+          }
+        }
+      ]
     },
     "needs_input": {
       "type": "array",
@@ -210,6 +312,12 @@
   },
   "allOf": [
     {
+      "if": { "not": { "required": ["stage"], "properties": { "stage": { "const": "clarified" } } } },
+      "then": {
+        "required": ["probes", "execution_order", "candidate_claims", "outcome_recommendation"]
+      }
+    },
+    {
       "if": {
         "required": ["outcome_recommendation"],
         "properties": { "outcome_recommendation": { "required": ["outcome"], "properties": { "outcome": { "const": "answered" } } } }
@@ -230,6 +338,11 @@
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
     "relpath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\./)[A-Za-z0-9_./-]+$" },
     "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "unit": {
+      "type": "string",
+      "enum": ["count", "users", "events", "sessions", "days", "hours", "minutes", "seconds", "ratio", "percent", "percentage_points", "currency_usd", "text", "date", "unknown"],
+      "description": "The same enum as $defs/unit in schema/finding-manifest.schema.json: a business unit, never inferred from a SQL type."
+    },
     "value_ref": {
       "type": "string",
       "pattern": "^(ref:[a-z][a-z0-9_]{0,63}\\.[A-Za-z0-9_-]{1,64}\\.[a-z][a-z0-9_]{0,63}|derived:[a-z][a-z0-9_]{0,63}|ext:[a-z][a-z0-9_]{0,63})$"

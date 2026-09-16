@@ -1,16 +1,24 @@
 // `aftergrid capture <finding-dir> --tables a,b [--catalog] [--json]`
 //
-// Turns the Instance's live source into this Finding's retained inputs: bounded extracts under `inputs/`, with
+// Turns the Instance's live source into this Finding's retained inputs: whole-table extracts under `inputs/`, with
 // content hashes and honest source metadata recorded in `manifest.yaml#/snapshot/inputs` (ADR 0008).
 // After this runs, every later step — `aftergrid execute`, `check --mode rerun` — reads the extracts and never
 // the source again.
 //
-// Three refusals, none of them overridable from a flag:
+// `capture` copies WHOLE tables. There is no window, predicate or row-bound option anywhere in the command, the
+// adapter contract or the CLI, and the recorded `source.method` says so (`select * from <table> …`). Bounding a
+// read to the analytical window happens in the analysis SQL, which converts to the analytical timezone
+// explicitly; it never happens here.
+//
+// Four refusals, none of them overridable from a flag:
 //   - `--catalog` reads the catalog and writes nothing at all, so a plan can be checked against the columns that
 //     actually exist before any table is copied.
 //   - A revision carrying attestations is refused. Retained inputs are inside the content digest, so capturing
 //     into an approved revision would silently invalidate the approval; the answer is a new revision.
 //   - The manifest's `attestations` and `reviews` are never read for rebinding and never written.
+//   - A `--description` that describes the extract as bounded, filtered or limited is refused. The description
+//     is provenance inside the content digest, and the one thing it may not do is claim a bound the capture did
+//     not apply.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseDocument } from "yaml";
@@ -30,6 +38,14 @@ const categoryOf = (e: unknown): Problem["category"] =>
   (e instanceof AdapterError || e instanceof ContractError) && KNOWN.has((e as any).category) ? ((e as any).category as Problem["category"])
   : (e as any)?.code === "ENOENT" ? "missing_file"
   : "sql_error";
+
+/**
+ * Phrases that assert a bound on the rows captured. `--description` REPLACES the adapter's honest default
+ * ("Whole-table extract of <table> …"), so text like these would put a filter that never ran inside the content
+ * digest, where every later reader takes it for provenance. Deliberately narrow: it matches claims about the
+ * extract's extent, not a description that merely names the analytical window the SQL applies.
+ */
+const BOUND_CLAIM = /\b(bounded|bounding|prefiltered|pre-filtered|filtered (?:to|down|by)|limited to|restricted to|clipped to|truncated to|trimmed to|narrowed to|subset of|only the rows|rows? between|either side of the window)\b/i;
 
 /** The manifest shape `snapshot.inputs` accepts: the adapter's `runtime` field is summarised in `description`. */
 function toManifestInput(input: RetainedInput) {
@@ -97,6 +113,13 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
       err("incomplete", "--tables", "name the tables to capture", "pass --tables a,b — or --catalog to see which tables exist first");
       return report;
     }
+    const boundClaim = opts.description ? BOUND_CLAIM.exec(opts.description) : null;
+    if (boundClaim) {
+      err("invalid_artifact", "--description",
+        `--description says the extract is ${boundClaim[0]}, and capture applies no bound: it copies whole tables and records the read it performed in snapshot.inputs[].source.method`,
+        "describe what was captured, not a filter that did not run. The analytical window belongs in the analysis SQL, which converts to the analytical timezone explicitly, and in an analysis.yaml assumption; nothing was read and nothing was written");
+      return report;
+    }
     if ((manifest.attestations ?? []).length) {
       err("stale_attestation", "manifest.yaml#/attestations",
         `this revision carries ${manifest.attestations.length} attestation(s), and retained inputs are inside the content digest they bind to`,
@@ -120,6 +143,7 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
 
     report.content = manifest.finding?.state === "complete" ? "complete" : "incomplete";
     report.info.push(`snapshot.inputs now names ${inputs.length} retained input(s); the content digest was repinned`);
+    report.info.push("each extract is a whole-table read, recorded in snapshot.inputs[].source.method; capture applies no window or row bound, and the analytical window is applied in the analysis SQL");
     report.info.push("snapshot.guarantees is unchanged: a guarantee is established by running the analysis on these inputs (`aftergrid execute`), not by capturing them");
     report.info.push("attestations and reviews were not read for rebinding and were not written");
     report.readiness_reasons.push("capture records evidence; publication readiness is decided by `aftergrid check` and a human review");

@@ -10,9 +10,10 @@ It works the way `grilling` does: a frontier of decisions, asked a whole round a
 the recommended answer so you can correct rather than compose. It asks only about what changes the analysis, and
 it finds facts about your data itself instead of asking you for them.
 
-The result lands in a Finding's `manifest.yaml` (`question`, `reader`) and in the `analysis.yaml` beside it
-(`reader_profile`, `assumptions`, `pre_registered_comparison`, `needs_input`). New Metric definitions are written
-to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval block.
+The result lands in a Finding's `manifest.yaml` (`question`, `reader`) and in the `analysis.yaml` beside it, as a
+seed marked `stage: clarified` (`reader_profile`, `assumptions`, `pre_registered_comparison`, `needs_input`). New
+Metric definitions are written to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval
+block.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`): it creates
 a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
@@ -53,6 +54,11 @@ analysis stops there for that metric.
 
 **Does it run any SQL against my source?** Only reads, and only to answer its own questions rather than yours:
 the catalog, and bounded probes on data the Instance's connection already allows. It never writes.
+
+**Will `aftergrid check` say my evidence is invalid before any analysis has run?** No. The file this skill
+leaves is marked `stage: clarified`, which is a complete artifact for where it is: `check` reports evidence
+`valid` and content `incomplete`, and the sections `/checked-analysis` fills are required only once the run has
+happened. "Invalid evidence" means something is wrong with evidence, never that there is none yet.
 
 **It says my Question is `unresolved`. Is that a failure?** No. An unresolved Question with its missing parts
 named is a better artifact than a resolved-looking one with an invented falsifier, and `insufficient_data` and

@@ -1,0 +1,49 @@
+# The rounds narrated in raw-ask.md, in machine-readable form, so "a settled part is never asked again"
+# (skills/checked-analysis/references/clarification.md) is a property src/analysis.test.ts checks rather than a
+# sentence a README asserts. Recorded by hand for fixtures/runs/7qg-onboarding; no model was in the loop.
+#
+# `settled_before_round_1` is the part *Read before you ask* could answer outright. `read_from_instance` is what
+# else it read: a candidate the round still puts to the Operator is not a settled part. Each round lists the
+# parts it asked about and the parts its answers settled; `re_entry` is a second pass over the same Finding.
+settled_before_round_1:
+  - part: reader
+    value: product_owner
+    read_from: analytics/readers.md
+    why: The Instance names one Reader profile, so it is the answer rather than a question.
+
+read_from_instance:
+  - what: analytics/definitions/retained_7d.md
+    value: retained_7d v2, lifecycle approved, window seven days from signup, timezone America/New_York
+    used_as: The recommended answer carried by Q1's metric question. An approved definition exists; which metric this Question rests on is still the Operator's to confirm.
+  - what: analytics/aftergrid.yaml
+    value: owner Dana Okafor, DuckDB source
+    used_as: Names the owner every needs_input item would be addressed to.
+
+rounds:
+  - round: 1
+    asked: [decision, metric, population]
+    answered: [decision, metric, population]
+  - round: 2
+    asked: [window, primary_comparison]
+    answered: [window, primary_comparison]
+  - round: 3
+    asked: [falsifier]
+    answered: [falsifier]
+  - round: 4
+    asked: []
+    answered: []
+    note: A vocabulary round. It re-opened no settled part; it confirmed the design behind a causal word and left the Reader-facing wording alone.
+    vocabulary:
+      - question: Q7
+        term: help
+        outcome: "Assignment confirmed randomised per user inside the window, so the headline Claim is causal and records causal_basis: randomised_assignment."
+      - question: Q8
+        term: new users
+        outcome: The Reader-facing wording stays; the population field already carries the precision.
+
+# A second pass over this Finding. The Question is resolved, so there is nothing to ask: the settled parts are
+# restated as a list the Operator can correct.
+re_entry:
+  asked: []
+  restated: [decision, reader, metric, population, window, primary_comparison, falsifier]
+  reason: question.state is resolved and question.unresolved is empty, so the pass restates and stops.

@@ -1,0 +1,32 @@
+# The rounds narrated in raw-ask.md, in machine-readable form, so "a settled part is never asked again"
+# (skills/checked-analysis/references/clarification.md) is a property src/analysis.test.ts checks rather than a
+# sentence a README asserts. Recorded by hand for fixtures/runs/7qg-referral; no model was in the loop.
+settled_before_round_1:
+  - part: reader
+    value: product_owner
+    read_from: analytics/readers.md
+    why: The Instance names one Reader profile, so it is the answer rather than a question.
+  - part: metric
+    value: retained_7d v2 (lifecycle approved)
+    read_from: analytics/definitions/retained_7d.md
+    why: "\"Stick around\" is the approved retained_7d v2 and nothing in the ask points anywhere else, so no round spent a question on it."
+
+rounds:
+  - round: 1
+    asked: [decision, population, primary_comparison]
+    answered: [decision, population, primary_comparison]
+  - round: 2
+    asked: [window]
+    answered: [window]
+    note: A probe was dispatched after this round rather than asked — how many referred users, and how many have a mature seven-day window — because facts about the data are the Analysis's to find.
+  - round: 3
+    asked: [falsifier]
+    answered: []
+    note: "Asked and deliberately not answered: on seven mature users any threshold would be invented to fit the data it would judge. The part stays unsettled, is listed in question.unresolved, and the bar the Operator must set is recorded as needs_input."
+
+# A second pass asks only what is still open: the falsifier, and only once its needs_input owner has set the
+# minimum. Nothing already settled is re-interrogated.
+re_entry:
+  asked: [falsifier]
+  restated: [decision, reader, metric, population, window, primary_comparison]
+  reason: question.unresolved lists falsifier, and the needs_input item that blocks it names Dana Okafor.

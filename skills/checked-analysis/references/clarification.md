@@ -106,9 +106,14 @@ Into `manifest.yaml`:
   - `not_answerable` — the ask cannot be answered as posed; the Finding's outcome will be `needs_reframing`.
 - `reader.profile`.
 
-Into `analysis.yaml` (`docs/contracts/analysis-directory.md`): `reader_profile`, one `assumptions` entry per
-choice the rounds made with its `basis`, `pre_registered_comparison` with `registered_before_cuts: true` when it
-was settled before any data was read, and a `needs_input` entry for anything left to a named owner.
+Into `analysis.yaml` (`docs/contracts/analysis-directory.md`): `stage: clarified`, `reader_profile`, one
+`assumptions` entry per choice the rounds made with its `basis`, `pre_registered_comparison` with
+`registered_before_cuts: true` when it was settled before any data was read, and a `needs_input` entry for
+anything left to a named owner.
+
+`stage: clarified` is what makes that file complete for where it is. The four sections `/checked-analysis`
+fills — `probes`, `execution_order`, `candidate_claims`, `outcome_recommendation` — are required only at
+`stage: analysed`, and a file that omits the stage is read as `analysed` and reported as missing them.
 
 **Never write a falsifier you cannot run.** A threshold picked after seeing the numbers is a bar set to fit its
 own result. When no evaluable falsifier exists yet, leave `falsifier` out, list it in `unresolved`, and record a

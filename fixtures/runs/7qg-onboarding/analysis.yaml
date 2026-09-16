@@ -2,6 +2,7 @@
 # Recorded by hand for fixtures/runs/7qg-onboarding; validated against the exemplar Finding's manifest by
 # src/analysis.test.ts. No model was in the loop.
 schema_version: 0.1.0
+stage: analysed
 reader_profile: product_owner
 
 assumptions:
@@ -10,10 +11,10 @@ assumptions:
     basis: operator_answer
     settled_by: Dana Okafor, clarification round 4
     affects: [c1]
-  - id: a_window_bound_one_day
-    statement: The retained extracts run one day either side of the window (2026-05-31 to 2026-07-13 UTC) so that converting to New York time cannot drop a signup at either edge.
+  - id: a_window_is_applied_in_sql
+    statement: "The window is applied in the analysis SQL, not in the capture. The SQL converts signed_up_at to America/New_York explicitly before comparing it with the window dates, so the result does not depend on how wide the extract is. `aftergrid capture` applies no window or row bound at all — it copies whole tables and records the read it performed in snapshot.inputs[].source.method — while the extracts of the exemplar Finding this run was recorded against were produced by the fixture capture script (source.adapter: synthetic), which does copy one day either side of the window and says so in its description. Either extract gives the same numbers, and no Claim here rests on a bound."
     basis: engine_default
-    settled_by: capture bound chosen by the Analysis, recorded in snapshot.inputs[].description
+    settled_by: the capture the Engine performs, recorded in snapshot.inputs[].source.method
     affects: [c1, c2]
   - id: a_came_back_means_open
     statement: "\"Came back\" is an app_open event on any of the seven days after the signup day, per the approved retained_7d v2 definition. It says nothing about what the user did in the app."
@@ -21,7 +22,7 @@ assumptions:
     settled_by: analytics/definitions/retained_7d.md (lifecycle approved, version 2)
     affects: [c1, c2]
   - id: a_platform_grouping
-    statement: iOS and Android signups are grouped as "mobile" and browser signups as "web". This grouping is a proposed Diagnostic calculation (proposed-definitions/platform_group.md); it is not approved and backs an exploratory Claim only.
+    statement: iOS and Android signups are grouped as "mobile" and every other recorded platform as "web", which is what the SQL that produced the table does (`case when platform in ('ios','android') then 'mobile' else 'web' end`). Today the Instance records only ios, android and web on a user, but its platforms table already carries a fourth value (tv), and a signup on one would be counted as web. This grouping is a proposed Diagnostic calculation (proposed-definitions/platform_group.md); it is not approved, it is not pinned in the Finding's manifest.definitions, and it backs an exploratory Claim only.
     basis: unverified
     settled_by: proposed by the Analysis; no Operator approval requested, because no decision rests on it
     affects: [c2]
@@ -85,6 +86,7 @@ candidate_claims:
   - id: c1
     sentence_draft: New users who saw the checklist came back within a week more often than new users who did not.
     type: causal
+    causal_basis: randomised_assignment
     numeric: true
     answer_bearing: true
     evidence:
@@ -133,13 +135,14 @@ candidate_claims:
       kind: variant_vs_control
       description: Checklist versus old onboarding inside each platform group. This split was not planned before the experiment; it is a follow-up look.
       pre_registered: false
-    population: The same users, split by whether they signed up on the iPhone or Android app (mobile) or in a browser (web).
+    population: The same users, split by whether they signed up on the iPhone or Android app (mobile) or anywhere else (web, which in this data is a browser).
     window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
     exclusions: []
     limitations:
       - This split was decided after seeing the overall result, so it is a lead to test, not a settled fact.
       - The web groups are small, so the web number moves a lot with a handful of users.
-      - The grouping of platforms into mobile and web is a proposed Diagnostic calculation, not an approved Metric definition.
+      - The grouping of platforms into mobile and web is a proposed Diagnostic calculation, not an approved Metric definition, and it is not pinned in the Finding's manifest.definitions.
+      - "\"Web\" is every platform that is not ios or android, so a platform the Instance adds later — its platforms table already lists tv — would land in the web group without the grouping being revisited."
     recheck_draft:
       mode: not_automatically_evaluable
       reason: An exploratory split has no pre-registered threshold; whether the platform difference persists is a judgement for the next experiment, not a number to re-test.
