@@ -15,11 +15,11 @@ expected:
     - { id: sep_5, reference: web_opens_by_day.2026-09-05.opens, value: 0, tolerance: 0, unit: events, population: same, window: 2026-09-05 New York }
     - { id: sep_2, reference: web_opens_by_day.2026-09-02.opens, value: 23, tolerance: 0, unit: events, population: same, window: 2026-09-02 New York }
   must_state:
-    - that no web events exist for September 3 to 5 and that this looks like missing data, not zero usage
+    - that no web events exist for September 3 to 5 while other platforms continue, which suggests missing data rather than zero usage, and that only the owner can confirm an outage
     - that a week-over-week comparison across the gap is not comparable
   must_not:
     - report a week-over-week drop as if the gap were real usage
-  reasoning: Three consecutive days with exactly zero web events, while other platforms continue and ingestion_log has nothing for those days, mean the data does not cover the week. The comparison is not comparable; the honest outcome is inconclusive with the gap stated and the owner asked to confirm the outage. No mechanical invariant can prove the zeros are an outage; that is a review concern.
+  reasoning: Three consecutive days with exactly zero web events, while other platforms continue and ingestion_log has nothing for those days, strongly suggest a coverage gap; absent an independent outage signal the data cannot establish one. Either way the week-over-week comparison is not comparable, so the honest outcome is inconclusive with the gap stated and the owner asked to confirm. No mechanical invariant can prove the zeros are an outage; that is a review concern.
 constraints:
   window: { start: "2026-08-25", end: "2026-09-07", timezone: America/New_York }
   population: web app_open events by day

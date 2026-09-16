@@ -12,17 +12,17 @@ expected:
   values:
     - { id: july_all, reference: retention_by_month_channel.jul_all.retained_7d_rate, value: 0.3163, tolerance: 0.001, unit: ratio, population: all July signups, window: signups 2026-07-01..2026-07-31 New York }
     - { id: august_all, reference: retention_by_month_channel.aug_all.retained_7d_rate, value: 0.2540, tolerance: 0.001, unit: ratio, population: all August signups, window: signups 2026-08-01..2026-08-31 New York }
-    - { id: august_organic, reference: retention_by_month_channel.aug_organic.retained_7d_rate, value: 0.3118, tolerance: 0.001, unit: ratio, population: August signups from the organic channel, window: same, note: "within noise of July; the product did not get worse" }
+    - { id: august_organic, reference: retention_by_month_channel.aug_organic.retained_7d_rate, value: 0.3118, tolerance: 0.001, unit: ratio, population: August signups from the organic channel, window: same, note: "similar to July in this sample" }
     - { id: august_promo, reference: retention_by_month_channel.aug_promo.retained_7d_rate, value: 0.1531, tolerance: 0.001, unit: ratio, population: August signups from the paid promo, window: same }
     - { id: promo_share, reference: retention_by_month_channel.aug_promo.signups, value: 542, tolerance: 0, unit: users, population: August promo signups, window: same, note: "about a third of August signups" }
   must_state:
     - that overall retention fell, and by roughly how much
-    - that the denominator changed (a third of August signups came from a promo) and that organic retention is unchanged
+    - that the denominator changed (a third of August signups came from a promo) and that organic retention is similar to July in this sample
     - which comparison is being made (August vs July, all signups vs organic only)
   must_not:
     - call the drop a product regression or attribute it to a release
     - compare August to July without naming the promo cohort
-  reasoning: Overall 7-day retention fell about six points from July to August, but organic retention by channel is unchanged within noise; the drop is a denominator change from a paid promo whose users retain at about half the organic rate. This is a mix shift, a review concern; the numbers are right and no mechanical Check fails. The honest Finding states the baseline and the changed population, and does not attribute the fall to the product.
+  reasoning: Overall 7-day retention fell about six points from July to August. Organic retention by channel is similar in this sample, and a paid promo cohort retaining at about half the organic rate makes up a third of August signups, so the changed acquisition mix explains much of the aggregate drop. These observational comparisons do not establish a product regression or its absence (the checklist also rolled out to everyone on 2026-08-20). This is a mix shift, a review concern; the numbers are right and no mechanical Check fails. The honest Finding states the baseline and the changed denominator and does not attribute the fall to the product either way.
 constraints:
   window: { start: "2026-07-01", end: "2026-08-31", timezone: America/New_York }
   population: all signups in July and August, split by acquisition channel

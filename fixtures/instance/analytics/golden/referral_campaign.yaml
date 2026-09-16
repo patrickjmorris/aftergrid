@@ -10,20 +10,28 @@ expected:
   definition_ids: [retained_7d]
   tables_read: [events, users]
   values:
-    - { id: referred_users, reference: referred.post.referred_users, value: 12, tolerance: 0, unit: users, population: users with a referral_signup event, window: September 2026 New York }
+    - { id: referred_users, reference: referred.post.referred_users, value: 12, tolerance: 0, unit: users, population: users with a referral_signup event dated September 2026 in New York time, window: September 2026 New York }
+    - { id: immature_users, reference: referred.post.immature_users, value: 5, tolerance: 0, unit: users, population: referred users who had not completed seven days after signup by 2026-09-14, window: same, note: "these cannot have a retained_7d value yet" }
   must_state:
     - how many referred users exist and why that is too few to compare
     - what would be needed before the comparison can be made
   must_not:
     - report a retention rate for twelve users as evidence either way
-  reasoning: Twelve referred users, several of whom have not had seven days since signup at capture, cannot support a retention comparison; a minimum_data Check fails as a business result and the Finding says so.
+  reasoning: Twelve referred users in September, of whom a handful signed up too recently to have had seven days by the capture date, cannot support a retention comparison either way; a minimum_data Check fails as a business result and the Finding says so. The campaign boundary is a New York calendar month, so a UTC filter would misplace a late-August-evening signup.
 constraints:
   data_to: "2026-09-14"
   required_checks: [minimum_data]
 reference:
-  parameters: { tz: America/New_York }
+  parameters: { tz: America/New_York, data_to: "2026-09-14" }
   queries:
     - id: referred
       row_key: period
       sql: |
-        select 'post' as period, count(distinct user_id) as referred_users from events where event = 'referral_signup'
+        with r as (
+          select e.user_id, cast(timezone($tz, u.signed_up_at::timestamptz) as date) as signup_day
+          from events e join users u using (user_id)
+          where e.event = 'referral_signup' and cast(timezone($tz, e."timestamp"::timestamptz) as date) between date '2026-09-01' and date '2026-09-30'
+        )
+        select 'post' as period, count(distinct user_id) as referred_users,
+               count(distinct user_id) filter (where signup_day + 7 > $data_to::date) as immature_users
+        from r

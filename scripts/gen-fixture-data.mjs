@@ -46,7 +46,7 @@ for (let d = START; d <= END; d += DAY) {
     const user_id = "u_" + hex(uid);
     const signed_up_at = d + Math.floor(rnd() * DAY);
     const platform = pick(["ios", "android", "web"], [0.45, 0.30, 0.25]);
-    let onboarding_variant = "";
+    let onboarding_variant = null;
     if (d >= EXP_START && d <= EXP_END) onboarding_variant = rnd() < 0.5 ? "checklist" : "control";
     else if (d >= ROLLOUT) onboarding_variant = "checklist";
     const country = pick(["US", "GB", "CA", "DE", "AU"], [0.55, 0.15, 0.12, 0.1, 0.08]);
@@ -95,7 +95,7 @@ for (const u of users) {
   const started_at = u.signed_up_at + Math.floor(rnd() * 10 * DAY);
   if (started_at >= END + DAY) continue;
   const plan_price_cents = started_at >= PRICE_CHANGE ? 1299 : 999;
-  let canceled_at = "";
+  let canceled_at = null;
   for (let t = started_at + DAY; t < END + DAY; t += DAY) {
     if (rnd() < 0.011) {
       const candidate = t + Math.floor(rnd() * DAY);
@@ -134,7 +134,7 @@ for (let d = AUG; d < SEP; d += DAY) {
   for (let i = 0; i < n; i++) {
     uid += 1 + Math.floor(rnd2() * 3);
     // Signups land inside the New York calendar day (UTC-4 in August), so the promo cohort is entirely August in $tz.
-    const u = { user_id: "u_" + hex(uid), signed_up_at: d + 5 * 3600000 + Math.floor(rnd2() * 19 * 3600000), platform: "web", onboarding_variant: d >= ROLLOUT ? "checklist" : "", country: pick2(["US", "GB", "CA", "DE", "AU"], [0.55, 0.15, 0.12, 0.1, 0.08]) };
+    const u = { user_id: "u_" + hex(uid), signed_up_at: d + 5 * 3600000 + Math.floor(rnd2() * 19 * 3600000), platform: "web", onboarding_variant: d >= ROLLOUT ? "checklist" : null, country: pick2(["US", "GB", "CA", "DE", "AU"], [0.55, 0.15, 0.12, 0.1, 0.08]) };
     users.push(u); augWeb.push(u);
     ev(u, u.signed_up_at + Math.floor(rnd2() * 3600000));
     if (rnd2() < 0.18) { const opens = 1 + Math.floor(rnd2() * 4); for (let k = 0; k < opens; k++) ev(u, u.signed_up_at + (1 + Math.floor(rnd2() * 6)) * DAY + Math.floor(rnd2() * 20 * 3600000)); }
@@ -152,8 +152,10 @@ for (const u of users) {
 }
 function ev2(u, event, ts) { if (ts < CAPTURE) events.push({ event_id: "e_" + hex(++eid), user_id: u.user_id, event, timestamp: ts }); }
 
-// (R) Referral campaign in September: only a dozen referred signups, far too few to evaluate.
-const referred = users.filter((u) => u.signed_up_at >= SEP).slice(0, 12);
+// (R) Referral campaign in September (New York days): only a dozen referred signups spread across the month, several
+// of them too recent to have had seven days by capture. Far too few to evaluate either way.
+const septUsers = users.filter((u) => u.signed_up_at >= SEP + 4 * 3600000).sort((a, b) => a.signed_up_at - b.signed_up_at);
+const referred = septUsers.filter((_, i) => i % 37 === 0).slice(0, 12);
 for (const u of referred) ev2(u, "referral_signup", u.signed_up_at + 30000);
 
 // (G) Coverage gap: web app_open events on OUTAGE days were never ingested (removed here, recorded in ingestion_log).
@@ -191,7 +193,10 @@ const platforms = [{ platform: "ios", label: "iPhone app" }, { platform: "androi
 // CSV policy (docs/contracts/checks-and-results.md): NULL is an empty unquoted field, an empty string is "", and any
 // field holding a quote, comma, CR or LF is quoted with doubled quotes. Existing tables carry no such values, so their
 // bytes are unchanged by this rule.
-const csvField = (v) => { if (v === null || v === undefined) return ""; const t = String(v); return t === "" && v !== "" ? "" : /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+// Same rule as csvField in scripts/lib/sql-runner.mjs (kept local so this script stays dependency-free for its
+// determinism test): NULL -> empty unquoted, empty string -> "", quote on " , CR LF. The generator's absent values
+// (onboarding_variant, canceled_at) are nulls and are written as such.
+const csvField = (v) => { if (v === null || v === undefined) return ""; const t = String(v); return t === "" || /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
 const csv = (rows, cols) => cols.join(",") + "\n" + rows.map((r) => cols.map((c) => csvField(r[c])).join(",")).join("\n") + "\n";
 writeFileSync(join(OUT, "ingestion_log.csv"), csv(ingestion, ["event_id", "ingested_at"]));
 writeFileSync(join(OUT, "acquisition.csv"), csv(acquisition, ["user_id", "channel"]));

@@ -15,11 +15,11 @@ test('synthetic generation is deterministic, respects the capture cutoff, and ca
   const run=name=>{const r=spawnSync(process.execPath,[join(root,'scripts',name)],{encoding:'utf8',timeout:15000});assert.equal(r.status,0,r.stderr+r.stdout);};
   const data=name=>readFileSync(join(root,'fixtures/instance/data',name+'.csv'),'utf8');
   run('gen-fixture-data.mjs');
-  const before=Object.fromEntries(['users','events','subscriptions'].map(n=>[n,data(n)]));
+  const before=Object.fromEntries(['users','events','subscriptions','acquisition','ingestion_log','platforms'].map(n=>[n,data(n)]));
   run('gen-fixture-data.mjs');
   for(const name of Object.keys(before))assert.equal(data(name),before[name]);
   const cutoff=Date.parse('2026-09-15T04:00:00Z');
-  for(const [name,cols] of [['users',['signed_up_at']],['events',['timestamp']],['subscriptions',['started_at','canceled_at']]]){
+  for(const [name,cols] of [['users',['signed_up_at']],['events',['timestamp']],['subscriptions',['started_at','canceled_at']],['ingestion_log',['ingested_at']]]){
     const lines=data(name).trim().split('\n');const header=lines.shift().split(',');
     for(const line of lines){const cells=line.split(',');for(const col of cols){const value=cells[header.indexOf(col)];if(value)assert.ok(Date.parse(value)<cutoff,`${name}.${col} exceeds capture: ${value}`);}}
   }

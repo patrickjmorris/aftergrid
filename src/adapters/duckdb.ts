@@ -248,11 +248,17 @@ export async function openRetained(baseDir: string, inputs: { id: string; kind: 
     if (actual !== inp.content_hash.value) throw new AdapterError("hash_mismatch", `retained input ${inp.id} content differs from its recorded hash; rerun refused`, inp.path);
   }
   const { c, close } = await openRetainedDatabase(baseDir, inputs, lim);
+  // Same contract as the adapter: one statement at a time, close is terminal.
+  let queue: Promise<unknown> = Promise.resolve(); let closed = false;
+  const serialize = <T,>(fn: () => Promise<T>): Promise<T> => { const next = queue.then(fn, fn); queue = next.then(() => undefined, () => undefined); return next; };
   return {
-    async execute(sql, params, opts = {}) {
-      const { columns, rows } = await guardedRun(c, sql, params, lim, opts.timeout_ms ?? lim.statement_timeout_ms);
-      return { columns, rows, admission: { decision: "admitted", basis: "unknown_estimate_with_enforced_limits", estimate: { status: "unknown", reason: "retained inputs are bounded extracts; admission is by enforced limits" }, limits: lim } };
+    execute(sql, params, opts = {}) {
+      return serialize(async () => {
+        if (closed) throw new AdapterError("closed", "retained session is closed", baseDir);
+        const { columns, rows } = await guardedRun(c, sql, params, lim, opts.timeout_ms ?? lim.statement_timeout_ms);
+        return { columns, rows, admission: { decision: "admitted", basis: "unknown_estimate_with_enforced_limits", estimate: { status: "unknown", reason: "retained inputs are bounded extracts; admission is by enforced limits" }, limits: lim } };
+      });
     },
-    async close() { close(); },
+    close() { return serialize(async () => { if (!closed) { closed = true; close(); } }); },
   };
 }
