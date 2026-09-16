@@ -264,7 +264,10 @@ test("cancellation: a runaway statement is stopped by the timeout and the sessio
   const a = reader({ estimate_cap_rows: 1e15 });
   const t0 = Date.now();
   await assert.rejects(a.execute("select count(*) from generate_series(1,2000000000)", {}, { timeout_ms: 300 }), (e: any) => e.category === "cancelled" && /statement_timeout/.test(e.message));
-  assert.ok(Date.now() - t0 < 15000, "cancelled well inside the test budget");
+  // The 2e9-row scan would take minutes if it ran to completion; the budget only has to prove the statement was
+  // cut short. GitHub-hosted runners have shown ~16 s here where Docker Postgres 16 on the same query takes <1 s.
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 60000, `cancelled within the test budget (took ${elapsed} ms; a full scan takes minutes)`);
   const ok = await a.execute("select 1 as one", {});
   assert.equal(ok.rows[0]!.one, 1);
   await a.close();
