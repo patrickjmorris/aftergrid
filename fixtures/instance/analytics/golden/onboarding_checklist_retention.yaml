@@ -12,7 +12,7 @@ expected:
   values:
     - { id: checklist_rate, reference: retention_by_arm.checklist.retained_7d_rate, value: 0.3478, tolerance: 0.001, unit: ratio, population: users assigned the checklist inside the window, window: signups 2026-06-01..2026-07-12 New York }
     - { id: control_rate, reference: retention_by_arm.control.retained_7d_rate, value: 0.2848, tolerance: 0.001, unit: ratio, population: users assigned the old onboarding inside the window, window: signups 2026-06-01..2026-07-12 New York }
-    - { id: min_arm, reference: retention_by_arm.control.signups, value: 624, tolerance: 60, unit: users, population: smaller arm, window: same, note: "both arms must exceed 500 for the falsifier to be evaluable" }
+    - { id: min_arm, reference: retention_by_arm.checklist.signups, value: 624, tolerance: 0, unit: users, population: "the smaller arm: checklist with 624 signups, against the control arm's 653", window: same, note: "the falsifier and the Recheck both require at least 500 users in each arm, so the smaller arm decides whether they are evaluable; a signup count is exact, so the tolerance is 0" }
   must_state:
     - who is counted (signups in the window, both arms) and what the rate is a share of
     - that the comparison is fair because assignment was random

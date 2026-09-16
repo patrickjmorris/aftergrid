@@ -57,7 +57,9 @@ skill is installed, so the writer and the reviewer judge against the same list. 
   untouched.
 - Editing the memo afterwards makes all three reviews report as stale, not as current.
 - A Finding whose `aftergrid check` reports a `check_error` gets no reviews at all, and a `needs_attention`
-  reason naming the category and location.
+  reason naming the category and location. `aftergrid review status` on that Finding also reports `halt` with
+  that error: it runs the artifact check itself, so its decision is never a claim about evidence it did not
+  read. Its `continue` reason calls the draft evidence-valid only when that check ran and found nothing.
 - A Finding with `outcome: insufficient_data` and clean reviews is reported as ready to continue, not as a
   failed run.
 - The summary uses the reviewers' own words and never the word approved.
