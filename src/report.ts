@@ -6,6 +6,7 @@ export type Category =
   | "check_failed" | "falsifier" | "provisional_evidence" | "digest" | "stale_attestation" | "untrusted_attestation"
   | "unsafe_path" | "path_collision" | "duplicate_id" | "execution_binding" | "result_shape" | "value_type" | "derived_arity" | "check_error"
   | "decision_binding" | "decision_conflict" | "render_error" | "rerun_mismatch" | "admission" | "cancelled" | "resource_limit" | "sql_error" | "invalid_artifact" | "sql_policy" | "sql_parameter" | "check_shape" | "stale_review" | "minimum_data"
+  | "policy_untrusted" | "solo_setup_invalid" | "tampered_output"
   | "not_implemented";
 
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
