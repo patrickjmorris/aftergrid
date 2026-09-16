@@ -3,14 +3,16 @@
 // nothing, so each case declares the categories its one defect may produce and nothing else is tolerated.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { check } from "./commands/check.ts";
 import { render } from "./commands/render.ts";
 import { CASES, buildNegatives, listTree, NEGATIVES_DIR } from "./negatives-build.ts";
+// @ts-ignore: shared ESM validation library — the one digest implementation.
+import { digestOf } from "../scripts/lib/validate-finding.mjs";
 
 type Expected = {
   case: string;
@@ -60,8 +62,13 @@ test("every negative fixture fails for its own declared reason, and the controls
     const warned = new Set(report.warnings.map((w) => w.category));
     for (const w of warned) assert.ok((exp.also_warnings ?? []).includes(w), `${where}: undeclared warning ${w}`);
 
+    // An Operator acts on a location. An error with an empty one is one they cannot act on, and a `pass` or
+    // `readiness` case that names a category nothing raises describes an error the Engine does not emit.
+    for (const p of [...report.errors, ...report.warnings]) assert.notEqual(p.location, "", `${where}: ${p.category} was reported with no location: ${p.message}`);
+
     if (exp.expect === "error") {
       const allowed = new Set([exp.category, ...(exp.also ?? [])]);
+      assert.notEqual(exp.location_pattern, "", `${where}: an error case declares where it fails`);
       assert.ok(
         report.errors.some((e) => e.category === exp.category && new RegExp(exp.location_pattern).test(e.location)),
         `${where}: expected ${exp.category} at /${exp.location_pattern}/, got: ${seen || "no errors"}`,
@@ -70,6 +77,8 @@ test("every negative fixture fails for its own declared reason, and the controls
       assert.notEqual(report.evidence, "valid", `${where}: evidence must not be valid`);
       assert.notEqual(report.readiness, "ready", `${where}: a broken Finding is never publication ready`);
     } else {
+      assert.equal(exp.category, "none", `${where}: a case that reports no error names no category`);
+      assert.equal(exp.location_pattern, "", `${where}: a case that reports no error names no location`);
       assert.deepEqual(report.errors, [], `${where}: a control must pass`);
       assert.equal(report.evidence, "valid", `${where}: evidence valid`);
       assert.equal(report.content, "complete", `${where}: the controls are complete Findings`);
@@ -82,6 +91,70 @@ test("every negative fixture fails for its own declared reason, and the controls
         `${where}: readiness must say why: ${JSON.stringify(report.readiness_reasons)}`,
       );
     }
+  }
+});
+
+/**
+ * A fault inside a result file used to throw out of the shared validator, so `check` reported that one problem and
+ * silently skipped the memo, the content digest and readiness. A second, unrelated defect planted in the same
+ * directory must therefore also be reported: if only one error comes back, validation stopped early again and the
+ * two result-file cases would be proving nothing about everything downstream of them.
+ */
+test("a fault inside a result file is reported without abandoning the rest of the Finding", async (t) => {
+  const root = copyFixtures(t);
+  for (const name of ["duplicate-row-key", "null-in-non-nullable-column"]) {
+    const dir = join(root, name);
+    const exp = expectationFor(root, name);
+    // Two further, independent defects: a hand-copied quantity in the memo, and a memo that no longer digests.
+    appendFileSync(join(dir, "memo.md"), "- Roughly 9 in 10 of them opened the app on the first day.\n");
+    const report = await check({ dir, mode: "artifact", github: null });
+    const seen = report.errors.map((e) => `${e.category} at ${e.location}`).join(", ");
+    for (const category of [exp.category, "untraced_numeral", "digest"]) {
+      assert.ok(report.errors.some((e) => e.category === category), `case ${name}: validation stopped before reporting ${category}; got: ${seen || "no errors"}`);
+    }
+    assert.ok(report.warnings.some((w) => w.category === "stale_review"), `case ${name}: the review of the old digest was never reached`);
+  }
+});
+
+/**
+ * An approval is granted on a definition and recorded in the definition file. A Finding restates it. Neither the
+ * restatement nor a `lifecycle` string in the Finding's own manifest is evidence that anyone approved anything,
+ * so a manifest that disagrees with the definition file must not produce an approved decision metric.
+ */
+test("a decision metric cannot approve itself from its citing Finding's manifest", async (t) => {
+  const root = copyFixtures(t);
+  const repin = (dir: string, edit: (m: any) => void) => {
+    const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+    edit(m);
+    m.content_digest = digestOf(m, dir);
+    writeFileSync(join(dir, "manifest.yaml"), toYaml(m, { lineWidth: 0 }));
+  };
+
+  // 1. A well-formed approval pasted into the manifest for a definition whose file records none.
+  const pasted = join(root, "decision-metric-not-approved");
+  repin(pasted, (m) => {
+    m.definitions[1].approval = {
+      source: { type: "github_pr_review", repository: "loop-example/analytics", pull_request: 999, review_id: 1, commit_sha: "0".repeat(40) },
+      approver: "an-agent", date: "2026-01-01", content_hash: { ...m.definitions[1].content_hash },
+    };
+  });
+  const asserted = await check({ dir: pasted, mode: "artifact", github: null });
+  assert.ok(
+    asserted.errors.some((e) => e.category === "definition_not_approved" && e.location === "manifest.yaml#/definitions/1"),
+    `a pasted approval made the decision metric approved: ${asserted.errors.map((e) => `${e.category} at ${e.location}`).join(", ") || "no errors"}`,
+  );
+
+  // 2. A lifecycle the definition file does not record, on the control that otherwise passes.
+  for (const lifecycle of ["proposed", "deprecated"]) {
+    const dir = join(root, "control-valid");
+    cpSync(join(NEGATIVES_DIR, "control-valid"), dir, { recursive: true });
+    repin(dir, (m) => void (m.definitions[0].lifecycle = lifecycle));
+    const report = await check({ dir, mode: "artifact", github: null });
+    assert.ok(
+      report.errors.some((e) => e.category === "definition_version" && e.location === "manifest.yaml#/definitions/0"),
+      `lifecycle ${lifecycle} was accepted although definitions/retained_7d.md records approved: ${report.errors.map((e) => e.category).join(", ") || "no errors"}`,
+    );
+    assert.notEqual(report.evidence, "valid", `lifecycle ${lifecycle}: evidence must not be valid`);
   }
 });
 

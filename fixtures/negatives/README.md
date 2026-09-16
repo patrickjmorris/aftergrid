@@ -48,20 +48,20 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `zero-denominator-derived` | engine_category | `none` | The web control arm has no signups, so a derived ratio divides by zero. The render says "not available" in words, never 0. |
 | `nullable-null-not-available` | engine_category | `none` | A column declared `nullable` holds `null`. Valid evidence; renders as "not available" in prose and in the table. |
 | `display-only-rounding` | engine_category | `none` | The rate column declares whole-percent display while the saved values keep full precision. The render shows whole percents once; the raw decimals never reach the page. |
-| `private-field-sentinel` | engine_category | `none` | A declared but non-exported column carries the Instance's private marker. Neither the marker nor the column name may appear in any rendered byte. |
+| `private-field-sentinel` | engine_category | `none` | A declared but non-exported column carries the Instance's private marker. `export_policy.allowed_fields` projects the column away, so neither the marker nor the column name reaches any rendered byte and `check` reports nothing: the marker never had a path to a Reader. The refusal path is `private-marker-in-memo`. |
 
 ## Readiness: no error, but never ready
 
 | Case | Layer | Reports | Why it exists |
 | --- | --- | --- | --- |
-| `forged-attestation` | review_concern | `untrusted_attestation` | A `publication_approval` whose source is an `unverified_note`, bound to the current digest. `check` reports no error; readiness stays `not_ready` and says the source is not trusted. Whether an informal note was passed off as an approval is then a review concern. |
+| `forged-attestation` | review_concern | `none` | A `publication_approval` whose source is an `unverified_note`, bound to the current digest. Nothing rejects it, so **no** problem is reported and no category is emitted: `src/publication/readiness.ts` takes the `unverified_note` branch, records a reason and never calls `reject`. Readiness stays `not_ready` and the reason names the source. Whether an informal note was passed off as an approval is then a review concern. |
 
 ## Defects: these must fail
 
 | Case | Layer | Reports | The one defect |
 | --- | --- | --- | --- |
 | `unresolved-reference` | engine_category | `unresolved_reference` | The answer-bearing Claim's first evidence reference names a result set that is not in the manifest. |
-| `duplicate-row-key` | engine_category | `duplicate_row_key` | Both rows of the primary result set carry the row key `checklist`, so every reference into it is ambiguous. |
+| `duplicate-row-key` | engine_category | `duplicate_row_key` | The first row of the primary result set is repeated, so the row key `checklist` matches two rows and every reference into it is ambiguous. The row is repeated rather than renamed so that `control` still resolves: a renamed key would also delete one, and the case would fail for `unresolved_reference` too. |
 | `missing-column` | engine_category | `missing_column` | The answer-bearing Claim cites a column the result set does not declare. |
 | `untraced-numeral` | engine_category | `untraced_numeral` | A data-bearing number is typed into the memo prose instead of a reference token. |
 | `chart-forbidden-transform` | engine_category | `chart_subset` | The chart spec carries a top-level `transform`. A chart never computes. |
@@ -69,6 +69,8 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `missing-memo-section` | engine_category | `template` | The Appendix section is missing, so a Reader cannot find how to rerun the numbers. |
 | `claim-without-recheck` | engine_category | `schema` | The second Claim declares no Recheck policy. |
 | `decision-metric-not-approved` | engine_category | `definition_not_approved` | A complete Finding names a proposed, unapproved Metric definition as its decision metric. |
+| `decision-metric-approval-forged` | engine_category | `untrusted_attestation` | The manifest states an approval for its decision metric — right shape, right content hash, trusted source type — that `definitions/retained_7d.md` does not record: a different approver and a different review. An approval is granted on the definition, not by the Finding citing it. |
+| `private-marker-in-memo` | engine_category | `export_policy` | The Instance's `export_policy.private_marker` is typed into the memo prose, where every byte is Reader-facing. `check` reports it with a line and column and `render` is refused; it is not left to the output-byte check. |
 | `definition-version-not-pinned` | engine_category | `definition_version` | The Question cites a definition version the manifest does not pin. |
 | `failing-reconciliation-check` | engine_category | `check_failed` | The required reconciliation Check is recorded as `fail` while the Finding still answers the Question. Render is refused. |
 | `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` | The pinned content hash of the first retained input does not match the file. |
@@ -86,7 +88,16 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 - `derived-unit-mismatch` is reported at location `difference` (the operation name) rather than at the derived
   entry: the shared arithmetic helper raises it before the caller can attach a manifest pointer. The category is
   right; the location is coarse, and `expected.yaml` records that honestly.
-- A structural rejection (`schema`) stops validation, so those cases report exactly one error and evidence is
-  `not_evaluated` rather than `invalid`. That is the contract, not a gap in the fixture.
+- A structural rejection stops validation, so those cases report exactly one error and evidence is
+  `not_evaluated` rather than `invalid`. It is not only `schema`: the shared helpers in
+  `scripts/fixture-safety.mjs` raise `unsafe_path`, `path_collision`, `duplicate_id`, `execution_binding`,
+  `derived_arity` and `definition_version` the same way, and `unit_mismatch` comes out of the derived arithmetic,
+  so `derived-unit-mismatch` stops too. A fault inside a *result file* (`result_shape`, `row_key`, `value_type`,
+  `duplicate_row_key`, `null_value`) does **not** stop validation any more: it is reported and the memo, the
+  content digest and readiness are still checked, which is what `duplicate-row-key` and
+  `null-in-non-nullable-column` rely on.
+- `check` verifies that a definition's `lifecycle` and `approval` in a manifest match the definition file, and
+  nothing more. It does not verify the approval against the named GitHub review or the Instance's trusted
+  approvers; that is `src/publication` (readiness), and no fixture here carries a verified approval.
 - These fixtures exercise `check` and `render` only. `check --mode rerun`, the adapters and the Golden Questions
   have their own suites.

@@ -127,7 +127,12 @@ export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
   const DIR = dir;
   const REPO = repoRoot ?? join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const report = { errors: [], warnings: [], info: [] };
-  const err = (category, location, message, remedy) => report.errors.push({ category, location, message, remedy });
+  // One problem is reported once. Several tokens in one sentence resolve the same reference, so the same
+  // (category, location, message) can be raised repeatedly; repeating it tells an Operator nothing new.
+  const err = (category, location, message, remedy) => {
+    if (report.errors.some((e) => e.category === category && e.location === location && e.message === message)) return;
+    report.errors.push({ category, location, message, remedy });
+  };
   const warn = (category, location, message) => report.warnings.push({ category, location, message });
   const resolveValueRef = (manifest, ref, loc, results, seen) => resolveValueRefWith(err, manifest, ref, loc, results, seen);
   const checkExport = (manifest, ref, loc, seen) => checkExportWith(err, manifest, ref, loc, seen);
@@ -218,7 +223,17 @@ function validateMemo(manifest, results) {
     if (m) err("untraced_numeral", `memo.md:${i + 1}:${m.index + 1}`, `numeral without a reference: "${line.trim().slice(0, 80)}"`, "insert a {{ref:…}}, {{derived:…}} or {{ext:…}} token; a measured quantity is never written by hand. Only a parameter of the Question, a definition or a policy may be a {{literal:…}} or a word");
   });
   if (literals) report.info.push(`${literals} literal token(s) in memo.md; method review reads each`);
-  for (const m of text.matchAll(/PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER/g)) void m;
+  // The Instance's private marker is its own sentinel for text that must never reach a Reader. The memo is
+  // Reader-facing prose in full, so a marker in it is an export failure and is reported here, not only by
+  // render's output-byte check (src/commands/render.ts). A marker inside a result column that export_policy
+  // does not allow is legitimate — the renderer projects that column away — so result files are not scanned.
+  const marker = manifest.export_policy?.private_marker;
+  if (marker) {
+    for (const m of text.matchAll(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))) {
+      const before = text.slice(0, m.index).split("\n");
+      err("export_policy", `memo.md:${before.length}:${before[before.length - 1].length + 1}`, "the Instance private marker appears in memo prose and would be exported", "remove the marker and the text it guards from the memo");
+    }
+  }
 }
 
   try {
@@ -245,14 +260,26 @@ function validateMemo(manifest, results) {
     if (h.value !== d.content_hash.value) err("hash_mismatch", `manifest.yaml#/definitions/${n}`, `definition ${d.id} content changed since pinned`, "re-pin the version or bump it");
     const fm = parseYaml(/^---\n([\s\S]*?)\n---/.exec(text)[1]);
     if (fm.id !== d.id || fm.version !== d.version) err("definition_version", `manifest.yaml#/definitions/${n}`, `file is ${fm.id} v${fm.version}, manifest pins ${d.id} v${d.version}`, "");
+    // The definition file, not the Finding that cites it, is where a definition's lifecycle and approval live.
+    // A Finding may only restate them; a restatement that differs from the file is the Finding asserting a
+    // status nobody granted it.
+    if (fm.lifecycle !== d.lifecycle) err("definition_version", `manifest.yaml#/definitions/${n}`, `file records lifecycle ${fm.lifecycle}, manifest pins ${d.lifecycle}`, "re-pin the definition from the file; lifecycle is the file's to state");
+    const fileApproval = fm.approval ? canon(fm.approval) : null;
     if (d.approval) {
       if (d.approval.content_hash.value !== h.value) err("stale_attestation", `manifest.yaml#/definitions/${n}/approval`, `approval binds a different definition content`, "re-approve the definition");
       if (d.approval.source.type !== "github_pr_review") err("untrusted_attestation", `manifest.yaml#/definitions/${n}/approval`, "approval source is not a trusted type", "");
+      if (canon(d.approval) !== fileApproval) err("untrusted_attestation", `manifest.yaml#/definitions/${n}/approval`, `approval is asserted in this Finding; ${d.path} records ${fm.approval ? "a different approval" : "none"}`, "an approval is granted on the definition, not by a Finding that cites it");
     }
-    if (d.role === "decision_metric" && (d.kind !== "metric" || !d.approval)) {
-      if (manifest.finding.state === "complete") err("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} lacks an approval or is not kind metric`, "approve the definition or mark the role supporting");
-      else warn("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} is not approved; the draft cannot complete until it is`);
+    // Corroborated by the definition file and bound to its current content. Still not verified against the
+    // trusted publication policy or the review it names: that is src/publication (readiness), not this library.
+    const approvalRecorded = !!d.approval && canon(d.approval) === fileApproval && d.approval.content_hash.value === h.value && d.approval.source.type === "github_pr_review";
+    const approved = approvalRecorded && d.lifecycle === "approved" && fm.lifecycle === "approved";
+    if (d.role === "decision_metric" && (d.kind !== "metric" || !approved)) {
+      const why = d.kind !== "metric" ? `is kind ${d.kind}, not metric` : !approvalRecorded ? "carries no approval the definition file corroborates" : `is lifecycle ${d.lifecycle}, not approved`;
+      if (manifest.finding.state === "complete") err("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} ${why}`, "approve the definition or mark the role supporting");
+      else warn("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} ${why}; the draft cannot complete until it is approved`);
     }
+    if (d.role === "decision_metric" && approved) report.info.push(`decision metric ${d.id} v${d.version}: approval recorded in ${d.path} and bound to its current content; this command does not verify it against ${d.approval.source.type}`);
   });
   // 3. referential integrity + results
   const ids = (arr) => new Set(arr.map((x) => x.id));
@@ -272,12 +299,27 @@ function validateMemo(manifest, results) {
   for (const [n, res] of manifest.results.entries()) {
     if (!exids.has(res.execution_id)) err("unresolved_reference", `manifest.yaml#/results/${n}`, `execution ${res.execution_id}`, "");
     if (!existsSync(safePath(DIR, res.path))) continue;
-    const data = JSON.parse(readFileSync(safePath(DIR, res.path), "utf8")); validateResult(data, res); results[res.id] = data;
+    const data = JSON.parse(readFileSync(safePath(DIR, res.path), "utf8"));
+    // A fault inside one result file is a reported problem, not a reason to abandon the Finding: the remaining
+    // results, the Claims, the memo, the content digest and readiness are all still worth checking, and an
+    // Operator who is shown one error and nothing else cannot tell what else is wrong. Only a file whose very
+    // shape is unreadable stops here, because nothing below can read its rows.
+    let readable = true;
+    try { validateResult(data, res); }
+    catch (e) {
+      if (!(e instanceof ContractError)) throw e;
+      readable = !!data && typeof data === "object" && Array.isArray(data.rows) && Array.isArray(data.columns) && data.rows.every((r) => r && typeof r === "object" && !Array.isArray(r));
+      // validateResult stops at the first fault. duplicate_row_key and null_value are restated below, once per
+      // offending row, so reporting them here too would say the same thing twice; everything else is reported here.
+      if (!readable || !["duplicate_row_key", "null_value"].includes(e.category)) err(e.category, e.location ?? res.path, e.message, "correct the result file and re-pin, then run check again");
+    }
+    if (!readable) continue;
+    results[res.id] = data;
     if (canon(data.columns) !== canon(res.columns.map((c) => c.name))) err("schema", `${res.path}`, "file columns differ from declared columns", "");
     if (data.rows.length !== res.row_count) err("schema", `${res.path}`, `row_count ${res.row_count} but file has ${data.rows.length}`, "");
     if (!res.columns.some((c) => c.name === res.row_key)) err("missing_column", `manifest.yaml#/results/${n}`, `row_key ${res.row_key} not a column`, "");
     const keys = data.rows.map((r) => String(r[res.row_key]));
-    if (new Set(keys).size !== keys.length) err("duplicate_row_key", res.path, "row keys are not unique", "");
+    keys.forEach((k, i) => { const first = keys.indexOf(k); if (first < i) err("duplicate_row_key", `${res.path} row ${i}`, `row key '${k}' is already used by row ${first}`, "row keys must be unique: every reference into this result resolves by key"); });
     for (const k of keys) if (!new RegExp(`^${RK}$`).test(k)) err("schema", res.path, `row key '${k}' outside the allowed charset`, "");
     for (const col of res.columns) for (const [i, row] of data.rows.entries()) {
       const v = row[col.name];
@@ -301,7 +343,10 @@ function validateMemo(manifest, results) {
       resolveValueRef(manifest, rc.minimum_data.subject, `manifest.yaml#/claims/${n}/recheck/minimum_data`, results);
       if (rc.baseline) resolveValueRef(manifest, rc.baseline, `manifest.yaml#/claims/${n}/recheck/baseline`, results);
     }
-    if (cl.provisional || cl.evidence.some((e) => resolveValueRef(manifest, e, "", results)?.provisional)) err("provisional_evidence", `manifest.yaml#/claims/${n}`, "Claim rests on provisional evidence and cannot be rendered for a Reader", "");
+    // Re-resolved only to read `.provisional`; the refs were already resolved above at their real pointers, so
+    // this pass reports nothing. Reporting here would emit every resolution failure a second time at location "",
+    // and an error with no location is one an Operator cannot act on (docs/contracts/reference-grammar.md).
+    if (cl.provisional || cl.evidence.some((e) => resolveValueRefWith(() => {}, manifest, e, `manifest.yaml#/claims/${n}`, results)?.provisional)) err("provisional_evidence", `manifest.yaml#/claims/${n}`, "Claim rests on provisional evidence and cannot be rendered for a Reader", "");
   }
   const answerBearing = manifest.claims.filter((c) => c.answer_bearing);
   if (manifest.finding.state === "complete" && answerBearing.length === 0) err("template", "manifest.yaml#/claims", "no answer_bearing Claim", "mark the Claim the Answer rests on");

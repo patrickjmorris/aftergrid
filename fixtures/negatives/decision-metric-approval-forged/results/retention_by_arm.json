@@ -16,12 +16,6 @@
       "retained_7d_rate": "0.34775641025641024"
     },
     {
-      "arm": "checklist",
-      "signups": 624,
-      "retained": 217,
-      "retained_7d_rate": "0.34775641025641024"
-    },
-    {
       "arm": "control",
       "signups": 653,
       "retained": 186,

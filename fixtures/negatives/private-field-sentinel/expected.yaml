@@ -8,7 +8,7 @@ expect: pass
 category: none
 location_pattern: ""
 defect: None. A declared but non-exported column carries the Instance's private marker in every row.
-description: The marker and the column name must be absent from every rendered byte; render refuses to write anything that still contains the marker.
+description: "A column outside export_policy.allowed_fields is projected away: neither the marker nor the column name reaches any rendered byte, and check reports no error because the marker never had a path to a Reader."
 render:
   must_not_contain:
     - PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER
