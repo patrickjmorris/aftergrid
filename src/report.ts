@@ -18,6 +18,8 @@ export type Category =
   | "plugin_manifest" | "invocation_policy"
   // background intake (docs/contracts/intake.md): states a request can rest in, and why it stopped there
   | "dispatch_refused" | "source_limits_missing" | "harness_failed" | "needs_input" | "needs_attention"
+  // golden eval (docs/contracts/eval.md): an analytical verdict, kept apart from a broken runner
+  | "eval_case_failed" | "eval_infrastructure"
   | "already_claimed" | "superseded" | "scope_violation" | "api_error"
   | "not_implemented";
 
