@@ -14,9 +14,19 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: ${{ matrix.node }}, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: expose a local Postgres runtime when the image has one (seam-2 Postgres contract)
+        shell: bash
+        run: |
+          for d in /usr/lib/postgresql/*/bin /opt/homebrew/opt/postgresql@*/bin /usr/local/opt/postgresql@*/bin; do
+            if [ -x "$d/initdb" ] && [ -x "$d/pg_ctl" ]; then echo "$d" >> "$GITHUB_PATH"; echo "postgres runtime: $d"; break; fi
+          done
+          exit 0
       - run: pnpm run validate:fixtures
       - run: node --test 'src/**/*.test.ts'
       - run: node src/cli.ts --help
       - run: node src/cli.ts check fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention --json
       - run: node src/cli.ts check fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations --mode rerun --json
       - run: cp -R fixtures/instance /tmp/inst && node src/cli.ts render /tmp/inst/analytics/findings/2026-07-20-onboarding-checklist-retention --png --json
+      - run: node src/cli.ts check fixtures/negatives/control-valid --json
+      - run: node src/cli.ts check fixtures/negatives/unresolved-reference --json || test $? -eq 1
+      - run: node src/cli.ts hook status --settings /tmp/ag-settings.json --json

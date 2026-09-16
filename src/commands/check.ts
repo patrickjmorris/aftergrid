@@ -20,12 +20,15 @@ import { serializeResult } from "../adapters/serialize.ts";
 import { sha256 } from "../digest.ts";
 // @ts-ignore: shared Check-shape rule.
 import { checkOutcome } from "../../scripts/lib/sql-runner.mjs";
+import { assessReadiness } from "../publication/readiness.ts";
+import { createGitHubClient, tokenFromEnv, type GitHubClient } from "../publication/github.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
-export type CheckOptions = { dir: string; mode?: "artifact" | "rerun" };
+export type CheckOptions = { dir: string; mode?: "artifact" | "rerun"; github?: GitHubClient | null };
 
 export async function check(opts: CheckOptions): Promise<Report> {
   const report = checkArtifact(opts);
+  await verifyPublication(opts, report);
   if (opts.mode !== "rerun") return report;
   if (report.syntax === "invalid" || report.errors.some((e) => ["unsafe_path", "path_collision", "duplicate_id", "hash_mismatch", "missing_file"].includes(e.category))) {
     report.info.push("rerun skipped: the artifact must verify before its SQL is re-executed");
@@ -33,6 +36,27 @@ export async function check(opts: CheckOptions): Promise<Report> {
   }
   await rerun(resolve(opts.dir), report);
   return report;
+}
+
+/**
+ * Publication readiness is decided by src/publication, never by the Finding under review: trusted Instance policy
+ * plus a GitHub review read through the API. Without a token there is no client and readiness stays `unknown`,
+ * never `ready`. Offline artifact verification (checkArtifact, and therefore render) keeps its own conservative
+ * answer so a rendered draft stays reproducible.
+ */
+async function verifyPublication(opts: CheckOptions, report: Report) {
+  if (report.syntax === "invalid") return;
+  const dir = resolve(opts.dir);
+  let manifest: any;
+  try { manifest = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8")); } catch { return; }
+  const github = opts.github !== undefined ? opts.github : tokenFromEnv() ? createGitHubClient() : null;
+  const assessment = await assessReadiness({ dir, manifest, github });
+  const seen = new Set(report.errors.map((e) => `${e.category}@${e.location}`));
+  for (const p of assessment.errors) if (!seen.has(`${p.category}@${p.location}`)) report.errors.push(p);
+  report.warnings.push(...assessment.warnings);
+  report.readiness = assessment.readiness;
+  report.readiness_reasons = assessment.reasons;
+  if (report.errors.length && report.readiness !== "unknown") report.readiness = "not_ready";
 }
 
 /**

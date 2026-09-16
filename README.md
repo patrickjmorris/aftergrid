@@ -24,9 +24,10 @@ pnpm run validate:fixtures
 
 - `schema/` canonical JSON Schemas (Finding manifest, Decision record, Reader profile)
 - `docs/contracts/` the contracts those schemas cannot express
-- `src/` the CLI (`new finding`, `check`, `render`; `decide` and `intake` follow in their beads) and the adapters
+- `src/` the CLI (`new finding`, `check`, `render`, `decide`, `hook`; `intake` follows in its bead), the adapters (DuckDB, Postgres) and the publication readiness check
 - `scripts/` fixture tooling and the shared validation library (`scripts/lib/`)
 - `hooks/claude-code/` the PreToolUse guardrail hook (`aftergrid hook install`; contract and non-coverage in `docs/contracts/hook.md`)
-- `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`)
+- `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`); `fixtures/negatives/` seam-1 failure cases, one defect each
+- `hooks/claude-code/` the PreToolUse guard installed by `aftergrid hook install`
 
 Development is tracked in beads (`.beads/`, see `docs/agents/issue-tracker.md`).

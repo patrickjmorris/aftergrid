@@ -333,7 +333,7 @@ export const CASES: NegativeCase[] = [
     expect: "readiness",
     category: "untrusted_attestation",
     location_pattern: "^manifest\\.yaml#/attestations/0$",
-    reason_pattern: "unverified_note is not trusted",
+    reason_pattern: "unverified_note.*(not trusted|never an approval)",
     defect: "A publication_approval attestation whose source is an unverified_note, bound to the current digest.",
     description: "An unverified note never counts toward publication readiness: check reports no error, readiness stays not_ready and says why. Whether an informal note was passed off as an approval is then a review concern.",
     render: { must_contain: ["Draft", "None verified"] },
