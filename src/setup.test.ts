@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { setup } from "./commands/setup.ts";
+import { connectionBlock } from "./setup/scaffold.ts";
 import { newFinding } from "./commands/new-finding.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
@@ -464,6 +465,12 @@ test("capture on an adapterless Instance refuses with recorded_path and names `a
   assert.match(problem!.message, /configures no adapter/);
   assert.match(problem!.remedy!, /aftergrid record/);
   assert.match(problem!.remedy!, /--adapter duckdb/, "the upgrade is named too, so the refusal is not a dead end");
+  // …but the upgrade is an edit to aftergrid.yaml. Setup never overwrites that file, so a remedy that named a
+  // rerun of setup as the fix would send the Operator to a command that changes nothing and reports `completed`.
+  assert.match(problem!.remedy!, /set `connection\.adapter` in .*aftergrid\.yaml/);
+  assert.match(problem!.remedy!, /to print the block and paste it in yourself/);
+  assert.equal(/configure an adapter first: `aftergrid setup/.test(problem!.remedy!), false,
+    "rerunning setup is not the fix on an Instance that already has an aftergrid.yaml");
   assert.equal(r.sql_execution, "not_performed");
   assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
   assert.deepEqual(readdirSync(join(dir, "inputs")).filter((n) => n !== ".gitkeep"), [], "no extract was written");
@@ -487,4 +494,81 @@ test("execute on an adapterless Instance refuses with recorded_path rather than 
     "capture refuses here too, so a remedy that points at it would send the Operator in a circle");
   assert.equal(r.sql_execution, "not_performed");
   assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "nothing was written");
+});
+
+/* ------------------------------------------- upgrading an Instance setup is not allowed to rewrite (ag-q2l) */
+
+test("`setup --adapter` on an Instance that already has an aftergrid.yaml prints the block instead of claiming an upgrade", async () => {
+  const f = fixture();
+  const first = await setup({ ...recorded(f), skipHook: true });
+  assert.equal(first.errors.length, 0, JSON.stringify(first.errors));
+  const written = readFileSync(join(f.instance, "aftergrid.yaml"), "utf8");
+  assert.match(written, /adapter: none/);
+
+  // The upgrade an Operator would type after reading the recorded-path remedy.
+  const r = await setup({ ...base(f), skipHook: true });
+
+  // 1. The file is untouched: setup never overwrites, and the adapter this Instance uses did not change.
+  assert.equal(readFileSync(join(f.instance, "aftergrid.yaml"), "utf8"), written, "setup rewrote aftergrid.yaml");
+  const config: any = parseYaml(readFileSync(join(f.instance, "aftergrid.yaml"), "utf8"));
+  assert.equal(config.connection.adapter, "none", "the Instance still reads what its own file says");
+
+  // 2. The connection step does not read as a completed upgrade.
+  const line = step(r, "connection");
+  assert.match(line, /completed/, "the source WAS opened and probed; that part is real");
+  assert.match(line, /aftergrid\.yaml was kept, paste the block below/,
+    `a bare "completed" would report an upgrade that did not happen: ${line}`);
+
+  // 3. The block the remedies promise is actually printed, and it is the block that would have been written.
+  const text = info(r);
+  assert.match(text, /already exists and differs from what setup would write, so it was kept/);
+  const block = connectionBlock({ adapter: "duckdb", duckdbPath: "data" });
+  assert.ok(text.includes(block), `the connection block setup says it prints is not in the report:\n${block}`);
+  assert.ok(text.includes("  adapter: duckdb") && text.includes("    path: data") && text.includes("    read_only: true"),
+    "the printed block must carry the adapter, the path and the read-only flag");
+
+  // 4. And the kept-and-different file is still reported as a warning, as any kept-and-different file is.
+  assert.ok(r.warnings.some((w) => w.category === "exists" && /aftergrid\.yaml differs/.test(w.message)), JSON.stringify(r.warnings));
+});
+
+test("a source flag with no --adapter is refused rather than silently dropped", async () => {
+  const f = fixture();
+  const duckdb = await setup({ instanceDir: f.instance, adapter: undefined, duckdbPath: "data", skipHook: true, skillsSearchPaths: [f.skills] });
+  assert.equal(duckdb.syntax, "invalid");
+  assert.equal(duckdb.errors[0]?.category, "incomplete");
+  assert.equal(duckdb.errors[0]?.location, "--adapter");
+  assert.match(duckdb.errors[0]!.message, /--duckdb-path/);
+  assert.match(duckdb.errors[0]!.remedy!, /--adapter duckdb\|postgres/);
+  assert.equal(existsSync(join(f.instance, "aftergrid.yaml")), false, "nothing was written");
+
+  const pg = await setup({ instanceDir: f.instance, adapter: undefined, pgUrlEnv: "AG_TEST_PG", skipHook: true, skillsSearchPaths: [f.skills] });
+  assert.equal(pg.syntax, "invalid");
+  assert.equal(pg.errors[0]?.location, "--adapter");
+  assert.match(pg.errors[0]!.message, /--pg-url-env/);
+  assert.equal(existsSync(join(f.instance, "aftergrid.yaml")), false, "nothing was written");
+});
+
+test("what an adapterless Instance costs is stated per command, in the report and in the scaffolded file", async () => {
+  const f = fixture();
+  const r = await setup({ ...recorded(f), skipHook: true });
+  const text = info(r);
+
+  // `execute` is not unavailable here: it refuses only a Finding with nothing retained to run against.
+  assert.match(text, /`aftergrid execute` refuses on a Finding with no retained inputs/,
+    `the report states execute as unconditionally unavailable: ${text}`);
+  assert.match(text, /already holds retained inputs still executes/);
+  assert.match(text, /`aftergrid check --mode rerun` answers `rerun_unavailable` for a recorded Finding/);
+  assert.match(text, /`aftergrid capture` refuses/);
+
+  // The same qualification in the file the Operator reads afterwards.
+  const yaml = readFileSync(join(f.instance, "aftergrid.yaml"), "utf8");
+  assert.match(yaml, /`aftergrid execute` refuses on a Finding with no retained inputs/);
+  assert.match(yaml, /holds them, because it never reads a live source/);
+  assert.match(yaml, /`rerun_unavailable`/);
+  assert.match(yaml, /for a recorded Finding/, "the file qualifies rerun the same way the report does");
+
+  // And the upgrade is named as an edit to this file, not as a rerun that would change it.
+  assert.match(text, /set `connection\.adapter` in .*aftergrid\.yaml/);
+  assert.match(text, /prints the block for you to paste in; it does not edit it/);
+  assert.match(yaml, /PRINTS the block for you to paste in/);
 });

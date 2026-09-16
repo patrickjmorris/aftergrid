@@ -311,7 +311,59 @@ function checkStep(bin, project, dir) {
   must(report.evidence === "valid", `the draft's evidence should be valid (there is none to be wrong), got ${report.evidence}`);
   must(report.sql_execution === "not_performed", "artifact mode must not report SQL as executed");
   must(report.readiness !== "ready", "an incomplete draft must never be publication-ready");
-  return { detail: `content ${report.content}, evidence ${report.evidence}, sql ${report.sql_execution}, publication ${report.readiness}` };
+  const coverage = report.warnings.filter((w) => w.location === "manifest.yaml#/coverage");
+  must(coverage.length === 3, `the scaffold's coverage sentinels must be named as incomplete, got ${JSON.stringify(report.warnings)}`);
+  must(/step 7 of \/write-finding/.test(coverage[0].remedy ?? ""), "the coverage gap must carry the remedy that names where the answer comes from");
+  return { detail: `content ${report.content}, evidence ${report.evidence}, sql ${report.sql_execution}, publication ${report.readiness}; ${coverage.length} coverage sentinel(s) named` };
+}
+
+/**
+ * The DEFAULT route through the packed CLI: `setup` with no `--adapter` at all (ADR 0010), then a draft and a
+ * `check` in the Instance it wrote. Until this existed, every pack-smoke Instance was `--adapter duckdb`, so the
+ * route the Engine tells Operators to start on had no clean-install coverage (only unit tests).
+ *
+ * `record` is NOT exercised here: it needs a Finding that DECLARES the execution being recorded, and `new
+ * finding` declares none. Writing those declarations would be this script authoring a manifest by hand, which
+ * is what `src/record.test.ts` is for. See docs/contracts/setup.md.
+ */
+function adapterlessSetupStep(bin, project) {
+  const instance = join(work, "analytics-recorded");
+  const emptySkills = join(work, "no-skills");
+  const r = run(bin, [
+    "setup", "--instance", instance,
+    "--owner-name", "Recorded Path Owner", "--owner-contact", "owner@example.invalid",
+    "--skip-hook", "--json",
+  ], { cwd: project, env: { AFTERGRID_SKILLS_PATH: emptySkills, GITHUB_TOKEN: "", GH_TOKEN: "" } });
+  const report = json(r, "setup (no adapter)");
+  const info = infoText(report);
+
+  must(report.syntax === "ok", `an adapterless setup is not a usage error: ${JSON.stringify(report.errors)}`);
+  must(/step connection: skipped/.test(info), "with no adapter there is no connection to validate");
+  must(report.sql_execution === "not_performed", `no statement ran, so none is reported: ${report.sql_execution}`);
+  must(/step smoke: completed/.test(info), "new -> check -> draft render must run with no adapter anywhere");
+
+  const yaml = readFileSync(join(instance, "aftergrid.yaml"), "utf8");
+  must(/^\s*adapter: none$/m.test(yaml), "the recorded path must be stated in the file, not left as an absent block");
+  must(/`aftergrid execute` refuses on a Finding with no retained inputs/.test(yaml) && /`aftergrid execute` refuses on a Finding with no retained inputs/.test(info),
+    "execute is not unconditionally unavailable here, and neither the file nor the report may say it is");
+  must(/set `connection\.adapter` in .*aftergrid\.yaml/.test(info), "the upgrade must be named as an edit to the file setup never overwrites");
+
+  // The draft and its check, on the route with no adapter behind it.
+  const draft = newFindingStep(bin, project, instance).value;
+  checkStep(bin, project, draft);
+
+  // And the upgrade run on this same Instance: the file is kept, and the connection block is printed instead.
+  mkdirSync(join(instance, "data"), { recursive: true });
+  cpSync(join(REPO, "fixtures", "instance", "data", "subscriptions.csv"), join(instance, "data", "subscriptions.csv"));
+  const up = run(bin, ["setup", "--instance", instance, "--adapter", "duckdb", "--duckdb-path", "data", "--skip-hook", "--json"],
+    { cwd: project, env: { AFTERGRID_SKILLS_PATH: emptySkills, GITHUB_TOKEN: "", GH_TOKEN: "" } });
+  const upReport = json(up, "setup --adapter (upgrade)");
+  const upInfo = infoText(upReport);
+  must(readFileSync(join(instance, "aftergrid.yaml"), "utf8") === yaml, "setup overwrote an existing aftergrid.yaml");
+  must(/aftergrid\.yaml was kept, paste the block below/.test(upInfo), `the connection step reports an upgrade that did not happen: ${upInfo.split("\n").filter((l) => l.startsWith("step connection")).join(" | ")}`);
+  must(/\n {2}adapter: duckdb\n {2}duckdb:\n/.test(upInfo), "the connection block the remedies promise was not printed");
+
+  return { detail: `setup with no --adapter wrote adapter: none and completed its smoke; a draft checked incomplete with its coverage sentinels named; the --adapter rerun kept aftergrid.yaml and printed the connection block instead` };
 }
 
 /** A copy of the reviewed exemplar, supplied from this checkout's fixtures — they are not in the package. */
@@ -450,6 +502,8 @@ if (!QUICK && packed) {
       const draft = step("new-finding", () => newFindingStep(bin, project, setupResult.instance));
       if (draft) step("check", () => checkStep(bin, project, draft));
     }
+    // The default route (no --adapter): its own scratch Instance, so nothing above is disturbed.
+    step("setup-recorded-path", () => adapterlessSetupStep(bin, project));
     step("render-draft", () => renderStep(bin, project));
     step("decide", () => decideStep(bin, project));
     step("intake-fixture", () => intakeStep(project));

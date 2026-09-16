@@ -443,3 +443,39 @@ test("checked-analysis step 2 records each probe with its time, its kind, and th
   assert.ok(probe.required.includes("at") && probe.required.includes("kind"), JSON.stringify(probe.required));
   assert.deepEqual(probe.properties.kind.enum, ["exploratory", "dead_end", "reframe"]);
 });
+
+test("the DuckDB-binding warning is never relayed as `nothing to fix`, because rerun and execute open extracts through it", () => {
+  const skill = readFileSync(skillFile(REPO), "utf8");
+  const binding = skill.split("\n").filter((l) => /DuckDB binding/.test(l) || /runtime_unavailable/.test(l)).join("\n");
+  const section = skill.slice(skill.indexOf("runtime_unavailable` warning about the DuckDB binding"));
+  assert.notEqual(binding, "", "the skill must still tell the Operator what that warning means");
+
+  // The claim being guarded: on the recorded path the Engine opens no source — but `execute` and
+  // `check --mode rerun` open RETAINED extracts through this binding whatever `connection:` says, so an
+  // unqualified "nothing to fix" would be wrong for any Finding that already holds some.
+  const bullet = section.slice(0, section.indexOf("\n- ") === -1 ? 600 : section.indexOf("\n- "));
+  assert.match(bullet, /retained inputs/, `the qualification is missing: ${bullet}`);
+  assert.match(bullet, /check --mode rerun/);
+  assert.match(bullet, /configure the duckdb adapter/);
+  assert.doesNotMatch(bullet, /nothing to fix\.\s/, "an unqualified `nothing to fix.` is the wording this rule exists to prevent");
+
+  // The contract page says the same thing, in the words the report itself prints.
+  const doc = readFileSync(join(REPO, "docs", "contracts", "setup.md"), "utf8");
+  assert.match(doc, /not needed to produce a Finding on the recorded path/);
+  assert.match(doc, /needed to configure the duckdb adapter, and to run `execute` or `check --mode rerun` on any Finding that already holds retained inputs/);
+});
+
+test("`record` is documented as refusing any attestation, not only an approval", () => {
+  // src/commands/record.ts counts `manifest.attestations` and reads no type off them.
+  const impl = readFileSync(join(REPO, "src", "commands", "record.ts"), "utf8");
+  const refusal = impl.slice(impl.indexOf('err("stale_attestation"'), impl.indexOf('err("stale_attestation"') + 500);
+  assert.match(refusal, /attestation\(s\)/, "the refusal counts attestations");
+  assert.doesNotMatch(refusal, /approval/i, "and reads no approval off them");
+
+  for (const page of [join(REPO, "skills", "revise-finding", "SKILL.md"), join(REPO, "docs", "skills", "revise-finding.md")]) {
+    const text = readFileSync(page, "utf8");
+    const line = text.split(/\n\n/).find((p) => /stale_attestation/.test(p));
+    assert.ok(line, `${page} must say what record refuses`);
+    assert.match(line!, /any attestation/i, `${page} narrows the refusal to an approval: ${line}`);
+  }
+});

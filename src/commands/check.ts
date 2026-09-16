@@ -36,7 +36,7 @@ export async function check(opts: CheckOptions): Promise<Report> {
     report.info.push("rerun skipped: the artifact must verify before its SQL is re-executed");
     return report;
   }
-  const unavailable = rerunUnavailable(resolve(opts.dir));
+  const unavailable = rerunUnavailable(resolve(opts.dir), findInstance(resolve(opts.dir)));
   if (unavailable) {
     report.errors.push(unavailable);
     report.sql_execution = "not_performed";
@@ -54,23 +54,31 @@ export async function check(opts: CheckOptions): Promise<Report> {
  * aftergrid only wrote down what came back. Refusing it by name is the honest answer: the alternative is a crash,
  * or — worse — a rerun against some other input set reported as if it had reproduced the evidence.
  */
-export function rerunUnavailable(dir: string): Problem | null {
+export function rerunUnavailable(dir: string, instance?: { config?: any } | null): Problem | null {
   let manifest: any;
   try { manifest = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8")); } catch { return null; }
   const recorded = (manifest?.executions ?? []).filter((e: any) => e?.executed_by?.kind === "harness");
   const inputs = manifest?.snapshot?.inputs ?? [];
+  // Both remedies below send the Operator to `aftergrid capture`, which refuses outright on an Instance with no
+  // adapter (the default, ADR 0010). Naming it there without saying so would be a circle, so the Instance is
+  // read and the first step is named honestly. No Instance in hand means no claim either way.
+  const adapterName = String(instance?.config?.connection?.adapter ?? "");
+  const captureRefuses = !!instance && (adapterName === "" || adapterName === "none");
+  const firstStep = captureRefuses
+    ? ". On this Instance `capture` refuses too: set `connection.adapter` in aftergrid.yaml first, then capture and execute"
+    : "";
   if (recorded.length) {
     return {
       category: "rerun_unavailable", location: "manifest.yaml#/executions",
       message: `${recorded.length} execution(s) [${recorded.map((e: any) => e.id).join(", ")}] were run by ${[...new Set(recorded.map((e: any) => e.executed_by.tool))].join(", ")} and recorded, not run by aftergrid, so there is nothing here to rerun`,
-      remedy: "this Finding guarantees artifact_replay only. To be able to rerun it, capture the inputs the analysis needs (`aftergrid capture`) and run `aftergrid execute`, which earns analysis_rerun by observing it",
+      remedy: `this Finding guarantees artifact_replay only. To be able to rerun it, capture the inputs the analysis needs (\`aftergrid capture\`) and run \`aftergrid execute\`, which earns analysis_rerun by observing it${firstStep}`,
     };
   }
   if ((manifest?.executions ?? []).length && !inputs.length) {
     return {
       category: "rerun_unavailable", location: "manifest.yaml#/snapshot/inputs",
       message: "this Finding has no retained inputs, and a rerun re-executes the recorded SQL against retained inputs and never against a live source",
-      remedy: "run `aftergrid capture <finding-dir> --tables …` and `aftergrid execute` first; until then only `--mode artifact` says anything true about this Finding",
+      remedy: `run \`aftergrid capture <finding-dir> --tables …\` and \`aftergrid execute\` first; until then only \`--mode artifact\` says anything true about this Finding${firstStep}`,
     };
   }
   return null;
@@ -184,6 +192,31 @@ async function rerun(dir: string, report: Report) {
   if (report.errors.length) { report.evidence = "invalid"; report.readiness = "not_ready"; }
 }
 
+/** What `aftergrid new finding` writes into `coverage:` so the draft is schema-valid without inventing a window. */
+const COVERAGE_SENTINEL_DATE = "1970-01-01";
+const COVERAGE_SENTINEL_DESCRIPTION = /^not determined yet/i;
+const COVERAGE_REMEDY =
+  "fill coverage from what this analysis actually read — step 7 of /write-finding: the recorded execution parameters, or the retained inputs' own window. Never a date nobody read, and never one inferred from the Question";
+
+/**
+ * Coverage fields still holding the `new finding` scaffold's placeholders. These are not a schema problem — the
+ * sentinel is a valid date and a valid string — so nothing else catches them, and a Finding could be reported
+ * `content: complete` while telling a Reader it covers a single day in 1970.
+ */
+export function scaffoldCoverage(manifest: any): string[] {
+  const coverage = manifest?.coverage ?? {};
+  const gaps: string[] = [];
+  for (const field of ["data_from", "data_to"] as const) {
+    if (String(coverage[field] ?? "").slice(0, 10) === COVERAGE_SENTINEL_DATE) {
+      gaps.push(`coverage.${field} is still the \`new finding\` scaffold sentinel ${COVERAGE_SENTINEL_DATE}; no data was read for that date`);
+    }
+  }
+  if (typeof coverage.description === "string" && COVERAGE_SENTINEL_DESCRIPTION.test(coverage.description.trim())) {
+    gaps.push('coverage.description is still the `new finding` scaffold text ("Not determined yet…"), so this Finding does not say what it covers');
+  }
+  return gaps;
+}
+
 export function checkArtifact(opts: CheckOptions): Report {
   const report = emptyReport("check");
   const dir = resolve(opts.dir);
@@ -217,6 +250,14 @@ export function checkArtifact(opts: CheckOptions): Report {
     for (const m of missing) report.warnings.push({ category: "incomplete", location: "manifest.yaml", message: m });
   } else if (manifest) {
     report.content = "complete";
+  }
+  // `new finding` scaffolds coverage as sentinels, and nothing else detects them: a Finding could be marked
+  // `complete` while still saying it covers 1970. Coverage is what the analysis actually read, so a sentinel
+  // that survived into a finished Finding is an unwritten section, whatever `finding.state` says.
+  if (manifest) {
+    const gaps = scaffoldCoverage(manifest);
+    for (const g of gaps) report.warnings.push({ category: "incomplete", location: "manifest.yaml#/coverage", message: g, remedy: COVERAGE_REMEDY });
+    if (gaps.length) report.content = "incomplete";
   }
 
   // Decision records that cite this Finding must bind to it exactly (ADR 0009 schema, v0).

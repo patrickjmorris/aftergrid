@@ -99,9 +99,11 @@ Every error carries a remedy. Apply them and rerun the same command.
 - **`dependency_missing` for mattpocock-skills** — run the install line in the remedy
   (`claude plugins install mattpocock-skills`, or `npx skills@latest add mattpocock/skills`). `/grill-question`
   depends on `grilling` and `writing-for-agents`.
-- **A `runtime_unavailable` warning about the DuckDB binding, on an Instance with no adapter** — nothing to
-  fix. The Engine opens no source on the recorded path; the warning says the duckdb upgrade is not installable
-  yet, not that this setup is broken.
+- **A `runtime_unavailable` warning about the DuckDB binding, on an Instance with no adapter** — nothing to fix
+  *to produce a Finding on the recorded path*: no source is opened there. Say the rest too, because it is what
+  the warning says: the binding is needed to configure the duckdb adapter, and to run `execute` or
+  `check --mode rerun` on any Finding that already holds retained inputs — those open the extracts through it,
+  whatever `connection:` says. It is not a broken setup, and it is not "unused here".
 - **`missing_credential`** — export the named environment variable and rerun.
 - **`write_capable_role`** — create a read-only role with the `GRANT` statements in the remedy and point the
   connection string at it. Do not look for a flag to accept the write-capable role; there is not one.

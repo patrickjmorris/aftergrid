@@ -61,12 +61,37 @@ What every consumer does with it:
 | `aftergrid record` | Works. This is the route: the harness ran the SQL, `record` pins the query, the parameters, the result and the tool. `snapshot.guarantees` is `[artifact_replay]`. |
 | `aftergrid check` (`--mode artifact`) | Works, unchanged. Every hash is verified. |
 | `aftergrid check --mode rerun` | `rerun_unavailable`, for the reason it always gives: the executions were recorded rather than run by aftergrid, or there are no retained inputs. Nothing about this is new; a recorded Finding is refused the same way in an Instance that *has* an adapter. |
-| `aftergrid capture` | Refused with `recorded_path` at `aftergrid.yaml#/connection/adapter`. There is no source to copy from. The remedy names `aftergrid record …` and, second, the `setup --adapter …` upgrade. |
+| `aftergrid capture` | Refused with `recorded_path` at `aftergrid.yaml#/connection/adapter`. There is no source to copy from. The remedy names `aftergrid record …` and, second, the upgrade — **set `connection.adapter` in `<instance>/aftergrid.yaml`**, with `setup --adapter …` offered as the way to *print* the block. It does not name a rerun of setup as the fix, because setup would not change the file. |
 | `aftergrid execute` | Refused with `recorded_path` when the Finding has no retained inputs — which is every Finding on this route, because `capture` is what creates them. A Finding that already holds retained extracts still executes against them: `execute` reads the extracts and never the Instance connection, so refusing it over a config field that is not consulted would be a refusal with no reason behind it. |
 | `aftergrid render`, `decide`, `review`, `revise` | Unaffected. None of them opens a source. |
 | `aftergrid intake` (unattended) | Still refused, with its existing `source_limits_missing`, and the message now says why in the Instance's own terms: there is no adapter to enforce a statement timeout or a row cap on a query nobody is watching. Run the Analysis attended, or configure an adapter. |
 | The guardrail hook | Unaffected. `policyFrom` records `connection.adapter` and gates on none of it; with no adapter it simply has no configured source path to recognise, and every refusal it makes is the one it made before. |
 | Publication readiness | Unaffected. It is a fact about a Finding, verified per Finding, and no route to it runs through a connection. |
+
+### Upgrading an Instance that already has an `aftergrid.yaml`
+
+Setup never overwrites a file, and `aftergrid.yaml` is not an exception. So on an Instance that already has one,
+`aftergrid setup --adapter duckdb --duckdb-path …` **does not change which adapter the Instance uses**. What it
+does is real but narrower: it opens and probes the source that was named, reports the capability matrix it read,
+reports the existing file as `kept (differs from what setup would write)`, and **prints the `connection:` block
+it would have written** so the Operator can paste it in. The connection step says exactly that:
+
+```
+step connection: completed — duckdb source opened and its capability matrix read from the adapter itself;
+aftergrid.yaml was kept, paste the block below into it — until you do, this Instance still reads whatever its
+own connection: block says
+```
+
+A bare `step connection: completed` on a run that changed nothing would be the one thing setup must never do:
+report an upgrade that did not happen. Every remedy elsewhere in the Engine that points at the adapter therefore
+names **`connection.adapter` in `<instance>/aftergrid.yaml`** as the fix, and `setup --adapter …` only as the
+way to print the block.
+
+### Passing a source with no adapter
+
+`--duckdb-path` or `--pg-url-env` with no `--adapter` is refused as `incomplete` at `--adapter`, before anything
+is written. The alternative — dropping the flag and writing an adapterless Instance — would report a clean setup
+for a run that ignored the warehouse the Operator just named.
 
 ## The six steps
 
@@ -94,7 +119,7 @@ would advertise a Reader who does not exist.
 | --- | --- | --- |
 | Node 22.18+ or 24+ | yes | `process.versions.node`. The 23 line reports `unknown` with its reason: it is not a line aftergrid is tested on. |
 | `mattpocock-skills` | yes | A directory named `grilling` **and** one named `writing-for-agents`, each holding a `SKILL.md`, under the Claude Code skill/plugin directories (or `AFTERGRID_SKILLS_PATH`). Missing → the exact install line. |
-| DuckDB prebuilt binding | only with an adapter | `@duckdb/node-api` imports and exposes `DuckDBInstance`. Hard for `--adapter duckdb` and `--adapter postgres` (a Postgres rerun opens retained extracts through DuckDB). With no adapter the Engine opens it for nothing, so its absence is a **warning** naming it as an upgrade that is not available yet, never a missing requirement of a route that does not use it. |
+| DuckDB prebuilt binding | only with an adapter | `@duckdb/node-api` imports and exposes `DuckDBInstance`. Hard for `--adapter duckdb` and `--adapter postgres` (a Postgres rerun opens retained extracts through DuckDB). With no adapter it is a **warning**, worded as what it is: *not needed to produce a Finding on the recorded path; needed to configure the duckdb adapter, and to run `execute` or `check --mode rerun` on any Finding that already holds retained inputs* — those open the extracts through this binding, whatever `connection:` says. It is never reported as a missing requirement of the route the Instance is on. |
 | `initdb` / `pg_ctl` | no | Postgres only. Absent → `rerun unavailable, artifact replay available`; a rerun never falls back to the live source. |
 
 A missing hard dependency is an **error with a remedy** and does not stop the remaining steps: you see every
@@ -108,9 +133,12 @@ Validated through the real adapters, never through a config field.
 **No adapter.** The step is `skipped`, and nothing is claimed about a source that was never opened:
 `sql_execution` stays `not_performed` and no capability matrix is printed. What is reported instead is what the
 route gives (`artifact_replay`, verified hashes, the `aftergrid record` invocation that produces it) and what it
-does not (`capture` and `execute` refuse, `check --mode rerun` answers `rerun_unavailable`, Revisit is
-unavailable, unattended intake stays refused with `source_limits_missing`), plus the `setup --adapter …` line
-that upgrades it. A skipped connection step does **not** make the setup `incomplete`.
+does not (`capture` refuses; `execute` refuses on a Finding with no retained inputs, and still runs on one that
+has them; `check --mode rerun` answers `rerun_unavailable` for a recorded Finding; Revisit needs a Finding that
+can be rerun; unattended intake stays refused with `source_limits_missing`), plus the line that upgrades it —
+set `connection.adapter` in `<instance>/aftergrid.yaml`, with `setup --adapter …` naming itself as the way to
+print the block, never as something that edits the file. A skipped connection step does **not** make the setup
+`incomplete`.
 
 **DuckDB.** The source is opened by `DuckDbAdapter` (a `.duckdb` file `READ_ONLY`, or a CSV directory
 materialised into a sealed in-memory database) and its catalogue is read, so the report is evidence that a
@@ -228,3 +256,17 @@ in `info`, and it is `capture` and `execute` that refuse with it. Reused: `solo_
   untested until someone runs it against a real repository.
 - **Any harness other than Claude Code.** The hook step installs into Claude Code settings; equivalent safety
   elsewhere is not claimed.
+
+## What the clean-install smoke covers on this route
+
+`scripts/pack-smoke.mjs` drives the **packed** CLI, and its `setup-recorded-path` step runs the default route
+end to end: `setup` with no `--adapter`, then `new finding` and `check` in the Instance it wrote, then an
+`aftergrid setup --adapter duckdb` rerun over that same Instance to prove the file is kept and the `connection:`
+block is printed instead of applied.
+
+**`aftergrid record` is not exercised there**, and that is a gap covered only by unit tests
+(`src/record.test.ts`). `record --execution <id>` needs a Finding that *declares* the execution being recorded —
+a query, an execution and a result set, bound to each other — and `new finding` declares none. Making the smoke
+Finding recordable would mean this script hand-authoring a manifest, which is evidence about the script rather
+than about the packed CLI. Until the scaffold declares an execution, the recorded write path through the
+installed binary is untested.

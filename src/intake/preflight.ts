@@ -113,7 +113,7 @@ function sourceLimits(instance: Instance, facts: string[]): Problem[] {
   if (adapter === "none" || adapter === "") {
     return missing(
       "this Instance configures no adapter (the recorded path, ADR 0010), so an unattended run has no adapter to enforce a statement timeout or a row cap on a query nobody is watching",
-      "run this Analysis attended — your harness runs the SQL and `aftergrid record` writes down what it ran — or configure an adapter with its limits (`aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>`, or `--adapter postgres --pg-url-env <ENV_VAR_NAME>`), as docs/contracts/instance-layout.md shows",
+      "run this Analysis attended — your harness runs the SQL and `aftergrid record` writes down what it ran — or set `connection.adapter` in aftergrid.yaml to duckdb or postgres with its limits, as docs/contracts/instance-layout.md shows; setup never overwrites that file, so `aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>` (or `--adapter postgres --pg-url-env <ENV_VAR_NAME>`) prints the block for you to paste in",
     );
   }
   return missing(`connection.adapter is '${adapter}', which has no declared limits for an unattended run`, "set connection.adapter to duckdb or postgres with its limits, as docs/contracts/instance-layout.md shows");

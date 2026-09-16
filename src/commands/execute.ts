@@ -23,7 +23,7 @@
 // match its declared columns aborts the run and writes nothing; a Check that honestly records `fail` is data
 // and is written down (a failing `minimum_data` Check is how a Finding reaches `insufficient_data`).
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import { emptyReport, type Problem, type Report } from "../report.ts";
@@ -109,7 +109,7 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     if (adapterName === "" || adapterName === "none") {
       err("recorded_path", "aftergrid.yaml#/connection/adapter",
         `this Finding has no retained inputs and this Instance configures no adapter (${adapterName === "" ? "no connection.adapter" : "connection.adapter: none"}) to capture any with, so there is nothing for execute to run and it never reads a live source`,
-        'on the recorded path your harness runs the query and `aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>` writes down the SQL, the parameters, the result and the tool that produced them; the Finding then guarantees artifact_replay and `check --mode rerun` answers rerun_unavailable. To earn analysis_rerun instead, configure an adapter (`aftergrid setup --instance <dir> --adapter duckdb --duckdb-path <file-or-csv-dir>`), then `aftergrid capture` and rerun this command. Nothing was run and nothing was written.');
+        `on the recorded path your harness runs the query and \`aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>\` writes down the SQL, the parameters, the result and the tool that produced them; the Finding then guarantees artifact_replay and \`check --mode rerun\` answers rerun_unavailable. To earn analysis_rerun instead, set \`connection.adapter\` in ${join(instance.root, "aftergrid.yaml")} to duckdb or postgres with its block (setup never overwrites that file: run \`aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>\` to print the block and paste it in), then \`aftergrid capture\` and rerun this command. Nothing was run and nothing was written.`);
       return report;
     }
     err("incomplete", "manifest.yaml#/snapshot/inputs", "this Finding has no retained inputs, and execute never reads a live source",

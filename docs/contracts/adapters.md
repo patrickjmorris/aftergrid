@@ -11,8 +11,20 @@ earns `analysis_rerun`, which unlocks `check --mode rerun` and Revisit. That is 
 why no further connectors are built: a warehouse the Operator can reach from the harness is reachable enough.
 
 An Instance may therefore configure no adapter at all — `connection: { adapter: none }`, which is what
-`aftergrid setup` writes when no `--adapter` is given (`docs/contracts/setup.md`). `capture` and `execute` then
-refuse with `recorded_path`, naming `aftergrid record`; everything that does not open a source is unaffected.
+`aftergrid setup` writes when no `--adapter` is given, and only into a file it is creating: setup never
+overwrites an existing `aftergrid.yaml`, so on an Instance that already has one it prints the `connection:`
+block instead (`docs/contracts/setup.md`). What that costs is narrower than "the source commands stop working":
+
+- `capture` refuses with `recorded_path`, naming `aftergrid record`. There is no source to copy from.
+- `execute` refuses with `recorded_path` **on a Finding with no retained inputs** — there is nothing to run
+  against, and no adapter to capture any with. A Finding that already holds retained inputs still executes
+  normally, because `execute` reads those extracts and never a live source.
+- `check --mode rerun` answers `rerun_unavailable` for a **recorded** Finding, or for one with no retained
+  inputs. Rerun never reads `connection:` at all: it opens the retained extracts, so a Finding that holds them
+  reruns on an adapterless Instance exactly as it does anywhere else.
+- Unattended intake stays refused with `source_limits_missing`: limits are an adapter's to declare.
+
+Everything that does not open a source is unaffected.
 
 Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (the seam-2 tests in `src/adapters/*.test.ts`), never assumed. An unsupported required capability fails or takes an explicit, recorded fallback; it never reports a green capability or a zero cost.
 

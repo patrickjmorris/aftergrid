@@ -120,8 +120,9 @@ Three things that hold here, and nothing beyond them:
 - `record` **re-pins** what it is given — the SQL, the parameters, the result and their hashes, and the
   `content_digest` over them. It does **not** archive anything and does **not** bump `finding.revision`.
   `revisions/<N>/` comes from `aftergrid revise --pin` or `--apply`, and step 2 is where that happened.
-- Recording into a revision that carries attestations is **refused** (`stale_attestation`): evidence is inside
-  the digest an approval binds to. Bump `finding.revision` first and record into the new revision, which is
+- Recording into a revision that carries **any attestation** is **refused** (`stale_attestation`) — an approval,
+  and equally any other kind; the refusal counts attestations, it does not read their type. Evidence is inside
+  the digest an attestation binds to. Bump `finding.revision` first and record into the new revision, which is
   what the refusal itself says. Revision N stays readable in `revisions/<N>/`.
 - Pin the reviewed state **before** re-recording, not after. Once the new result is recorded, a `--pin` at the
   same revision number reports `exists`, because `revisions/<N>/` already archives a different digest — the one

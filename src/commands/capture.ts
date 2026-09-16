@@ -22,7 +22,7 @@
 //     is provenance inside the content digest, and the one thing it may not do is claim a bound the capture did
 //     not apply.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
@@ -96,7 +96,7 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
   if (adapterName === "" || adapterName === "none") {
     err("recorded_path", "aftergrid.yaml#/connection/adapter",
       `this Instance configures no adapter (${adapterName === "" ? "no connection.adapter" : "connection.adapter: none"}), so there is no source to capture from; nothing was read and nothing was written`,
-      'on the recorded path your harness runs the query and `aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>` writes down the SQL, the parameters, the result and the tool that produced them — the Finding then guarantees artifact_replay. To capture retained inputs instead, configure an adapter first: `aftergrid setup --instance <dir> --adapter duckdb --duckdb-path <file-or-csv-dir>` (or `--adapter postgres --pg-url-env <ENV_VAR_NAME>`).');
+      `on the recorded path your harness runs the query and \`aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file>\` writes down the SQL, the parameters, the result and the tool that produced them — the Finding then guarantees artifact_replay. To capture retained inputs instead, set \`connection.adapter\` in ${join(instance.root, "aftergrid.yaml")} to duckdb or postgres with its block; setup never overwrites that file, so run \`aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>\` (or \`--adapter postgres --pg-url-env <ENV_VAR_NAME>\`) to print the block and paste it in yourself.`);
     return report;
   }
 

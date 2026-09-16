@@ -34,8 +34,13 @@ instance_root: analytics
 connection:
   adapter: none | duckdb | postgres   # none is the default: the recorded path (ADR 0010, docs/contracts/record.md),
                                       # where the harness runs the SQL and `aftergrid record` writes it down.
-                                      # With none, the duckdb/postgres blocks below are absent, `capture` and
-                                      # `execute` refuse with `recorded_path`, and unattended intake stays refused.
+                                      # With none, the duckdb/postgres blocks below are absent; `capture` refuses
+                                      # with `recorded_path`; `execute` refuses with `recorded_path` on a Finding
+                                      # with no retained inputs, and still runs on one that has them; `check
+                                      # --mode rerun` answers `rerun_unavailable` for a recorded Finding, and
+                                      # never reads this block; unattended intake stays refused.
+                                      # `aftergrid setup --adapter …` PRINTS this block for an Instance that
+                                      # already has an aftergrid.yaml; setup never overwrites this file.
   # secrets are referenced, never stored
   duckdb: { path: data/warehouse.duckdb, read_only: true }
   postgres: { url_env: AFTERGRID_PG_URL, statement_timeout_ms: 30000, estimate_cap: 1000000 }

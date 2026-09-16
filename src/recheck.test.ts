@@ -158,3 +158,39 @@ test("Decision records bind to an existing Finding revision, its digest, its Cla
   write({ ...good, id: "dec_other0000001", finding: { ...good.finding, id: "fnd_000000000000" } }, "dec_other0000001");
   assert.equal((await check({ dir })).evidence, "valid");
 });
+
+/* ------------------------------------------------ the `new finding` coverage sentinels (ag-q2l) */
+
+test("scaffolded coverage sentinels keep a Finding content-incomplete even when its state says complete", async () => {
+  const root = copyInstance();
+  const pristine = join(root, "analytics", "findings", NUMERIC);
+  const control = await check({ dir: pristine, github: null });
+  assert.equal(control.content, "complete", "the exemplar carries real coverage and is the control for this rule");
+  assert.equal(control.warnings.filter((w) => w.location === "manifest.yaml#/coverage").length, 0);
+
+  // `aftergrid new finding` writes exactly these: a valid date and a valid string, so no schema rule catches
+  // them, and a Finding could be marked complete while telling a Reader it covers one day in 1970.
+  const dir = mutate(root, NUMERIC, (m) => {
+    m.coverage = { data_from: "1970-01-01", data_to: "1970-01-01", description: "Not determined yet. No data has been read." };
+  });
+  const report = await check({ dir, github: null });
+  assert.equal(report.state, "complete", "the state field is untouched: this is not a draft");
+  assert.equal(report.content, "incomplete", "a Finding that has not said what it covers is not content-complete");
+
+  const gaps = report.warnings.filter((w) => w.location === "manifest.yaml#/coverage");
+  assert.equal(gaps.length, 3, `data_from, data_to and the description are each named: ${JSON.stringify(report.warnings)}`);
+  assert.ok(gaps.every((g) => g.category === "incomplete"));
+  for (const g of gaps) {
+    assert.match(g.remedy ?? "", /step 7 of \/write-finding/, "the remedy names where the answer comes from");
+    assert.match(g.remedy ?? "", /recorded execution parameters, or the retained inputs' own window/);
+    assert.match(g.remedy ?? "", /[Nn]ever a date nobody read/, "coverage is read off the analysis, never invented");
+  }
+
+  // One sentinel is enough, and only the field holding it is named.
+  const oneField = mutate(root, NUMERIC, (m) => { m.coverage.data_to = "1970-01-01"; });
+  const partial = await check({ dir: oneField, github: null });
+  assert.equal(partial.content, "incomplete");
+  const named = partial.warnings.filter((w) => w.location === "manifest.yaml#/coverage");
+  assert.equal(named.length, 1, JSON.stringify(named));
+  assert.match(named[0]!.message, /coverage\.data_to/);
+});

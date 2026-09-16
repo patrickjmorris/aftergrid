@@ -56,8 +56,9 @@ that ran it before, and `aftergrid record <dir> --tool "<name>" --execution <id>
 run down. `record` re-pins the SQL, the parameters, the result and the content digest; it does **not** archive
 anything and does **not** bump `finding.revision`. Archiving is `aftergrid revise --pin` or `--apply`, and it
 belongs **before** the re-record: afterwards a `--pin` at the same revision number reports `exists`, because
-`revisions/<N>/` already holds the digest somebody reviewed. If the revision carries an approval, `record`
-refuses outright (`stale_attestation`) and tells you to bump `finding.revision` and record into the new one.
+`revisions/<N>/` already holds the digest somebody reviewed. If the revision carries **any attestation** — an
+approval, and equally any other kind — `record` refuses outright (`stale_attestation`) and tells you to bump
+`finding.revision` and record into the new one.
 
 **It says `unknown`.** There is no baseline to compare against. Run `aftergrid revise <dir> --pin` on the
 Finding as it was reviewed, or pass `--baseline <dir>` naming a copy of it.

@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { newFinding } from "./commands/new-finding.ts";
 import { record, parseCsv, readResultFile, evidenceDestination } from "./commands/record.ts";
-import { check } from "./commands/check.ts";
+import { check, rerunUnavailable } from "./commands/check.ts";
+import { findInstance } from "./instance.ts";
 // @ts-ignore: the shared digest envelope, the one `check` verifies against.
 import { digestOf, schemaErrors } from "../scripts/lib/validate-finding.mjs";
 
@@ -51,11 +52,14 @@ const UNIQUE_SQL = "select count(*) = count(distinct subscription_id) as pass, '
 /** A fresh unpinned hash each time: one shared object would make `yaml` emit anchors and aliases. */
 const ZERO = () => ({ algorithm: "sha256", value: "0".repeat(64) });
 
+/** The recorded path with no adapter configured either — what an adapterless `aftergrid setup` writes. */
+const ADAPTERLESS_YAML = AFTERGRID_YAML.replace(/connection:\n(?:  .*\n)+/, "connection:\n  adapter: none\n");
+
 /** An Instance with no source at all: on the recorded path there is nothing for aftergrid to connect to. */
-function scratchInstance(): string {
+function scratchInstance(opts: { adapterless?: boolean } = {}): string {
   const root = join(mkdtempSync(join(tmpdir(), "ag-record-")), "analytics");
   mkdirSync(join(root, "definitions"), { recursive: true });
-  writeFileSync(join(root, "aftergrid.yaml"), AFTERGRID_YAML);
+  writeFileSync(join(root, "aftergrid.yaml"), opts.adapterless ? ADAPTERLESS_YAML : AFTERGRID_YAML);
   writeFileSync(join(root, "readers.md"), READERS_MD);
   return root;
 }
@@ -65,8 +69,8 @@ function scratchInstance(): string {
  * and one Check. `input_ids` is empty and `mode` is `recorded` — the harness reaches the source, and this Finding
  * retains nothing. Nothing is pinned yet; that is `record`'s job.
  */
-function declaredFinding(opts: { withSqlFile?: boolean; checks?: boolean } = {}): { dir: string; instanceRoot: string } {
-  const instanceRoot = scratchInstance();
+function declaredFinding(opts: { withSqlFile?: boolean; checks?: boolean; adapterless?: boolean } = {}): { dir: string; instanceRoot: string } {
+  const instanceRoot = scratchInstance({ adapterless: opts.adapterless });
   const created = newFinding({ slug: "price-change-cancellations", ask: "Did the price increase make more people cancel?", reader: "product_owner", instanceDir: instanceRoot, date: "2026-09-16" });
   assert.deepEqual(created.errors, [], JSON.stringify(created.errors));
   const dir = join(instanceRoot, "findings", "2026-09-16-price-change-cancellations");
@@ -299,6 +303,41 @@ test("check --mode rerun refuses a recorded Finding by name instead of crashing 
   assert.match(problem!.remedy ?? "", /aftergrid capture/);
   assert.equal(report.sql_execution, "not_performed", "nothing ran, and the report does not say otherwise");
   assert.ok(!report.info.some((i) => /reproduced/.test(i)));
+  assert.equal(/capture` refuses too/.test(problem!.remedy ?? ""), false,
+    "this Instance configures duckdb, so `capture` really is the first step and nothing extra is claimed");
+});
+
+test("the rerun_unavailable remedy does not send an adapterless Instance to `capture`, which refuses there too", async () => {
+  // Both rerun_unavailable remedies name `aftergrid capture` as the first step. On the default, adapterless
+  // Instance `capture` refuses outright, so the remedy has to name the step that actually comes first (ag-q2l).
+  const { dir } = declaredFinding({ checks: false, adapterless: true });
+  await record({ dir, tool: "psql", execution: "ex_cancellations", result: toolOutput("r.json", JSON_RESULT), params: ["change_date=2026-09-08"] });
+
+  const report = await check({ dir, mode: "rerun", github: null });
+  const problem = report.errors.find((e) => e.category === "rerun_unavailable");
+  assert.ok(problem, JSON.stringify(report.errors));
+  assert.match(problem!.remedy ?? "", /[Oo]n this Instance `capture` refuses too/,
+    `the remedy sends the Operator to a command that refuses on this Instance: ${problem!.remedy}`);
+  assert.match(problem!.remedy ?? "", /set `connection\.adapter` in aftergrid\.yaml first, then capture and execute/);
+  assert.equal(report.sql_execution, "not_performed");
+});
+
+test("a Finding with executions but no retained inputs gets the same first step named, and only when it is true", () => {
+  const { dir, instanceRoot } = declaredFinding({ checks: false, adapterless: true });
+  // Nothing recorded and nothing captured: the second rerun_unavailable branch, with the same capture remedy.
+  const adapterless = rerunUnavailable(dir, findInstance(dir));
+  assert.ok(adapterless, "a Finding with executions and no retained inputs cannot be rerun");
+  assert.equal(adapterless!.location, "manifest.yaml#/snapshot/inputs");
+  assert.match(adapterless!.remedy ?? "", /[Oo]n this Instance `capture` refuses too/);
+
+  // The same Finding under an Instance that HAS an adapter keeps the plain remedy: capture really is the step.
+  writeFileSync(join(instanceRoot, "aftergrid.yaml"), AFTERGRID_YAML);
+  const withAdapter = rerunUnavailable(dir, findInstance(dir));
+  assert.ok(withAdapter);
+  assert.equal(/capture` refuses too/.test(withAdapter!.remedy ?? ""), false, withAdapter!.remedy);
+
+  // And with no Instance in hand, nothing is claimed either way.
+  assert.equal(/capture` refuses too/.test(rerunUnavailable(dir)!.remedy ?? ""), false);
 });
 
 // ---------------------------------------------------------------- agent-reported Check outcomes

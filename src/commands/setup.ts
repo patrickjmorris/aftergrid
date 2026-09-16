@@ -17,7 +17,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { hook } from "./hook.ts";
-import { applyScaffold, describeOutcome, scaffoldFiles, type ConnectionSpec, type ScaffoldOutcome } from "../setup/scaffold.ts";
+import { applyScaffold, connectionBlock, describeOutcome, scaffoldFiles, type ConnectionSpec, type ScaffoldOutcome } from "../setup/scaffold.ts";
 import { checkDuckDbBinding, checkNodeVersion, checkPostgresRuntime, defaultSkillsSearchPaths, describeDependency, findSkillsBundle, type DependencyResult } from "../setup/dependencies.ts";
 import { validateConnection } from "../setup/connection.ts";
 import { createPreflightClient, publicationPreflight, RUNBOOK, type PreflightClient } from "../setup/preflight.ts";
@@ -105,6 +105,15 @@ export async function setup(opts: SetupOptions): Promise<Report> {
     report.syntax = "invalid";
     return report;
   }
+  // A source with no adapter to read it. Silently dropping the flag would write an adapterless Instance that
+  // never opens the warehouse the Operator just named, and report it as a clean setup.
+  if (adapter === "none" && (opts.duckdbPath || opts.pgUrlEnv)) {
+    const given = [opts.duckdbPath ? "--duckdb-path" : null, opts.pgUrlEnv ? "--pg-url-env" : null].filter(Boolean).join(" and ");
+    err("incomplete", "--adapter", `a source was given (${given}) but no adapter was asked for, and an Instance with no adapter never opens it`,
+      "pass --adapter duckdb|postgres — --duckdb-path belongs to duckdb and --pg-url-env to postgres. Drop the source flag to stay on the recorded path, where your harness runs the SQL and `aftergrid record` writes it down. Nothing was written");
+    report.syntax = "invalid";
+    return report;
+  }
 
   report.finding = undefined;
   report.info.push(`instance: ${instanceRoot}${dryRun ? " (dry run: nothing is written)" : ""}`);
@@ -169,6 +178,10 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   }
   for (const o of outcomes) report.info.push(`scaffold: ${describeOutcome(o)}`);
   const differs = outcomes.filter((o) => o.status === "kept_differs" || o.status === "would_keep_differs");
+  // Which file differs matters for step 3: an `aftergrid.yaml` that was kept means the adapter this run was
+  // asked for is NOT the adapter this Instance now uses, however well the source itself probed.
+  const yamlPath = join(instanceRoot, "aftergrid.yaml");
+  const yamlKeptDiffers = differs.some((o) => o.rel === "aftergrid.yaml");
   for (const o of differs) {
     warn("exists", o.path, `${o.rel} differs from what setup would write and was kept as it is`, "setup never overwrites. If you want the scaffolded version, move your copy aside and rerun; otherwise nothing needs doing.");
   }
@@ -178,15 +191,16 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   if (!dryRun) record("scaffold", "completed", `${outcomes.filter((o) => o.status === "created").length} created, ${differs.length} kept and different`);
 
   // ---- step 2: hard dependencies --------------------------------------------------------------------------
-  // The DuckDB binding is hard for an Instance that reads through it. On the recorded path nothing in the
-  // Engine opens it, so its absence is reported as what it is — an upgrade that is not available yet — rather
-  // than as a missing requirement of a route that does not use it.
+  // The DuckDB binding is hard for an Instance that reads through it. Producing a Finding on the recorded path
+  // opens it for nothing, so its absence is reported as what it is — an upgrade that is not available yet —
+  // rather than as a missing requirement of a route that does not use it. It is not "unused here": `execute`
+  // and `check --mode rerun` open retained extracts through it on any Finding that already holds some.
   const duckdbBinding = await checkDuckDbBinding();
   const deps: DependencyResult[] = [
     checkNodeVersion(),
     findSkillsBundle(opts.skillsSearchPaths ?? defaultSkillsSearchPaths(cwd, env)),
     adapter === "none"
-      ? { ...duckdbBinding, hard: false, detail: `${duckdbBinding.detail}${duckdbBinding.status === "present" ? "" : " — not needed on the recorded path, which runs no SQL from the Engine; it is needed to configure the duckdb adapter later"}` }
+      ? { ...duckdbBinding, hard: false, detail: `${duckdbBinding.detail}${duckdbBinding.status === "present" ? "" : " — not needed to produce a Finding on the recorded path; needed to configure the duckdb adapter, and to run `execute` or `check --mode rerun` on any Finding that already holds retained inputs"}` }
       : duckdbBinding,
   ];
   if (adapter === "postgres") deps.push(checkPostgresRuntime());
@@ -211,9 +225,9 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   if (adapter === "none") {
     connectionSettled = true;
     report.info.push("connection: no adapter is configured, so nothing was opened, no statement ran and no privilege was probed. This Instance is on the recorded path (ADR 0010): your harness runs the SQL with its own tool and `aftergrid record <finding-dir> --tool \"<name>\" …` writes down the query, the parameters, the result and the tool that produced them.");
-    report.info.push("connection: what a Finding gets here — artifact_replay, so the saved results replay byte for byte and every hash is verified by `aftergrid check`. What it does not get — analysis_rerun: `aftergrid capture` and `aftergrid execute` refuse and name `aftergrid record`, `aftergrid check --mode rerun` answers `rerun_unavailable`, and a Finding that cannot be rerun cannot be revisited.");
+    report.info.push("connection: what a Finding gets here — artifact_replay, so the saved results replay byte for byte and every hash is verified by `aftergrid check`. What it does not get — analysis_rerun: `aftergrid capture` refuses and names `aftergrid record`; `aftergrid execute` refuses on a Finding with no retained inputs and names it too, while a Finding that already holds retained inputs still executes, because execute never reads a live source; `aftergrid check --mode rerun` answers `rerun_unavailable` for a recorded Finding; and a Finding that cannot be rerun cannot be revisited.");
     report.info.push("connection: unattended intake stays refused while there is no adapter — source limits are an adapter's to declare, and preflight reports `source_limits_missing` (docs/contracts/intake.md).");
-    report.info.push("connection: to upgrade, rerun setup with --adapter duckdb --duckdb-path <file-or-csv-dir>, or --adapter postgres --pg-url-env <ENV_VAR_NAME>. aftergrid.yaml is never overwritten, so copy the connection block setup prints into your own file.");
+    report.info.push(`connection: to upgrade, set \`connection.adapter\` in ${join(instanceRoot, "aftergrid.yaml")} to duckdb or postgres with its block. Setup never overwrites that file, so \`aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>\` (or \`--adapter postgres --pg-url-env <ENV_VAR_NAME>\`) prints the block for you to paste in; it does not edit it.`);
     report.info.push(stepLine("connection", "skipped", "no adapter was configured; the recorded path is the default and needs none. Nothing about any source's safety is claimed, because no source was opened."));
     if (!dryRun) record("connection", "skipped", "adapter=none (recorded path)");
   } else {
@@ -227,10 +241,20 @@ export async function setup(opts: SetupOptions): Promise<Report> {
     if (connection.sqlExecuted) report.sql_execution = "performed";
     const connectionOk = connection.validated && connection.problems.length === 0;
     connectionSettled = connectionOk;
+    // An adapter was asked for, the source was opened and probed — and `aftergrid.yaml` already existed and did
+    // not match, so setup kept the Operator's copy and this run changed nothing about which adapter the Instance
+    // uses. Reporting `completed` alone would read as an upgrade that happened. The block that *would* have been
+    // written is printed instead, because a remedy that says "copy the block setup prints" has to print one.
     report.info.push(stepLine("connection", connectionOk ? "completed" : "incomplete", connectionOk
-      ? `${adapter} source opened and its capability matrix read from the adapter itself`
+      ? yamlKeptDiffers
+        ? `${adapter} source opened and its capability matrix read from the adapter itself; aftergrid.yaml was kept, paste the block below into it — until you do, this Instance still reads whatever its own connection: block says`
+        : `${adapter} source opened and its capability matrix read from the adapter itself`
       : `the ${adapter} source was not validated; nothing about its safety is claimed`));
-    if (!dryRun) record("connection", connectionOk ? "completed" : "incomplete", `${adapter} validated=${connection.validated}`);
+    if (yamlKeptDiffers) {
+      report.info.push(`connection: ${yamlPath} already exists and differs from what setup would write, so it was kept as it is and this run changed nothing about which adapter this Instance uses. Setup never overwrites it.`);
+      report.info.push(`connection: paste this block into ${yamlPath}, replacing its \`connection:\` block:\n\n${connectionBlock(connectionSpec)}`);
+    }
+    if (!dryRun) record("connection", connectionOk ? "completed" : "incomplete", `${adapter} validated=${connection.validated}${yamlKeptDiffers ? " aftergrid.yaml=kept_differs (the block was printed, not applied)" : ""}`);
   }
 
   // ---- step 4: the guardrail hook -------------------------------------------------------------------------
@@ -262,7 +286,7 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   }
 
   // ---- step 5: publication preflight ----------------------------------------------------------------------
-  const policyPath = join(instanceRoot, "aftergrid.yaml");
+  const policyPath = yamlPath;
   const configured = !!(opts.repository || opts.automationLogin || opts.trustedApprovers?.length);
   const client = opts.preflightClient !== undefined ? opts.preflightClient
     : opts.github !== undefined ? opts.github
@@ -329,7 +353,7 @@ export async function setup(opts: SetupOptions): Promise<Report> {
   }
 
   if (adapter === "none") {
-    report.info.push("adapter: not configured. Findings in this Instance are produced on the recorded path — your harness runs the SQL, `aftergrid record` writes down what it ran, and the Finding guarantees artifact_replay. `aftergrid capture` and `aftergrid execute` refuse here, `check --mode rerun` answers rerun_unavailable, and Revisit is unavailable until an adapter is configured and the inputs are captured. That is a stated cost of the default route, not a failed step.");
+    report.info.push("adapter: not configured. Findings in this Instance are produced on the recorded path — your harness runs the SQL, `aftergrid record` writes down what it ran, and the Finding guarantees artifact_replay. `aftergrid capture` refuses here; `aftergrid execute` refuses on a Finding with no retained inputs, and runs on one that already holds them; `check --mode rerun` answers rerun_unavailable for a recorded Finding; and Revisit is unavailable until an adapter is configured and the inputs are captured. That is a stated cost of the default route, not a failed step.");
   }
   report.info.push("what setup did not verify: that your data is correct, that the trusted approver will read a Finding, that the guard covers a query path it says it does not cover, and that any Finding is approved. docs/contracts/setup.md lists the limits in full.");
   return report;

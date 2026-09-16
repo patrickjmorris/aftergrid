@@ -35,6 +35,56 @@ export type ScaffoldSpec = {
 
 const yamlString = (v: string) => (/^[A-Za-z0-9_][A-Za-z0-9_.@/-]*$/.test(v) ? v : JSON.stringify(v));
 
+/**
+ * The `connection:` block alone, byte for byte as `aftergrid.yaml` carries it. It is a separate function because
+ * setup never overwrites an existing `aftergrid.yaml`: on an Instance that already has one, the only honest
+ * upgrade is to print this block and let the Operator paste it in (`src/commands/setup.ts`, step 3).
+ */
+export function connectionBlock(connection: ConnectionSpec): string {
+  return connectionLines(connection).join("\n") + "\n";
+}
+
+function connectionLines(connection: ConnectionSpec): string[] {
+  const lines: string[] = ["connection:"];
+  if (connection.adapter === "duckdb") {
+    lines.push(
+      "  adapter: duckdb",
+      "  duckdb:",
+      "    # A .duckdb file, or a directory of <table>.csv files. Relative to this Instance root.",
+      `    path: ${yamlString(connection.duckdbPath)}`,
+      "    # DuckDB has no roles: the safety here is that the engine opens the file READ_ONLY on every statement.",
+      "    read_only: true",
+    );
+  } else if (connection.adapter === "none") {
+    lines.push(
+      "  # No adapter. This Instance is on the RECORDED path, which is the default (ADR 0010): your harness runs",
+      "  # the SQL with whatever tool it has and `aftergrid record` writes down the query, the parameters, the",
+      "  # result and the tool that produced them. A Finding built that way is complete, checkable and",
+      "  # renderable, and it guarantees artifact_replay: the saved results replay byte for byte.",
+      "  # What that costs, exactly: `aftergrid capture` refuses here, because there is no source to copy from;",
+      "  # `aftergrid execute` refuses on a Finding with no retained inputs, and still runs on one that already",
+      "  # holds them, because it never reads a live source; `check --mode rerun` answers `rerun_unavailable`",
+      "  # for a recorded Finding; Revisit needs a Finding that can be rerun; and unattended intake stays",
+      "  # refused, because source limits are an adapter's to declare.",
+      "  # To upgrade, set `connection.adapter` here to duckdb or postgres with its block. Setup never overwrites",
+      "  # this file, so `aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>` (or `--adapter",
+      "  # postgres --pg-url-env <ENV_VAR_NAME>`) PRINTS the block for you to paste in; it does not edit it.",
+      "  adapter: none",
+    );
+  } else {
+    lines.push(
+      "  adapter: postgres",
+      "  postgres:",
+      "    # The NAME of the environment variable holding the connection string. The URL itself is never written",
+      "    # to this file, to a report or to a log: it is read from the environment at runtime.",
+      `    url_env: ${yamlString(connection.urlEnv)}`,
+      "    statement_timeout_ms: 30000",
+      "    estimate_cap: 1000000",
+    );
+  }
+  return lines;
+}
+
 function aftergridYaml(spec: ScaffoldSpec): string {
   const lines: string[] = [
     "# aftergrid Instance policy. Scaffolded by `aftergrid setup`; every value below is yours to edit.",
@@ -44,42 +94,8 @@ function aftergridYaml(spec: ScaffoldSpec): string {
     "# the allowlist that judges it (docs/contracts/publication.md); nothing in the Engine can enforce that for you.",
     "schema_version: 0.1.0",
     `instance_root: ${yamlString(spec.instanceRoot)}`,
-    "connection:",
+    ...connectionLines(spec.connection),
   ];
-  if (spec.connection.adapter === "duckdb") {
-    lines.push(
-      "  adapter: duckdb",
-      "  duckdb:",
-      "    # A .duckdb file, or a directory of <table>.csv files. Relative to this Instance root.",
-      `    path: ${yamlString(spec.connection.duckdbPath)}`,
-      "    # DuckDB has no roles: the safety here is that the engine opens the file READ_ONLY on every statement.",
-      "    read_only: true",
-    );
-  } else if (spec.connection.adapter === "none") {
-    lines.push(
-      "  # No adapter. This Instance is on the RECORDED path, which is the default (ADR 0010): your harness runs",
-      "  # the SQL with whatever tool it has and `aftergrid record` writes down the query, the parameters, the",
-      "  # result and the tool that produced them. A Finding built that way is complete, checkable and",
-      "  # renderable, and it guarantees artifact_replay: the saved results replay byte for byte.",
-      "  # Unavailable until an adapter is configured: `aftergrid capture` and `aftergrid execute` (they refuse",
-      "  # here, naming `aftergrid record`), `check --mode rerun`, Revisit, and unattended intake, whose source",
-      "  # limits are an adapter's to declare.",
-      "  # To upgrade, rerun `aftergrid setup --adapter duckdb --duckdb-path <file-or-csv-dir>` (or",
-      "  # `--adapter postgres --pg-url-env <ENV_VAR_NAME>`) and copy the block it prints in. Setup never",
-      "  # overwrites this file: it will report that your copy differs and leave it alone.",
-      "  adapter: none",
-    );
-  } else {
-    lines.push(
-      "  adapter: postgres",
-      "  postgres:",
-      "    # The NAME of the environment variable holding the connection string. The URL itself is never written",
-      "    # to this file, to a report or to a log: it is read from the environment at runtime.",
-      `    url_env: ${yamlString(spec.connection.urlEnv)}`,
-      "    statement_timeout_ms: 30000",
-      "    estimate_cap: 1000000",
-    );
-  }
   lines.push(
     "render:",
     "  # House font for the Reader HTML and chart PNGs. The HTML stays self-contained: the font is embedded, never linked.",

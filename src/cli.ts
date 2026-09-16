@@ -75,8 +75,12 @@ Lifecycle:
                 credential (Postgres is named by environment variable), and records which steps completed in
                 <instance>/.aftergrid-setup.json so a rerun resumes. --dry-run writes nothing at all.
                 --adapter is OPTIONAL: without it, the Instance is written for the recorded path (ADR 0010) —
-                your harness runs the SQL and aftergrid record writes down what it ran. --adapter
-                duckdb|postgres is the upgrade that earns capture, execute, check --mode rerun and Revisit.
+                your harness runs the SQL and aftergrid record writes down what it ran. There, capture refuses;
+                execute refuses on a Finding with no retained inputs and still runs on one that has them;
+                check --mode rerun answers rerun_unavailable for a recorded Finding; and Revisit needs a Finding
+                that can be rerun. --adapter duckdb|postgres is the upgrade that captures those inputs. On an
+                Instance that already has an aftergrid.yaml, setup PRINTS the connection: block rather than
+                editing the file, because it never overwrites one.
   new finding   creates an explicitly incomplete draft with fresh ids; never overwrites an existing Finding.
   check         reports four separate facts: syntax, content completeness, evidence validity, publication readiness.
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
@@ -172,6 +176,7 @@ export async function main(argv: string[]): Promise<void> {
     out(await setup({
       instanceDir: values.instance,
       // Omitting --adapter is the recorded path (ADR 0010), not a defaulted duckdb: the adapter is the upgrade.
+      // A source flag passed with no adapter is not silently dropped here; `setup` refuses it by name.
       adapter: values.adapter === "postgres" ? "postgres" : values.adapter === "duckdb" ? "duckdb" : "none",
       duckdbPath: values["duckdb-path"],
       pgUrlEnv: values["pg-url-env"],
