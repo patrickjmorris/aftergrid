@@ -56,9 +56,19 @@ function isCalendarDate(s: unknown): boolean {
   return Number.isFinite(t.getTime()) && t.toISOString().slice(0, 10) === s;
 }
 
-/** An IANA zone name the running ICU knows. Fixed offsets are refused: a schedule names a place, not an offset. */
+/**
+ * A pure numeric UTC offset written as a zone: `+05:00`, `-0800`, `+5`, and the `Etc/GMT±n` family that ICU
+ * accepts. These name an offset, not a place, so a stored date would not survive a change in the place's rules.
+ */
+const FIXED_OFFSET_ZONE = /^(?:[A-Za-z]+\/)?(?:GMT|UTC|UCT|UT)?[+-]\d{1,2}(?::?\d{2})?$/;
+
+/**
+ * A zone name the running ICU accepts (`Intl.DateTimeFormat`), minus fixed numeric offsets. ICU acceptance is the
+ * only gate on which names exist, so the legacy IANA aliases it knows — `GMT`, `EST`, `EST5EDT`, `Japan`, `Zulu` —
+ * are zone names and are accepted; `Mars/Phobos` is not and is refused. A schedule names a place, not an offset.
+ */
 export function isIanaTimezone(tz: unknown): boolean {
-  if (typeof tz !== "string" || !(tz === "UTC" || tz.includes("/"))) return false;
+  if (typeof tz !== "string" || tz === "" || FIXED_OFFSET_ZONE.test(tz)) return false;
   try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch { return false; }
 }
 
@@ -145,8 +155,9 @@ export async function decide(opts: DecideOptions): Promise<Report> {
   const err = (category: Category, location: string, message: string, remedy?: string) => report.errors.push({ category, location, message, remedy });
   const refuse = (): Report => { report.info.push("refused: nothing was written to the Decision log"); return dedupe(report); };
 
-  // 1. The Instance and the exact Finding revision being decided on.
-  const start = opts.findingDir ?? opts.instanceDir ?? process.cwd();
+  // 1. The Instance and the exact Finding revision being decided on. An explicit `instanceDir` wins over the
+  //    Finding directory, so naming the Instance is a real answer when the Finding directory is not inside one.
+  const start = opts.instanceDir ?? opts.findingDir ?? process.cwd();
   const instance = findInstance(start);
   if (!instance) { err("missing_file", start, "no aftergrid.yaml found here or above", "pass --instance <dir>, or a Finding directory inside an Instance"); report.syntax = "invalid"; return refuse(); }
   let dir: string | null = null;
@@ -206,7 +217,12 @@ export async function decide(opts: DecideOptions): Promise<Report> {
   const schedule = record.revisit_when.schedule;
   if (schedule) {
     if (schedule.kind === "on_date" && !isCalendarDate(schedule.date)) err("schema", "record#/revisit_when/schedule/date", `${schedule.date} is not a real calendar date`, "use an existing yyyy-mm-dd date");
-    if (!isIanaTimezone(schedule.timezone)) err("value_type", "record#/revisit_when/schedule/timezone", `'${schedule.timezone}' is not an IANA timezone this runtime knows`, "use a zone name such as America/New_York or UTC; a fixed offset is not a zone");
+    if (!isIanaTimezone(schedule.timezone))
+      err("value_type", "record#/revisit_when/schedule/timezone",
+        typeof schedule.timezone === "string" && FIXED_OFFSET_ZONE.test(schedule.timezone)
+          ? `'${schedule.timezone}' is a fixed UTC offset, not a zone name`
+          : `'${schedule.timezone}' is not a timezone this runtime's ICU knows`,
+        "use a zone name such as America/New_York or UTC; a fixed offset is not a zone");
   }
   for (const [i, cid] of (record.rests_on_claims as string[]).entries())
     if (!manifest.claims.some((c: any) => c.id === cid)) err("decision_binding", `record#/rests_on_claims/${i}`, `Claim ${cid} is not in ${manifest.finding.id} r${manifest.finding.revision}`, `cite Claim ids of the cited revision: ${manifest.claims.map((c: any) => c.id).join(", ") || "(none)"}`);
@@ -238,15 +254,34 @@ export async function decide(opts: DecideOptions): Promise<Report> {
 
   const rel = `decisions/${id}.yaml`;
   const text = `# Decision record written by \`aftergrid decide\`. Immutable: corrections append a superseding record.\n` + toYaml(record, { lineWidth: 0 });
+
+  // 5b. Whether the id is already taken, and by what, is a pure read, so a dry run answers it exactly as the real
+  //     run does. A dry run that said "would be created" about a write the real run refuses would be a false preview.
+  let dest: string;
+  try { dest = safePath(decisionsDir, `${id}.yaml`); }
+  catch (e) { err(((e as any).category as Category) ?? "unsafe_path", rel, (e as Error).message); return refuse(); }
+  let taken: "absent" | "identical" = "absent";
+  if (existsSync(dest)) {
+    let prior: any;
+    try { prior = parseYaml(readFileSync(dest, "utf8")); } catch (e) { err("syntax", rel, (e as Error).message); return refuse(); }
+    if (recordIdentity(prior) !== recordIdentity(record)) {
+      err("decision_conflict", rel, `a different Decision record already exists with id ${id}`, "a record is immutable: retry with the identical input, use a new id, or append a correction with --supersedes");
+      return refuse();
+    }
+    taken = "identical";
+  }
+
   if (opts.dryRun) {
-    report.info.push(`dry run: nothing written. ${rel} would be created and ${join(instance.root, "decisions.md")} regenerated`);
+    report.info.push(taken === "identical"
+      ? `dry run: nothing written. ${rel} already holds this record byte-for-byte; the real run would be an idempotent retry and would regenerate ${join(instance.root, "decisions.md")}`
+      : `dry run: nothing written. ${rel} would be created and ${join(instance.root, "decisions.md")} regenerated`);
     report.info.push(`proposed record:\n${text.trimEnd()}`);
     return dedupe(report);
   }
 
   // 6. Create-if-absent: the link succeeds only when nothing holds the name, so concurrent writers cannot
   //    overwrite one another. An identical retry is a success; different content under the same id is a conflict.
-  const dest = safePath(decisionsDir, `${id}.yaml`);
+  //    The check above is not enough on its own: another writer can take the name between the read and the link.
   const tmp = join(decisionsDir, `.tmp-${id}-${process.pid}-${randomBytes(6).toString("hex")}`);
   let created = false;
   try {
@@ -260,7 +295,7 @@ export async function decide(opts: DecideOptions): Promise<Report> {
   if (created) report.info.push(`recorded ${id}: ${record.action.kind === "action" ? "action" : "deliberate inaction"} by ${record.owner} on ${record.decided_on}, resting on ${record.rests_on_claims.join(", ")} of ${record.finding.id} r${record.finding.revision}`);
   else {
     let prior: any;
-    try { prior = parseYaml(readFileSync(dest, "utf8")); } catch (e) { err("syntax", rel, (e as Error).message); return refuse(); }
+    try { prior = parseYaml(readFileSync(dest, "utf8")); } catch (e) { err("syntax", rel, (e as Error).message); return written(report, id, dest); }
     if (recordIdentity(prior) !== recordIdentity(record)) {
       err("decision_conflict", rel, `a different Decision record already exists with id ${id}`, "a record is immutable: retry with the identical input, use a new id, or append a correction with --supersedes");
       return refuse();
@@ -270,21 +305,46 @@ export async function decide(opts: DecideOptions): Promise<Report> {
   report.info.push(`path: ${dest}`);
 
   // 7. Regenerate the index from whatever the directory now holds, then re-verify the log with the shared checker.
-  const indexPath = safePath(instance.root, "decisions.md");
-  const locked = await withIndexLock(decisionsDir, (haveLock) => {
-    const index = readDecisionRecords(decisionsDir);
-    for (const p of index.errors) report.warnings.push({ ...p, message: `${p.message} (excluded from the generated index)` });
-    report.warnings.push(...index.warnings);
-    writeAtomic(instance.root, indexPath, renderDecisionIndex([...index.records.values()].map((x) => x.rec)));
-    return haveLock;
-  });
-  report.info.push(`regenerated ${indexPath} from ${readdirSync(decisionsDir).filter((f) => f.endsWith(".yaml")).length} record file(s); the index is generated, never the source of truth`);
-  if (!locked) report.warnings.push({ category: "invalid_artifact", location: "decisions.md", message: "another writer held the index lock; the index was rebuilt without it and may lag a concurrent record", remedy: "re-run decide, or regenerate the index, once writers are idle" });
+  //    The record is already on disk, so nothing here may throw out of the command: a refusal after this point is
+  //    reported as a Problem, and it says the record exists so a retry names the same id instead of minting a second.
+  const indexProblems: Problem[] = [];
+  try {
+    const indexPath = safePath(instance.root, "decisions.md");
+    const locked = await withIndexLock(decisionsDir, (haveLock) => {
+      const index = readDecisionRecords(decisionsDir);
+      indexProblems.push(...index.errors);
+      // Only a record that really is missing from the generated index is described as excluded from it.
+      for (const p of index.errors) report.warnings.push(index.excluded.has(p.location.replace(/#.*$/, "")) ? { ...p, message: `${p.message} (excluded from the generated index)` } : p);
+      report.warnings.push(...index.warnings);
+      writeAtomic(instance.root, indexPath, renderDecisionIndex([...index.records.values()].map((x) => x.rec)));
+      return haveLock;
+    });
+    report.info.push(`regenerated ${indexPath} from ${readdirSync(decisionsDir).filter((f) => f.endsWith(".yaml")).length} record file(s); the index is generated, never the source of truth`);
+    if (!locked) report.warnings.push({ category: "invalid_artifact", location: "decisions.md", message: "another writer held the index lock; the index was rebuilt without it and may lag a concurrent record", remedy: "re-run decide, or regenerate the index, once writers are idle" });
+  } catch (e) {
+    err(e instanceof ContractError ? ((e as any).category as Category) : "invalid_artifact", "decisions.md",
+      `the record was written but the index could not be regenerated: ${(e as Error).message}`,
+      `fix decisions.md, then re-run decide with --id ${id} to regenerate the index without minting a second record`);
+    return written(report, id, dest);
+  }
 
+  // Problems the shared checker finds in *other* records are real, but they are not this run's refusal: the record
+  // this call was asked to write is on disk. They are reported as warnings so the exit code and `evidence` still
+  // describe this run; `aftergrid check` reports the same problems as errors, which is where the log is adjudicated.
   const dc = validateDecisionsFor(instance.root, manifest);
-  report.errors.push(...dc.errors); report.warnings.push(...dc.warnings);
+  const mine = (p: Problem) => p.location === rel || p.location.startsWith(`${rel}#`);
+  const alreadyReported = (p: Problem) => indexProblems.some((q) => q.category === p.category && q.location === p.location && q.message === p.message);
+  report.errors.push(...dc.errors.filter(mine));
+  report.warnings.push(...dc.errors.filter((p) => !mine(p) && !alreadyReported(p)).map((p) => ({ ...p, message: `${p.message} (a pre-existing record, not the one this run wrote; \`aftergrid check\` reports it as an error)` })));
+  report.warnings.push(...dc.warnings);
   report.info.push(`${dc.records} Decision record(s) now cite ${manifest.finding.id}; revisit conditions are stored, never evaluated`);
-  if (report.errors.length) report.evidence = "invalid";
+  return dedupe(report);
+}
+
+/** A refusal raised after the record file is on disk: say so, and say how to retry without minting a second id. */
+function written(report: Report, id: string, dest: string): Report {
+  report.info.push(`the record was written before this problem: ${id} at ${dest}`);
+  report.info.push(`nothing else was changed; re-run with --id ${id} once the problem is fixed, so the retry is idempotent`);
   return dedupe(report);
 }
 

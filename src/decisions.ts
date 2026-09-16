@@ -13,8 +13,12 @@ import { safePath, ContractError } from "../scripts/fixture-safety.mjs";
 const SCHEMA = new URL("../schema/decision-record.schema.json", import.meta.url);
 
 export type DecisionCheck = { records: number; unverified: number; errors: Problem[]; warnings: Problem[] };
-/** Every parsed record in a decisions directory, indexed by record id, with the problems reading them raised. */
-export type DecisionIndex = { records: Map<string, { rec: any; loc: string }>; errors: Problem[]; warnings: Problem[] };
+/**
+ * Every parsed record in a decisions directory, indexed by record id, with the problems reading them raised.
+ * `excluded` holds the locations of record files that are NOT in `records` (unparseable, not an object, no usable
+ * `id`, or a duplicate id), so a caller that generates an index from `records` can say truthfully which files it left out.
+ */
+export type DecisionIndex = { records: Map<string, { rec: any; loc: string }>; excluded: Set<string>; errors: Problem[]; warnings: Problem[] };
 
 let validator: ((rec: unknown) => boolean) & { errors?: any[] } | null = null;
 
@@ -31,23 +35,28 @@ export function decisionSchemaErrors(rec: unknown, loc: string): Problem[] {
 /**
  * Read every `<dec_id>.yaml` in a decisions directory. Records are indexed by their own `id`, so `supersedes`
  * resolves by record identity rather than by file name; the file-name/id agreement is reported separately.
+ * A record file that cannot be indexed is always reported and always listed in `excluded` — never dropped in
+ * silence, because a record that disappears from every report is exactly the tamper the digest pinning exists to catch.
  * Shared by `check` (src/commands/check.ts) and `decide` (src/commands/decide.ts).
  */
 export function readDecisionRecords(dir: string): DecisionIndex {
-  const out: DecisionIndex = { records: new Map(), errors: [], warnings: [] };
+  const out: DecisionIndex = { records: new Map(), excluded: new Set(), errors: [], warnings: [] };
   const entries = readdirSync(dir).sort();
   for (const other of entries) if (other.endsWith(".yml")) out.warnings.push({ category: "invalid_artifact", location: `decisions/${other}`, message: "Decision records use the .yaml extension; this file is ignored" });
   for (const name of entries.filter((f) => f.endsWith(".yaml"))) {
     const loc = `decisions/${name}`;
     let rec: any;
     try { rec = parseYaml(readFileSync(safePath(dir, name), "utf8")); }
-    catch (e) { out.errors.push({ category: e instanceof ContractError ? (e as any).category : "syntax", location: loc, message: (e as Error).message }); continue; }
-    if (!rec || typeof rec !== "object") { out.errors.push({ category: "invalid_artifact", location: loc, message: "not a record" }); continue; }
-    if (typeof rec.id === "string") {
-      if (out.records.has(rec.id)) out.errors.push({ category: "duplicate_id", location: loc, message: `record id ${rec.id} also appears in ${out.records.get(rec.id)!.loc}` });
-      else out.records.set(rec.id, { rec, loc });
-      if (rec.id !== name.replace(/\.yaml$/, "")) out.errors.push({ category: "decision_binding", location: loc, message: `file name does not match record id ${rec.id}`, remedy: "one file per record, named by its id" });
+    catch (e) { out.excluded.add(loc); out.errors.push({ category: e instanceof ContractError ? (e as any).category : "syntax", location: loc, message: (e as Error).message }); continue; }
+    if (!rec || typeof rec !== "object") { out.excluded.add(loc); out.errors.push({ category: "invalid_artifact", location: loc, message: "not a record" }); continue; }
+    if (typeof rec.id !== "string") {
+      out.excluded.add(loc);
+      out.errors.push({ category: "schema", location: `${loc}#/id`, message: `record has no string id (${rec.id === undefined ? "the key is absent" : `it is ${typeof rec.id}`}), so it cannot be indexed, bound-checked or superseded`, remedy: "every record carries its own dec_ id, and the file is named by it" });
+      continue;
     }
+    if (out.records.has(rec.id)) { out.excluded.add(loc); out.errors.push({ category: "duplicate_id", location: loc, message: `record id ${rec.id} also appears in ${out.records.get(rec.id)!.loc}` }); }
+    else out.records.set(rec.id, { rec, loc });
+    if (rec.id !== name.replace(/\.yaml$/, "")) out.errors.push({ category: "decision_binding", location: loc, message: `file name does not match record id ${rec.id}`, remedy: "one file per record, named by its id" });
   }
   return out;
 }
