@@ -1,0 +1,23 @@
+{
+  "result_id": "since_change",
+  "execution_id": "ex_cancellations_since_change",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "days_elapsed",
+    "cancellations",
+    "active_at_change",
+    "earliest_window_end",
+    "minimum_met"
+  ],
+  "rows": [
+    {
+      "period": "post",
+      "days_elapsed": 7,
+      "cancellations": 67,
+      "active_at_change": 887,
+      "earliest_window_end": "2026-10-05",
+      "minimum_met": 0
+    }
+  ]
+}

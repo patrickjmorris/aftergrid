@@ -1,0 +1,9 @@
+interface:
+  display_name: "Analyze"
+  short_description: "Raw ask to reviewed Finding draft: clarify, analyse under Checks, write, illustrate, shape, review, check"
+  default_prompt: "Analyze this: take it from the raw ask to a reviewed Finding draft, and stop with a clear reason if any gate fails."
+policy:
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The run writes a Finding directory,
+  # reads a warehouse and spends real model time: a human asks for it. It is also the only orchestrator, so a
+  # model reaching for it mid-task would nest one run inside another.
+  allow_implicit_invocation: false
