@@ -68,8 +68,8 @@ coverage:
   data_to: "2026-09-14"
   description: No data has been read yet. Intended coverage is the spring start date to the most recent full week.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 6bc84144309d72b059c08372a759aea952ac6a49be034f1de2f1dc7fc2d7781a
+  value: 10e92cba4f350225f31d253c901b3e2b86e7a3f427a8df8f319356ef0dc9fdb9

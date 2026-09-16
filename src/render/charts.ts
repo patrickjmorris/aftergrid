@@ -5,22 +5,24 @@ import { createRequire } from "node:module";
 import { decimal, fail } from "../../scripts/fixture-safety.mjs";
 import type { Results } from "./values.ts";
 
-export const RENDERER_VERSION = "0.1.0";
-export const HOUSE_STYLE_VERSION = "0.1.0";
+export const RENDERER_VERSION = "0.2.0";
+export const HOUSE_STYLE_VERSION = "0.2.0";
 const ACCENT = "#0b6e4f", GREY = "#b9b9b9", INK = "#1c1c1c", MUTED = "#5a5a5a";
 const FONT = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
 
 /** Storytelling-with-data defaults: grey plus one accent, direct labels, no gridlines, title states the Claim. */
-export const houseStyle = {
+export const houseStyleFor = (font: string = FONT) => ({
   background: "transparent",
-  font: FONT,
-  axis: { grid: false, domainColor: "#d9d9d9", tickColor: "#d9d9d9", labelColor: INK, titleColor: MUTED, labelFontSize: 13, titleFontSize: 13, labelFont: FONT, titleFont: FONT },
+  font,
+  axis: { grid: false, domainColor: "#d9d9d9", tickColor: "#d9d9d9", labelColor: INK, titleColor: MUTED, labelFontSize: 13, titleFontSize: 13, labelFont: font, titleFont: font },
   view: { stroke: null },
-  title: { anchor: "start", fontSize: 18, fontWeight: 600, color: INK, font: FONT, subtitleColor: MUTED, subtitleFontSize: 13 },
+  title: { anchor: "start", fontSize: 18, fontWeight: 600, color: INK, font, subtitleColor: MUTED, subtitleFontSize: 13 },
   range: { category: [ACCENT, GREY, "#4c78a8", "#f58518", "#54a24b", "#e45756"] },
   bar: { cornerRadiusEnd: 2 },
   legend: { disable: true },
-};
+});
+/** The pinned house style with the default system font (`houseStyleFor` takes an Instance font). */
+export const houseStyle = houseStyleFor();
 
 function bindRows(manifest: any, results: Results, resultId: string, allowed: Set<string>): Record<string, unknown>[] {
   const res = manifest.results.find((r: any) => r.id === resultId);
@@ -34,13 +36,13 @@ function bindRows(manifest: any, results: Results, resultId: string, allowed: Se
   })));
 }
 
-export async function renderChartSvg(manifest: any, results: Results, chart: any, title: string, opts: { width?: number; height?: number } = {}): Promise<string> {
+export async function renderChartSvg(manifest: any, results: Results, chart: any, title: string, opts: { width?: number; height?: number; font?: string } = {}): Promise<string> {
   const vega = await import("vega");
   const vl = await import("vega-lite");
   const spec = JSON.parse(readFileSync(chart.__specPath, "utf8"));
   const allowed = new Set<string>(manifest.export_policy.allowed_fields);
   const rows = bindRows(manifest, results, chart.result_id, allowed);
-  const full = { ...spec, width: opts.width ?? 480, height: opts.height ?? Math.max(60, 32 * rows.length + 20), title: { text: title }, config: houseStyle, data: { name: "result" } };
+  const full = { ...spec, width: opts.width ?? 480, height: opts.height ?? Math.max(60, 32 * rows.length + 20), title: { text: title }, config: houseStyleFor(opts.font ?? FONT), data: { name: "result" } };
   const compiled = vl.compile(full as any).spec;
   const view = new vega.View(vega.parse(compiled), { renderer: "none" }).data("result", rows);
   try {
@@ -70,15 +72,16 @@ const FONT_CANDIDATES = [
 ].filter(Boolean);
 export function findFont(): string | null { for (const f of FONT_CANDIDATES) if (existsSync(f)) return f; return null; }
 
-export async function svgToPng(svg: string, width = 960): Promise<{ png: Buffer; font: string | null }> {
+export async function svgToPng(svg: string, width = 960, fontBuffer: Buffer | null = null): Promise<{ png: Buffer; font: string | null }> {
   const resvg = await import("@resvg/resvg-wasm");
   if (!wasmReady) {
     const require = createRequire(import.meta.url);
     wasmReady = resvg.initWasm(readFileSync(require.resolve("@resvg/resvg-wasm/index_bg.wasm")));
   }
   await wasmReady;
-  const font = findFont();
-  const opts: any = { fitTo: { mode: "width", value: width }, font: { loadSystemFonts: false, fontBuffers: font ? [readFileSync(font)] : [], defaultFontFamily: "sans-serif" } };
+  const font = fontBuffer ? "instance font" : findFont();
+  const buffers = fontBuffer ? [fontBuffer] : font ? [readFileSync(font)] : [];
+  const opts: any = { fitTo: { mode: "width", value: width }, font: { loadSystemFonts: false, fontBuffers: buffers, defaultFontFamily: "sans-serif" } };
   const rasterizer = new resvg.Resvg(svg, opts);
   try {
     const image = rasterizer.render();

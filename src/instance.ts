@@ -10,6 +10,7 @@ export type InstanceConfig = {
   publication?: { repository?: string; trusted_approvers?: string[]; automation_login?: string };
   export_defaults?: { recipient_scope?: string; granularity?: string };
   connection?: { adapter?: string };
+  render?: { font?: { preset?: "system" | "geist"; family?: string; files?: { path: string; weight?: string | number; style?: "normal" | "italic" }[]; fallback?: string } };
 };
 
 export type Instance = { root: string; config: InstanceConfig };

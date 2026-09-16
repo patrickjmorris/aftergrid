@@ -9,12 +9,13 @@ import { resolveTokens, tableCells, displayValue, type Results } from "./values.
 // @ts-ignore: shared ESM library.
 import { TOKEN_RE } from "../../scripts/lib/validate-finding.mjs";
 import { renderChartSvg, accessibleSvg, RENDERER_VERSION, HOUSE_STYLE_VERSION } from "./charts.ts";
+import { systemFont, type ResolvedFont } from "./fonts.ts";
 
 export const CSS = `
   :root { --fg: #1c1c1c; --muted: #5a5a5a; --bg: #ffffff; --line: #d9d9d9; --accent: #0b6e4f; --grey-bar: #b9b9b9; --draft: #7a4b00; --draft-bg: #fff4e0; --focus: #1d4ed8; }
   @media (prefers-color-scheme: dark) { :root { --fg: #ececec; --muted: #b5b5b5; --bg: #121212; --line: #3a3a3a; --accent: #4fc79f; --grey-bar: #5c5c5c; --draft: #ffd08a; --draft-bg: #3a2a08; --focus: #8ab4ff; } }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 1.0625rem/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 1.0625rem/1.55 __FONT_STACK__; }
   main { position: relative; max-width: 40rem; margin: 0 auto; padding: 0 1rem 4rem; }
   h1 { font-size: 1.6rem; line-height: 1.25; margin: 1.25rem 0 0.5rem; }
   h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
@@ -64,7 +65,6 @@ export const CSS = `
   .tip .tr em { font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; color: var(--accent); white-space: nowrap; padding-top: 0.2rem; }
   .tip .tr em.wn { color: var(--draft); }
   .tip .ft { display: block; padding: 0.5rem 0.9rem 0.7rem; font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--line); }
-  @media (prefers-reduced-motion: no-preference) { .tip { animation: tip-in 120ms ease-out; } @keyframes tip-in { from { opacity: 0; transform: translateY(-2px); } } }
   .action { display: inline-block; background: var(--accent); color: #fff; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600; margin: 0.5rem 0; }
   code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
   footer { margin-top: 3rem; font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
@@ -120,7 +120,7 @@ const unitWords = (col: any): string => {
 };
 type TrailRow = [title: string, detail: string, status: string, cls?: string];
 
-export type RenderInputs = { dir: string; manifest: any; results: Results; memo: string; readiness: string; readinessReasons: string[]; content: string; readerLabel: string; generatedAt?: string; charts?: boolean };
+export type RenderInputs = { dir: string; manifest: any; results: Results; memo: string; readiness: string; readinessReasons: string[]; content: string; readerLabel: string; generatedAt?: string; charts?: boolean; font?: ResolvedFont };
 
 function mailto(manifest: any, claimId?: string): string {
   const id = manifest.finding.id, rev = manifest.finding.revision;
@@ -131,6 +131,7 @@ function mailto(manifest: any, claimId?: string): string {
 
 export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svgs: Record<string, string> }> {
   const { manifest: m, results, dir } = inp;
+  const font = inp.font ?? systemFont();
   const esc = escapeHtml as (s: string) => string;
   // Provenance popover for one value token. Every field comes from the pinned manifest and is escaped; the popover
   // is plain markup (spans only, so it survives inside headings and paragraphs) shown by CSS on hover or focus.
@@ -203,7 +204,7 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
   for (const ch of m.charts.filter((c: any) => !c.variant_of)) {
     const title = RI(ch.title, `chart ${ch.id} title`);
     const description = RI(ch.description, `chart ${ch.id} description`);
-    const svg = accessibleSvg(await renderChartSvg(m, results, { ...ch, __specPath: safePath(dir, ch.spec_path) }, resolveTokens(m, results, ch.title, ch.id, (s) => s)), `chart-${ch.id}`, resolveTokens(m, results, ch.title, ch.id, (s) => s), resolveTokens(m, results, ch.description, ch.id, (s) => s), esc);
+    const svg = accessibleSvg(await renderChartSvg(m, results, { ...ch, __specPath: safePath(dir, ch.spec_path) }, resolveTokens(m, results, ch.title, ch.id, (s) => s), { font: font.svgStack }), `chart-${ch.id}`, resolveTokens(m, results, ch.title, ch.id, (s) => s), resolveTokens(m, results, ch.description, ch.id, (s) => s), esc);
     svgs[ch.id] = svg;
     const res = m.results.find((r: any) => r.id === ch.result_id);
     const cols = res.columns.map((c: any) => c.name).filter((n: string) => allowed.has(`${ch.result_id}.${n}`));
@@ -273,7 +274,7 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
 <meta name="aftergrid-finding" content="${esc(m.finding.id)} r${esc(String(m.finding.revision))}">
 <meta name="generator" content="aftergrid render ${RENDERER_VERSION}, house style ${HOUSE_STYLE_VERSION}">
 <title>${esc(m.finding.title)}</title>
-<style>${CSS}</style>
+<style>${font.faces ? font.faces + "\n" : ""}${CSS.replace("__FONT_STACK__", font.stack)}</style>
 </head>
 <body>
 <a class="skip" href="#answer">Skip to the answer</a>

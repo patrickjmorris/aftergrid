@@ -367,8 +367,8 @@ coverage:
   data_to: 1970-01-01
   description: "Not written yet: coverage is the writer's to state from the retained inputs and the window."
 renderer:
-  version: 0.1.0
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 1f527e1c9a1fbed78c773548298c7180fad5c24ba08d3c026bbab0ea65d55ac1
+  value: 484da36404f0549e5f6ad9b034d91449076db79b97b0a591eb7e82473e75c782

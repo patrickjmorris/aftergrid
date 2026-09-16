@@ -57,6 +57,13 @@ function aftergridYaml(spec: ScaffoldSpec): string {
       "    estimate_cap: 1000000",
     );
   }
+  lines.push(
+    "render:",
+    "  # House font for the Reader HTML and chart PNGs. The HTML stays self-contained: the font is embedded, never linked.",
+    "  # preset: system (default, no embedding) | geist (shipped with the Engine, SIL OFL). Or bring your own files:",
+    "  #   font: { family: Inter, files: [ { path: fonts/Inter[wght].woff2, weight: \"100 900\" } ], fallback: \"system-ui, sans-serif\" }",
+    "  font: { preset: system }",
+  );
   const pub = spec.publication ?? {};
   lines.push("publication:");
   if (pub.repository && pub.automationLogin && pub.trustedApprovers?.length) {

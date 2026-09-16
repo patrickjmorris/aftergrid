@@ -296,7 +296,7 @@ reviews:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078
+      value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf
     blocking: []
     non_blocking: [ "c2 is an exploratory split; it is labelled as such." ]
 attestations:
@@ -306,7 +306,7 @@ attestations:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078
+      value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf
 export_policy:
   recipient_scope: named_readers
   granularity: aggregate_only
@@ -326,8 +326,8 @@ coverage:
   data_to: "2026-07-19"
   description: Signups from June 1 to July 12, 2026, and their app opens through July 19. Nothing after July 19 is included.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 5a0bf0c30dddd93c9b64dc0ffa97e458bed76e45c9468d9de423c3c4ff1bf078
+  value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf

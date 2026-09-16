@@ -71,8 +71,8 @@ coverage:
   data_to: "2026-09-14"
   description: The warehouse catalog (tables and columns) as of 2026-09-14. No rows were read.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: a1df5cb53ceb542d025fef3555d90aa51f97431455bcd0bee270c08c2e7048ac
+  value: 1220a571d4118225a91a8cd6d66d9b872292fdf4f19c26e7a6c20d69f893df79

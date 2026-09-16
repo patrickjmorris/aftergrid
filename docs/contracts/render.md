@@ -15,6 +15,14 @@
 
 Every interpolation is HTML-escaped, including authored Claim text and text-valued result cells. Token values are inserted as escaped text after parsing Markdown, so a result value cannot manufacture Markdown links, images or blocks. Memo markdown is rendered with raw HTML escaped, images dropped and links limited to `http(s):` and `mailto:`. Chart SVG comes from Vega on data the renderer bound; resource-bearing SVG attributes may reference only local fragments, never external resources. No script runs on the page.
 
+## Fonts
+
+The default typeface is the system font stack, which embeds nothing. An Instance may set `render.font` in `aftergrid.yaml`: `preset: geist` embeds the Geist variable font shipped with the Engine (`fonts/geist`, SIL Open Font License 1.1), or `family` plus `files` embeds the Instance's own `woff2`/`woff`/`ttf`/`otf` files, each resolved inside the Instance root. Embedding is by `data:` URI in a `@font-face` rule, so the HTML stays self-contained and never links a resource. The same family is applied to chart text, and the first `.ttf`/`.otf` file is handed to the PNG rasterizer in place of the system lookup. A file outside the root or of another format is an `instance_config` error and nothing is written.
+
+## Renderer upgrades
+
+`renderer.version` and `renderer.house_style_version` are part of the content digest, so a renderer upgrade is a content change. A Finding pinned to an older renderer still renders, as a labelled draft preview. To publish it under the new renderer, an Operator re-pins the manifest to the running versions, which produces a new digest, and the required reviews and the publication approval are recorded again against that digest; nothing is re-signed automatically. If a Decision record cites the revision, the re-pin is a new revision of the Finding, because a cited revision never changes under its record. `scripts/repin-renderer.mjs` performs the re-pin and, only with `--resign-fixtures`, re-binds the synthetic reviews and attestations of the Engine's own fixtures.
+
 ## Pinned versions
 
 `renderer.version` and `renderer.house_style_version` in the manifest must match `RENDERER_VERSION` and `HOUSE_STYLE_VERSION` in `src/render/charts.ts` for a publication render; a mismatch forces a visibly labelled draft preview and reports both versions (the digest already covers them). The manifest and its reviews are never repinned by rendering. The house style: grey plus one accent, no gridlines, direct axis labels, chart title states the Claim, legends off by default, system font stack. Direct value labels on marks are the chart author's job (`/iterate-visual`), expressed in the spec as a layered `text` mark.

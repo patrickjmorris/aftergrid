@@ -489,7 +489,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: cb11b2712f6fd9ffc324a84bc1f491f6d4b1808353714e038e0b15db0cef9cb9
+      value: b4e00db97c9a854cba112f0fe9c45a2a17ae2b55bce146c864453a871a8a5af0
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.
@@ -513,6 +513,6 @@ coverage:
   data_to: 2026-07-19
   description: Signups from June 1 to July 12, 2026, and their app opens through July 19. Nothing after July 19 is included.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest: *a1

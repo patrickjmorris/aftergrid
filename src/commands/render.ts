@@ -12,6 +12,7 @@ import { writeOutputs } from "../render/outputs.ts";
 import { loadResults } from "../render/values.ts";
 import { renderHtml } from "../render/html.ts";
 import { RENDERER_VERSION, HOUSE_STYLE_VERSION, svgToPng } from "../render/charts.ts";
+import { resolveFont } from "../render/fonts.ts";
 
 export type RenderOptions = { dir: string; png?: boolean; generatedAt?: string };
 
@@ -36,21 +37,23 @@ export async function render(opts: RenderOptions): Promise<Report> {
       const m = new RegExp(`^## ${manifest.reader.profile}\\s*$[\\s\\S]*?label:\\s*(.+)$`, "m").exec(readers);
       if (m) readerLabel = m[1]!.trim();
     }
+    const font = resolveFont(instance);
     const results = loadResults(dir, manifest);
     const memo = readFileSync(safePath(dir, "memo.md"), "utf8");
-    const { html, svgs } = await renderHtml({ dir, manifest, results, memo, readiness: report.readiness, readinessReasons: report.readiness_reasons, content: report.content, readerLabel, generatedAt: opts.generatedAt });
+    const { html, svgs } = await renderHtml({ dir, manifest, results, memo, readiness: report.readiness, readinessReasons: report.readiness_reasons, content: report.content, readerLabel, generatedAt: opts.generatedAt, font });
     const marker = manifest.export_policy.private_marker;
     const outputs: [string, Buffer][] = [["render/finding.html", Buffer.from(html, "utf8")], ...Object.entries(svgs).map(([id, svg]) => [`render/${id}.svg`, Buffer.from(svg, "utf8")] as [string, Buffer])];
     if (opts.png) for (const [id, svg] of Object.entries(svgs)) {
-      const { png, font } = await svgToPng(svg);
+      const { png, font: rasterFont } = await svgToPng(svg, 960, font.rasterFont);
       outputs.push([`render/${id}.png`, png]);
-      if (!font) report.warnings.push({ category: "render_error", location: `render/${id}.png`, message: "no TrueType font found for the WASM rasterizer; chart text is missing from the PNG preview (set AFTERGRID_FONT to a .ttf). The SVG is unaffected." });
+      if (!rasterFont) report.warnings.push({ category: "render_error", location: `render/${id}.png`, message: "no TrueType font found for the WASM rasterizer; chart text is missing from the PNG preview (set AFTERGRID_FONT to a .ttf). The SVG is unaffected." });
     }
     for (const [rel, bytes] of outputs) {
       if (marker && bytes.includes(marker)) { report.errors.push({ category: "export_policy", location: rel, message: "private marker would be exported; nothing written" }); return report; }
     }
     writeOutputs(dir, manifest, outputs, instance?.root);
     report.info.push(`wrote ${outputs.map(([rel]) => rel).join(", ")}`);
+    report.info.push(`font: ${font.description}`);
     if (report.readiness !== "ready") report.info.push("rendered as a draft: no verified publication approval");
   } catch (e) {
     report.errors.push({ category: e instanceof ContractError ? (e as any).category : "render_error", location: e instanceof ContractError ? String((e as any).location) : dir, message: (e as Error).message });

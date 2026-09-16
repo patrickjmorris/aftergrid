@@ -317,7 +317,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: a53fdb86e9fd9b17c82d586d7746ef3fe1ccb7be806fc4b3284444e48c55bb07
+      value: f3a88d0dc80594a2e010fc8a6aa406f8c7462ecabae38703a96cd58e7a060aab
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.
@@ -339,6 +339,6 @@ coverage:
   data_to: 2026-09-14
   description: Cancellations from the day of the price change through September 14, 2026. The weeks before the change are in the retained data but are deliberately not compared yet.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest: *a1

@@ -1,5 +1,6 @@
 // `aftergrid new finding <slug>`: a syntactically valid, explicitly incomplete draft with fresh ids.
 // Never overwrites; never invents evidence, approvals or a falsifier.
+import { HOUSE_STYLE_VERSION } from "../render/charts.ts";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stringify as toYaml } from "yaml";
@@ -41,7 +42,7 @@ export function draftManifest(opts: { id: string; slug: string; title: string; a
     claims: [], charts: [], tables: [], checks: [], reviews: [], attestations: [],
     export_policy: { recipient_scope: exp.recipient_scope ?? "owner_only", granularity: exp.granularity ?? "aggregate_only", allowed_fields: [], delivery: "html_file" },
     coverage: { data_from: "1970-01-01", data_to: "1970-01-01", description: "Not determined yet. No data has been read." },
-    renderer: { version: "0.0.0", house_style_version: "0.1.0" },
+    renderer: { version: "0.0.0", house_style_version: HOUSE_STYLE_VERSION },
     content_digest: { algorithm: "sha256", value: "0".repeat(64) },
   };
 }

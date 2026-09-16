@@ -201,8 +201,8 @@ coverage:
   data_to: "2026-09-14"
   description: Cancellations from the day of the price change through September 14, 2026. The weeks before the change are in the retained data but are deliberately not compared yet.
 renderer:
-  version: 0.0.0-reference
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: ccbb1c4edee0dd79891fd11c9f5fb6c49ed7089cecc9c3d3369dd7e22f066397
+  value: 2ebe51ae88ed3c97f41c5c892342744f2b0ba9de95221dd31b7d5268e3d2f743

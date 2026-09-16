@@ -46,7 +46,11 @@ export_defaults:
 owner:
   name: ...
   contact: ...@...
+render:
+  font: { preset: system }             # system (default) | geist (shipped, SIL OFL) | { family, files: [{ path, weight, style }], fallback }
 ```
+
+`render.font` chooses the house font for the Reader HTML and chart PNGs. Files are resolved inside the Instance root and embedded into the HTML as data URIs, so the artifact stays self-contained; a `.ttf`/`.otf` among them also feeds the PNG rasterizer. See `docs/contracts/render.md`, "Fonts".
 
 ## Why one file per Decision record
 

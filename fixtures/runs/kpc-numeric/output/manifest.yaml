@@ -566,8 +566,8 @@ coverage:
   data_to: 2026-07-19
   description: Signups from June 1 to July 12, 2026, and their app opens through July 19. Nothing after July 19 is included.
 renderer:
-  version: 0.1.0
-  house_style_version: 0.1.0
+  version: 0.2.0
+  house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: a8ce155145f512a8870466e1ccd38b52ce522e6b9951c2b08892f4d009688daf
+  value: e77ab65325415771937762ed907a6d8098cf514c94b65d196b75aafb2e1962cd

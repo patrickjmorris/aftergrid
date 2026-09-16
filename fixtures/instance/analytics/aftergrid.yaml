@@ -18,3 +18,6 @@ export_defaults:
 owner:
   name: Dana Okafor
   contact: dana@loop.example
+render:
+  # The example Finding renders in Geist, embedded (fonts/geist, SIL OFL). docs/contracts/render.md, "Fonts".
+  font: { preset: geist }
