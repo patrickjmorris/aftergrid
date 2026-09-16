@@ -1,0 +1,12 @@
+{
+  "name": "aftergrid",
+  "description": "Open-source skills, Checks and a thin CLI for producing Findings: analysis memos a non-data Reader can understand, inspect and act on, with every number traced to its evidence.",
+  "version": "0.0.0",
+  "author": {
+    "name": "Patrick Morris",
+    "url": "https://github.com/patrickjmorris/aftergrid"
+  },
+  "skills": [
+    "./skills/setup-aftergrid"
+  ]
+}

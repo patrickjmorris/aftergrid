@@ -2,6 +2,7 @@
 // aftergrid CLI. Supported runtime: Node 22.18+ or 24+ (type stripping is on by default there); no native compilation.
 // Lifecycle: `new finding` (draft) -> author evidence -> `check` (artifact or rerun) -> review/approve -> `render`.
 import { parseArgs } from "node:util";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { newFinding } from "./commands/new-finding.ts";
 import { setup } from "./commands/setup.ts";
 import { check } from "./commands/check.ts";
@@ -9,6 +10,7 @@ import { render } from "./commands/render.ts";
 import { decide } from "./commands/decide.ts";
 import { hook } from "./commands/hook.ts";
 import { intake } from "./commands/intake.ts";
+import { validatePlugin } from "./distribution/validate-plugin.ts";
 import { exitCodeFor, formatHuman, type Report } from "./report.ts";
 
 const HELP = `aftergrid — produce Findings a non-data Reader can understand, inspect and act on.
@@ -26,6 +28,7 @@ Usage:
                    [--timezone <IANA zone>] [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"]
                    [--supersedes <dec_id>] [--id <dec_id>] [--dry-run] [--json]
   aftergrid hook install|uninstall|status [--settings <path>]
+  aftergrid plugin validate [--root <dir>] [--json]
   aftergrid intake --repo owner/repo [--label ready-for-agent] [--instance <dir>] [--once | --poll-seconds N]
                    [--harness fixture|command] [--harness-command "<template>"] [--fixture-source <finding-dir>]
                    [--resume <run_id>] [--provided <kind> ...] [--timeout-ms N] [--max-attempts N]
@@ -58,6 +61,11 @@ Lifecycle:
                 Finding as approved: publication still requires a human APPROVED review
                 (docs/contracts/publication.md). --once processes the currently labelled Issues and exits;
                 --poll-seconds N loops. Contract: docs/contracts/intake.md.
+  plugin        validate checks that the shipped package agrees with itself: the Claude Code plugin manifest
+                names skills that exist, every promoted skill states who may invoke it in BOTH its SKILL.md
+                frontmatter and its agents/openai.yaml and the two agree, and each has a docs page. It runs no
+                installer, so it never claims Claude Code or skills.sh accepts the layout
+                (docs/contracts/distribution.md). --root defaults to the installed package.
   hook          installs, removes or reports the Claude Code PreToolUse guard that blocks source writes and DDL
                 through supported query paths (docs/contracts/hook.md). install is idempotent and preserves other
                 hooks; status reports whether the exact command is present and self-tests the guard by piping a
@@ -120,6 +128,14 @@ export async function main(argv: string[]): Promise<void> {
     const dir = positionals[0];
     if (!dir) { process.stderr.write("usage: aftergrid render <finding-dir>\n"); process.exit(2); }
     out(await render({ dir, png: !!values.png }), !!values.json);
+  }
+  if (cmd === "plugin") {
+    if (sub !== "validate") { process.stderr.write("usage: aftergrid plugin validate [--root <dir>] [--json]\n"); process.exit(2); }
+    const { values } = parseArgs({ args: rest, options: { root: { type: "string" }, json: { type: "boolean" } } });
+    // Default: the package this CLI is running from, so `aftergrid plugin validate` checks the copy that was
+    // actually installed rather than whatever directory the Operator happens to be standing in.
+    const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+    out(validatePlugin(values.root ?? packageRoot), !!values.json);
   }
   if (cmd === "hook") {
     if (sub !== "install" && sub !== "uninstall" && sub !== "status") { process.stderr.write("usage: aftergrid hook install|uninstall|status [--settings <path>]\n"); process.exit(2); }
@@ -198,4 +214,8 @@ export async function main(argv: string[]): Promise<void> {
   process.stderr.write(`unknown command '${cmd}'\n${HELP}`); process.exit(2);
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("/cli.ts") || process.argv[1]?.endsWith("/aftergrid")) await main(process.argv.slice(2));
+// Run when this file IS the entry point (`node src/cli.ts …`). The installed `aftergrid` bin is
+// bin/aftergrid.mjs, which checks the Node version and then calls main() itself; matching on the bin's name
+// here as well would run every command twice.
+const entry = process.argv[1];
+if (entry && (import.meta.url === pathToFileURL(entry).href || entry.endsWith("/cli.ts"))) await main(process.argv.slice(2));

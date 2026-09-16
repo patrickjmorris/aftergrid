@@ -8,18 +8,36 @@
   "engines": {
     "node": ">=22.18"
   },
+  "skills": [
+    "./skills/setup-aftergrid"
+  ],
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "schema",
+    "hooks",
+    "skills",
+    "docs/contracts",
+    "docs/skills",
+    "README.md",
+    "LICENSE",
+    ".claude-plugin",
+    "!src/**/*.test.ts",
+    "!src/negatives-build.ts"
+  ],
   "scripts": {
     "validate:fixtures": "node scripts/validate-fixtures.mjs",
     "gen:fixtures": "node scripts/gen-fixture-data.mjs",
     "test": "node --test tests/*.test.mjs 'src/**/*.test.ts'",
     "test:cli": "node --test 'src/**/*.test.ts'",
     "cli": "node src/cli.ts",
-    "gen:negatives": "node src/negatives-build.ts"
+    "gen:negatives": "node src/negatives-build.ts",
+    "smoke:pack": "node scripts/pack-smoke.mjs"
   },
-  "devDependencies": {
+  "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
     "@resvg/resvg-wasm": "^2.6.2",
-    "@types/pg": "^8.23.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "marked": "^18.0.13",
@@ -28,7 +46,10 @@
     "vega-lite": "^6.4.3",
     "yaml": "^2.6.0"
   },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  },
   "bin": {
-    "aftergrid": "src/cli.ts"
+    "aftergrid": "bin/aftergrid.mjs"
   }
 }

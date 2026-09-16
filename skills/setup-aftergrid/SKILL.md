@@ -43,6 +43,9 @@ node src/cli.ts setup \
   --repository <owner>/<repo> --automation-login <bot-login> --trusted-approver <human-login>
 ```
 
+`node src/cli.ts` is the Engine checkout. Where aftergrid is installed as a package, the same command is
+`aftergrid setup …` — same flags, same report.
+
 Postgres instead of the DuckDB flags:
 
 ```bash
