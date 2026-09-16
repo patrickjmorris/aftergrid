@@ -1,0 +1,45 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Bound by the renderer to result retention_by_arm. No data, no transform, no aggregate encodings.",
+  "data": {
+    "name": "result"
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "encoding": {
+    "y": {
+      "field": "arm",
+      "type": "nominal",
+      "title": null,
+      "sort": [
+        "checklist",
+        "control"
+      ]
+    },
+    "x": {
+      "field": "retained_7d_rate",
+      "type": "quantitative",
+      "title": "Came back within 7 days (share of new users)",
+      "axis": {
+        "format": ".0%"
+      },
+      "scale": {
+        "domain": [
+          0,
+          0.5
+        ]
+      }
+    },
+    "color": {
+      "field": "arm",
+      "type": "nominal",
+      "legend": null
+    }
+  },
+  "transform": [
+    {
+      "filter": "datum.arm == 'checklist'"
+    }
+  ]
+}

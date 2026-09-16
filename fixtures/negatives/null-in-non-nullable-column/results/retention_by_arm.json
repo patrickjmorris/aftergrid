@@ -1,0 +1,25 @@
+{
+  "result_id": "retention_by_arm",
+  "execution_id": "ex_retention_by_arm",
+  "row_key": "arm",
+  "columns": [
+    "arm",
+    "signups",
+    "retained",
+    "retained_7d_rate"
+  ],
+  "rows": [
+    {
+      "arm": "checklist",
+      "signups": 624,
+      "retained": 217,
+      "retained_7d_rate": "0.34775641025641024"
+    },
+    {
+      "arm": "control",
+      "signups": 653,
+      "retained": null,
+      "retained_7d_rate": "0.28483920367534454"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ Synthetic material for the Engine's own tests and reviews. Nothing here is real 
 - `instance/analytics/findings/2026-07-20-onboarding-checklist-retention/` is the numeric exemplar: an answered Finding with a causal Claim (randomized experiment), an exploratory associational Claim, one chart and two tables.
 - `instance/analytics/findings/2026-09-15-price-change-cancellations/` is the insufficient-data exemplar: a complete Finding whose Answer is "we cannot tell yet", with a numeric Claim about what exists and a non-numeric Claim about why no comparison is made.
 - `instance/analytics/findings/companion-*/` are small companion cases for schema branches the two exemplars do not exercise (a `needs_input` draft, a `needs_reframing` outcome).
+- `negatives/` is the seam-1 negative set: one small Finding directory per deliberate defect, each with an `expected.yaml`, plus controls that must pass. Generated and committed by `src/negatives-build.ts`; index in `fixtures/negatives/README.md`, contract in `docs/contracts/checks-and-results.md`.
 
 ## Regenerate and verify
 

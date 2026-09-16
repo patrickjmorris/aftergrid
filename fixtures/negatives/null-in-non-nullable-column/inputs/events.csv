@@ -1,0 +1,5 @@
+event_id,user_id,event,timestamp
+e_0000070a,u_00000b50,app_open,2026-06-01T01:19:35Z
+e_000006fb,u_00000b42,app_open,2026-06-01T02:11:55Z
+e_000006f0,u_00000b39,app_open,2026-06-01T02:16:14Z
+e_000006ee,u_00000b35,app_open,2026-06-01T03:32:50Z
