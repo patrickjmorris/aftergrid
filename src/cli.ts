@@ -8,6 +8,7 @@ import { check } from "./commands/check.ts";
 import { render } from "./commands/render.ts";
 import { decide } from "./commands/decide.ts";
 import { hook } from "./commands/hook.ts";
+import { intake } from "./commands/intake.ts";
 import { exitCodeFor, formatHuman, type Report } from "./report.ts";
 
 const HELP = `aftergrid — produce Findings a non-data Reader can understand, inspect and act on.
@@ -25,7 +26,10 @@ Usage:
                    [--timezone <IANA zone>] [--falsifier-check <check_id>] [--outcome "<yyyy-mm-dd> <what happened>"]
                    [--supersedes <dec_id>] [--id <dec_id>] [--dry-run] [--json]
   aftergrid hook install|uninstall|status [--settings <path>]
-  aftergrid intake ...                    (not implemented yet: ag-background-intake-ka3)
+  aftergrid intake --repo owner/repo [--label ready-for-agent] [--instance <dir>] [--once | --poll-seconds N]
+                   [--harness fixture|command] [--harness-command "<template>"] [--fixture-source <finding-dir>]
+                   [--resume <run_id>] [--provided <kind> ...] [--timeout-ms N] [--max-attempts N]
+                   [--base <branch>] [--settings <path>] [--json]
 
 Lifecycle:
   setup         scaffolds the Instance (docs/contracts/instance-layout.md) and reports six separate facts:
@@ -46,6 +50,14 @@ Lifecycle:
                 <instance>/decisions/, bound to that revision and its content digest. Retrying with the same --id and
                 identical input is a no-op; different content under the same id is refused. Merging, rendering or
                 checking a Finding never creates a record.
+  intake        runs Issue requests in the background: claims an Issue labelled ready-for-agent at a stable
+                revision, refuses to dispatch unless the guardrail hook is installed AND self-tests clean, the
+                Instance policy is present and the source's limits are declared (there is no bypass flag), hands
+                the request to a harness, checks what comes back with the same validator as check, and opens
+                ONE draft pull request per run. It pauses with needs-info instead of guessing, never removes a label, and never reports a
+                Finding as approved: publication still requires a human APPROVED review
+                (docs/contracts/publication.md). --once processes the currently labelled Issues and exits;
+                --poll-seconds N loops. Contract: docs/contracts/intake.md.
   hook          installs, removes or reports the Claude Code PreToolUse guard that blocks source writes and DDL
                 through supported query paths (docs/contracts/hook.md). install is idempotent and preserves other
                 hooks; status reports whether the exact command is present and self-tests the guard by piping a
@@ -151,7 +163,38 @@ export async function main(argv: string[]): Promise<void> {
       dryRun: !!values["dry-run"],
     }), !!values.json);
   }
-  if (cmd === "intake") { process.stderr.write(`aftergrid ${cmd}: not implemented in this revision\n`); process.exit(3); }
+  if (cmd === "intake") {
+    const { values } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
+      repo: { type: "string" }, label: { type: "string" }, instance: { type: "string" }, once: { type: "boolean" },
+      "poll-seconds": { type: "string" }, harness: { type: "string" }, "harness-command": { type: "string" },
+      "fixture-source": { type: "string" }, resume: { type: "string" }, provided: { type: "string", multiple: true },
+      "timeout-ms": { type: "string" }, "max-attempts": { type: "string" }, base: { type: "string" },
+      settings: { type: "string" }, json: { type: "boolean" },
+    } });
+    if (values.harness !== undefined && values.harness !== "fixture" && values.harness !== "command") { process.stderr.write(`--harness must be fixture or command, got '${values.harness}'\n`); process.exit(2); }
+    const number = (name: string, raw?: string): number | undefined => {
+      if (raw === undefined) return undefined;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n <= 0) { process.stderr.write(`--${name} must be a positive number, got '${raw}'\n`); process.exit(2); }
+      return n;
+    };
+    out(await intake({
+      repo: values.repo,
+      label: values.label,
+      instanceDir: values.instance,
+      once: !!values.once,
+      pollSeconds: number("poll-seconds", values["poll-seconds"]),
+      harnessKind: values.harness === "command" ? "command" : values.harness === "fixture" ? "fixture" : undefined,
+      harnessCommand: values["harness-command"],
+      fixtureSource: values["fixture-source"],
+      resume: values.resume,
+      provided: values.provided,
+      timeoutMs: number("timeout-ms", values["timeout-ms"]),
+      maxAttempts: number("max-attempts", values["max-attempts"]),
+      baseBranch: values.base,
+      settingsPath: values.settings,
+    }), !!values.json);
+  }
   process.stderr.write(`unknown command '${cmd}'\n${HELP}`); process.exit(2);
 }
 
