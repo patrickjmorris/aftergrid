@@ -1,0 +1,22 @@
+# Instance root for the recorded skill runs under fixtures/runs/. It exists so a recorded Finding can be
+# checked where it sits (`node src/cli.ts check fixtures/runs/kpc-numeric/output`): `check` resolves
+# definitions[].path and readers.md against the nearest aftergrid.yaml above the Finding directory.
+# Same fictional company ("Loop") as fixtures/instance; nothing here is real, and no data lives here.
+schema_version: 0.1.0
+instance_root: .
+connection:
+  adapter: duckdb
+  duckdb:
+    # The recorded runs carry their own retained inputs under <finding>/inputs/; no warehouse is read.
+    path: inputs
+    read_only: true
+publication:
+  repository: loop-example/analytics
+  trusted_approvers: [dana-okafor]
+  automation_login: loop-aftergrid-bot
+export_defaults:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+owner:
+  name: Dana Okafor
+  contact: dana@loop.example

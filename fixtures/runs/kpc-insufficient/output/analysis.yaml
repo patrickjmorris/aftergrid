@@ -1,0 +1,131 @@
+# Analysis directory contract (docs/contracts/analysis-directory.md, owned by /checked-analysis).
+# Hand-written for this recorded run from the reviewed exemplar
+# fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations. No model produced it.
+schema_version: 0.1.0
+reader_profile: generic
+
+assumptions:
+  - The analysis policy agreed 2026-03-10 requires at least 28 full days and at least 300 cancellations
+    before a before/after comparison of cancellations is made. Both are decision rules, not measurements,
+    so the writer records them as typed external sources of kind assumption.
+  - The population is subscriptions that were active at the start of the change date. Subscriptions that
+    started later never saw the old price and are outside it.
+  - weekly_cancellation_rate v1 is proposed, not approved, so it may be cited as supporting context and no
+    rate computed from it may carry the Answer.
+  - The analytical timezone is America/New_York; the retained extract runs to the end of 2026-09-14, the
+    last full day.
+
+probes:
+  - id: p1
+    label: exploratory
+    question: How much has accumulated since the change, and how far is that from the policy minimum?
+    query_id: cancellations_since_change
+    what_it_showed: Seven full days and 67 cancellations against a minimum of 28 days and 300
+      cancellations, on 887 subscriptions active at the change. The earliest window end that satisfies the
+      day count is 2026-10-05.
+  - id: p2
+    label: exploratory
+    question: Should a partial post-change week be set against full pre-change weeks?
+    query_id: null
+    what_it_showed: Not run. The first days after a price change mix announcement reactions with ordinary
+      cancellations, so the comparison would set unlike things against each other. Recorded as a deliberate
+      non-comparison rather than a number.
+
+pre_registered_comparison: Daily cancellation rate in the first four weeks after the change, compared with
+  the four weeks before it. Not reached in this Analysis; the minimum-data gate is not met.
+
+# Checks were written before the analysis query and run in this order.
+execution_order:
+  - unique_subscriptions
+  - minimum_data
+  - falsifier_cancel_rate
+  - cancellations_since_change
+
+candidate_claims:
+  - id: c1
+    answer_bearing: true
+    sentence_draft: Elapsed days and accumulated cancellations are both below the policy minimum, so the
+      pre-registered comparison has not been made.
+    type: descriptive
+    causal_basis: none. Nothing here compares a treated group with an untreated one.
+    evidence:
+      - ref:since_change.post.days_elapsed
+      - ref:since_change.post.cancellations
+      - ref:since_change.post.active_at_change
+      - ref:since_change.post.earliest_window_end
+      - ext:minimum_days
+      - ext:minimum_cancellations
+      - derived:days_short
+      - derived:cancellations_short
+    comparison:
+      kind: target
+      description: What has accumulated so far, against the minimum the analysis policy requires. No
+        before/after comparison is made yet.
+      pre_registered: true
+    population: Paid subscriptions active when the price changed.
+    window: { start: "2026-09-08", end: "2026-09-14", timezone: America/New_York }
+    exclusions:
+      - Subscriptions that started after the price change are not part of the population.
+    limitations:
+      - The cancellation count is a raw count, not the weekly cancellation rate, which is still proposed.
+    recheck:
+      mode: automatic
+      predicate: { subject: ref:since_change.post.days_elapsed, operator: lt, threshold: ext:minimum_days, unit: days, direction: none }
+      method: restate
+      evidence:
+        - ref:since_change.post.days_elapsed
+        - ref:since_change.post.cancellations
+      minimum_data: { subject: ref:since_change.post.active_at_change, operator: gte, threshold: 1, unit: count }
+      window_policy: advancing_window
+      coverage: The subscriptions extract must extend to the new data_to date.
+      not_comparable_when:
+        - the analysis policy minimums change
+
+  - id: c2
+    sentence_draft: The post-change cancellations are deliberately not set against the weeks before the
+      change, because a partial first week and full earlier weeks are unlike periods.
+    type: descriptive
+    numeric: false
+    causal_basis: none. This states a method choice, not a measurement.
+    evidence: []
+    comparison:
+      kind: none
+      description: Deliberately none. A partial first week against full prior weeks would compare unlike
+        things and invite a conclusion the data cannot support.
+      pre_registered: true
+    population: The same subscriptions.
+    window: { start: "2026-09-08", end: "2026-09-14", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - No daily series is shown, so this Finding makes no statement about whether cancellations spiked in
+        the first days; that would need its own evidenced Claim.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: This Claim is a methodological choice, not a measurement. Whether to keep withholding the
+        comparison is the Operator's call when the minimum is met.
+      owner: Dana Okafor
+      review_hint: When the minimum-data Check passes, rerun the analysis with the before/after comparison
+        and retire this Claim.
+
+requested_derived:
+  - { id: days_short, operation: difference, of: minimum days minus elapsed days }
+  - { id: cancellations_short, operation: difference, of: minimum cancellations minus accumulated cancellations }
+requested_external_sources:
+  - id: minimum_days
+    kind: assumption
+    value: 28
+    unit: days
+    source_note: Loop analysis policy, 2026-03-10, owner Dana Okafor, at docs/analysis-policy.md.
+  - id: minimum_cancellations
+    kind: assumption
+    value: 300
+    unit: count
+    source_note: Loop analysis policy, 2026-03-10, owner Dana Okafor, at docs/analysis-policy.md.
+
+outcome_recommendation:
+  state: insufficient_data
+  reason: The minimum_data Check recorded fail on the declared population, so the pre-registered comparison
+    was not made and the falsifier Check is not evaluable yet. Nothing here supports a statement about
+    whether the price change moved cancellations.
+
+needs_input: []

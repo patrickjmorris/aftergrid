@@ -1,0 +1,140 @@
+# Analysis directory contract (docs/contracts/analysis-directory.md, owned by /checked-analysis).
+# Hand-written for this recorded run from the reviewed exemplar
+# fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention. No model produced it.
+schema_version: 0.1.0
+reader_profile: product_owner
+
+assumptions:
+  - Assignment to the checklist or the old onboarding happened at random when a user signed up, so the two
+    groups differ only in the onboarding they saw. The arm_balance Check tests the observable consequence
+    (group sizes are close); randomisation itself is a property of the assignment code, not of this data.
+  - The experiment plan, agreed 2026-05-29 before any data was read, sets the acting threshold at 3
+    percentage points of 7-day retention. It is a decision rule, not a measurement, so the writer records it
+    as a typed external source of kind target.
+  - The analytical timezone is America/New_York. Every date grouping converts explicitly; the retained
+    extracts are bounded one day either side of the window so no row is dropped by the conversion.
+  - The last cohort in the window had its full seven days by 2026-07-19, so no user is counted as not
+    returning only because the observation period had not closed.
+
+probes:
+  - id: p1
+    label: exploratory
+    question: Is the difference an artefact of one or two signup weeks?
+    query_id: retention_by_week_arm
+    what_it_showed: The checklist group is ahead in every signup week; the gap moves week to week but never
+      reverses. Stability evidence for the primary comparison, not a Claim of its own.
+  - id: p2
+    label: exploratory
+    question: Does the difference look the same on mobile and on the web?
+    query_id: retention_by_platform_arm
+    what_it_showed: The gap is large on mobile and near zero on the web, with small web groups. Decided
+      after seeing the overall result, so it is a lead, never a pre-registered comparison.
+
+pre_registered_comparison: 7-day retention of users assigned the checklist versus users assigned the old
+  onboarding, over the whole experiment window 2026-06-01 to 2026-07-12 (America/New_York).
+
+# Checks were written before the final analysis queries and run in this order.
+execution_order:
+  - unique_users
+  - arm_balance
+  - retained_7d_reconcile
+  - falsifier_lift
+  - retention_by_arm
+  - retention_by_week_arm
+  - retention_by_platform_arm
+
+candidate_claims:
+  - id: c1
+    answer_bearing: true
+    sentence_draft: 7-day retention is higher in the checklist arm than in the control arm, and the gap
+      clears the pre-registered 3 percentage point threshold.
+    type: causal
+    causal_basis: Randomised assignment at signup. This is the only basis v0 accepts for a causal Claim.
+    evidence:
+      - ref:retention_by_arm.checklist.retained_7d_rate
+      - ref:retention_by_arm.control.retained_7d_rate
+      - ref:retention_by_arm.checklist.signups
+      - ref:retention_by_arm.control.signups
+      - derived:lift
+      - ext:keep_threshold
+    comparison:
+      kind: variant_vs_control
+      description: Users assigned the checklist compared with users assigned the old onboarding, assigned at
+        random when they signed up.
+      pre_registered: true
+    population: Every user who signed up between 2026-06-01 and 2026-07-12 (America/New_York) and was
+      randomly assigned to one of the two onboardings.
+    window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
+    exclusions:
+      - Users who signed up outside the window were not part of the experiment.
+    limitations:
+      - Returning means opening the app on any of the next seven days; it says nothing about what the user
+        did in the app.
+      - Six weeks of early-summer signups; another season could behave differently.
+    recheck:
+      mode: automatic
+      predicate: { subject: derived:lift, operator: gte, threshold: ext:keep_threshold, unit: ratio, direction: higher_is_better }
+      method: difference_in_proportions
+      evidence:
+        - ref:retention_by_arm.checklist.retained_7d_rate
+        - ref:retention_by_arm.control.retained_7d_rate
+      minimum_data: { subject: derived:min_arm_signups, operator: gte, threshold: 500, unit: users }
+      window_policy: fixed_window
+      coverage: Both arms present for the whole window; retained_7d v2 unchanged.
+      not_comparable_when:
+        - retained_7d definition version changes
+        - assignment stops being random (for example a full rollout), so no control arm exists
+
+  - id: c2
+    sentence_draft: Within the platform split, the gap is large on mobile and near zero on the web.
+    type: associational
+    causal_basis: none. The split was chosen after seeing the overall result, so the platform groups were not
+      randomised against each other.
+    evidence:
+      - ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate
+      - ref:retention_by_platform_arm.mobile_control.retained_7d_rate
+      - ref:retention_by_platform_arm.web_checklist.retained_7d_rate
+      - ref:retention_by_platform_arm.web_control.retained_7d_rate
+      - derived:mobile_lift
+      - derived:web_lift
+    comparison:
+      kind: variant_vs_control
+      description: Checklist versus old onboarding, inside each platform group. This split was not planned
+        before the experiment; it is a follow-up look.
+      pre_registered: false
+    population: The same users, split by whether they signed up on the iPhone or Android app or in a browser.
+    window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - Decided after seeing the overall result, so it is a lead to test, not a settled fact.
+      - The web groups are small, so the web number moves a lot with a handful of users.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: An exploratory split has no pre-registered threshold; whether the platform difference persists
+        is a judgement for the next experiment, not a number to re-test.
+      owner: Dana Okafor
+      review_hint: On Revisit, re-read the platform table and decide whether a platform-specific experiment
+        is warranted.
+
+# Derived values and external sources the candidate Claims and rechecks name. The writer declares each one in
+# the manifest with its operation, operands, unit, display and zero-denominator/null behaviour.
+requested_derived:
+  - { id: lift, operation: difference, of: checklist minus control 7-day retention rate }
+  - { id: mobile_lift, operation: difference, of: checklist minus control inside the mobile group }
+  - { id: web_lift, operation: difference, of: checklist minus control inside the web group }
+  - { id: min_arm_signups, operation: min, of: the smaller of the two arm sizes; the recheck minimum reads it }
+  - { id: total_signups, operation: sum, of: both arm sizes; the population sentence reads it }
+requested_external_sources:
+  - id: keep_threshold
+    kind: target
+    value: 0.03
+    unit: ratio
+    source_note: Experiment plan for the onboarding checklist, 2026-05-29, owner Dana Okafor, at
+      docs/experiments/onboarding-checklist-plan.md.
+
+outcome_recommendation:
+  state: answered
+  reason: The pre-registered comparison ran on the full window, every required Check passed, and the
+    falsifier Check produced its expected outcome.
+
+needs_input: []

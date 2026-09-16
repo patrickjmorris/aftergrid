@@ -1,0 +1,111 @@
+{
+  "result_id": "retention_by_week_arm",
+  "execution_id": "ex_retention_by_week_arm",
+  "row_key": "week_arm",
+  "columns": [
+    "week_arm",
+    "signup_week",
+    "arm",
+    "signups",
+    "retained",
+    "retained_7d_rate"
+  ],
+  "rows": [
+    {
+      "week_arm": "2026-06-01_checklist",
+      "signup_week": "2026-06-01",
+      "arm": "checklist",
+      "signups": 96,
+      "retained": 36,
+      "retained_7d_rate": "0.375"
+    },
+    {
+      "week_arm": "2026-06-01_control",
+      "signup_week": "2026-06-01",
+      "arm": "control",
+      "signups": 120,
+      "retained": 32,
+      "retained_7d_rate": "0.26666666666666666"
+    },
+    {
+      "week_arm": "2026-06-08_checklist",
+      "signup_week": "2026-06-08",
+      "arm": "checklist",
+      "signups": 94,
+      "retained": 31,
+      "retained_7d_rate": "0.32978723404255317"
+    },
+    {
+      "week_arm": "2026-06-08_control",
+      "signup_week": "2026-06-08",
+      "arm": "control",
+      "signups": 110,
+      "retained": 29,
+      "retained_7d_rate": "0.2636363636363636"
+    },
+    {
+      "week_arm": "2026-06-15_checklist",
+      "signup_week": "2026-06-15",
+      "arm": "checklist",
+      "signups": 102,
+      "retained": 31,
+      "retained_7d_rate": "0.30392156862745096"
+    },
+    {
+      "week_arm": "2026-06-15_control",
+      "signup_week": "2026-06-15",
+      "arm": "control",
+      "signups": 125,
+      "retained": 44,
+      "retained_7d_rate": "0.352"
+    },
+    {
+      "week_arm": "2026-06-22_checklist",
+      "signup_week": "2026-06-22",
+      "arm": "checklist",
+      "signups": 106,
+      "retained": 36,
+      "retained_7d_rate": "0.33962264150943394"
+    },
+    {
+      "week_arm": "2026-06-22_control",
+      "signup_week": "2026-06-22",
+      "arm": "control",
+      "signups": 120,
+      "retained": 37,
+      "retained_7d_rate": "0.30833333333333335"
+    },
+    {
+      "week_arm": "2026-06-29_checklist",
+      "signup_week": "2026-06-29",
+      "arm": "checklist",
+      "signups": 116,
+      "retained": 45,
+      "retained_7d_rate": "0.3879310344827586"
+    },
+    {
+      "week_arm": "2026-06-29_control",
+      "signup_week": "2026-06-29",
+      "arm": "control",
+      "signups": 90,
+      "retained": 25,
+      "retained_7d_rate": "0.2777777777777778"
+    },
+    {
+      "week_arm": "2026-07-06_checklist",
+      "signup_week": "2026-07-06",
+      "arm": "checklist",
+      "signups": 110,
+      "retained": 38,
+      "retained_7d_rate": "0.34545454545454546"
+    },
+    {
+      "week_arm": "2026-07-06_control",
+      "signup_week": "2026-07-06",
+      "arm": "control",
+      "signups": 88,
+      "retained": 19,
+      "retained_7d_rate": "0.2159090909090909"
+    }
+  ]
+}
