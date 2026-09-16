@@ -258,8 +258,14 @@ export async function decide(opts: DecideOptions): Promise<Report> {
   // 5b. Whether the id is already taken, and by what, is a pure read, so a dry run answers it exactly as the real
   //     run does. A dry run that said "would be created" about a write the real run refuses would be a false preview.
   let dest: string;
-  try { dest = safePath(decisionsDir, `${id}.yaml`); }
-  catch (e) { err(((e as any).category as Category) ?? "unsafe_path", rel, (e as Error).message); return refuse(); }
+  if (!existsSync(decisionsDir)) {
+    // A dry run in an Instance with no decisions/ yet: nothing can be taken, and safePath cannot resolve a parent
+    // that does not exist. The real run creates the directory above and takes this branch only on dry runs.
+    dest = join(decisionsDir, `${id}.yaml`);
+  } else {
+    try { dest = safePath(decisionsDir, `${id}.yaml`); }
+    catch (e) { err(((e as any).category as Category) ?? "unsafe_path", rel, (e as Error).message); return refuse(); }
+  }
   let taken: "absent" | "identical" = "absent";
   if (existsSync(dest)) {
     let prior: any;

@@ -93,6 +93,16 @@ test("a dry run writes nothing and shows the record it would write", async () =>
   assert.ok(r.info.some((i) => /id: dec_aaaaaaaaaaa2/.test(i) && /rests_on_claims/.test(i)), r.info.join("\n"));
 });
 
+test("a dry run works in an Instance that has no decisions directory yet, and writes nothing", async () => {
+  const { root, dir, decisions } = instanceCopy();
+  rmSync(decisions, { recursive: true, force: true });
+  const r = await decide({ ...base(dir), id: "dec_aaaaaaaaaaa9", dryRun: true });
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.ok(!existsSync(decisions), "a dry run never creates the directory");
+  assert.ok(r.info.some((i) => /dry run: nothing written/.test(i)));
+  void root;
+});
+
 test("retrying the same id with identical input succeeds without duplicating the record", async () => {
   const { dir, decisions } = instanceCopy();
   const first = await decide({ ...base(dir), id: "dec_aaaaaaaaaaa3" });
