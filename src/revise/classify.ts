@@ -51,12 +51,19 @@ export function classifyManifestDifference(d: Difference, baseline: any, working
 
   if (root === "charts") {
     const id = at(d.pointer, 1);
-    const entry = (d.kind === "removed" ? baseline : working)?.charts?.[id];
+    const side = d.kind === "removed" ? baseline : working;
+    const entry = side?.charts?.[id];
     if (d.pointer === `charts.${id}`) {
-      if (entry?.variant_of) return presentation(`a rejected Variant of ${entry.variant_of} was ${d.kind === "added" ? "kept for the record" : "dropped"}; a Variant does not render`);
+      if (entry?.variant_of) {
+        // The message about to be printed says the Variant shares the survivor's Claim and result set. Check it
+        // rather than assert it: an entry that carries `variant_of` and binds other evidence is not a Variant.
+        const mismatch = variantMismatch(id, entry, side);
+        if (mismatch) return interpretation(mismatch);
+        return presentation(`a rejected Variant of ${entry.variant_of} was ${d.kind === "added" ? "kept for the record" : "dropped"}; it shares that chart's Claim and result set, and a Variant does not render`);
+      }
       return interpretation(`a rendered chart was ${d.kind === "added" ? "added" : "removed"}`);
     }
-    if (field === "variant_of") return presentation("which Variant of this chart survives; Variants share one result set and its pinned evidence");
+    if (field === "variant_of") return variantOfChange(d, id, baseline, working);
     if (field === "title" || field === "description") return wording(`the chart ${field}`);
     return interpretation(`charts.${id}.${field} binds the chart to different evidence`);
   }
@@ -87,6 +94,73 @@ function figureSwap(d: Difference, baseline: any, working: any): Judgement | nul
   return { level: "presentation", location: `manifest.yaml#${d.pointer}`, message: "a Variant of the same Claim, bound to the same result set, was chosen" };
 }
 
+/* --------------------------------------------------------------- Variants */
+
+/** A chart is on the Reader's page when it exists and carries no `variant_of` (`src/render/html.ts`). */
+const renders = (entry: any): boolean => !!entry && !entry.variant_of;
+
+/** Why `entry` is not a Variant of the chart it names, or `null` when it is one. */
+function variantMismatch(id: string, entry: any, manifest: any): string | null {
+  const target = manifest?.charts?.[entry.variant_of];
+  if (!target) return `charts.${id} is filed as a Variant of ${entry.variant_of}, and no chart of that id is in the manifest`;
+  if (target.result_id !== entry.result_id) return `charts.${id} is filed as a Variant of ${entry.variant_of} but binds result set ${entry.result_id}, not ${target.result_id}: it is different evidence, not the same evidence shown another way`;
+  if (target.claim_id !== entry.claim_id) return `charts.${id} is filed as a Variant of ${entry.variant_of} but backs Claim ${entry.claim_id}, not ${target.claim_id}`;
+  return null;
+}
+
+/**
+ * A change to `charts.<id>.variant_of`. Filing a chart under a different survivor is a bookkeeping change. Adding
+ * or removing `variant_of` on a chart moves it off or onto the Reader's page, which is the same publication-visible
+ * change as adding or removing a chart — presentation only when another Variant of the same Claim and result set
+ * trades places with it, and `classifyAgainst` then compares the two specs as the chart change they are.
+ */
+function variantOfChange(d: Difference, id: string, baseline: any, working: any): Judgement {
+  const location = `manifest.yaml#${d.pointer}`;
+  const before = baseline?.charts?.[id], after = working?.charts?.[id];
+  const was = renders(before), now = renders(after);
+  if (was === now) {
+    const mismatch = now ? null : variantMismatch(id, after, working);
+    if (mismatch) return { level: "interpretation", location, message: mismatch };
+    return { level: "presentation", location, message: `which chart ${id} is filed as a Variant of; it is off the Reader's page either way` };
+  }
+  const swapped = tradedPlaces(id, baseline, working);
+  if (!swapped) return { level: "interpretation", location, message: now ? `charts.${id} now renders, so the publication shows a chart it did not show` : `charts.${id} no longer renders, so the publication no longer shows it` };
+  return { level: "presentation", location, message: `${now ? `charts.${id} took the place of ${swapped}` : `charts.${swapped} took the place of ${id}`} on the page; both are Variants on the same Claim and result set` };
+}
+
+/** The chart that moved the opposite way on the page, on the same Claim and result set, or `null`. */
+function tradedPlaces(id: string, baseline: any, working: any): string | null {
+  const entry = working?.charts?.[id] ?? baseline?.charts?.[id];
+  const was = renders(baseline?.charts?.[id]);
+  for (const [other, after] of Object.entries<any>(working?.charts ?? {})) {
+    if (other === id) continue;
+    const before = baseline?.charts?.[other];
+    if (renders(before) !== !was || renders(after) !== was) continue; // it has to move the other way
+    if (after.result_id !== entry?.result_id || after.claim_id !== entry?.claim_id) continue;
+    return other;
+  }
+  return null;
+}
+
+/**
+ * The chart-spec pairs a revision swaps on the Reader's page: `[promoted, demoted]`, the chart that starts
+ * rendering and the one that stops. Neither spec file has to change for the page to change, so this is the only
+ * place a promoted Variant's spec is ever compared with the spec it replaces.
+ */
+export function promotions(baseline: any, working: any): [any, any][] {
+  const entering = Object.entries<any>(working?.charts ?? {}).filter(([id, c]) => renders(c) && baseline?.charts?.[id] && !renders(baseline.charts[id]));
+  const leaving = Object.entries<any>(baseline?.charts ?? {}).filter(([id, c]) => renders(c) && working?.charts?.[id] && !renders(working.charts[id]));
+  const out: [any, any][] = [];
+  const taken = new Set<string>();
+  for (const [, promoted] of entering) {
+    const match = leaving.find(([id, c]) => !taken.has(id) && c.claim_id === promoted.claim_id && c.result_id === promoted.result_id);
+    if (!match) continue;
+    taken.add(match[0]);
+    out.push([promoted, match[1]]);
+  }
+  return out;
+}
+
 /** Chart-spec keys whose values are how a chart looks, never what it measures. */
 const COSMETIC_CONTAINERS = new Set(["mark", "config", "axis", "legend", "view", "header", "title", "description", "width", "height", "padding", "spacing", "background", "resolve", "$schema"]);
 const COSMETIC_LEAVES = new Set(["sort", "title", "format", "labelAngle", "align", "baseline", "dx", "dy", "angle", "color", "fill", "stroke", "opacity", "size", "strokeWidth", "fontSize", "fontWeight", "font", "orient", "tickCount", "labelLimit"]);
@@ -107,7 +181,7 @@ export function classifyChartSpec(chartId: string, specPath: string, before: unk
     judged.push(`${key}.scale.domain`);
     const b = beforeDomains.get(key), a = afterDomains.get(key);
     if (canon(b) === canon(a)) continue;
-    out.push({ level: truncates(b, a) ? "interpretation" : "presentation", location: `${specPath}#${key}.scale.domain`, message: truncates(b, a) ? `the ${key} axis domain ${canon(b)} became ${canon(a)}, which cuts values off the axis` : `the ${key} axis domain ${canon(b)} became ${canon(a)}, which shows at least as much as before` });
+    out.push({ ...domainJudgement(key, b, a), location: `${specPath}#${key}.scale.domain` });
   }
   for (const d of diffValues(before, after)) {
     const parts = d.pointer.split(".");
@@ -119,9 +193,23 @@ export function classifyChartSpec(chartId: string, specPath: string, before: unk
       else out.push({ level: "interpretation", location: loc, message: d.kind === "removed" ? "a field binding was removed, so the chart shows less evidence" : `a field binding became ${JSON.stringify(d.after)}, so the chart shows different evidence` });
       continue;
     }
+    // A scale is judged by the channel it belongs to, before the generic `type` and cosmetic rules: on a position
+    // channel everything except `domain` (judged above) and a handful of spacing keys decides how long a mark is
+    // drawn, which is what the Reader reads the value off.
+    const scaleAt = parts.indexOf("scale");
+    if (scaleAt > 0) {
+      const channel = parts[scaleAt - 1] ?? "";
+      const key = parts[scaleAt + 1] ?? "";
+      if (!(POSITION.has(channel) && parts.slice(0, scaleAt - 1).includes("encoding")) || POSITION_SCALE_SPACING.has(key)) { out.push({ level: "presentation", location: loc, message: `${d.pointer || "the spec"} is how the chart looks` }); continue; }
+      // The whole scale object appeared or vanished: `domain` is already judged above, so judge what is left.
+      const rest = key ? [key] : Object.keys((d.kind === "removed" ? d.before : d.after) ?? {}).filter((k) => k !== "domain" && !POSITION_SCALE_SPACING.has(k));
+      if (!rest.length) continue;
+      out.push({ level: "interpretation", location: loc, message: `${channel}.scale.${rest.join(", ")} decides how a value becomes a length on the ${channel} axis, so it changes what a mark's length says` });
+      continue;
+    }
     if (parts.includes("encoding") && last === "type") { out.push({ level: "interpretation", location: loc, message: "an encoding's measurement type decides how its values are scaled" }); continue; }
     if (parts.includes("stack") || parts[0] === "data" || parts.includes("transform") || parts.includes("aggregate")) { out.push({ level: "interpretation", location: loc, message: `${last} changes what the chart computes` }); continue; }
-    if (parts.includes("scale") || parts.some((p) => COSMETIC_CONTAINERS.has(p)) || COSMETIC_LEAVES.has(last)) { out.push({ level: "presentation", location: loc, message: `${d.pointer || "the spec"} is how the chart looks` }); continue; }
+    if (parts.some((p) => COSMETIC_CONTAINERS.has(p)) || COSMETIC_LEAVES.has(last)) { out.push({ level: "presentation", location: loc, message: `${d.pointer || "the spec"} is how the chart looks` }); continue; }
     if (d.kind === "added") { out.push(addedSubtree(loc, d.after, beforeFields)); continue; }
     out.push({ level: "interpretation", location: loc, message: `${d.pointer} is not a chart property revise classifies; revise is conservative` });
   }
@@ -139,14 +227,22 @@ function addedSubtree(location: string, added: unknown, beforeFields: Set<string
 
 /** Position channels: the ones whose scale domain decides how long a mark is drawn. */
 const POSITION = new Set(["x", "y", "x2", "y2", "theta", "theta2", "radius", "radius2"]);
+/** Position-scale keys that space marks out without changing what a length means. */
+const POSITION_SCALE_SPACING = new Set(["padding", "paddingInner", "paddingOuter", "round", "align", "bandPosition"]);
 const isAxis = (path: string) => { const parts = path.split("."); return parts.includes("encoding") && POSITION.has(parts[parts.length - 1] ?? ""); };
 
-/** A domain truncates when it starts later or ends earlier than the one it replaced. */
-function truncates(before: unknown, after: unknown): boolean {
-  if (!Array.isArray(before) || !Array.isArray(after)) return true; // a domain appearing or disappearing can cut the axis
-  const nb = before.map(Number), na = after.map(Number);
-  if (nb.length !== 2 || na.length !== 2 || [...nb, ...na].some((n) => !Number.isFinite(n))) return canon(before) !== canon(after);
-  return na[0]! > nb[0]! || na[1]! < nb[1]!;
+/**
+ * What a changed position-axis domain means. Two numeric endpoints can be compared: a domain that starts later
+ * or ends earlier cuts values off. Anything else — a domain appearing, disappearing, or a set of categories —
+ * `revise` cannot compare, so it says that rather than asserting an effect on the image it did not establish.
+ */
+function domainJudgement(key: string, before: unknown, after: unknown): Omit<Judgement, "location"> {
+  const j = (level: Level, message: string) => ({ level, message });
+  const pair = (v: unknown) => { if (!Array.isArray(v) || v.length !== 2) return null; const n = v.map(Number); return n.every((x) => Number.isFinite(x)) ? (n as number[]) : null; };
+  const nb = pair(before), na = pair(after);
+  if (!nb || !na) return j("interpretation", `the ${key} axis domain ${canon(before)} became ${canon(after)}; revise compares two numeric endpoints and cannot compare these, so it calls the change a change of meaning`);
+  if (na[0]! > nb[0]! || na[1]! < nb[1]!) return j("interpretation", `the ${key} axis domain ${canon(before)} became ${canon(after)}, which cuts values off the axis`);
+  return j("presentation", `the ${key} axis domain ${canon(before)} became ${canon(after)}, which shows at least as much as before`);
 }
 
 /** Classify a change to `memo.md`: the same tokens is a rewording, different tokens is different evidence on the page. */

@@ -62,6 +62,18 @@ flags may still be harmless — and one it calls `presentation` may still have c
 because it reads tokens and field paths, never English. Full contract, including that limit:
 `docs/contracts/revise.md`.
 
+Two things this step reports that are easy to misread:
+
+- A difference located at `charts/<id>.vl.json` with "(against `<other>`, the chart it replaces on the page)"
+  is a **Variant promotion**. Neither spec file was edited; what changed is which one the Reader sees, and it is
+  judged against the one it replaces.
+- Some reasons say `revise` *cannot compare* something — a domain that appeared, a key it does not model. That
+  is the reason, and it is what you relay. Do not upgrade it into a statement about the image.
+
+If the report carries errors instead — `missing_file` (a memo or chart spec the manifest names is gone),
+`invalid_artifact` (a chart spec that is not JSON) — there is nothing to classify until the file is back. Fix
+that first; `aftergrid check` lists everything it breaks.
+
 Done when you can name, for the Operator, the level and at least one located reason behind it.
 
 ## 5. Branch on the class
@@ -104,6 +116,12 @@ Tell the Operator which file or field made it numeric, and that the Finding on d
 
 There is no baseline, so nothing can be classified. Go back to step 2, or pass `--baseline <dir>` naming a copy
 of the Finding as it was reviewed.
+
+`--baseline` is refused for `--apply` when the copy is not the reviewed state — it does not hash to the digest
+its own manifest pins (`digest`), it carries a different `finding.revision` (`needs_input`), or
+`revisions/<N>/` already archives a different digest (`exists`). Applying would have replaced that archive,
+which is the only copy of the artifact revision N's reviews and approvals were written against. Nothing is
+written; pass the reviewed copy, or drop the flag and use `revisions/<N>/`.
 
 Done when the Operator has been told the class, the reason and what happens next.
 

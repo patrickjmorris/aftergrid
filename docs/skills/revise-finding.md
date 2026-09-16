@@ -53,6 +53,16 @@ keeps every token. Method review is what catches that, and this skill never clai
 **It says `unknown`.** There is no baseline to compare against. Run `aftergrid revise <dir> --pin` on the
 Finding as it was reviewed, or pass `--baseline <dir>` naming a copy of it.
 
+**It refused my `--baseline` on apply.** Applying archives the baseline as revision N, so a copy that is not the
+reviewed state would replace the archive with something nobody approved. It is refused when the copy does not
+hash to its own pinned digest, when it is a different revision, or when `revisions/<N>/` already holds a
+different digest. Nothing is written either way.
+
+**I picked the other Variant and it came back as interpretation.** Choosing between Variants is a taste decision
+only while the two charts say the same thing. The promoted chart's spec is compared with the spec of the chart
+it replaces, so a candidate whose axis is narrower, whose field binding differs or which shows less is an
+interpretation change at the moment it reaches the page — the same cost that edit would have had in place.
+
 ## It's working if
 
 - Your request is quoted back to you, and the class comes with a located reason — a file and a field, not "this

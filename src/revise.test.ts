@@ -12,8 +12,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { evidenceDrift, revise } from "./commands/revise.ts";
+import { classifyChartSpec } from "./revise/classify.ts";
 import { check } from "./commands/check.ts";
 import { render } from "./commands/render.ts";
+import { houseStyle } from "./render/charts.ts";
 import { exitCodeFor } from "./report.ts";
 // @ts-ignore: shared ESM validation library.
 import { digestOf } from "../scripts/lib/validate-finding.mjs";
@@ -301,6 +303,223 @@ test("choosing the other Variant is presentation: the swap keeps the Claim, the 
   assert.ok(r.differences.some((d) => /Variant of the same Claim/.test(d.message)), JSON.stringify(r.differences));
 });
 
+test("promoting a Variant classifies its spec against the chart it replaces: a truncated axis costs review even though neither file changed", async () => {
+  const dir = await pinned();
+  const cut = JSON.parse(readFileSync(spec(dir), "utf8"));
+  cut.encoding.x.scale.domain = [0.25, 0.4];
+  writeFileSync(join(dir, "charts", "retention_by_arm_cut.vl.json"), JSON.stringify(cut, null, 2) + "\n");
+  editManifest(dir, (m: any) => {
+    const survivor = m.charts[0];
+    m.charts.push({ id: "retention_by_arm_cut", claim_id: survivor.claim_id, spec_path: "charts/retention_by_arm_cut.vl.json", result_id: survivor.result_id, title: survivor.title, description: survivor.description, variant_of: survivor.id });
+  });
+  // Keeping the candidate costs nothing: it is not on the Reader's page.
+  assert.equal((await revise({ dir, mode: "classify" })).classification, "presentation");
+  assert.equal((await revise({ dir, mode: "apply", now: () => new Date("2026-09-20T09:00:00Z") })).errors.length, 0);
+  assert.equal((await revise({ dir, mode: "pin" })).errors.length, 0);
+
+  // Putting it on the page is the change, and the spec it replaces is what it has to be judged against.
+  const memo = join(dir, "memo.md");
+  writeFileSync(memo, readFileSync(memo, "utf8").replace("<!-- chart: retention_by_arm_chart -->", "<!-- chart: retention_by_arm_cut -->"));
+  editManifest(dir, (m: any) => {
+    const [narrow, promoted] = [m.charts.find((c: any) => c.id === "retention_by_arm_chart"), m.charts.find((c: any) => c.id === "retention_by_arm_cut")];
+    delete promoted.variant_of;
+    narrow.variant_of = promoted.id;
+    m.claims[0].chart_ids = [promoted.id];
+  });
+  const r = await revise({ dir, mode: "classify" });
+  assert.equal(r.classification, "interpretation", JSON.stringify(r.differences, null, 2));
+  assert.ok(r.differences.some((d) => d.level === "interpretation" && /cuts values off the axis/.test(d.message) && /retention_by_arm_chart, the chart it replaces/.test(d.message)), JSON.stringify(r.differences, null, 2));
+  assert.ok(r.warnings.some((w) => w.category === "needs_attention"), JSON.stringify(r.warnings));
+
+  const applied = await revise({ dir, mode: "apply", now: () => new Date("2026-09-21T09:00:00Z") });
+  assert.equal(applied.errors.length, 0, JSON.stringify(applied.errors, null, 2));
+  assert.ok(applied.readiness_reasons.some((x) => /Method and Question review are required/.test(x)), applied.readiness_reasons.join("\n"));
+});
+
+test("taking the rendering chart off the page by filing it as a Variant is not presentation", async () => {
+  const dir = await pinned();
+  editManifest(dir, (m: any) => { m.charts[0].variant_of = "some_other_chart"; });
+  const r = await revise({ dir, mode: "classify" });
+  assert.equal(r.classification, "interpretation", JSON.stringify(r.differences, null, 2));
+  assert.ok(r.differences.some((d) => d.level === "interpretation" && /no longer renders/.test(d.message)), JSON.stringify(r.differences));
+});
+
+test("an entry calling itself a Variant of a chart it shares no result set with is not classified as one", async () => {
+  const dir = await pinned();
+  const other = "charts/retention_by_week_arm_alt.vl.json";
+  writeFileSync(join(dir, other), readFileSync(join(RUNS, "three-passes-still-failing", "pass-3.vl.json"), "utf8"));
+  editManifest(dir, (m: any) => {
+    const survivor = m.charts[0];
+    m.charts.push({ id: "retention_by_week_arm_alt", claim_id: survivor.claim_id, spec_path: other, result_id: "retention_by_week_arm", title: survivor.title, description: survivor.description, variant_of: survivor.id });
+  });
+  const r = await revise({ dir, mode: "classify" });
+  assert.equal(r.classification, "interpretation", JSON.stringify(r.differences, null, 2));
+  assert.ok(r.differences.some((d) => d.level === "interpretation" && /binds result set retention_by_week_arm/.test(d.message)), JSON.stringify(r.differences));
+});
+
+/* ------------------------------------------------------------------ what a position axis is */
+
+test("a position axis's scale is not cosmetic: zero, type, reverse and nice are interpretation, while a colour scale is not", async () => {
+  const dir = await pinned();
+  const original = JSON.parse(readFileSync(spec(dir), "utf8"));
+  for (const [key, value] of [["zero", false], ["type", "sqrt"], ["reverse", true], ["nice", false]] as [string, unknown][]) {
+    const edited = JSON.parse(JSON.stringify(original));
+    edited.encoding.x.scale[key] = value;
+    writeFileSync(spec(dir), JSON.stringify(edited, null, 2) + "\n");
+    editManifest(dir, () => {});
+    const r = await revise({ dir, mode: "classify" });
+    assert.equal(r.classification, "interpretation", `${key}: ${JSON.stringify(r.differences, null, 2)}`);
+    assert.ok(r.differences.some((d) => d.level === "interpretation" && d.location.endsWith(`#encoding.x.scale.${key}`)), `${key}: ${JSON.stringify(r.differences)}`);
+  }
+  // Which category carries the accent is how the chart points, not what a length says.
+  const coloured = JSON.parse(JSON.stringify(original));
+  coloured.encoding.color.scale = { domain: ["checklist", "control"], range: ["#0b6e4f", "#b9b9b9"] };
+  writeFileSync(spec(dir), JSON.stringify(coloured, null, 2) + "\n");
+  editManifest(dir, () => {});
+  assert.equal((await revise({ dir, mode: "classify" })).classification, "presentation");
+});
+
+test("a domain that appears is called a meaning change without claiming it cut values off an axis that had none", () => {
+  const bare = { mark: "bar", encoding: { x: { field: "retained_7d_rate", type: "quantitative" } } };
+  const scaled = { mark: "bar", encoding: { x: { field: "retained_7d_rate", type: "quantitative", scale: { domain: [0, 0.5] } } } };
+  const appeared = classifyChartSpec("c", "charts/x.vl.json", bare, scaled);
+  assert.equal(appeared.length, 1, JSON.stringify(appeared));
+  assert.equal(appeared[0]!.level, "interpretation");
+  assert.ok(!/cuts values off/.test(appeared[0]!.message), appeared[0]!.message);
+  assert.match(appeared[0]!.message, /cannot compare/);
+  const disappeared = classifyChartSpec("c", "charts/x.vl.json", scaled, bare);
+  assert.equal(disappeared.length, 1, JSON.stringify(disappeared));
+  assert.ok(!/cuts values off/.test(disappeared[0]!.message), disappeared[0]!.message);
+  // A narrowing is still named for what it does.
+  const narrowed = classifyChartSpec("c", "charts/x.vl.json", scaled, { mark: "bar", encoding: { x: { field: "retained_7d_rate", type: "quantitative", scale: { domain: [0.25, 0.4] } } } });
+  assert.ok(narrowed.some((j) => j.level === "interpretation" && /cuts values off the axis/.test(j.message)), JSON.stringify(narrowed));
+});
+
+/* ------------------------------------------------------------------ what revise refuses to destroy or to skip */
+
+test("--apply --baseline refuses to overwrite the pinned archive with a copy nobody reviewed", async () => {
+  const dir = await pinned();
+  const copy = mkdtempSync(join(tmpdir(), "ag-kn3-baseline-"));
+  const older = mkdtempSync(join(tmpdir(), "ag-kn3-older-"));
+  cleanup.push(copy, older);
+  cpSync(dir, copy, { recursive: true });
+  cpSync(dir, older, { recursive: true });
+  writeFileSync(join(copy, "memo.md"), readFileSync(join(copy, "memo.md"), "utf8") + "\nA line nobody reviewed.\n");
+  const archived = readFileSync(join(dir, "revisions", "1", "memo.md"), "utf8");
+
+  editManifest(dir, (m: any) => { m.tables[0].columns[0].label = "Onboarding shown"; });
+  const r = await revise({ dir, mode: "apply", baseline: copy, now: () => new Date("2026-09-20T09:00:00Z") });
+  assert.equal(r.errors[0]?.category, "digest", JSON.stringify(r.errors));
+  assert.equal(readFileSync(join(dir, "revisions", "1", "memo.md"), "utf8"), archived, "the reviewed revision 1 is still the one in revisions/1");
+  assert.equal(readManifest(dir).finding.revision, 1, "and nothing was applied");
+
+  // A clean copy of a different revision is refused too, rather than filed under this one's number.
+  const m = parseYaml(readFileSync(join(older, "manifest.yaml"), "utf8"));
+  m.finding.revision = 7;
+  m.content_digest = digestOf(m, older);
+  writeFileSync(join(older, "manifest.yaml"), toYaml(m, { lineWidth: 0 }));
+  const mismatched = await revise({ dir, mode: "apply", baseline: older, now: () => new Date("2026-09-20T09:00:00Z") });
+  assert.ok(mismatched.errors.some((e) => /revision 7/.test(e.message)), JSON.stringify(mismatched.errors));
+  assert.equal(readFileSync(join(dir, "revisions", "1", "memo.md"), "utf8"), archived);
+});
+
+test("a file the manifest names and the Finding no longer holds is reported missing, never as nothing to revise", async () => {
+  for (const missing of ["charts/retention_by_arm.vl.json", "memo.md"]) {
+    const dir = await pinned();
+    rmSync(join(dir, missing));
+    for (const mode of ["classify", "apply"] as const) {
+      const r = await revise({ dir, mode });
+      assert.notEqual(r.classification, "unchanged", `${missing} ${mode}: ${JSON.stringify(r)}`);
+      assert.equal(r.content, "incomplete", `${missing} ${mode}`);
+      assert.ok(r.errors.some((e) => e.category === "missing_file" && e.message.includes(missing)), `${missing} ${mode}: ${JSON.stringify(r.errors)}`);
+    }
+    assert.equal(readManifest(dir).finding.revision, 1, `${missing}: nothing was applied`);
+    assert.equal((await check({ dir, github: null })).evidence, "invalid", `${missing}: check says the same`);
+  }
+});
+
+test("a chart spec that is not JSON is a typed error in the report, not a stack trace out of the command", async () => {
+  const dir = await pinned();
+  writeFileSync(spec(dir), "{ not json ");
+  for (const mode of ["classify", "apply"] as const) {
+    const r = await revise({ dir, mode });
+    assert.equal(r.syntax, "invalid", mode);
+    const problem = r.errors.find((e) => e.category === "invalid_artifact");
+    assert.ok(problem, `${mode}: ${JSON.stringify(r.errors)}`);
+    assert.match(problem!.message, /not valid JSON/);
+    assert.match(problem!.location, /retention_by_arm\.vl\.json/);
+  }
+  assert.equal(readManifest(dir).finding.revision, 1, "nothing was applied");
+});
+
+/* ------------------------------------------------------------------ the /iterate-visual loop's own steps */
+
+test("the re-pin /iterate-visual step 2 documents is what makes check valid again after a spec edit", async () => {
+  const dir = await pinned();
+  // A draft being worked by the visual loop has no approval standing on its digest.
+  editManifest(dir, (m: any) => { m.attestations = []; });
+  const edited = JSON.parse(readFileSync(spec(dir), "utf8"));
+  edited.encoding.color.scale = { domain: ["checklist", "control"], range: ["#0b6e4f", "#b9b9b9"] };
+  writeFileSync(spec(dir), JSON.stringify(edited, null, 2) + "\n");
+
+  const stale = await check({ dir, github: null });
+  assert.ok(stale.errors.some((e) => e.category === "digest"), "editing a chart spec breaks the content digest");
+  assert.equal((await render({ dir })).errors.some((e) => e.category === "digest"), true, "and render refuses until it is re-pinned");
+
+  const m = readManifest(dir);
+  m.content_digest = digestOf(m, dir);
+  writeManifest(dir, m);
+  const after = await check({ dir, github: null });
+  assert.equal(after.evidence, "valid", JSON.stringify(after.errors, null, 2));
+  assert.ok(!after.errors.some((e) => e.category === "digest"), JSON.stringify(after.errors));
+  assert.equal((await render({ dir, generatedAt: "2026-09-15T12:00:00Z" })).errors.length, 0);
+});
+
+test("the hold-back /iterate-visual step 6 documents keeps a returned chart off the Reader's page and leaves check valid", async () => {
+  const dir = await pinned();
+  const memo = join(dir, "memo.md");
+  writeFileSync(memo, readFileSync(memo, "utf8").replace("<!-- chart: retention_by_arm_chart -->\n", ""));
+  editManifest(dir, (m: any) => { m.claims[0].chart_ids = []; m.attestations = []; });
+
+  const checked = await check({ dir, github: null });
+  assert.equal(checked.evidence, "valid", JSON.stringify(checked.errors, null, 2));
+  const rendered = await render({ dir, generatedAt: "2026-09-15T12:00:00Z" });
+  assert.equal(rendered.errors.length, 0, JSON.stringify(rendered.errors, null, 2));
+  const html = readFileSync(join(dir, "render", "finding.html"), "utf8");
+  assert.ok(!html.includes("<figure>"), "the returned chart is not shown to the Reader");
+  assert.ok(!html.includes("retention_by_arm_chart"), "and is not named on the page");
+  // Neither edit alone does it: the marker without the id refuses, the id without the marker changes nothing.
+  const markerOnly = await pinned();
+  writeFileSync(join(markerOnly, "memo.md"), readFileSync(join(markerOnly, "memo.md"), "utf8").replace("<!-- chart: retention_by_arm_chart -->\n", ""));
+  editManifest(markerOnly, (m: any) => { m.attestations = []; });
+  assert.ok((await check({ dir: markerOnly, github: null })).errors.some((e) => /chart marker/.test(e.message)), "a Claim that still lists the chart demands its marker");
+
+  const idOnly = await pinned();
+  editManifest(idOnly, (m: any) => { m.claims[0].chart_ids = []; m.attestations = []; });
+  assert.equal((await check({ dir: idOnly, github: null })).evidence, "valid");
+  assert.equal((await render({ dir: idOnly, generatedAt: "2026-09-15T12:00:00Z" })).errors.length, 0);
+  assert.ok(readFileSync(join(idOnly, "render", "finding.html"), "utf8").includes("<figure>"), "the memo marker is what puts the figure on the page, so dropping the id alone changes nothing");
+});
+
+test("/iterate-visual documents the two steps its own loop cannot finish without, and claims no outcome it has no step for", () => {
+  const skill = readFileSync(join(REPO, "skills", "iterate-visual", "SKILL.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "iterate-visual.md"), "utf8");
+  // Step 2: an edited spec leaves the digest stale, and the remedy `check` prints names a flag that does not exist.
+  assert.match(skill, /digestOf/, "the skill says how to re-pin content_digest after a spec edit");
+  for (const m of (skill + doc).matchAll(/check\s+(?:<[^>]+>\s+)?--pin/g)) {
+    const around = (skill + doc).slice(Math.max(0, m.index - 200), m.index + 200);
+    assert.match(around, /does not exist/, "`check --pin` is only ever named as the flag the CLI does not parse, never as a step");
+  }
+  // Step 6: handing a chart back is a report; taking it off the page is two edits, and neither text may claim
+  // the loop does it on its own.
+  const holdBack = skill.slice(skill.indexOf("## 6."), skill.indexOf("## 7."));
+  assert.match(holdBack, /chart_ids/, "step 6 names the Claim field that decides whether a returned chart is shown");
+  assert.match(holdBack, /marker/, "and the memo marker that goes with it");
+  for (const [name, text] of [["SKILL.md", skill], ["docs", doc]] as const) {
+    assert.ok(!/is not (?:in|rendered into) the render/.test(text), `${name}: a returned chart is still rendered until someone holds it back`);
+  }
+});
+
 /* ------------------------------------------------------------------ recorded /iterate-visual runs */
 
 const RUBRIC = join(REPO, "skills", "iterate-visual", "references", "visual-rubric.md");
@@ -350,6 +569,51 @@ test("a pass with a failing item is never recorded as accepted: it goes back to 
   const failing = runs().filter(({ run }) => run.outcome.kind === "returned_to_operator");
   assert.equal(failing.length, 1);
   assert.equal(failing[0]!.run.passes.length, 3, "the still-failing run uses all three passes and then stops");
+});
+
+test("every recorded pass is scored against the image the pinned renderer actually produces", async () => {
+  const dir = await pinned();
+  const vega: any = await import("vega");
+  const vl: any = await import("vega-lite");
+  const [accent, grey] = houseStyle.range.category as string[];
+  const manifest = readManifest(dir);
+  for (const { name, run } of runs()) {
+    const res = manifest.results.find((r: any) => r.id === run.result_id);
+    assert.ok(res, `${name}: binds ${run.result_id}, a result set of the exemplar`);
+    const numeric = new Set(res.columns.filter((c: any) => c.type === "integer" || c.type === "decimal").map((c: any) => c.name));
+    const rows = JSON.parse(readFileSync(join(dir, "results", `${run.result_id}.json`), "utf8")).rows
+      .map((row: any) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v === null ? null : numeric.has(k) ? Number(v) : v])));
+
+    for (const pass of run.passes) {
+      const where = `${name} pass ${pass.pass}`;
+      const source = JSON.parse(readFileSync(join(RUNS, name, pass.spec), "utf8"));
+      // Built the way `src/render/charts.ts` builds it: the spec's own config is discarded for the house style.
+      const full = { ...source, width: 480, height: Math.max(60, 32 * rows.length + 20), title: { text: run.chart_id }, config: houseStyle, data: { name: "result" } };
+      const view = new vega.View(vega.parse(vl.compile(full).spec), { renderer: "none" }).data("result", rows);
+      await view.runAsync();
+      const svg: string = await view.toSVG();
+      const verdict = (id: string) => pass.items.find((i: any) => i.id === id)?.verdict;
+      const prose = [...pass.items.map((i: any) => String(i.note)), String(pass.revision ?? ""), String(run.outcome.next_step ?? "")];
+
+      // The house style disables legends, so no pass may be scored on one being read, dropped or kept.
+      assert.ok(!/role-legend|role="legend"/.test(svg), `${where}: the pinned house style draws no legend`);
+      for (const text of prose) assert.ok(!/\blegends?\b/i.test(text) || /no legend|without a legend|draws no legend|legends? (?:is|are) disabled/i.test(text), `${where}: this describes a legend the renderer never draws — ${text}`);
+
+      // Grey plus one accent is what the palette does, not something a note may assert against the image.
+      const colours = new Set<string>();
+      try { for (const value of view.scale("color").domain()) colours.add(String(view.scale("color")(value))); } catch { /* no colour channel */ }
+      if (colours.size && [...colours].every((c) => c === accent || c === grey)) assert.equal(verdict("grey_plus_accent"), "yes", `${where}: the image is grey plus the accent (${[...colours].join(", ")})`);
+
+      // And whether the value axis starts at zero is readable off the compiled scale.
+      for (const channel of ["x", "y"]) {
+        let domain: unknown = null;
+        try { domain = view.scale(channel).domain(); } catch { /* no such scale */ }
+        if (!Array.isArray(domain) || domain.length !== 2 || !domain.every((v) => typeof v === "number")) continue;
+        assert.equal(verdict("axis_not_truncated"), domain[0] === 0 ? "yes" : "no", `${where}: the ${channel} domain is ${JSON.stringify(domain)}`);
+      }
+      view.finalize();
+    }
+  }
 });
 
 test("the recorded direct-label spec is in the validated Vega-Lite subset and renders the labels the rubric asks for", async () => {
