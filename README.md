@@ -62,4 +62,8 @@ skills.sh layout are in `skills/README.md`, with a docs page per promoted skill 
 - `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`); `fixtures/negatives/` seam-1 failure cases, one defect each
 - `hooks/claude-code/` the PreToolUse guard installed by `aftergrid hook install`
 
+## Credits
+
+The Engine's shape is adapted from [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT): the skill format and buckets, the user- versus model-invoked split, the CLAUDE.md conventions, and the `grilling` and `writing-for-agents` disciplines that `/grill-question` and every SKILL.md here depend on. Install `mattpocock-skills` alongside aftergrid; `aftergrid setup` checks for it. The full notice is in `LICENSE`.
+
 Development is tracked in beads (`.beads/`, see `docs/agents/issue-tracker.md`).
