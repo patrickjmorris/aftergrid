@@ -2,7 +2,7 @@
 // in Node (no canvas) with a pinned house style, and to PNG through a WASM rasterizer (no native compile).
 import { readFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fail } from "../../scripts/fixture-safety.mjs";
+import { decimal, fail } from "../../scripts/fixture-safety.mjs";
 import type { Results } from "./values.ts";
 
 export const RENDERER_VERSION = "0.1.0";
@@ -29,7 +29,7 @@ function bindRows(manifest: any, results: Results, resultId: string, allowed: Se
   // Only exported columns reach the chart data; nothing else is embedded in the SVG or its payload.
   return results[resultId]!.rows.map((row) => Object.fromEntries(cols.map((n) => {
     const value = row[n] === null ? null : numeric.has(n) ? Number(row[n]) : row[n];
-    if (typeof value === "number" && !Number.isFinite(value)) fail("render_error", `${resultId}.${n}`, "value exceeds the chart engine's finite numeric range");
+    if (typeof value === "number" && (!Number.isFinite(value) || (value === 0 && decimal(row[n]).n !== 0n))) fail("render_error", `${resultId}.${n}`, "value exceeds the chart engine's finite numeric range");
     return [n, value];
   })));
 }
@@ -45,7 +45,18 @@ export async function renderChartSvg(manifest: any, results: Results, chart: any
   const view = new vega.View(vega.parse(compiled), { renderer: "none" }).data("result", rows);
   try {
     await view.runAsync();
-    return await view.toSVG();
+    const svg: string = await view.toSVG();
+    // SVG paint can contain resource URLs even when the Vega spec has no `url` or `href` key.
+    // Inspect the generated resource-bearing attributes, not ordinary title/data text.
+    for (const attr of svg.matchAll(/\b(?:fill|stroke|filter|clip-path|mask|cursor|marker(?:-start|-mid|-end)?)="([^"]*)"/g)) {
+      for (const ref of attr[1]!.matchAll(/url\s*\(\s*([^)]*)\)/gi)) {
+        if (!/^#[a-zA-Z0-9_.:-]+$/.test(ref[1]!)) fail("chart_subset", chart.id, "external SVG resource references are not allowed");
+      }
+    }
+    for (const ref of svg.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
+      if (!/^#[a-zA-Z0-9_.:-]+$/.test(ref[1]!)) fail("chart_subset", chart.id, "external SVG resource references are not allowed");
+    }
+    return svg;
   } finally { view.finalize(); }
 }
 

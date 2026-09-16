@@ -121,12 +121,50 @@ test('successful render removes obsolete chart exports but preserves authored te
   assert.equal(readFileSync(templatePath, 'utf8'), template);
 });
 
-test('chart rendering refuses exact decimals that would overflow to infinity', async (t) => {
+test('chart rendering refuses exact decimals outside the finite chart range', async (t) => {
   const { dir, m } = fixture(t);
   const { renderChartSvg } = await import('./render/charts.ts');
   const ch = m.charts[0];
   const results: any = {};
   for (const r of m.results) results[r.id] = JSON.parse(readFileSync(join(dir, r.path), 'utf8'));
-  results[ch.result_id].rows[0].retained_7d_rate = '1e999';
-  await assert.rejects(() => renderChartSvg(m, results, { ...ch, __specPath: join(dir, ch.spec_path) }, 'Overflow'), /finite numeric range/);
+  for (const value of ['1e999', '1e-999']) {
+    results[ch.result_id].rows[0].retained_7d_rate = value;
+    await assert.rejects(() => renderChartSvg(m, results, { ...ch, __specPath: join(dir, ch.spec_path) }, 'Out of range'), /finite numeric range/);
+  }
+});
+
+
+test('a replacement error restores every previous output', async (t) => {
+  const { root, dir, m } = fixture(t);
+  const { writeOutputs } = await import('./render/outputs.ts');
+  const { default: fs } = await import('node:fs');
+  const { syncBuiltinESMExports } = await import('node:module');
+  const html = join(dir, 'render/finding.html'), svg = join(dir, 'render/retention_by_arm_chart.svg');
+  writeFileSync(html, 'previous HTML'); writeFileSync(svg, 'previous SVG');
+  const rename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from: any, to: any) => {
+    if (String(from).endsWith('/new-1')) throw new Error('injected replacement failure');
+    return rename(from, to);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => writeOutputs(dir, m, [['render/finding.html', Buffer.from('new HTML')], ['render/retention_by_arm_chart.svg', Buffer.from('new SVG')]], join(root, 'analytics')), /injected replacement failure/);
+    assert.equal(readFileSync(html, 'utf8'), 'previous HTML');
+    assert.equal(readFileSync(svg, 'utf8'), 'previous SVG');
+    assert.ok(!fs.readdirSync(dir).some(name => name.startsWith('.render-stage-')));
+  } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+});
+
+
+test('SVG paint cannot introduce external resources into a self-contained export', async (t) => {
+  const { dir, m, pin } = fixture(t);
+  const specPath = join(dir, m.charts[0].spec_path);
+  const spec = JSON.parse(readFileSync(specPath, 'utf8'));
+  delete spec.encoding.color;
+  spec.mark.fill = 'url(https://attacker.invalid/resource)';
+  writeFileSync(specPath, JSON.stringify(spec)); pin();
+  const out = join(dir, 'render/finding.html'); writeFileSync(out, 'previous output');
+  const r = await render({ dir });
+  assert.ok(r.errors.some(e => e.category === 'chart_subset' && /external SVG/.test(e.message)), JSON.stringify(r));
+  assert.equal(readFileSync(out, 'utf8'), 'previous output');
 });

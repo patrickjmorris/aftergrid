@@ -12,7 +12,7 @@
 
 ## Safety
 
-Every interpolation is HTML-escaped, including authored Claim text and text-valued result cells. Token values are inserted as escaped text after parsing Markdown, so a result value cannot manufacture Markdown links, images or blocks. Memo markdown is rendered with raw HTML escaped, images dropped and links limited to `http(s):` and `mailto:`. Chart SVG comes from Vega on data the renderer bound. No script runs on the page.
+Every interpolation is HTML-escaped, including authored Claim text and text-valued result cells. Token values are inserted as escaped text after parsing Markdown, so a result value cannot manufacture Markdown links, images or blocks. Memo markdown is rendered with raw HTML escaped, images dropped and links limited to `http(s):` and `mailto:`. Chart SVG comes from Vega on data the renderer bound; resource-bearing SVG attributes may reference only local fragments, never external resources. No script runs on the page.
 
 ## Pinned versions
 
