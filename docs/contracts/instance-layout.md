@@ -1,6 +1,7 @@
 # Instance layout
 
-What `/setup-aftergrid` scaffolds inside an Operator's repository. The Engine holds verbs; everything here is the Instance's nouns. Default root `analytics/`; the Engine reads the root from `analytics/aftergrid.yaml` when present at the repository root, otherwise from `--instance`.
+What `/setup-aftergrid` scaffolds inside an Operator's repository, by running `aftergrid setup`
+(`docs/contracts/setup.md`, which also says what setup verifies and what it cannot). The Engine holds verbs; everything here is the Instance's nouns. Default root `analytics/`; the Engine reads the root from `analytics/aftergrid.yaml` when present at the repository root, otherwise from `--instance`.
 
 ```
 analytics/
