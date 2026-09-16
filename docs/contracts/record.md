@@ -45,9 +45,12 @@ For `--check`: `checks[].content_hash` (the Check file), `checks[].outcome`, `ch
 `checks[].reported_by = { kind: harness, tool, tool_version?, reported_at, evidence? }`. The evidence file is
 copied into `checks/evidence/<check_id>.<ext>` and pinned by hash.
 
-An adapter run (`aftergrid execute`) sets `executed_by.kind: adapter` where it sets `adapter` and
-`engine_version`. An execution with **no** `executed_by` is a manifest written before the field existed: read it
-as an adapter run, never as a recorded one.
+`executed_by.kind: adapter` is the value an adapter run means, and `aftergrid execute` does **not** write it
+today: it writes `adapter`, `engine_version` and `mode: retained_rerun`, which already say an adapter ran the
+query. An execution with **no** `executed_by` is therefore an adapter run — every Finding written before this
+field existed, and every Finding `execute` writes now. It is never read as a recorded one. The field is `kind:
+harness` or absent in practice; `adapter` exists so `execute` can start writing it without a schema change, and
+a Finding that carries it means exactly what the absence means.
 
 `recorded_at` and `reported_at` are volatile and excluded from the content digest, exactly as `executed_at` is,
 so recording the same thing twice changes nothing the digest covers. The tool name and the evidence hash are

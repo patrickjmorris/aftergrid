@@ -2034,7 +2034,7 @@
         "tool",
         "recorded_at"
       ],
-      "description": "Who executed this query. `adapter`: an aftergrid adapter ran it against the retained inputs and the Engine observed the result. `harness`: the Operator's own tool ran it and `aftergrid record` wrote down the SQL, the parameters and the result file the tool produced, without running anything (ADR 0010, docs/contracts/record.md). Absent means a manifest written before this field existed: read it as `adapter`, never as `harness`.",
+      "description": "Who executed this query. `harness`: the Operator's own tool ran it and `aftergrid record` wrote down the SQL, the parameters and the result file the tool produced, without running anything (ADR 0010, docs/contracts/record.md). `adapter`: an aftergrid adapter ran it against the retained inputs and the Engine observed the result — `aftergrid execute` does not write this field today, because `adapter`, `engine_version` and `mode: retained_rerun` already say so, and the value exists so it can start without a schema change. Absent therefore means an adapter run, and is never read as `harness`.",
       "properties": {
         "kind": {
           "type": "string",
