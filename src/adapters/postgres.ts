@@ -68,7 +68,8 @@ const DENIED_FUNCTIONS = new Set([
 ]);
 
 type ParamRef = { name: string; start: number; end: number };
-export type Scan = { firstWord: string; words: string[]; params: ParamRef[]; statements: number };
+/** `words` are bare (unquoted) words; `quoted` are the contents of double-quoted identifiers, unescaped. */
+export type Scan = { firstWord: string; words: string[]; quoted: string[]; params: ParamRef[]; statements: number };
 
 const policy = (message: string): never => { throw new AdapterError("sql_policy", message, "SQL"); };
 const IDENT_CHAR = /[A-Za-z0-9_-￿]/;
@@ -76,7 +77,7 @@ const IDENT_CHAR = /[A-Za-z0-9_-￿]/;
 /** Tokenize far enough to split top-level statements and see bare keywords; refuse anything unrecognised. */
 export function scan(sql: string): Scan {
   if (typeof sql !== "string" || !sql.trim()) policy("empty SQL");
-  const words: string[] = []; const params: ParamRef[] = [];
+  const words: string[] = []; const quoted: string[] = []; const params: ParamRef[] = [];
   let statements = 0; let firstWord = ""; let tokens = 0; let i = 0;
   const endStatement = () => { if (tokens) statements++; tokens = 0; };
   while (i < sql.length) {
@@ -96,12 +97,15 @@ export function scan(sql: string): Scan {
       // A quote glued to a preceding word or & is escape / unicode / bit-string syntax, whose escaping rules this
       // tokenizer does not model. Refuse rather than guess.
       if (i > 0 && (IDENT_CHAR.test(sql[i - 1]!) || sql[i - 1] === "&")) policy("escape, unicode and bit string literal syntax is not allowed in analysis SQL");
-      const quote = ch; i++;
+      const quote = ch; const start = ++i;
       for (;;) {
         if (i >= sql.length) policy(quote === "'" ? "unterminated string literal" : "unterminated quoted identifier");
         if (sql[i] === quote) { if (sql[i + 1] === quote) { i += 2; continue; } i++; break; }
         i++;
       }
+      // A quoted identifier names the same object as the bare word, so the guard has to see it too: without this
+      // `select "pg_read_file"(...)` would be admitted while `select pg_read_file(...)` is refused.
+      if (quote === '"') quoted.push(sql.slice(start, i - 1).replace(/""/g, '"'));
       tokens++; continue;
     }
     if (ch === "$") {
@@ -136,7 +140,7 @@ export function scan(sql: string): Scan {
     tokens++; i++;
   }
   endStatement();
-  return { firstWord, words, params, statements };
+  return { firstWord, words, quoted, params, statements };
 }
 
 /** One statement, SELECT only, no side-effecting keyword and no function that reaches outside the query. */
@@ -147,6 +151,12 @@ export function guard(sql: string): Scan {
   for (const w of s.words) {
     if (DENIED_WORDS.has(w)) policy(`only SELECT statements are allowed; the keyword '${w}' is refused`);
     if (DENIED_FUNCTIONS.has(w)) policy(`'${w}' reaches outside the query and is refused`);
+  }
+  // Double quoting is the documented escape hatch for a column named after a *keyword*; it is not one for a denied
+  // function, which Postgres resolves identically quoted or bare. Refusing a column that happens to be named after
+  // one is a false refusal, which is the side this guard errs on.
+  for (const q of s.quoted) {
+    if (DENIED_FUNCTIONS.has(q.toLowerCase())) policy(`'${q}' reaches outside the query and is refused; quoting an identifier does not exempt it`);
   }
   if (s.firstWord === "with" && !s.words.includes("select")) policy("only SELECT statements are allowed");
   return s;
@@ -181,6 +191,9 @@ export function cell(oid: number, raw: string | null): string | number | boolean
   return raw; // timestamptz already reads 'YYYY-MM-DD HH:MM:SS+00' because every session runs in UTC
 }
 
+/** Connection loss (idle kill, server restart, administrator terminate) is a runtime state, not a SQL error. */
+const LOST_CODES = new Set(["57P01", "57P02", "57P03", "08000", "08001", "08003", "08004", "08006", "08007", "08P01", "ECONNREFUSED", "ECONNRESET", "EPIPE", "ENOTFOUND", "ETIMEDOUT", "ENOENT"]);
+
 function mapError(e: unknown, timeoutMs: number, what: string): AdapterError {
   const translated = asAdapterError(e);
   if (translated instanceof AdapterError) return translated;
@@ -189,8 +202,33 @@ function mapError(e: unknown, timeoutMs: number, what: string): AdapterError {
   if (code === "57014") return new AdapterError("cancelled", `${what} cancelled after ${timeoutMs} ms (statement_timeout)`, "SQL");
   if (code === "53200" || code === "53100" || code === "53400" || code === "54000") return new AdapterError("resource_limit", msg, "SQL");
   if (code === "25006" || code === "42501") return new AdapterError("sql_policy", msg, "SQL");
-  if (code === "ECONNREFUSED" || code === "ENOENT") return new AdapterError("runtime_unavailable", msg, "SQL");
+  if (LOST_CODES.has(String(code)) || /connection terminated|connection ended|server closed the connection|terminating connection/i.test(msg)) {
+    return new AdapterError("runtime_unavailable", `${msg} (${what}); the Postgres connection is gone and this session cannot be used again`, "SQL");
+  }
   return new AdapterError("sql_error", msg, "SQL");
+}
+
+/**
+ * `work_mem` as Postgres spells it: an integer with a unit (`B`, `kB`, `MB`, `GB`, `TB`); a bare number is kB.
+ * A caller-supplied limit that cannot be expressed that way is refused here, never silently dropped, because the
+ * admission record names the limits that admitted an unknown estimate.
+ */
+export function workMem(value: string): string {
+  const m = /^\s*([0-9]+)\s*(b|kb|k|mb|m|gb|g|tb|t)?\s*$/i.exec(String(value ?? ""));
+  const unit = (m?.[2] ?? "kb").toLowerCase();
+  const scale = unit === "b" ? 1 / 1024 : unit === "kb" || unit === "k" ? 1 : unit === "mb" || unit === "m" ? 1024 : unit === "gb" || unit === "g" ? 1024 ** 2 : 1024 ** 3;
+  const kb = m ? Math.floor(Number(m[1]) * scale) : NaN;
+  if (!Number.isFinite(kb) || kb < 64 || kb > 2_147_483_647) {
+    throw new AdapterError("resource_limit", `memory_limit ${JSON.stringify(String(value))} is not a work_mem value Postgres accepts; use an integer with a unit (64kB..2047GB), for example "256MB"`, "memory_limit");
+  }
+  if (kb % (1024 ** 2) === 0) return `${kb / 1024 ** 2}GB`;
+  if (kb % 1024 === 0) return `${kb / 1024}MB`;
+  return `${kb}kB`;
+}
+
+/** Limits as this adapter will actually apply them, so the values it records are the values it enforced. */
+function normalizeLimits(limits: ResourceLimits): ResourceLimits {
+  return { ...limits, memory_limit: workMem(limits.memory_limit) };
 }
 
 /** One connection, one statement at a time: the session owns the timeout, the cancel path and the type names. */
@@ -198,14 +236,20 @@ class Session {
   readonly client: any;
   private url: string;
   private pid = 0;
+  private lost?: AdapterError;
   private typeNames = new Map<number, string>();
   private constructor(client: any, url: string) { this.client = client; this.url = url; }
 
   static async open(url: string, limits: ResourceLimits, opts: { search_path?: string } = {}): Promise<Session> {
     const { Client } = await pgapi();
     const client = new Client({ connectionString: url, types: { getTypeParser: () => (v: any) => v }, application_name: "aftergrid" });
-    try { await client.connect(); } catch (e) { throw mapError(e, limits.statement_timeout_ms, "connecting"); }
     const s = new Session(client, url);
+    // node-postgres emits 'error' on the Client when the connection drops while nothing is in flight (server
+    // restart, proxy idle kill, administrator terminate). Without a listener that is an unhandled 'error' event,
+    // which kills the process — taking any disposable instance's cleanup with it. Record it instead: the next
+    // call on this session fails with it, as an AdapterError like any other.
+    client.on("error", (e: unknown) => { s.lost ??= mapError(e, limits.statement_timeout_ms, "the connection"); });
+    try { await client.connect(); } catch (e) { throw mapError(e, limits.statement_timeout_ms, "connecting"); }
     try {
       await client.query("SET TimeZone='UTC'");
       // The enforced read boundary for this session, independent of the statement guard.
@@ -213,8 +257,9 @@ class Session {
       await client.query(`SET statement_timeout = ${ms(limits.statement_timeout_ms)}`);
       await client.query(`SET lock_timeout = ${ms(limits.statement_timeout_ms)}`);
       await client.query(`SET idle_in_transaction_session_timeout = ${ms(limits.statement_timeout_ms * 10)}`);
-      // work_mem is per-operation tuning, not a memory cap; capabilities() says so.
-      if (/^[0-9]{1,7}(kB|MB|GB)$/.test(limits.memory_limit)) await client.query(`SET work_mem = ${sqlString(limits.memory_limit)}`);
+      // work_mem is per-operation tuning, not a memory cap; capabilities() says so. An unusable value is refused
+      // by workMem() rather than dropped, so what the admission records is what the session applied.
+      await client.query(`SET work_mem = ${sqlString(workMem(limits.memory_limit))}`);
       await client.query(`SET max_parallel_workers_per_gather = ${Math.max(0, Math.floor(limits.threads) - 1)}`);
       if (opts.search_path) await client.query(`SET search_path = ${ident(opts.search_path)}`);
       s.pid = Number((await client.query("select pg_backend_pid() as pid")).rows[0].pid);
@@ -231,6 +276,7 @@ class Session {
       try {
         const { Client } = await pgapi();
         const c = new Client({ connectionString: this.url, application_name: "aftergrid-cancel" });
+        c.on("error", () => { /* the backstop never crashes the process it is protecting */ });
         await c.connect();
         try { await c.query("select pg_cancel_backend($1)", [this.pid]); } finally { await c.end().catch(() => undefined); }
       } catch { /* statement_timeout remains the enforced stop */ }
@@ -239,7 +285,17 @@ class Session {
     return () => clearTimeout(timer);
   }
 
+  /**
+   * End a transaction this session opened. It deliberately does not go through raw(): after a failed statement the
+   * transaction is aborted, and every statement but COMMIT/ROLLBACK — including raw()'s `SET statement_timeout` —
+   * fails with 25P02, which would leave the session aborted for good.
+   */
+  async endTransaction(commit: boolean) {
+    await this.client.query(commit ? "COMMIT" : "ROLLBACK").catch(() => undefined);
+  }
+
   async raw(text: string, values: (string | number | boolean | null)[], timeoutMs: number, what: string): Promise<any> {
+    if (this.lost) throw this.lost;
     const disarm = this.arm(timeoutMs);
     try {
       await this.client.query(`SET statement_timeout = ${ms(timeoutMs)}`);
@@ -325,7 +381,7 @@ export class PostgresAdapter implements Adapter {
       throw new AdapterError("missing_credential", "connection_string_env must be the NAME of an environment variable, never a connection string", "connection_string_env");
     }
     this.opts = opts;
-    this.limits = { ...DEFAULT_LIMITS, ...(opts.limits ?? {}) };
+    this.limits = normalizeLimits({ ...DEFAULT_LIMITS, ...(opts.limits ?? {}) });
     this.cap = opts.estimate_cap_rows ?? 5_000_000;
     this.schema = opts.schema ?? "public";
     ident(this.schema);
@@ -334,13 +390,13 @@ export class PostgresAdapter implements Adapter {
   capabilities(): CapabilityMatrix {
     return {
       execute: { status: "supported", note: "single SELECT, named parameters mapped to $1..$n, JSON-safe typed cells; timestamptz rendered in UTC" },
-      capture: { status: "supported", note: "whole-table CSV extracts read inside one REPEATABLE READ READ ONLY transaction; content hashes, server version and column types recorded" },
-      open_retained: { status: "partial", note: "extracts are restored into a disposable Postgres provisioned with initdb/pg_ctl; without those binaries rerun reports runtime_unavailable and never falls back to the live source" },
-      privilege_probe: { status: "supported", note: "effective privileges of the connected role: has_table_privilege for INSERT/UPDATE/DELETE/TRUNCATE, CREATE on schema and database, and pg_roles superuser/createdb" },
+      capture: { status: "supported", note: "whole-table CSV extracts read inside one REPEATABLE READ READ ONLY transaction; content hashes, server version and column types recorded; rows ordered by every column, by its text rendering where the type has no ordering operator; a column whose name a rerun could not restore is refused at capture" },
+      open_retained: { status: "partial", note: "extracts are restored into a disposable Postgres provisioned with initdb/pg_ctl; a column type the fresh instance does not have (an enum, domain or composite) is restored as text and the substitution is recorded in the admission; without those binaries rerun reports runtime_unavailable and never falls back to the live source" },
+      privilege_probe: { status: "supported", note: "effective privileges of the connected role: has_table_privilege for INSERT/UPDATE/DELETE/TRUNCATE on tables, views and materialised views (a writable view writes its base table), CREATE on schema and database, and pg_roles superuser/createdb; EXECUTE on SECURITY DEFINER routines is not probed" },
       cost_estimate: { status: "supported", note: "EXPLAIN (FORMAT JSON) without ANALYZE; unit planner_cost (plan rows plus the planner's abstract total cost); unknown when planning fails or reports no rows" },
-      resource_limits: { status: "partial", note: "statement_timeout, lock_timeout and idle_in_transaction_session_timeout are enforced by the server; work_mem is per-operation tuning, not a total memory cap, and no hard memory or CPU bound is claimed unless the hosting runtime enforces one; calls on one adapter are serialised" },
+      resource_limits: { status: "partial", note: "statement_timeout, lock_timeout and idle_in_transaction_session_timeout are enforced by the server; memory_limit is applied as work_mem, which is per-operation tuning, not a total memory cap, and a value work_mem cannot take is refused rather than dropped; no hard memory or CPU bound is claimed unless the hosting runtime enforces one; calls on one adapter are serialised" },
       cancellation: { status: "supported", note: "statement_timeout cancels the statement server-side, with pg_cancel_backend from a second connection as a backstop; the session stays usable" },
-      statement_guard: { status: "supported", note: "conservative single-SELECT token guard in front of the enforced boundary: a read-only role, default_transaction_read_only, and the extended protocol, which refuses multiple commands at the server" },
+      statement_guard: { status: "supported", note: "conservative single-SELECT token guard, applied to quoted identifiers as well as bare words, in front of the enforced boundary: a read-only role, default_transaction_read_only, and the extended protocol, which refuses multiple commands at the server" },
       catalog: { status: "supported", note: "information_schema.columns for the configured schema" },
     };
   }
@@ -378,13 +434,16 @@ export class PostgresAdapter implements Adapter {
   async probePrivileges(): Promise<PrivilegeProbe> {
     return this.serialize(() => translate(async () => {
       const s = await this.open();
+      // Views and materialised views count: an INSERT/UPDATE/DELETE grant on an auto-updatable or trigger-backed
+      // view writes the base table, and a view that is not security_invoker does it with the owner's rights. A
+      // probe that looked only at ('r','p','f') would report can_write:false for a role that can write the source.
       const sql = `select current_user::text as role,
           (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-             where c.relkind in ('r','p','f') and n.nspname not in ('pg_catalog','information_schema')) as tables,
+             where c.relkind in ('r','p','f','v','m') and n.nspname not in ('pg_catalog','information_schema')) as tables,
           (select coalesce(bool_or(has_table_privilege(c.oid,'INSERT') or has_table_privilege(c.oid,'UPDATE')
                                    or has_table_privilege(c.oid,'DELETE') or has_table_privilege(c.oid,'TRUNCATE')), false)
              from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where c.relkind in ('r','p','f') and n.nspname not in ('pg_catalog','information_schema')) as can_write,
+            where c.relkind in ('r','p','f','v','m') and n.nspname not in ('pg_catalog','information_schema')) as can_write,
           (select coalesce(bool_or(has_schema_privilege(n.oid,'CREATE')), false) from pg_namespace n
             where n.nspname not in ('pg_catalog','information_schema')) as schema_create,
           has_database_privilege(current_database(),'CREATE') as database_create,
@@ -394,7 +453,7 @@ export class PostgresAdapter implements Adapter {
       const r = rows[0]!;
       const can_write = r.can_write === true;
       const can_ddl = r.is_superuser === true || r.can_createdb === true || r.schema_create === true || r.database_create === true;
-      const detail = `role ${r.role}: INSERT/UPDATE/DELETE/TRUNCATE on at least one of ${r.tables} non-system tables: ${can_write ? "yes" : "no"}; CREATE on a schema: ${r.schema_create ? "yes" : "no"}; CREATE in the database: ${r.database_create ? "yes" : "no"}; superuser: ${r.is_superuser ? "yes" : "no"}; createdb: ${r.can_createdb ? "yes" : "no"}. This session also runs with default_transaction_read_only=on and statement_timeout=${ms(this.limits.statement_timeout_ms)}ms, which bound the session but not the role.`;
+      const detail = `role ${r.role}: INSERT/UPDATE/DELETE/TRUNCATE on at least one of ${r.tables} non-system tables, views or materialised views (a writable view writes its base table): ${can_write ? "yes" : "no"}; CREATE on a schema: ${r.schema_create ? "yes" : "no"}; CREATE in the database: ${r.database_create ? "yes" : "no"}; superuser: ${r.is_superuser ? "yes" : "no"}; createdb: ${r.can_createdb ? "yes" : "no"}. This session also runs with default_transaction_read_only=on and statement_timeout=${ms(this.limits.statement_timeout_ms)}ms, which bound the session but not the role. EXECUTE on a SECURITY DEFINER routine is not probed, so a 'no' here is about relation privileges only.`;
       return { status: "supported", can_write, can_ddl, detail };
     }));
   }
@@ -445,7 +504,34 @@ export class PostgresAdapter implements Adapter {
       "select column_name, udt_name, is_nullable from information_schema.columns where table_schema = $1 and table_name = $2 order by ordinal_position",
       [this.schema, table], timeout, `reading the schema of ${table}`);
     if (!rows.length) throw new AdapterError("unresolved_reference", `table ${table} is not in the source catalog`, table);
-    return rows.map((r) => ({ name: String(r.column_name), sql_type: pgTypeName(String(r.udt_name)), nullable: r.is_nullable === "YES" }));
+    return rows.map((r) => {
+      const name = String(r.column_name);
+      // A capture whose rerun could never restore the column is refused here, not minted as a hashed artifact that
+      // fails at verification time with a wrong-noun error from deep inside the DDL builder.
+      try { identifier(name); } catch {
+        throw new AdapterError("unsafe_identifier", `column ${table}.${name} cannot be captured: a rerun restores columns by name, and column names must match ^[a-z][a-z0-9_]{0,63}$; expose the column under a conforming name (a view) or drop it from the capture`, `${table}.${name}`);
+      }
+      return { name, sql_type: pgTypeName(String(r.udt_name)), nullable: r.is_nullable === "YES" };
+    });
+  }
+
+  /**
+   * Which of these types the server can sort. Postgres has no default btree ordering for `json`, `xml`, `point`
+   * and friends, so `order by <ordinal>` over such a column fails outright; those columns are ordered by their
+   * text rendering instead. Probing happens before the capture transaction opens, because a failed probe would
+   * otherwise abort it.
+   */
+  private async orderableTypes(s: Session, types: string[], timeout: number): Promise<Set<string>> {
+    const ok = new Set<string>();
+    for (const t of new Set(types)) {
+      const array = t.endsWith("[]");
+      const cast = `"${(array ? t.slice(0, -2) : t).replace(/"/g, '""')}"${array ? "[]" : ""}`;
+      try {
+        await s.raw(`select (null::${cast} < null::${cast}) is null as orderable`, [], timeout, `checking whether ${t} can be ordered`);
+        ok.add(t);
+      } catch { /* no ordering operator for this type: it is ordered by its text rendering instead */ }
+    }
+    return ok;
   }
 
   private async captureNow(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number }): Promise<RetainedInput[]> {
@@ -455,15 +541,22 @@ export class PostgresAdapter implements Adapter {
     const captured_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     const version = String((await s.typed("select current_setting('server_version') as v", [], timeout, "reading the server version")).rows[0]!.v);
     const out: RetainedInput[] = [];
+    // Schema reads and the orderability probe happen first: both can fail, and a failure inside the transaction
+    // would abort it. Only the data reads belong in the snapshot.
+    const schemas = new Map<string, RetainedRuntime["columns"]>();
+    for (const table of tables) schemas.set(table, await this.columnsOf(s, table, timeout));
+    const orderable = await this.orderableTypes(s, [...schemas.values()].flat().map((c) => c.sql_type), timeout);
     // One REPEATABLE READ READ ONLY transaction, so every extract is the same consistent view of the source.
     await s.raw("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY", [], timeout, "opening the capture transaction");
+    let committed = false;
     try {
       for (const table of tables) {
-        const columns = await this.columnsOf(s, table, timeout);
+        const columns = schemas.get(table)!;
         const rel = `inputs/${table}.csv`;
         const full = safePath(destDir, rel);
-        // Deterministic order for a stable hash: every column, left to right, by ordinal.
-        const order = columns.map((_, i) => i + 1).join(",");
+        // Deterministic order for a stable hash: every column, left to right, by ordinal — except a column whose
+        // type the server cannot sort, which is ordered by its text rendering so the capture is still possible.
+        const order = columns.map((c, i) => (orderable.has(c.sql_type) ? String(i + 1) : `${ident(c.name)}::text`)).join(",");
         const sql = `select * from ${ident(this.schema)}.${ident(table)} order by ${order}`;
         const { columns: outCols, rows } = await s.typed(bindNamed(sql, guard(sql), {}).text, [], timeout, `capturing ${table}`);
         const bytes = Buffer.from(csvText(outCols.map((c) => c.name), rows), "utf8");
@@ -480,7 +573,8 @@ export class PostgresAdapter implements Adapter {
           runtime: { engine: "postgres", server_version: version, columns },
         });
       }
-    } finally { await s.raw("COMMIT", [], timeout, "closing the capture transaction").catch(() => undefined); }
+      committed = true;
+    } finally { await s.endTransaction(committed); }
     return out;
   }
 
@@ -561,15 +655,21 @@ export async function provisionDisposablePostgres(opts: { superuser?: string; ti
     throw new AdapterError("runtime_unavailable", `the disposable Postgres could not be started (${detail}); ${RUNTIME_MISSING}`, dataDir);
   }
   let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    process.removeListener("exit", stop);
+    try { execFileSync(pgCtl, ["-D", dataDir, "-m", "immediate", "-w", "-t", "30", "stop"], { stdio: "ignore" }); } catch { /* the data directory goes anyway */ }
+    cleanup();
+  };
+  // A caller that forgets close(), or a process that dies before it, still leaves no postmaster and no temp
+  // directory behind: 'exit' runs after an uncaught exception too, and every step here is synchronous.
+  if (process.listenerCount("exit") + 2 >= process.getMaxListeners()) process.setMaxListeners(process.getMaxListeners() + 8);
+  process.once("exit", stop);
   return {
     dataDir, socketDir, superuser,
     url: (database, user = superuser) => `postgresql://${encodeURIComponent(user)}@/${encodeURIComponent(database)}?host=${encodeURIComponent(socketDir)}`,
-    stop: () => {
-      if (stopped) return;
-      stopped = true;
-      try { execFileSync(pgCtl, ["-D", dataDir, "-m", "immediate", "-w", "-t", "30", "stop"], { stdio: "ignore" }); } catch { /* the data directory goes anyway */ }
-      cleanup();
-    },
+    stop,
   };
 }
 
@@ -584,9 +684,10 @@ export type RetainedInputRef = { id: string; kind: string; path: string; content
  * inputs exist on the instance, and the analysis connects as a role that holds SELECT and nothing else.
  */
 export async function openRetained(baseDir: string, inputs: RetainedInputRef[], limits: Partial<ResourceLimits> = {}): Promise<RetainedSession> {
-  const lim: ResourceLimits = { ...DEFAULT_LIMITS, ...limits };
+  const lim: ResourceLimits = normalizeLimits({ ...DEFAULT_LIMITS, ...limits });
   const files = new Map<string, string>();
   const notes: string[] = [];
+  const retyped: string[] = [];
   for (const inp of inputs) {
     if (inp.kind !== "extract") throw new AdapterError("not_implemented", `retained input kind ${inp.kind} is not supported for rerun yet`, inp.id);
     ident(inp.id);
@@ -607,13 +708,22 @@ export async function openRetained(baseDir: string, inputs: RetainedInputRef[], 
 
     owner = await Session.open(instance.url(RETAINED_DB), lim);
     await owner.client.query("SET default_transaction_read_only = off");
+    // A fresh instance has only built-in types: an enum, domain or composite recorded at capture does not exist
+    // here. Such a column is restored as text (the extract holds its text rendering) and the substitution is
+    // recorded, rather than failing the rerun with `type "mood" does not exist`.
+    const builtin = await builtinTypes(owner, inputs.flatMap((i) => (i.runtime?.columns ?? []).map((c) => retainedType(c.sql_type))), lim.statement_timeout_ms);
     for (const inp of inputs) {
       const declared = inp.runtime?.columns ?? [];
       if (!declared.length) notes.push(inp.id);
       const columns = declared.length
-        ? declared.map((c) => ({ name: c.name, sql_type: retainedType(c.sql_type) }))
+        ? declared.map((c) => {
+            const want = retainedType(c.sql_type);
+            const known = builtin.has(want.endsWith("[]") ? want.slice(0, -2) : want);
+            if (!known) retyped.push(`${inp.id}.${c.name} (${c.sql_type})`);
+            return { name: c.name, sql_type: known ? want : "text" };
+          })
         : headerOf(files.get(inp.id)!).map((name) => ({ name, sql_type: "text" }));
-      const ddl = columns.map((c) => `${ident(c.name)} ${c.sql_type}`).join(", ");
+      const ddl = columns.map((c) => `${retainedColumn(inp.id, c.name)} ${c.sql_type}`).join(", ");
       await owner.client.query(`CREATE TABLE ${ident(inp.id)} (${ddl})`);
       // Server-side COPY on an instance this process just created, reading the hash-verified extract by absolute path.
       await owner.client.query(`COPY ${ident(inp.id)} FROM ${sqlString(files.get(inp.id)!)} WITH (FORMAT csv, HEADER, NULL '')`);
@@ -636,7 +746,8 @@ export async function openRetained(baseDir: string, inputs: RetainedInputRef[], 
   let queue: Promise<unknown> = Promise.resolve();
   let closed = false;
   const serialize = <T,>(fn: () => Promise<T>): Promise<T> => { const next = queue.then(fn, fn); queue = next.then(() => undefined, () => undefined); return next; };
-  const fallback = notes.length ? `; extracts restored as all-text columns because no column types were recorded: ${notes.join(", ")}` : "";
+  const fallback = (notes.length ? `; extracts restored as all-text columns because no column types were recorded: ${notes.join(", ")}` : "")
+    + (retyped.length ? `; columns restored as text because their recorded type is not a built-in type on the rerun instance: ${retyped.join(", ")}` : "");
   return {
     execute(sql, params, opts = {}) {
       return serialize(() => translate(async () => {
@@ -661,10 +772,45 @@ function retainedType(sql_type: string): string {
   return pgTypeName((array ? sql_type.slice(0, -2) : sql_type)) + (array ? "[]" : "");
 }
 
-/** Column names of an extract whose adapter recorded no column types: every column is restored as text. */
+/** Which of these type names the rerun instance actually has, as built-in `pg_catalog` types. */
+async function builtinTypes(owner: Session, wanted: string[], timeoutMs: number): Promise<Set<string>> {
+  const names = [...new Set(wanted.map((t) => (t.endsWith("[]") ? t.slice(0, -2) : t)))];
+  if (!names.length) return new Set();
+  const r = await owner.raw(
+    "select t.typname from pg_type t join pg_namespace n on n.oid = t.typnamespace where n.nspname = 'pg_catalog' and t.typname = any($1::text[])",
+    [`{${names.join(",")}}`], timeoutMs, "reading the rerun instance's types");
+  return new Set((r.rows as any[][]).map((row) => String(row[0])));
+}
+
+/** A column of a retained extract, reported as a column when it cannot be restored — never as a table. */
+function retainedColumn(id: string, name: string): string {
+  try { return identifier(name); } catch {
+    throw new AdapterError("unsafe_identifier", `retained input ${id} has a column named ${JSON.stringify(name)} that cannot be restored: column names must match ^[a-z][a-z0-9_]{0,63}$`, `${id}.${name}`);
+  }
+}
+
+/**
+ * Column names of an extract whose adapter recorded no column types: every column is restored as text. The header
+ * is parsed as CSV, not split on bare commas, so a name containing a comma stays one name (and is then reported as
+ * an unrestorable column, instead of tearing the header into more columns than the rows have).
+ */
 function headerOf(file: string): string[] {
-  const first = readFileSync(file, "utf8").split("\n")[0] ?? "";
-  const names = first.split(",").map((n) => n.replace(/^"|"$/g, "").trim());
+  const first = (readFileSync(file, "utf8").split("\n")[0] ?? "").replace(/\r$/, "");
+  const names: string[] = [];
+  let cur = ""; let quoted = false; let fresh = true;
+  for (let i = 0; i < first.length; i++) {
+    const ch = first[i]!;
+    if (quoted) {
+      if (ch !== '"') { cur += ch; continue; }
+      if (first[i + 1] === '"') { cur += '"'; i++; continue; }
+      quoted = false; continue;
+    }
+    if (ch === '"' && fresh) { quoted = true; fresh = false; continue; }
+    if (ch === ",") { names.push(cur.trim()); cur = ""; fresh = true; continue; }
+    cur += ch; fresh = false;
+  }
+  names.push(cur.trim());
+  if (quoted) throw new AdapterError("invalid_artifact", `retained extract ${file} has an unterminated quoted name in its CSV header`, file);
   if (!names.length || names.some((n) => !n)) throw new AdapterError("invalid_artifact", `retained extract ${file} has no usable CSV header`, file);
   return names;
 }
