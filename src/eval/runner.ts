@@ -538,9 +538,17 @@ export type EvalOptions = {
   maxCostUsd?: number;
 };
 
-/** A promise that resolves after `ms`, without holding the event loop open on its own. */
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => { const t = setTimeout(r, ms); (t as { unref?: () => void }).unref?.(); });
+/**
+ * `work`, or `null` once `ms` has passed without it settling. The timer holds the event loop open on purpose: a
+ * case whose analyzer keeps no handle of its own (a fake, a stalled promise) would otherwise let the process
+ * drain before the bound fires, and node:test then reports a pending promise instead of the timeout verdict.
+ * The timer is cleared as soon as `work` settles, so a finished case never waits on it.
+ */
+function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => resolve(null), ms);
+    work.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
 }
 
 export type EvalReport = Report & { cases: CaseRecord[]; summary: EvalSummary | null };
@@ -800,9 +808,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
         record.reason = `the run's ${opts.budgetMs} ms wall-clock budget was spent before this case started, so it was not attempted`;
       } else {
         const work = runOne();
-        const patch = caseTimeoutMs === null
-          ? await work
-          : await Promise.race([work, sleep(caseTimeoutMs).then(() => null)]);
+        const patch = caseTimeoutMs === null ? await work : await withinTimeout(work, caseTimeoutMs);
         if (patch) {
           applyPatch(record, patch);
           if (patch.sqlExecuted) sqlExecuted = true;
