@@ -10,7 +10,8 @@
 | Outcome | `finding.outcome` | `pending`, `answered`, `inconclusive`, `insufficient_data`, `needs_reframing` | What the Analysis concluded. `pending` only while not complete. The other three non-answers are valid complete outcomes and pass the template. |
 | Question state | `question.state` | `resolved`, `unresolved`, `not_answerable` | A resolved Question carries an executable falsifier. An unresolved or not-answerable one lists what is missing and never invents a falsifier. |
 | Evidence validity | `check` report | `valid`, `invalid`, `incomplete` | References resolve, hashes match, required Checks passed, definitions pinned. Not a field: computed. |
-| Execution availability | `check` report | `rerun`, `artifact_only` | Whether this invocation re-executed SQL Checks against retained inputs, or only verified saved evidence. Recorded outcomes from earlier runs are reported separately as history; an artifact-only run never turns them into a fresh pass. |
+| Execution availability | `check` report | `rerun`, `artifact_only` | Whether this invocation re-executed SQL Checks against retained inputs, or only verified saved evidence. Recorded outcomes from earlier runs are reported separately as history; an artifact-only run never turns them into a fresh pass. A Finding on the recorded data path has nothing to rerun at all, and `--mode rerun` refuses it with `rerun_unavailable` (`docs/contracts/record.md`). |
+| Who executed it | `executions[].executed_by.kind`, `checks[].reported_by` | `adapter`, `harness` | Whether an aftergrid adapter ran the query and the Engine observed the result, or the Operator's harness ran it and `aftergrid record` wrote down what came back. `check` reports `checks_reported_by_agent` as a separate fact; it is never folded into evidence validity. |
 | Content completeness | `check` report | `complete`, `incomplete` | Whether the Finding is `complete` and its memo written, or a draft with named missing pieces (unresolved Question parts, needs-input items, no Claims). Incomplete is not invalid. |
 | Publication readiness | `check` report | `ready`, `not_ready`, `unknown` | A current `publication_approval` attestation whose source verifies at the analyzed commit against the trusted allowlist. `unknown` when the source cannot be reached. Never a field an author sets. |
 
@@ -35,6 +36,14 @@ checks[]           --path+hash-->  checks/*.sql ; question.falsifier.check_id --
 
 `check` walks this graph. Every data-bearing displayed value must end at a `results[]` cell, a `derived[]` value or an `external_sources[]` entry. A `claims[].numeric: true` Claim needs at least one evidence reference and at least one chart or table.
 
+## Who ran it: adapter, or harness
+
+Two routes produce evidence, and the manifest says which one produced each execution (ADR 0010, `docs/contracts/record.md`).
+
+- `executions[].executed_by` is `{ kind, tool, tool_version?, recorded_at }`. `kind: adapter` means an aftergrid adapter ran the query against the retained inputs and the Engine observed the result; it is set where `adapter` and `engine_version` are set. `kind: harness` means the Operator's own tool ran it and `aftergrid record` wrote down the SQL, the parameters and the result; `mode` is then `recorded`, `adapter` and `engine_version` are **absent**, and `input_ids` may be empty. An execution with no `executed_by` at all is a manifest written before the field existed: read it as an adapter run, never as a recorded one.
+- `snapshot.inputs` may be empty on this route, and `snapshot.guarantees` is then exactly `[artifact_replay]`. A harness-recorded execution alongside a claim of `analysis_rerun` is a `false_guarantee` error: nothing was retained, so nothing can be re-executed.
+- `checks[].reported_by` is `{ kind: harness, tool, tool_version?, reported_at, evidence? }` and marks an outcome the harness reported rather than the Engine executed. `evidence` is `{ path, content_hash }`, the artifact the tool produced, copied into the Finding. It is **required for `pass`**: a reported pass with nothing behind it is `unevidenced_outcome`. `check` verifies that the evidence file is present and still hashes to what was pinned, reports `checks_reported_by_agent` as its own fact, and never lets an agent-reported outcome carry publication readiness (`unknown` at most).
+
 ## Claims
 
 Each Claim declares: `type` (descriptive, associational, causal), one `sentence`, `population` (who is counted), `comparison` (compared with what, and whether it was pre-registered), `window`, `exclusions`, `limitations`, and a `recheck` policy. Associational and causal Claims cannot have `comparison.kind: none`. The Claim(s) marked `answer_bearing` carry a `material_caveat`, which the memo and render place next to the Answer.
@@ -53,7 +62,7 @@ A Claim with `numeric: false` is representable: `evidence` may be empty and no c
 { "manifest": <manifest with exclusions removed>, "files": { "<key>": "<sha256 hex of file bytes>", ... } }
 ```
 
-- Exclusions from the manifest: `content_digest`, `attestations`, `reviews`, `finding.generated_at`, `executions[].executed_at`, `checks[].executed_at`, `snapshot.drift_fingerprints`.
+- Exclusions from the manifest: `content_digest`, `attestations`, `reviews`, `finding.generated_at`, `executions[].executed_at`, `executions[].executed_by.recorded_at`, `checks[].executed_at`, `checks[].reported_by.reported_at`, `snapshot.drift_fingerprints`. Volatile timestamps only: `executed_by.tool`, `reported_by.tool` and `reported_by.evidence` stay **inside** the digest, because who ran a query and what a reported outcome rests on are content.
 - File keys and contents: `memo` → `memo.md`; `query:<id>` → `queries[].path`; `check:<id>` → `checks[].path`; `chart:<id>` → `charts[].spec_path`; `result:<id>` → `results[].path`. Each value is the lowercase hex SHA-256 of the file's bytes. The digest therefore commits to file contents through their hashes, not by embedding bytes.
 - `renderer.version` and `renderer.house_style_version` are inside the manifest, so a house-style change is a content change.
 - Reference implementation: `digestOf` in `scripts/fixture-tool.mjs`. Golden value: the `content_digest` pinned in `fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/manifest.yaml`; `validate` recomputes and compares it.

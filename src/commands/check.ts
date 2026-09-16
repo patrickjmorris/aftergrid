@@ -36,8 +36,44 @@ export async function check(opts: CheckOptions): Promise<Report> {
     report.info.push("rerun skipped: the artifact must verify before its SQL is re-executed");
     return report;
   }
+  const unavailable = rerunUnavailable(resolve(opts.dir));
+  if (unavailable) {
+    report.errors.push(unavailable);
+    report.sql_execution = "not_performed";
+    report.readiness = "not_ready";
+    report.info.push("nothing was rerun and nothing was read: the saved evidence was verified exactly as `--mode artifact` verifies it, and that answer above still stands");
+    return report;
+  }
   await rerun(resolve(opts.dir), report);
   return report;
+}
+
+/**
+ * Why this Finding cannot be rerun, or null. A rerun re-executes the recorded SQL against the RETAINED inputs; a
+ * Finding on the recorded data path (ADR 0010) has none, because the Operator's harness reached the source and
+ * aftergrid only wrote down what came back. Refusing it by name is the honest answer: the alternative is a crash,
+ * or — worse — a rerun against some other input set reported as if it had reproduced the evidence.
+ */
+export function rerunUnavailable(dir: string): Problem | null {
+  let manifest: any;
+  try { manifest = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8")); } catch { return null; }
+  const recorded = (manifest?.executions ?? []).filter((e: any) => e?.executed_by?.kind === "harness");
+  const inputs = manifest?.snapshot?.inputs ?? [];
+  if (recorded.length) {
+    return {
+      category: "rerun_unavailable", location: "manifest.yaml#/executions",
+      message: `${recorded.length} execution(s) [${recorded.map((e: any) => e.id).join(", ")}] were run by ${[...new Set(recorded.map((e: any) => e.executed_by.tool))].join(", ")} and recorded, not run by aftergrid, so there is nothing here to rerun`,
+      remedy: "this Finding guarantees artifact_replay only. To be able to rerun it, capture the inputs the analysis needs (`aftergrid capture`) and run `aftergrid execute`, which earns analysis_rerun by observing it",
+    };
+  }
+  if ((manifest?.executions ?? []).length && !inputs.length) {
+    return {
+      category: "rerun_unavailable", location: "manifest.yaml#/snapshot/inputs",
+      message: "this Finding has no retained inputs, and a rerun re-executes the recorded SQL against retained inputs and never against a live source",
+      remedy: "run `aftergrid capture <finding-dir> --tables …` and `aftergrid execute` first; until then only `--mode artifact` says anything true about this Finding",
+    };
+  }
+  return null;
 }
 
 /**
@@ -60,6 +96,14 @@ async function verifyPublication(opts: CheckOptions, report: Report) {
   report.warnings.push(...assessment.warnings);
   report.readiness = assessment.readiness;
   report.readiness_reasons = assessment.reasons;
+  // An agent-reported Check outcome lowers readiness and never raises it. A verified human approval is still a
+  // verified human approval, but what it approved rests on outcomes aftergrid did not execute, so the answer is
+  // `unknown` and says why (docs/contracts/record.md). Reported as its own fact, never folded into `evidence`.
+  if ((manifest?.checks ?? []).some((c: any) => c?.reported_by)) {
+    report.checks_reported_by_agent = true;
+    if (report.readiness === "ready") report.readiness = "unknown";
+    report.readiness_reasons.push("Check outcomes on this Finding were reported by the harness, not executed by aftergrid; a review can approve what it read, and the Engine cannot report those outcomes as verified");
+  }
   // Evidence errors force not_ready with no exception, including for `unknown`: a Finding whose retained inputs or
   // approved definitions no longer hash to its manifest is definitely wrong, not merely unanswerable.
   if (report.errors.length) {
@@ -189,6 +233,7 @@ export function checkArtifact(opts: CheckOptions): Report {
   report.evidence = report.errors.length ? "invalid" : "valid";
   report.sql_execution = "not_performed";
   if (out.recordedCheckOutcomes) report.info.push("recorded Check outcomes (history, not re-executed): " + Object.entries(out.recordedCheckOutcomes).map(([k, v]) => `${k}=${v}`).join(", "));
+  if (out.checksReportedByAgent) report.checks_reported_by_agent = true;
   report.readiness = (out.readiness as Report["readiness"]) ?? "not_ready";
   report.readiness_reasons.push(...((out.reasons as string[]) ?? []));
   if (manifest && manifest.finding.state !== "complete" && !report.readiness_reasons.includes("not complete")) report.readiness_reasons.unshift("not complete");

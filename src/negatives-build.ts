@@ -24,6 +24,7 @@ export const PRIVATE_MARKER = "PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER";
 
 const NUMERIC_EXEMPLAR = "2026-07-20-onboarding-checklist-retention";
 const NON_ANSWER_EXEMPLAR = "2026-09-15-price-change-cancellations";
+const RECORDED_EXEMPLAR = "2026-09-16-price-change-cancellations-recorded";
 /** Retained-input stubs keep the fixture set small; `check` verifies their hash and never reads them. */
 const STUB_DATA_ROWS = 4;
 
@@ -42,7 +43,7 @@ export type RenderExpectation = {
 
 export type NegativeCase = {
   name: string;
-  base: "numeric" | "non_answer";
+  base: "numeric" | "non_answer" | "recorded";
   layer: Layer;
   expect: Expectation;
   /**
@@ -131,6 +132,8 @@ function collectFiles(dir: string, m: any): Files {
   for (const c of m.checks) add(c.path);
   for (const c of m.charts) add(c.spec_path);
   for (const r of m.results) add(r.path);
+  // The artifact an agent-reported Check outcome rests on (docs/contracts/record.md) travels with the case.
+  for (const c of m.checks) if (c.reported_by?.evidence) add(c.reported_by.evidence.path);
   return files;
 }
 
@@ -195,8 +198,29 @@ function nonAnswerBase(): { manifest: any; files: Files } {
   return { manifest: m, files };
 }
 
-const BASES: Record<NegativeCase["base"], () => { manifest: any; files: Files }> = { numeric: numericBase, non_answer: nonAnswerBase };
-const EXEMPLAR_OF: Record<NegativeCase["base"], string> = { numeric: NUMERIC_EXEMPLAR, non_answer: NON_ANSWER_EXEMPLAR };
+/**
+ * The recorded data path (ADR 0010). Nothing is trimmed here: this exemplar has no retained inputs to stub,
+ * because the Operator's harness ran every query and Check and `aftergrid record` wrote down what came back.
+ * `slim` is deliberately not reused — it would stamp an `engine_version` onto executions aftergrid never ran.
+ */
+function recordedBase(): { manifest: any; files: Files } {
+  const dir = join(EXEMPLARS, RECORDED_EXEMPLAR);
+  const m = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  const files = collectFiles(dir, m);
+  m.reviews = [{ ...m.reviews[0], reviewer: FIXTURE_REVIEWER, blocking: [], non_blocking: [FIXTURE_REVIEW_NOTE] }];
+  m.attestations = [];
+  editMemo(files, (memo) =>
+    replaceOnce(
+      memo,
+      "- Method review: recorded by the exemplar author. No human has approved this Finding for publication; it is a draft.",
+      "- Method review: none was performed. This is a generated negative fixture; the recorded review entry says so. No human has approved this Finding for publication; it is a draft.",
+    ) + APPENDIX_NOTE,
+  );
+  return { manifest: m, files };
+}
+
+const BASES: Record<NegativeCase["base"], () => { manifest: any; files: Files }> = { numeric: numericBase, non_answer: nonAnswerBase, recorded: recordedBase };
+const EXEMPLAR_OF: Record<NegativeCase["base"], string> = { numeric: NUMERIC_EXEMPLAR, non_answer: NON_ANSWER_EXEMPLAR, recorded: RECORDED_EXEMPLAR };
 
 // ---------------------------------------------------------------- the cases
 
@@ -650,6 +674,34 @@ export const CASES: NegativeCase[] = [
     render: { refused: true },
     mutate: (m) => void (resultOf(m, "retention_by_platform_arm").provisional = true),
   },
+
+  // ---- the recorded data path (ADR 0010, docs/contracts/record.md) ----
+  {
+    name: "recorded-agent-pass-without-evidence",
+    base: "recorded",
+    layer: "engine_category",
+    expect: "error",
+    category: "unevidenced_outcome",
+    location_pattern: "^checks/unique_subscriptions$",
+    defect: "A required Check is reported pass by the harness and names no evidence file; the artifact the pass rested on is gone from the manifest and from the directory.",
+    description: "On the recorded path a Check outcome is somebody's word. `pass` is the one outcome that asserts something held, so it may only be recorded with the tool output it rests on, copied in and pinned by hash; a pass with nothing behind it is refused rather than counted.",
+    mutate: (m, files) => {
+      const ck = m.checks.find((c: any) => c.id === "unique_subscriptions");
+      files.delete(ck.reported_by.evidence.path);
+      delete ck.reported_by.evidence;
+    },
+  },
+  {
+    name: "recorded-result-hash-mismatch",
+    base: "recorded",
+    layer: "engine_category",
+    expect: "error",
+    category: "hash_mismatch",
+    location_pattern: "^manifest\\.yaml#/executions/0$",
+    defect: "The harness-recorded execution pins a result_hash that is not the hash of the result set it names.",
+    description: "aftergrid did not run this query, so the pinned hashes are the whole of what ties the recorded SQL to the recorded numbers. A result_hash that does not match the saved result breaks that tie and is reported, not tolerated because nothing was executed.",
+    corrupt: (m) => void (m.executions[0].result_hash = H("a result set this execution never produced")),
+  },
 ];
 
 // ---------------------------------------------------------------- generation
@@ -688,7 +740,10 @@ function writeFile(root: string, rel: string, text: string, written: string[]): 
 function pinHashes(m: any, files: Files, instanceRoot: string): void {
   for (const input of m.snapshot.inputs) input.content_hash = H(files.get(input.path)!);
   for (const q of m.queries) q.content_hash = H(files.get(q.path)!);
-  for (const c of m.checks) c.content_hash = H(files.get(c.path)!);
+  for (const c of m.checks) {
+    c.content_hash = H(files.get(c.path)!);
+    if (c.reported_by?.evidence) c.reported_by.evidence.content_hash = H(files.get(c.reported_by.evidence.path)!);
+  }
   for (const r of m.results) {
     r.row_count = JSON.parse(files.get(r.path)!).rows.length;
     r.content_hash = H(files.get(r.path)!);

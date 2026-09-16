@@ -48,13 +48,15 @@ skills.sh layout are in `skills/README.md`, with a docs page per promoted skill 
 
 `check` reports separate facts: syntax, content completeness, evidence validity, whether SQL was executed, and publication readiness. It never reports readiness from the manifest alone. `check --mode rerun` re-executes the saved SQL and Checks on the retained inputs and reports any drift from the saved evidence.
 
+`record` is the default data path: the Operator's harness runs the SQL with whatever tool it already has, and aftergrid writes down what it ran — the SQL, the parameters, the result, who ran it, and every hash. It executes nothing, so a recorded Finding guarantees `artifact_replay` and never `analysis_rerun`, Check outcomes on it are agent-reported (a reported `pass` needs the tool output it rests on), and `check --mode rerun` refuses it by name. `capture` and `execute` through an adapter are the **upgrade** the same Finding gains when an Instance configures one. Contract: `docs/contracts/record.md` (ADR 0010).
+
 `intake` runs Issue requests in the background: it claims an Issue labelled `ready-for-agent` at a stable revision (`intake_<issue>_<hash>`), **refuses to dispatch** unless the guardrail hook is installed *and* self-tests clean, the Instance policy is present and the source's limits are declared — there is no bypass flag — hands the request to an analysis harness, runs `check` on what comes back, and opens **one** draft pull request per run. It pauses with `needs-info` instead of guessing, never removes a label, and never reports a Finding as approved: publication still needs a human APPROVED review. Duplicate triggers, restarts and edited Issues do not duplicate pull requests or lose work. Contract: `docs/contracts/intake.md`. The analysis harness itself is a stub until its own bead lands, and no test runs it; the GitHub path is exercised only through fakes, so treat the live API path as untested.
 
 ## Layout
 
 - `schema/` canonical JSON Schemas (Finding manifest, Decision record, Reader profile)
 - `docs/contracts/` the contracts those schemas cannot express
-- `src/` the CLI (`setup`, `new finding`, `check`, `render`, `decide`, `hook`, `intake`, `plugin validate`), the adapters (DuckDB, Postgres) and the publication readiness check
+- `src/` the CLI (`setup`, `new finding`, `check`, `record`, `render`, `decide`, `hook`, `intake`, `plugin validate`), the adapters (DuckDB, Postgres) and the publication readiness check
 - `scripts/` fixture tooling and the shared validation library (`scripts/lib/`)
 - `hooks/claude-code/` the PreToolUse guardrail hook (`aftergrid hook install`; contract and non-coverage in `docs/contracts/hook.md`)
 - `skills/` the Claude Code skills, each with an `agents/openai.yaml` beside it (`setup-aftergrid` is user-invoked); buckets and the invocation split: `skills/README.md`

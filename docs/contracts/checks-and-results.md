@@ -12,9 +12,12 @@ Conventions the manifest schema cannot express. `aftergrid check` and the DuckDB
 - A SQL error in any Check, required or not, is invalid evidence: an `error` outcome is never a business result. Only `fail` on a `minimum_data` Check (or on an optional Check the memo explains) is.
 - A Check statement is a single SELECT. Retained inputs are the only relations it may read; external file access, attach and installation of extensions are disabled in the execution sandbox, and each execution sees only the inputs its manifest entry declares.
 - Artifact-verification mode does not execute Checks and reports SQL execution as not performed; it never turns a recorded `not_run` into `pass`.
+- **Agent-reported outcomes.** On the recorded data path (`docs/contracts/record.md`, ADR 0010) the harness runs the Check and `aftergrid record` writes down what it said. Such an entry carries `checks[].reported_by` (`kind: harness`, the tool, and the artifact the report rests on). An agent-reported outcome is somebody's word, not a mechanical result: `check` verifies the one thing a saved artifact can establish — that the named evidence file is present and still hashes to what was pinned — and reports `checks_reported_by_agent: true` as its own fact. It can lower publication readiness (to `unknown` at most) and never raise it. `pass` is the one outcome that asserts something held, so it may only be recorded with an evidence file; a `pass` with none is `unevidenced_outcome`, from `record` and from `check` alike. `fail`, `not_run` and `error` may carry evidence and are not required to.
 - Build (and any future `check --pin`) rewrites hashes, results and outcomes only. It never creates, rebinds or refreshes an approval, a review or an attestation; those become stale and are reported as stale.
 
 ## Retained inputs
+
+There may be none. On the recorded path nothing is captured, and a result file arrives from the Operator's tool as `.json` or `.csv` and is rewritten into the canonical format below before anything is pinned (`docs/contracts/record.md`). Everything under this heading is the adapter route.
 
 - `kind: extract` inputs are CSV files with a header row. The adapter exposes each input as a read-only relation named by its input `id`; SQL refers to `users`, `events`, `subscriptions`, never to file paths.
 - The fixture tool reads every column as text (`all_varchar`) so that SQL casts are explicit and dialect-visible. The DuckDB adapter may type columns from a declared schema; either way the SQL in a Finding must cast timestamps and numbers itself.

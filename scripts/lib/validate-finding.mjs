@@ -39,8 +39,10 @@ export function definitionHash(text) {
 export function digestOf(manifest, dir) {
   const m = JSON.parse(JSON.stringify(manifest));
   delete m.content_digest; delete m.attestations; delete m.reviews; delete m.finding.generated_at; delete m.snapshot.drift_fingerprints;
-  for (const e of m.executions) delete e.executed_at;
-  for (const c of m.checks) delete c.executed_at;
+  // Volatile timestamps only: who ran a query (`executed_by.tool`) and what an agent-reported Check outcome
+  // rests on (`reported_by.evidence`) are content, and stay inside the digest.
+  for (const e of m.executions) { delete e.executed_at; if (e.executed_by) delete e.executed_by.recorded_at; }
+  for (const c of m.checks) { delete c.executed_at; if (c.reported_by) delete c.reported_by.reported_at; }
   const files = {};
   const add = (id, p) => { files[id] = sha(rd(safePath(dir, p))); };
   add("memo", "memo.md");
@@ -120,8 +122,8 @@ const SECTIONS = ["Answer", "Decision it informs", "Evidence", "How we checked",
 
 /**
  * Validate one Finding directory. Never executes SQL. Returns
- * { finding, state, outcome, evidence, sqlExecution, executionAvailability, recordedCheckOutcomes, readiness, reasons,
- *   decisionMetrics, errors, warnings, info }.
+ * { finding, state, outcome, evidence, sqlExecution, executionAvailability, recordedCheckOutcomes,
+ *   checksReportedByAgent, recordedExecutions, readiness, reasons, decisionMetrics, errors, warnings, info }.
  */
 export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
   const DIR = dir;
@@ -398,10 +400,43 @@ function validateMemo(manifest, results) {
     if (ck.kind === "falsifier" && ck.outcome !== "error" && manifest.finding.outcome === "answered" && ck.outcome !== ck.expected_outcome) err("falsifier", `checks/${ck.id}`, `falsifier outcome ${ck.outcome}, expected ${ck.expected_outcome}`, "the Answer is contradicted by its own falsifier");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && manifest.finding.outcome !== "insufficient_data") warn("minimum_data", `checks/${ck.id}`, "minimum-data Check failed but outcome is not insufficient_data");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && !ck.required) report.info.push(`minimum-data Check ${ck.id} failed: a business result, not an engine failure`);
+    // An agent-reported outcome (docs/contracts/record.md, ADR 0010) is the harness's word. It is checked for the
+    // one thing a saved artifact can establish — that the evidence it names is here and still hashes to what was
+    // pinned — and for the one thing it may never do, which is assert a pass with nothing behind it.
+    if (ck.reported_by) {
+      const n = manifest.checks.indexOf(ck);
+      if (ck.outcome === "pass" && !ck.reported_by.evidence) {
+        err("unevidenced_outcome", `checks/${ck.id}`, `Check ${ck.id} is reported pass by ${ck.reported_by.tool}, and names no evidence file`,
+          "an outcome the Engine did not execute may only be pass with the artifact the tool produced, copied in and pinned: `aftergrid record <dir> --check " + ck.id + " --outcome pass --evidence <file>`");
+      }
+      if (ck.reported_by.evidence) checkHash(ck.reported_by.evidence.path, ck.reported_by.evidence.content_hash, `manifest.yaml#/checks/${n}/reported_by/evidence`);
+    }
   }
   // This invocation never executes SQL: it verifies saved artifacts. Recorded outcomes are history, reported separately.
   const executionAvailability = "artifact_only";
   const recordedCheckOutcomes = Object.fromEntries(manifest.checks.map((c) => [c.id, c.outcome]));
+
+  // The recorded data path (ADR 0010): who ran what, said plainly, and never allowed to over-claim.
+  const recordedExecutions = manifest.executions.filter((e) => e.executed_by?.kind === "harness");
+  const agentChecks = manifest.checks.filter((c) => c.reported_by);
+  const checksReportedByAgent = agentChecks.length > 0;
+  for (const [n, e] of manifest.executions.entries()) {
+    if (e.mode === "recorded" && !e.executed_by) {
+      warn("recorded_path", `manifest.yaml#/executions/${n}`, `execution ${e.id} declares mode: recorded and nothing has recorded it: run \`aftergrid record <dir> --execution ${e.id} --result <file> --tool "<name>"\``);
+    }
+  }
+  if (recordedExecutions.length && (manifest.snapshot.guarantees ?? []).includes("analysis_rerun")) {
+    err("false_guarantee", "manifest.yaml#/snapshot/guarantees",
+      `${recordedExecutions.length} execution(s) were run by the harness and recorded, and this Snapshot claims analysis_rerun`,
+      "a recorded Finding guarantees artifact_replay and nothing else: the saved bytes can be replayed, and nothing can be rerun until retained inputs exist. Capture the inputs and run `aftergrid execute` to earn analysis_rerun");
+  }
+  if (recordedExecutions.length || checksReportedByAgent) {
+    const tools = [...new Set([...recordedExecutions.map((e) => e.executed_by.tool), ...agentChecks.map((c) => c.reported_by.tool)])];
+    report.info.push(
+      `recorded_path: ${recordedExecutions.length} execution(s) [${recordedExecutions.map((e) => e.id).join(", ") || "none"}] and ` +
+      `${agentChecks.length} Check(s) [${agentChecks.map((c) => c.id).join(", ") || "none"}] were run by ${tools.join(", ")}; ` +
+      "aftergrid recorded them and did not run them. Check outcomes on this path are agent-reported, and the guardrail hook covers only what the harness ran through a shell it inspects (docs/contracts/hook.md).");
+  }
   // 4. memo
   validateMemo(manifest, results);
   // 5. digest + readiness
@@ -418,7 +453,12 @@ function validateMemo(manifest, results) {
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
   if (manifest.finding.state !== "complete" || report.errors.length) readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
-  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
+  // An agent-reported Check outcome can lower publication readiness and never raise it: whatever else is
+  // recorded, a Finding whose Checks were reported rather than executed is `unknown` at most, here and in
+  // src/publication (src/commands/check.ts applies the same clamp to the verified-review answer).
+  if (checksReportedByAgent && readiness === "ready") readiness = "unknown";
+  if (checksReportedByAgent) reasons.push(`${agentChecks.length} Check outcome(s) were reported by the harness, not executed by aftergrid; that alone can never make a Finding ready`);
+  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, checksReportedByAgent, recordedExecutions: recordedExecutions.map((e) => e.id), readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
   } catch (e) {
     err(e.category ?? (e.code === "ENOENT" ? "missing_file" : "invalid_artifact"), e.location ?? e.path ?? dir, e.message, "correct the artifact and retry");
     return finish(null, { evidence: "invalid", executionAvailability: "artifact_only", sqlExecution: "not_performed (artifact verification)", readiness: "not_ready" });

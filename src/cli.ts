@@ -8,6 +8,7 @@ import { setup } from "./commands/setup.ts";
 import { check } from "./commands/check.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
+import { record } from "./commands/record.ts";
 import { revise } from "./commands/revise.ts";
 import { recordReview, reviewStatus, type ReviewKind } from "./commands/review.ts";
 import { runEval } from "./eval/runner.ts";
@@ -33,6 +34,9 @@ Usage:
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
   aftergrid capture <finding-dir> --tables <a,b> [--catalog] [--instance <dir>] [--description "<text>"] [--json]
   aftergrid execute <finding-dir> [--instance <dir>] [--json]
+  aftergrid record <finding-dir> --tool <name> [--tool-version <v>] [--instance <dir>] [--json]
+                   --execution <id> --result <file.json|file.csv> [--sql <file|inline>] [--params k=v ...]
+                 | --check <id> --outcome pass|fail|not_run|error [--evidence <file>]
   aftergrid revise <finding-dir> --pin|--classify|--apply [--baseline <dir>] [--force] [--json]
   aftergrid review record <finding-dir> --kind method|question|reader|visual --reviewer "agent:<model id>"
                    [--blocking "<finding>" ...] [--non-blocking "<finding>" ...] [--profile <reader-profile>]
@@ -83,7 +87,15 @@ Lifecycle:
                 A SQL error, a malformed Check or a result that does not match its declared columns writes
                 nothing; a Check that records fail is data and is written down. It refuses to change content an
                 attestation binds to, and never writes a review or an attestation.
-  revise        says what a change to a pinned Finding costs, then applies it or refuses. --pin archives the
+  record        the recorded data path (ADR 0010, docs/contracts/record.md): the harness ran the SQL, aftergrid
+                writes down what it ran. --execution pins the query text, the parameters, the result the tool
+                produced in the canonical result format, every hash, and who ran it; --check stores one
+                agent-reported Check outcome with the tool that reported it. It executes nothing, so every report
+                says sql_execution not_performed. snapshot.guarantees becomes exactly [artifact_replay], never
+                analysis_rerun, and check --mode rerun then refuses the Finding with rerun_unavailable. Capture
+                is optional on this route. An agent-reported pass without an evidence file is refused, and so is
+                a revision carrying attestations.
+  revise      says what a change to a pinned Finding costs, then applies it or refuses. --pin archives the
                 Finding under revisions/<N>/ as the baseline; --classify calls every difference presentation,
                 interpretation or numeric and writes nothing; --apply makes a presentation or interpretation
                 change revision N+1, archives its predecessor, re-renders and re-checks; a numeric change is
@@ -193,6 +205,25 @@ export async function main(argv: string[]): Promise<void> {
     const dir = positionals[0];
     if (!dir) { process.stderr.write("usage: aftergrid execute <finding-dir> [--json]\n"); process.exit(2); }
     out(await execute({ dir, instanceDir: values.instance }), !!values.json);
+  }
+  if (cmd === "record") {
+    const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
+      execution: { type: "string" }, sql: { type: "string" }, result: { type: "string" }, params: { type: "string", multiple: true },
+      check: { type: "string" }, outcome: { type: "string" }, evidence: { type: "string" },
+      tool: { type: "string" }, "tool-version": { type: "string" }, "executed-at": { type: "string" },
+      instance: { type: "string" }, json: { type: "boolean" },
+    } });
+    const dir = positionals[0];
+    const usage = 'usage: aftergrid record <finding-dir> --tool "<name>" --execution <id> --result <file.json|file.csv> [--sql <file|inline>] [--params k=v ...]\n' +
+      '       aftergrid record <finding-dir> --tool "<name>" --check <id> --outcome pass|fail|not_run|error [--evidence <file>]\n';
+    if (!dir) { process.stderr.write(usage); process.exit(2); }
+    if (!values.tool) { process.stderr.write("--tool names the tool that actually ran this; aftergrid never guesses which tool the harness used\n" + usage); process.exit(2); }
+    if (!!values.execution === !!values.check) { process.stderr.write("name exactly one of --execution or --check\n" + usage); process.exit(2); }
+    out(await record({
+      dir, instanceDir: values.instance, tool: values.tool, toolVersion: values["tool-version"],
+      execution: values.execution, sql: values.sql, result: values.result, params: values.params,
+      check: values.check, outcome: values.outcome, evidence: values.evidence, executedAt: values["executed-at"],
+    }), !!values.json);
   }
   if (cmd === "revise") {
     const { values, positionals } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {

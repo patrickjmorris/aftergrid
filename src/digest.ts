@@ -35,8 +35,10 @@ export function contentDigest(manifest: ManifestLike, dir: string, readFile: (p:
   const m = JSON.parse(JSON.stringify(manifest)) as ManifestLike;
   delete m.content_digest; delete m.attestations; delete m.reviews;
   delete m.finding.generated_at; delete m.snapshot.drift_fingerprints;
-  for (const e of m.executions) delete e.executed_at;
-  for (const c of m.checks) delete c.executed_at;
+  // Volatile timestamps only. `executed_by.tool`, `reported_by.tool` and the evidence hash stay inside the
+  // digest: who ran a query and what a reported outcome rests on are content, and changing either is a change.
+  for (const e of m.executions) { delete e.executed_at; if (e.executed_by) delete (e.executed_by as Record<string, unknown>).recorded_at; }
+  for (const c of m.checks) { delete c.executed_at; if (c.reported_by) delete (c.reported_by as Record<string, unknown>).reported_at; }
   const files: Record<string, string> = {};
   // Every path is contained (no absolute, dot, parent or symlink components) before it is read.
   const add = (key: string, rel: string) => { files[key] = sha256(readFile(resolvePath(dir, rel))); };

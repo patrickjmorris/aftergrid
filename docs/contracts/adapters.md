@@ -1,5 +1,15 @@
 # Adapter contract and capability matrix
 
+## An adapter is an upgrade, not a prerequisite
+
+The default route is the recorded one: the Operator's harness runs the SQL with whatever tool it has and
+`aftergrid record` writes down what it ran (ADR 0010, `docs/contracts/record.md`). A Finding produced that way is
+complete, checkable and renderable, and it guarantees `artifact_replay` — the saved bytes replay, and nothing can
+be rerun. Configuring an adapter is what the **same** Finding gains later: `capture` retains the inputs, `execute`
+runs every execution and Check against them and observes the outcomes mechanically, and `snapshot.guarantees`
+earns `analysis_rerun`, which unlocks `check --mode rerun` and Revisit. That is the whole difference, and it is
+why no further connectors are built: a warehouse the Operator can reach from the harness is reachable enough.
+
 Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (the seam-2 tests in `src/adapters/*.test.ts`), never assumed. An unsupported required capability fails or takes an explicit, recorded fallback; it never reports a green capability or a zero cost.
 
 ## Behaviours every adapter implements

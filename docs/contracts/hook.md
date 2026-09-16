@@ -106,6 +106,14 @@ It does not cover:
 - Privacy, PII masking, export policy and publication approval, which are the validator's and renderer's job.
 - Any harness other than Claude Code. Equivalent safety elsewhere is not claimed until those query and export paths
   are tested.
+- **The recorded data path** (ADR 0010, `docs/contracts/record.md`), except where the harness happens to run its
+  SQL through a shell command this hook inspects. That is the default route: the Operator's tool owns the
+  connection, and a query issued through an MCP server or an in-process client never reaches a `Bash` tool call,
+  so no verdict was ever produced for it. This is the same non-coverage as the entries above, and it is stated on
+  the Finding rather than left to be inferred: `aftergrid check` emits a `recorded_path` note naming which
+  executions and Checks were harness-recorded and by what tool, and the rendered page carries one line saying the
+  Operator's tool ran them and aftergrid did not. Checks-before-SQL on that route are agent-reported, so neither
+  this guard nor the Engine establishes that a write was refused — only that nothing here claims otherwise.
 
 ## `aftergrid hook install | uninstall | status [--settings <path>]`
 

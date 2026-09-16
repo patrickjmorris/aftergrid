@@ -148,7 +148,11 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     return [
       ["Saved result", `<code>${esc(res?.path ?? rid)}</code>, row <code>${esc(key)}</code>, column <code>${esc(col)}</code>${words ? ` (${esc(words)})` : ""}`, res ? `hash ${esc(shortHash(res.content_hash))}` : ""],
       ["Query that produced it", q ? `<code>${esc(q.path)}</code> (${esc(q.dialect)})${ex ? `, run ${esc(day(ex.executed_at))}${ex.mode === "retained_rerun" ? " against the retained copy of the data" : ""}` : ""}` : "not recorded", q ? `sql ${esc(shortHash(q.content_hash))}` : "", q ? undefined : "wn"],
-      ["Data it ran on", inputs.length ? `${inputs.map((i: any) => `<code>${esc(i.path)}</code>`).join(", ")}, captured ${esc(day(inputs[0].captured_at))}` : "retained inputs not recorded", inputs.length ? "hashed" : "", inputs.length ? undefined : "wn"],
+      ["Data it ran on",
+        inputs.length ? `${inputs.map((i: any) => `<code>${esc(i.path)}</code>`).join(", ")}, captured ${esc(day(inputs[0].captured_at))}`
+        : ex?.executed_by?.kind === "harness" ? `the source, read by ${esc(String(ex.executed_by.tool))}; aftergrid recorded the result and did not run the query, so no copy of the data was kept`
+        : "retained inputs not recorded",
+        inputs.length ? "hashed" : "", inputs.length ? undefined : "wn"],
       def ? ["Definition it uses", `<code>${esc(def.id)}</code> version ${esc(String(def.version))}, recorded as ${esc(def.lifecycle)}${def.approval ? `; approval recorded by ${esc(def.approval.approver)} on ${esc(def.approval.date)}` : ""}`, def.approval ? "recorded, not verified here" : esc(def.lifecycle), "wn"] : null,
     ];
   };
@@ -250,6 +254,10 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     return `<section aria-labelledby="${esc(c.id)}"><span class="type" title="${esc(hint)}">${esc(label)}</span><h3 id="${esc(c.id)}">${RP(c.sentence, `claim ${c.id}`)}</h3>${mdWithMarkers(memo.claims[c.id] ?? "", `claim ${c.id} memo`)}${who}<details><summary>Who was left out, and the limits of this claim</summary><ul>${limits.map((l) => `<li>${RP(l, c.id)}</li>`).join("")}</ul></details>${calc.length ? `<details><summary>How this was calculated</summary><ul>${calc.join("")}</ul></details>` : ""}<p class="flag"><a href="${mailto(m, c.id)}">Question or flag this claim</a> (reference: <code>${esc(m.finding.id)} r${esc(String(m.finding.revision))} ${esc(c.id)}</code>)</p></section>`;
   }).join("\n");
 
+  const recordedTools: string[] = [...new Set<string>([
+    ...(m.executions ?? []).filter((e: any) => e.executed_by?.kind === "harness").map((e: any) => String(e.executed_by.tool)),
+    ...(m.checks ?? []).filter((c: any) => c.reported_by).map((c: any) => String(c.reported_by.tool)),
+  ])];
   const checksPassed = m.checks.filter((c: any) => c.outcome === "pass").map((c: any) => esc(c.description));
   const checksFailed = m.checks.filter((c: any) => c.outcome === "fail").map((c: any) => `${esc(c.description)}${c.kind === "minimum_data" ? " (this failure is the result of the Finding, not an error)" : ""}`);
   const checksNotRun = m.checks.filter((c: any) => c.outcome === "not_run").map((c: any) => esc(c.description));
@@ -262,6 +270,9 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     ...m.reviews.map((r: any) => fact(r.content_digest.value !== m.content_digest.value || r.blocking?.length ? "wn" : "ok", `${esc(r.kind.replace(/^./, (x: string) => x.toUpperCase()))} review`, `Recorded ${esc(r.date)} by ${esc(r.reviewer)}${r.content_digest.value !== m.content_digest.value ? "; for an earlier version of this content, so it is stale" : ""}${r.blocking?.length ? `; blocking: ${r.blocking.map(esc).join("; ")}` : ""}.`)),
     fact(inp.readiness === "ready" ? "ok" : "no", "Publication approval", inp.readiness === "ready" ? "Verified." : "None verified. This is a draft."),
     fact(m.snapshot.guarantees.length ? "ok" : "no", "Data", m.snapshot.guarantees.length ? `Retained inputs are kept: ${m.snapshot.guarantees.map((g: string) => esc(g.replace(/_/g, " "))).join(" and ")} are possible.` : "Inputs were not retained; these numbers are not reproducible."),
+    // The recorded data path (ADR 0010): the Operator's own tool ran the queries and the Checks, and aftergrid
+    // wrote down what came back. A Reader is told that in one sentence, beside the other facts, never instead of them.
+    recordedTools.length ? fact("wn", "How this was run", `Queries and Checks were run by the Operator's tool ${esc(recordedTools.join(", "))}; aftergrid recorded them and did not rerun them.`) : "",
     fact("na", "Covers", esc(m.coverage.description)),
   ].filter(Boolean).join("");
 

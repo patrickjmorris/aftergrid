@@ -25,7 +25,13 @@ names a trusted source. Proposals are written to `<instance>/definitions/<id>.md
 no `approval:` block; a file that is approved is read and never edited. Reference implementation of the exact
 bytes and of the refusal: `proposeDefinition` in `src/analysis/definitions.ts`.
 
-**(c) Retained inputs are captured.** `aftergrid capture <finding-dir> --tables a,b` runs the Instance's
+**(c) Retained inputs are captured — when an adapter exists.** On the default route the harness owns the data
+path and this step does not happen at all: the Operator's own tool runs the SQL and `aftergrid record` writes down
+what it ran (ADR 0010, `docs/contracts/record.md`). `capture` is therefore optional, and a Finding whose
+executions are all harness-recorded carries an empty `snapshot.inputs`, `snapshot.guarantees: [artifact_replay]`
+and nothing else. The rest of this step is the adapter route.
+
+`aftergrid capture <finding-dir> --tables a,b` runs the Instance's
 configured adapter, writes **whole-table** extracts into `<finding-dir>/inputs/`, and records each in
 `manifest.snapshot.inputs` with a content hash, `captured_at`, a description, and a `source` naming the adapter,
 the method and the consistency the adapter actually gives. `--catalog` prints tables and columns and writes
@@ -154,6 +160,7 @@ Claim cite it without the reference dangling, and the writer turns each into the
 | --- | --- | --- |
 | `/grill-question` (user) | `manifest.question`, `manifest.reader`, proposed definition files, and the `stage: clarified` seed of `analysis.yaml` (`reader_profile`, `assumptions`, `pre_registered_comparison`, `needs_input`) | approved definition files, any evidence |
 | `/checked-analysis` (model) | `inputs/`, `queries/`, `checks/`, `results/`, the evidence half of the manifest, all of `analysis.yaml` | `memo.md`, `claims`, `charts`, `reviews`, `attestations` |
+| the harness, through `aftergrid record` (Operator) | on the recorded path only: `queries/*.sql`, `results/*.json`, `checks/evidence/*`, and the pinned half of `executions[]` / `results[]` / `checks[]` — `executed_by`, `mode: recorded`, `reported_by`, every hash, `snapshot.guarantees: [artifact_replay]`, the content digest | `snapshot.inputs` (nothing is retained), `claims`, `memo.md`, `reviews`, `attestations`, and `analysis_rerun` |
 | `/write-finding` (model) | `memo.md`, `manifest.claims` / `charts` / `tables` / `derived` / `external_sources` / `coverage`, `finding.state: complete` and `finding.outcome` | `queries`, `checks`, `results`, `definitions`, `analysis.yaml`, and a Claim's type, comparison, population or window | Carried across unchanged (the Analysis schema uses the manifest spelling for `comparison.kind`, so nothing is renamed; the identity table in `skills/write-finding/SKILL.md` step 5 lets a checker prove it).
 | `/iterate-visual` (model) | `charts/*.vl.json` and `charts[]` entries (Variants via `charts[].variant_of`), then re-render and re-check | every number, and the Claim a chart states |
 | `/revise-finding` (user) | a presentation change: re-render and re-check | meaning: see the classification below |
@@ -180,10 +187,17 @@ missing input with a `needs_input` one; it never presents a halted run as done.
 | `aftergrid capture <dir> --catalog` | Reads the source catalog | nothing |
 | `aftergrid capture <dir> --tables a,b` | Captures retained inputs, whole tables, no bound | `inputs/*.csv`, `snapshot.inputs`, the content digest |
 | `aftergrid execute <dir>` | Runs every execution and Check on the retained inputs | `results/*.json`, the evidence hashes, Check outcomes, `snapshot.guarantees`, the content digest |
+| `aftergrid record <dir> --execution <id> --result <file> --tool "<name>"` | Runs nothing: writes down one query the harness ran | `queries/*.sql`, `results/*.json`, the evidence hashes, `executed_by`, `mode: recorded`, `snapshot.guarantees: [artifact_replay]`, the content digest |
+| `aftergrid record <dir> --check <id> --outcome <o> --tool "<name>"` | Runs nothing: writes down one agent-reported Check outcome | `checks/evidence/*`, `checks[].outcome` and `reported_by`, the content digest |
 | `aftergrid check <dir> [--mode rerun]` | Reports syntax, content, evidence, execution and readiness as separate facts | nothing |
 
 `execute` records evidence and never judges readiness. Publication readiness is `check`'s answer, and it needs a
 human review (`docs/contracts/publication.md`).
+
+`record` is the default route and `execute` the upgrade (ADR 0010). The two never mix inside one execution: an
+execution is run by an adapter against retained inputs, or run by the harness and recorded, and the manifest says
+which. `check --mode rerun` refuses a recorded Finding with `rerun_unavailable`. Full contract:
+`docs/contracts/record.md`.
 
 ## What this contract does not establish
 

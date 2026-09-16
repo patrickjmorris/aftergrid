@@ -501,7 +501,7 @@
               }
             }
           },
-          "description": "Retained inputs. May be empty on a draft or a needs_reframing Finding that ran no query; any execution must name existing inputs."
+          "description": "Retained inputs. May be empty on a draft, on a needs_reframing Finding that ran no query, and on the recorded path (ADR 0010), where the harness ran every query and nothing was captured; an adapter-run execution must name existing inputs."
         },
         "guarantees": {
           "type": "array",
@@ -513,7 +513,7 @@
               "analysis_rerun"
             ]
           },
-          "description": "Which guarantees this Finding holds. Empty means 'not reproducible' and the render says so."
+          "description": "Which guarantees this Finding holds. Empty means 'not reproducible' and the render says so. On the recorded path the list is exactly [artifact_replay]: the saved result can be replayed byte for byte, and nothing can be rerun or revisited until retained inputs exist."
         },
         "drift_fingerprints": {
           "type": "array",
@@ -671,9 +671,7 @@
           "input_ids",
           "definition_refs",
           "result_id",
-          "result_hash",
-          "adapter",
-          "engine_version"
+          "result_hash"
         ],
         "properties": {
           "id": {
@@ -708,10 +706,11 @@
           },
           "input_ids": {
             "type": "array",
-            "minItems": 1,
+            "minItems": 0,
             "items": {
               "$ref": "#/$defs/id"
-            }
+            },
+            "description": "The retained inputs this execution read. Empty only on the recorded path, where the harness reached the source itself and aftergrid retained nothing."
           },
           "definition_refs": {
             "type": "array",
@@ -739,17 +738,66 @@
           },
           "executed_at": {
             "$ref": "#/$defs/timestamp",
-            "description": "Volatile: excluded from the content digest."
+            "description": "When the query ran. Volatile: excluded from the content digest."
           },
           "mode": {
             "type": "string",
             "enum": [
               "retained_rerun",
-              "capture"
+              "capture",
+              "recorded"
             ],
-            "description": "capture: first run against the source while capturing inputs. retained_rerun: run against retained inputs."
+            "description": "capture: first run against the source while capturing inputs. retained_rerun: run against retained inputs. recorded: the harness ran it and `aftergrid record` pinned the SQL, parameters and result it produced (ADR 0010)."
+          },
+          "executed_by": {
+            "$ref": "#/$defs/executed_by"
           }
-        }
+        },
+        "allOf": [
+          {
+            "description": "An adapter-run execution names the adapter, the Engine version that ran it and at least one retained input. A harness-recorded one names none of them: aftergrid did not run it and will not say which engine did.",
+            "if": {
+              "type": "object",
+              "required": [
+                "executed_by"
+              ],
+              "properties": {
+                "executed_by": {
+                  "type": "object",
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "harness"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "mode"
+              ],
+              "properties": {
+                "mode": {
+                  "const": "recorded"
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "adapter",
+                "engine_version"
+              ],
+              "properties": {
+                "input_ids": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "results": {
@@ -1140,11 +1188,11 @@
               "not_run",
               "error"
             ],
-            "description": "Last recorded outcome. Artifact-verification mode reports not_run for SQL Checks it did not execute; it never reports pass on their behalf."
+            "description": "Last recorded outcome. Artifact-verification mode reports not_run for SQL Checks it did not execute; it never reports pass on their behalf. When `reported_by` is present the outcome is the harness's word, not the Engine's, and a `pass` needs `reported_by.evidence`."
           },
           "executed_at": {
             "$ref": "#/$defs/timestamp",
-            "description": "Volatile: excluded from the content digest."
+            "description": "When the Check ran. Volatile: excluded from the content digest."
           },
           "execution_id": {
             "$ref": "#/$defs/id"
@@ -1156,6 +1204,9 @@
               "fail"
             ],
             "description": "Only for kind falsifier; mirrors question.falsifier.expected_outcome."
+          },
+          "reported_by": {
+            "$ref": "#/$defs/reported_by"
           }
         }
       }
@@ -1974,6 +2025,87 @@
           }
         }
       ]
+    },
+    "executed_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tool",
+        "recorded_at"
+      ],
+      "description": "Who executed this query. `adapter`: an aftergrid adapter ran it against the retained inputs and the Engine observed the result. `harness`: the Operator's own tool ran it and `aftergrid record` wrote down the SQL, the parameters and the result file the tool produced, without running anything (ADR 0010, docs/contracts/record.md). Absent means a manifest written before this field existed: read it as `adapter`, never as `harness`.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "adapter",
+            "harness"
+          ]
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The tool that actually ran the SQL, as the Operator names it (`psql`, `supabase mcp`, `duckdb cli`). It is a record of what the harness used, never a claim about what aftergrid did."
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The tool's own version, when the Operator states one. Never invented."
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "When aftergrid wrote this record down. Volatile: excluded from the content digest. When the tool ran is executions[].executed_at."
+        }
+      }
+    },
+    "reported_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tool",
+        "reported_at"
+      ],
+      "description": "Present when this Check's outcome was reported by the harness rather than executed by the Engine (ADR 0010). An agent-reported outcome is never a mechanical one: `check` treats it as valid only for artifact consistency, publication readiness is `unknown` at most, and the render says the Operator's tool ran it.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "harness"
+          ]
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The tool that ran the Check, as the Operator names it."
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reported_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "When aftergrid wrote the reported outcome down. Volatile: excluded from the content digest."
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "content_hash"
+          ],
+          "description": "The artifact the harness produced when it ran the Check, copied into the Finding and pinned by hash. Required for outcome `pass`: `aftergrid record` refuses an agent-reported pass with nothing behind it, and `check` reports `unevidenced_outcome` when a manifest carries one.",
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/relpath"
+            },
+            "content_hash": {
+              "$ref": "#/$defs/hash"
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [

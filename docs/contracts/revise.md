@@ -71,7 +71,7 @@ be the state somebody reviewed. Run `aftergrid check` first.
 | What | Where |
 | --- | --- |
 | A retained input, a query, a Check or a result file whose bytes changed | `snapshot.inputs`, `queries/`, `checks/`, `results/` |
-| Any execution, definition pin, Check outcome or snapshot guarantee | `executions`, `definitions`, `checks`, `snapshot` |
+| Any execution, definition pin, Check outcome or snapshot guarantee — including who ran it and what an agent-reported outcome rests on (`docs/contracts/record.md`) | `executions`, `definitions`, `checks`, `snapshot` |
 | A derived value's operation, operands or unit; an external source's value, unit, kind or provenance | `derived`, `external_sources` |
 | The evidence a Claim rests on | `claims[].evidence` |
 | The Question's falsifier or metric | `question.falsifier`, `question.metric` |

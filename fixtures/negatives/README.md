@@ -12,7 +12,7 @@ The directories are **generated and committed**. Regenerate with:
 node src/negatives-build.ts
 ```
 
-`src/negatives-build.ts` derives every case from the two reviewed exemplars in `fixtures/instance/`, applies one
+`src/negatives-build.ts` derives every case from the three reviewed exemplars in `fixtures/instance/`, applies one
 defect, and re-pins every content hash and the content digest through the shared `digestOf` / `definitionHash`. So
 everything in a case is correct *except* the defect. Generation is deterministic (no clock, no randomness) and the
 test proves the committed bytes are what the builder produces. Do not hand-edit a case directory.
@@ -23,6 +23,9 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
   only `artifact_replay`, and the recorded execution and Check outcomes and timestamps are carried over from the
   exemplar. They are fixture data, not a record of an execution in these directories. `check --mode rerun` is not
   supported on them.
+- **The `recorded-*` cases carry no retained inputs at all.** They derive from the recorded-path exemplar
+  (`docs/contracts/record.md`, ADR 0010), where the Operator's own tool ran every query and Check and aftergrid
+  wrote down what came back. `check --mode rerun` refuses them by name with `rerun_unavailable`.
 - **Nothing here was reviewed or approved.** The `reviews[]` entry names itself as a generated fixture, and no case
   carries a verified publication approval. Every render is labelled a draft.
 - **No Decision records.** This Instance root (`fixtures/negatives/aftergrid.yaml`, `readers.md`, `definitions/`)
@@ -82,6 +85,8 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `external-source-missing-type` | engine_category | `schema` | The typed external source has no source `type`. |
 | `unsupported-schema-version` | engine_category | `schema` | The manifest declares a `schema_version` the Engine does not know. |
 | `provisional-evidence` | engine_category | `provisional_evidence` | A Claim rests on a result set marked `provisional`. Render is refused, so it is never exported. |
+| `recorded-agent-pass-without-evidence` | engine_category | `unevidenced_outcome` | A required Check on the recorded data path is reported `pass` by the harness and names no evidence file. `pass` is the one outcome that asserts something held, so it may only be recorded with the tool output it rests on, copied in and pinned. |
+| `recorded-result-hash-mismatch` | engine_category | `hash_mismatch` | A harness-recorded execution pins a `result_hash` that is not the hash of the result set it names. aftergrid ran nothing, so the pinned hashes are the whole of what ties the recorded SQL to the recorded numbers. |
 
 ## Known limits
 

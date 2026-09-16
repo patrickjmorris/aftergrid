@@ -11,6 +11,7 @@ import { render } from "./commands/render.ts";
 import { digestOf } from "../scripts/lib/validate-finding.mjs";
 
 const NUMERIC = "2026-07-20-onboarding-checklist-retention", INSUFFICIENT = "2026-09-15-price-change-cancellations";
+const RECORDED = "2026-09-16-price-change-cancellations-recorded";
 function copy(): string { const root = mkdtempSync(join(tmpdir(), "ag-render-")); cpSync(fileURLToPath(new URL("../fixtures/instance/", import.meta.url)), root, { recursive: true }); return root; }
 const finding = (root: string, f: string) => join(root, "analytics", "findings", f);
 
@@ -114,4 +115,23 @@ test("an incomplete draft renders with an incomplete label and no invented conte
   const html = readFileSync(join(finding(root, "companion-needs-input"), "render", "finding.html"), "utf8");
   assert.ok(/Incomplete draft/.test(html));
   assert.ok(!/<svg|<table/.test(html));
+});
+
+test("a recorded Finding says on the page who ran it, in one line beside the other facts", async () => {
+  const root = copy();
+  const dir = finding(root, RECORDED);
+  const r = await render({ dir, generatedAt: "2026-09-16T12:00:00Z" });
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  const html = readFileSync(join(dir, "render", "finding.html"), "utf8");
+  assert.ok(
+    html.includes("<strong>How this was run</strong> Queries and Checks were run by the Operator's tool duckdb cli; aftergrid recorded them and did not rerun them."),
+    "the recorded-path fact is on the page, in the Reader's words",
+  );
+  // It is a fact among facts, not a badge: it carries its own mark and the Snapshot guarantee stays separate.
+  assert.ok(/<span class="mk wn">!<\/span><span><strong>How this was run<\/strong>/.test(html), "it carries its own mark");
+  assert.ok(/<strong>Data<\/strong> Retained inputs are kept: artifact replay are possible\./.test(html), "the Snapshot guarantee is unchanged and still separate");
+  assert.ok(/class="draft"/.test(html), "nothing about being recorded makes a draft approved");
+  // The provenance popover tells the same truth about where the numbers came from.
+  assert.ok(html.includes("the source, read by duckdb cli; aftergrid recorded the result and did not run the query"), "the value popover does not claim a retained copy");
+  assert.ok(!html.includes("retained inputs not recorded"), "and it does not report the recorded path as a missing record");
 });
