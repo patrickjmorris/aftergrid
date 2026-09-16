@@ -7,16 +7,13 @@ settings:
 importers:
 
   .:
-    devDependencies:
+    dependencies:
       '@duckdb/node-api':
         specifier: 1.5.5-r.5
         version: 1.5.5-r.5
       '@resvg/resvg-wasm':
         specifier: ^2.6.2
         version: 2.6.2
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
@@ -38,6 +35,10 @@ importers:
       yaml:
         specifier: ^2.6.0
         version: 2.9.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
 
 packages:
 

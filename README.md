@@ -2,7 +2,9 @@
 
 Open-source skills, Checks and a thin CLI for producing **Findings**: analysis memos a non-data Reader can understand, inspect and act on, with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Vocabulary: `CONTEXT.md`. Decisions: `docs/adr/`. Spec: `docs/spec/`.
 
-Pre-release. Nothing is published to npm yet.
+Pre-release. Nothing is published to npm yet, the repository is private, and the package is marked
+`"private": true` on purpose: packaging is verified, publishing is a separate owner action
+(`docs/contracts/distribution.md`).
 
 ## Run the CLI from source
 
@@ -18,9 +20,29 @@ node src/cli.ts new finding my-question --ask "Did the checklist help?" --instan
 node src/cli.ts check fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention
 node src/cli.ts render <copy-of-a-finding-dir> --png   # writes render/finding.html and chart SVG/PNG
 node src/cli.ts intake --repo owner/repo --once        # claim labelled Issues, dispatch, open one draft PR per run
+node src/cli.ts plugin validate --json                 # the package agrees with itself (manifest, skills, docs)
 pnpm test                 # fixture regressions + CLI tests
 pnpm run validate:fixtures
+pnpm run smoke:pack       # pack, audit the tarball, install it clean and run the whole CLI from it
 ```
+
+## Install from a local tarball
+
+```bash
+pnpm pack                                              # -> aftergrid-0.0.0.tgz
+npm install --ignore-scripts /path/to/aftergrid-0.0.0.tgz
+npx aftergrid --help
+```
+
+The package ships TypeScript sources and has no build step: Node 22.18+/24+ run them, and the `aftergrid` bin
+registers a load hook for the package's own `.ts` files because Node will not strip types under `node_modules`.
+Supported platforms are exactly what CI runs — Ubuntu and macOS on Node 22.18 and 24; Windows is not tested.
+`npm install --ignore-scripts` is also the evidence for the no-compile claim: DuckDB and the rasterizer load from
+prebuilt artifacts with no compiler involved. Details, and the explicit list of what has *not* been done (no npm
+publish, no visibility change, no marketplace listing): `docs/contracts/distribution.md`.
+
+The Claude Code plugin manifest is `.claude-plugin/plugin.json`; buckets, the user-/model-invoked split and the
+skills.sh layout are in `skills/README.md`, with a docs page per promoted skill under `docs/skills/`.
 
 `setup` scaffolds the Instance (`docs/contracts/instance-layout.md`) and reports six separate facts: what it created or kept, which hard dependencies are present, what the configured source's capabilities actually are, whether the guardrail hook is installed **and** self-tests clean, whether the publication policy could ever produce a verified approval, and whether a throwaway Finding runs `new` -> `check` -> draft `render`. It never overwrites a file, never writes a credential (Postgres is named by environment variable), and records completed steps in `<instance>/.aftergrid-setup.json` so a rerun resumes. `--dry-run` writes nothing. Contract and the full list of what it cannot verify: `docs/contracts/setup.md`.
 
@@ -32,10 +54,11 @@ pnpm run validate:fixtures
 
 - `schema/` canonical JSON Schemas (Finding manifest, Decision record, Reader profile)
 - `docs/contracts/` the contracts those schemas cannot express
-- `src/` the CLI (`setup`, `new finding`, `check`, `render`, `decide`, `hook`, `intake`), the adapters (DuckDB, Postgres) and the publication readiness check
+- `src/` the CLI (`setup`, `new finding`, `check`, `render`, `decide`, `hook`, `intake`, `plugin validate`), the adapters (DuckDB, Postgres) and the publication readiness check
 - `scripts/` fixture tooling and the shared validation library (`scripts/lib/`)
 - `hooks/claude-code/` the PreToolUse guardrail hook (`aftergrid hook install`; contract and non-coverage in `docs/contracts/hook.md`)
-- `skills/` the Claude Code skills, each with an `openai.yaml` beside it (`setup-aftergrid` is user-invoked)
+- `skills/` the Claude Code skills, each with an `agents/openai.yaml` beside it (`setup-aftergrid` is user-invoked); buckets and the invocation split: `skills/README.md`
+- `.claude-plugin/plugin.json` the Claude Code plugin manifest; `bin/` the `aftergrid` launcher; `docs/skills/` a page per promoted skill
 - `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`); `fixtures/negatives/` seam-1 failure cases, one defect each
 - `hooks/claude-code/` the PreToolUse guard installed by `aftergrid hook install`
 

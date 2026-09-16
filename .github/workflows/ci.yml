@@ -41,3 +41,24 @@ jobs:
             --repository example/instance --automation-login example-bot --trusted-approver a-human --skip-hook --json
           test -f /tmp/ag-inst/aftergrid.yaml && test -f /tmp/ag-inst/decisions.md
           ! ls /tmp/ag-inst/findings | grep -q setup-smoke   # the smoke ran in a temp copy, not in the Instance
+
+  pack-smoke:
+    # The packed product from a clean environment: pack, audit the tarball, install it with --ignore-scripts into
+    # an empty project and drive the installed bin through setup/hook, new -> check -> draft render, decide and the
+    # intake fixture workflow. This matrix IS the supported platform matrix in docs/contracts/distribution.md:
+    # nothing outside it is claimed, and Windows is not tested.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["22.18", 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: ${{ matrix.node }}, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: node src/cli.ts plugin validate --json
+      - run: node scripts/pack-smoke.mjs
