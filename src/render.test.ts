@@ -34,6 +34,17 @@ test("both exemplars render: factual values agree across prose, tables and chart
   assert.ok(/role="img" aria-labelledby=/.test(html), "inline chart is labelled");
   assert.ok(html.split("<details").length >= 6 && html.split('scope="col"').length >= 8 && html.split('scope="row"').length >= 3, "expandable sections and semantic tables");
   assert.ok(html.includes('name="viewport"') && html.includes("max-width: 30rem"), "phone rules present");
+  // Every resolved value carries a provenance popover: result, query, retained inputs, definition. CSS only, no script.
+  const refs = html.match(/<span class="ref" tabindex="0" aria-describedby="tip-\d+">/g) ?? [];
+  assert.ok(refs.length >= 20, `every token carries a popover (${refs.length})`);
+  const tip = /<span class="ref" tabindex="0" aria-describedby="(tip-\d+)">34\.8%<span class="tip" id="\1" role="tooltip">([\s\S]*?)<\/span><\/span><\/span>/.exec(html);
+  assert.ok(tip, "34.8% has a popover");
+  for (const needle of ["results/retention_by_arm.json", "row <code>checklist</code>", "queries/retention_by_arm.sql", "inputs/users.csv", "retained_7d</code> version 2", "recorded, not verified here", "{{ref:retention_by_arm.checklist.retained_7d_rate}}"]) assert.ok(tip![2]!.includes(needle), needle);
+  assert.ok(/<span class="ref"[^>]*>6\.3 pp<span class="tip"[^>]*>[\s\S]*?The difference of 34\.8%[\s\S]*?and 28\.5%/.test(html), "derived value explains its calculation");
+  assert.ok(/<span class="ref"[^>]*>3 pp<span class="tip"[^>]*>[\s\S]*?not a measurement/.test(html), "external target is labelled as not a measurement");
+  for (const svg of html.match(/<svg[\s\S]*?<\/svg>/g) ?? []) assert.ok(!svg.includes('class="ref"'), "no popover markup inside chart SVG");
+  assert.ok(/<td class="num"><span class="ref"/.test(html), "numeric table cells carry popovers");
+  assert.ok(/<li><span class="mk ok">✓<\/span><span><strong>Checks passed<\/strong>/.test(html) && /<span class="mk no">×<\/span><span><strong>Publication approval<\/strong>/.test(html), "facts carry separate marks");
 
   const r2 = await render({ dir: finding(root, INSUFFICIENT), generatedAt: "2026-09-15T12:00:00Z" });
   assert.equal(r2.errors.length, 0, JSON.stringify(r2.errors));

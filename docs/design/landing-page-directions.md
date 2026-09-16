@@ -46,7 +46,7 @@ Default composition per layout is recorded in the explorer; every slot can be sw
 
 ## Decision (2026-09-16)
 
-Chosen: **Collage** (now direction A in the explorer), plain surface, Geist for the Finding. Composition: minimal nav → collage hero with "Five tools. One number. No trail." → labelled figure → two lanes → Checks table → decision-log board → engine / instance → "Read the Finding" CTA. Built as a static page at `site/index.html` (no JavaScript except popover placement). The number popovers were redesigned as a light provenance card: value and its arithmetic, then saved result → query → snapshot → definition with a status per step, the SQL, and the memo token.
+Chosen: **Collage** (now direction A in the explorer), plain surface, Geist for the Finding. Composition: minimal nav → collage hero with "Five tools. One number. No trail." → labelled figure → two lanes → Checks table → decision-log board → engine / instance → "Read the Finding" CTA. Built as a static page at `site/index.html` (no JavaScript except popover placement). The number popovers were redesigned as a light provenance card: value and its arithmetic, then saved result → query → snapshot → definition with a status per step, the SQL, and the memo token. `aftergrid render` itself now emits the same popover on every resolved token (CSS only, keyboard and touch reachable; see `docs/contracts/render.md`), and `site/example-finding/` is real renderer output rather than the hand-authored reference, so the linked Finding does what the page says it does.
 
 ## Recommendation (superseded by the decision above)
 

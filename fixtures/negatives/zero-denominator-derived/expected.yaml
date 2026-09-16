@@ -11,7 +11,8 @@ defect: None. The web control arm has no signups, so a derived ratio divides by 
 description: A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.
 render:
   must_contain:
-    - the share of that group who came back is not available
-    - not available on the web
+    - the share of that group who came back is <span class="ref"
+    - ">not available<"
+    - </span> on the web
   must_not_contain:
     - PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER

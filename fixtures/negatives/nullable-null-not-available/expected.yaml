@@ -11,5 +11,5 @@ defect: None. A column declared nullable holds null for one row.
 description: A null in a nullable column is valid evidence and renders as "not available", in prose and in the table, never as 0.
 render:
   must_contain:
-    - not available came back
-    - <td class="num">not available</td>
+    - ">not available<"
+    - <td class="num"><span class="ref"

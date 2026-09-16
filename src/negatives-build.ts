@@ -252,7 +252,7 @@ export const CASES: NegativeCase[] = [
     location_pattern: "",
     defect: "None. The web control arm has no signups, so a derived ratio divides by zero and a rate cell is null.",
     description: 'A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.',
-    render: { must_contain: ["the share of that group who came back is not available", "not available on the web"], must_not_contain: [PRIVATE_MARKER] },
+    render: { must_contain: ["the share of that group who came back is <span class=\"ref\"", ">not available<", "</span> on the web"], must_not_contain: [PRIVATE_MARKER] },
     mutate: (m, files) => {
       const res = resultOf(m, "retention_by_platform_arm");
       res.columns.find((c: any) => c.name === "retained_7d_rate").nullable = true;
@@ -287,7 +287,7 @@ export const CASES: NegativeCase[] = [
     location_pattern: "",
     defect: "None. A column declared nullable holds null for one row.",
     description: 'A null in a nullable column is valid evidence and renders as "not available", in prose and in the table, never as 0.',
-    render: { must_contain: ["not available came back", "<td class=\"num\">not available</td>"] },
+    render: { must_contain: [">not available<", "<td class=\"num\"><span class=\"ref\""] },
     mutate: (m, files) => {
       resultOf(m, "retention_by_arm").columns.find((c: any) => c.name === "retained").nullable = true;
       editResult(m, files, "retention_by_arm", (data) => void (data.rows.find((r: any) => r.arm === "control").retained = null));
