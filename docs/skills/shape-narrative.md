@@ -56,7 +56,9 @@ Reader reviewer, naming the `will_misread` item and the sentence that invites it
   block sits directly under it.
 - Every Evidence heading is a sentence a Reader could repeat, identical to its Claim's `sentence`, and every
   subsection carries one idea.
-- Every chart and table title states what the chart shows, with values bound, rather than naming a measure.
+- Every chart title states what the chart shows with its values bound, and every table title states its Claim
+  in words with no token in it — a table caption renders verbatim — rather than naming a measure, asking a
+  question or pointing back at another figure.
 - No word on the Reader profile's `vocabulary.avoid` list survives outside a token, and every `will_misread`
   item is either answered by a sentence or recorded as a note.
 - `aftergrid check` still reports `evidence valid` with zero errors after the pass, and the content digest was

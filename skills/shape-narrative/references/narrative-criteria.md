@@ -78,7 +78,18 @@ and what answers them:
 An item with no answering sentence is a finding: fix it here if wording can, and record it as a non-blocking
 note for the Reader reviewer if it cannot.
 
-## 8. What happens next is clear
+## 8. Every figure title states its Claim
+
+- A chart or table title is a sentence a Reader could repeat, not a name for the artifact. "Who was counted,
+  and how many came back" and "The same comparison, phones and web separately" label the thing; "New users
+  who saw the checklist came back more often" states the Claim.
+- A chart title carries its values as bound tokens, and the render resolves them.
+- A table title carries no token — a table caption renders verbatim — so it states the Claim in words and
+  lets the rows carry the numbers.
+- A title never asserts more than its Claim does. A causal reading smuggled into a title is the same finding
+  as one in the sentence.
+
+## 9. What happens next is clear
 
 - **Decision it informs** names the decision, its owner and the options.
 - **What would change our mind** is in plain words and gives the earliest date a re-check means anything.

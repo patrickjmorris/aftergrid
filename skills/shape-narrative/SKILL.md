@@ -61,11 +61,20 @@ subsection holds one idea.
 ## 4. Make the chart title state the Claim
 
 `charts[].title` states what the chart shows a Reader, with the values bound — not the axis, not the
-measure name. `tables[].title` does the same job for a table. `charts[].description` is what a Reader who
-cannot see the image is told, and it carries the same numbers.
+measure name. `charts[].description` is what a Reader who cannot see the image is told, and it carries the
+same numbers.
 
-**Done when** every chart and table title reads as a claim rather than a label, and the description names
-the same values the title does.
+`tables[].title` states its Claim too, in words and with **no token in it**: a table caption is rendered
+verbatim, so `{{ref:…}}` in a table title reaches the Reader as literal braces. The numbers are in the rows
+underneath, so the title's job is to say what those rows show: "New users who saw the checklist came back
+more often" rather than "Retention by arm" or "Who was counted, and how many came back".
+
+A title that opens by naming the artifact ("Retention by arm"), by asking ("Who was counted"), or by
+pointing back at something else ("The same comparison, phones and web separately") is a label. State the
+Claim instead.
+
+**Done when** every chart title reads as a claim with its values bound, every table title reads as a claim
+with no token in it, and each chart description names the same values its title does.
 
 ## 5. Use the Reader's words
 

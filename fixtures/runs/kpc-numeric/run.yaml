@@ -19,7 +19,7 @@ input:
 
 output:
   path: output
-  manifest_content_digest: ba18cefb21f995c3b2ec8120c9d6ac9dbc44fbd0340dfd4c0e66a54a265d54de
+  manifest_content_digest: a8ce155145f512a8870466e1ccd38b52ce522e6b9951c2b08892f4d009688daf
   analysis_yaml_sha256: cfa330f8fd1f7a848a294d16982748072937eaef7d007c1438f05a9ff430703d
   reader_profile: product_owner    # named profile in ../readers.md; exercises the named-profile branch
   finding_state: complete
@@ -32,7 +32,6 @@ verification:
   check_artifact: { syntax: ok, content: complete, evidence: valid, sql_execution: not_performed, readiness: not_ready, errors: 0 }
   check_rerun: { sql_execution: performed, errors: 0, note: every execution and Check reproduced from the retained inputs }
   render: { wrote: [render/finding.html, render/retention_by_arm_chart.svg], label: draft, warnings: 0 }
-  structural_or_value_corrections_after_first_check: 0
 
 # No reviewer ran. /analysis-review is a separate skill (bead ag-review-analyze-golden-4ka) and the writer
 # never records a review or an attestation, so output/manifest.yaml carries reviews: [] and attestations: [].
@@ -53,3 +52,13 @@ provenance:
     - renderer pinned to the shipped renderer (0.1.0) on both sides, so render is a reproduction rather than
       a version-mismatch draft preview.
     - one memo sentence reworded to drop a word on the Reader profile's `avoid` list ("lifts").
+
+# The bead's acceptance criterion asks for the structural and value corrections needed after the first
+# `check`. This run cannot report that number, and records the absence rather than a zero.
+corrections_after_first_check: not_measured
+corrections_not_measured_because: >-
+  output/ existed, already reviewed, before input/ did; input/ was produced by deleting the fields
+  /write-finding owns. The transformation a corrections counter would score therefore ran backwards -
+  nothing was produced and then corrected - so any count here would describe the construction of the
+  fixture, not an observation of the skill. Measuring it needs a model in the loop, and this run records
+  that none ran.

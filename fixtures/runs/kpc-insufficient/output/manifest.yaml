@@ -266,7 +266,7 @@ tables:
   - id: since_change_table
     claim_id: c1
     result_id: since_change
-    title: What we have so far
+    title: Elapsed days and accumulated cancellations are both below the policy minimum, so the comparison has not been made
     columns:
       - name: days_elapsed
         label: Full days since the change
@@ -333,4 +333,4 @@ renderer:
   house_style_version: 0.1.0
 content_digest:
   algorithm: sha256
-  value: a4e94f3ad0c08b5252c2da196bc90e3bce975862c627391f83c74ee3de724e2c
+  value: c1602f836c7f7f65b7ad91338e9e435134b8710fbc16737d34b5f0076414080a

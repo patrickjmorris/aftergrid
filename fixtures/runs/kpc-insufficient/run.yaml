@@ -17,7 +17,7 @@ input:
 
 output:
   path: output
-  manifest_content_digest: a4e94f3ad0c08b5252c2da196bc90e3bce975862c627391f83c74ee3de724e2c
+  manifest_content_digest: c1602f836c7f7f65b7ad91338e9e435134b8710fbc16737d34b5f0076414080a
   analysis_yaml_sha256: 6fe99988fae006b113b26bd9cd71faab6a3a86f1b0d615b04fc0da4378e31f3a
   reader_profile: generic          # the Engine fallback; exercises the generic branch and its disclosure
   finding_state: complete
@@ -29,7 +29,6 @@ verification:
   check_artifact: { syntax: ok, content: complete, evidence: valid, sql_execution: not_performed, readiness: not_ready, errors: 0 }
   check_rerun: { sql_execution: performed, errors: 0, note: the execution and all three Checks reproduced from the retained input }
   render: { wrote: [render/finding.html], label: draft, warnings: 0 }
-  structural_or_value_corrections_after_first_check: 0
 
 reviewer_outcome:
   state: not_exercised
@@ -49,3 +48,13 @@ provenance:
       fallback branch.
     - the title states the non-answer without a causal verb ("whether cancellations rose after the price
       change"), so no causal wording appears anywhere in the output.
+
+# The bead's acceptance criterion asks for the structural and value corrections needed after the first
+# `check`. This run cannot report that number, and records the absence rather than a zero.
+corrections_after_first_check: not_measured
+corrections_not_measured_because: >-
+  output/ existed, already reviewed, before input/ did; input/ was produced by deleting the fields
+  /write-finding owns. The transformation a corrections counter would score therefore ran backwards -
+  nothing was produced and then corrected - so any count here would describe the construction of the
+  fixture, not an observation of the skill. Measuring it needs a model in the loop, and this run records
+  that none ran.

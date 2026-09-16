@@ -14,6 +14,10 @@ The skill owns a fixed set of fields and nothing else: `memo.md`, `claims`, `cha
 `external_sources`, `coverage`, `export_policy.allowed_fields`, `reader.profile`, `finding.title`,
 `finding.state`, `finding.outcome`, `finding.generated_at` and `content_digest`. Queries, Checks, results,
 retained inputs, executions and definitions are read-only to it, and so are `reviews` and `attestations`.
+The ownership is field-level, not block-level: `export_policy.recipient_scope`, `granularity`, `delivery`
+and `private_marker`, and everything in `reader` other than `profile`, are the Instance's and survive the
+skill byte-identical. `private_marker` matters most, because the memo scan in `check` and the output-byte
+refusal in `render` both run only when it is present.
 
 It finishes by running `aftergrid check` and `aftergrid render`, fixing what it introduced, and stopping with
 a `needs_attention` result after a third unsuccessful pass.
@@ -33,12 +37,18 @@ feedback on a merged Finding (`/revise-finding`).
 ## Common questions
 
 **Can it decide the Finding answers the question?** No. `finding.outcome` is copied from
-`analysis.yaml#outcome_recommendation`. A non-answer stays a non-answer, and
+`analysis.yaml#outcome_recommendation.outcome`. A non-answer stays a non-answer, and
 `skills/write-finding/references/outcomes.md` is how each one is written honestly.
 
 **What makes a Claim causal?** Randomised assignment, recorded by the Analysis, and nothing else in v0. No
-sample size, effect size or set of controls promotes an associational Claim.
-`skills/write-finding/references/claim-typing.md` has the four questions that settle a type.
+sample size, effect size or set of controls promotes an associational Claim. The Analysis records the basis
+in `candidate_claims[].comparison.description`, which its schema requires on every `associational` and
+`causal` candidate. `skills/write-finding/references/claim-typing.md` has the four questions that settle a
+type.
+
+**Where does a threshold or a target come from?** From the Analysis, or from nowhere. A typed external
+source carries the value `analysis.yaml` recorded for it; where the Analysis recorded none, the skill writes
+a `needs_input` item naming the owner and stops instead of choosing one.
 
 **Where do numbers in prose come from?** A token — `{{ref:…}}`, `{{derived:…}}` or `{{ext:…}}` — that
 resolves from the pinned manifest. A bare digit in `memo.md` fails `check` with `untraced_numeral` unless it
@@ -67,4 +77,13 @@ location and stops rather than writing around it.
 - `reviews` and `attestations` are as empty as they were before the skill ran.
 - Recorded runs: `fixtures/runs/kpc-numeric` (a named Reader profile, `answered`, a causal Claim earned by
   randomised assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no
-  causal wording anywhere). `src/writer.test.ts` holds them to all of the above.
+  causal wording anywhere). `src/writer.test.ts` holds them to the mechanical half of the above: evidence
+  validity, the field boundary down to `export_policy` and `reader` keys, answer-first structure, bound
+  values and allowed columns, figure titles that state their Claim, Reader vocabulary and the absence of
+  causal verbs in a non-answer. Whether a caveat is the one that matters, and whether a sentence a linter
+  accepts reads honestly, is `skills/shape-narrative/references/narrative-criteria.md` and the Reader
+  reviewer's, not the suite's.
+- A recorded run is evidence of a contract, not of a model: both runs were written by hand, `run.yaml` says
+  so, and neither reports a corrections count, because `input/` was cut out of an already-reviewed
+  `output/` and nothing was produced and then corrected. The corrections number the bead asks for needs a
+  model in the loop and the nightly Golden Questions, not this fixture.
