@@ -3,6 +3,7 @@
 // Lifecycle: `new finding` (draft) -> author evidence -> `check` (artifact or rerun) -> review/approve -> `render`.
 import { parseArgs } from "node:util";
 import { newFinding } from "./commands/new-finding.ts";
+import { setup } from "./commands/setup.ts";
 import { check } from "./commands/check.ts";
 import { render } from "./commands/render.ts";
 import { decide } from "./commands/decide.ts";
@@ -12,6 +13,10 @@ import { exitCodeFor, formatHuman, type Report } from "./report.ts";
 const HELP = `aftergrid — produce Findings a non-data Reader can understand, inspect and act on.
 
 Usage:
+  aftergrid setup [--instance <dir>] [--adapter duckdb|postgres] [--duckdb-path <file-or-csv-dir>]
+                  [--pg-url-env <ENV_VAR_NAME>] [--owner-name "<name>"] [--owner-contact <contact>]
+                  [--repository owner/repo] [--automation-login <bot>] [--trusted-approver <login> ...]
+                  [--settings <claude settings.json>] [--skip-hook] [--dry-run] [--json]
   aftergrid new finding <slug> [--ask "<raw ask>"] [--reader <profile-id>] [--instance <dir>] [--date yyyy-mm-dd]
   aftergrid check <finding-dir> [--mode artifact|rerun] [--json]
   aftergrid render <finding-dir> [--png] [--json]
@@ -23,6 +28,13 @@ Usage:
   aftergrid intake ...                    (not implemented yet: ag-background-intake-ka3)
 
 Lifecycle:
+  setup         scaffolds the Instance (docs/contracts/instance-layout.md) and reports six separate facts:
+                what was created or kept, which hard dependencies are present, what the configured source's
+                capabilities actually are, whether the guardrail hook is installed AND self-tests clean,
+                whether the publication policy could ever produce a verified approval, and whether a throwaway
+                Finding runs new -> check -> draft render. It never overwrites a file, never writes a
+                credential (Postgres is named by environment variable), and records which steps completed in
+                <instance>/.aftergrid-setup.json so a rerun resumes. --dry-run writes nothing at all.
   new finding   creates an explicitly incomplete draft with fresh ids; never overwrites an existing Finding.
   check         reports four separate facts: syntax, content completeness, evidence validity, publication readiness.
                 --mode artifact (default) verifies saved evidence and never re-executes SQL.
@@ -52,6 +64,31 @@ function out(report: Report, json: boolean): never {
 export async function main(argv: string[]): Promise<void> {
   const [cmd, sub, ...rest] = argv;
   if (!cmd || cmd === "--help" || cmd === "-h" || cmd === "help") { process.stdout.write(HELP); process.exit(0); }
+  if (cmd === "setup") {
+    // `setup` is the first command an Operator types, so `--help` here prints help rather than a parse error.
+    if (sub === "--help" || sub === "-h" || rest.includes("--help") || rest.includes("-h")) { process.stdout.write(HELP); process.exit(0); }
+    const { values } = parseArgs({ args: [sub, ...rest].filter((x): x is string => x !== undefined), allowPositionals: true, options: {
+      instance: { type: "string" }, adapter: { type: "string" }, "duckdb-path": { type: "string" }, "pg-url-env": { type: "string" },
+      "owner-name": { type: "string" }, "owner-contact": { type: "string" }, repository: { type: "string" },
+      "automation-login": { type: "string" }, "trusted-approver": { type: "string", multiple: true },
+      settings: { type: "string" }, "skip-hook": { type: "boolean" }, "dry-run": { type: "boolean" }, json: { type: "boolean" },
+    } });
+    if (values.adapter !== undefined && values.adapter !== "duckdb" && values.adapter !== "postgres") { process.stderr.write(`--adapter must be duckdb or postgres, got '${values.adapter}'\n`); process.exit(2); }
+    out(await setup({
+      instanceDir: values.instance,
+      adapter: values.adapter === "postgres" ? "postgres" : "duckdb",
+      duckdbPath: values["duckdb-path"],
+      pgUrlEnv: values["pg-url-env"],
+      ownerName: values["owner-name"],
+      ownerContact: values["owner-contact"],
+      repository: values.repository,
+      automationLogin: values["automation-login"],
+      trustedApprovers: values["trusted-approver"],
+      settingsPath: values.settings,
+      skipHook: !!values["skip-hook"],
+      dryRun: !!values["dry-run"],
+    }), !!values.json);
+  }
   if (cmd === "new") {
     if (sub !== "finding") { process.stderr.write("usage: aftergrid new finding <slug>\n"); process.exit(2); }
     const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { ask: { type: "string" }, reader: { type: "string" }, instance: { type: "string" }, date: { type: "string" }, json: { type: "boolean" } } });

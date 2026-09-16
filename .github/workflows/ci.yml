@@ -30,3 +30,14 @@ jobs:
       - run: node src/cli.ts check fixtures/negatives/control-valid --json
       - run: node src/cli.ts check fixtures/negatives/unresolved-reference --json || test $? -eq 1
       - run: node src/cli.ts hook status --settings /tmp/ag-settings.json --json
+      - name: setup scaffolds a fresh Instance end to end (skills bundle faked; CI runners have no Claude Code plugins)
+        shell: bash
+        run: |
+          mkdir -p /tmp/ag-skills/grilling /tmp/ag-skills/writing-for-agents /tmp/ag-inst/data
+          printf -- '---\nname: stub\n---\n' | tee /tmp/ag-skills/grilling/SKILL.md /tmp/ag-skills/writing-for-agents/SKILL.md >/dev/null
+          cp fixtures/instance/data/*.csv /tmp/ag-inst/data/
+          AFTERGRID_SKILLS_PATH=/tmp/ag-skills node src/cli.ts setup --instance /tmp/ag-inst --adapter duckdb --duckdb-path data \
+            --owner-name "CI Owner" --owner-contact ci@example.invalid \
+            --repository example/instance --automation-login example-bot --trusted-approver a-human --skip-hook --json
+          test -f /tmp/ag-inst/aftergrid.yaml && test -f /tmp/ag-inst/decisions.md
+          ! ls /tmp/ag-inst/findings | grep -q setup-smoke   # the smoke ran in a temp copy, not in the Instance

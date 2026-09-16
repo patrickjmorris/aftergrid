@@ -1,0 +1,8 @@
+interface:
+  display_name: "Setup aftergrid"
+  short_description: "Scaffold and verify an aftergrid Instance"
+  default_prompt: "Set up an aftergrid Instance in this repository: collect the inputs, run `aftergrid setup`, read the report and tell me what is still missing."
+policy:
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. Setup writes files and installs a
+  # harness hook: a human asks for it.
+  allow_implicit_invocation: false

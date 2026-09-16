@@ -9,12 +9,13 @@ export type Category =
   | "policy_untrusted" | "solo_setup_invalid" | "tampered_output"
   | "hook_not_installed" | "hook_self_test_failed"
   | "runtime_unavailable" | "missing_credential"
+  | "dependency_missing" | "write_capable_role"
   | "not_implemented";
 
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
 
 export type Report = {
-  command: "new" | "check" | "render" | "decide" | "hook";
+  command: "new" | "check" | "render" | "decide" | "hook" | "setup";
   finding?: string;
   state?: string;
   outcome?: string;
