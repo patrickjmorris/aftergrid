@@ -1,0 +1,127 @@
+# The Analysis file for the referral run: the Checks ran, the numbers are real, and the honest outcome is
+# insufficient_data. Contract: docs/contracts/analysis-directory.md. Recorded by hand, no model in loop.
+schema_version: 0.1.0
+reader_profile: product_owner
+
+assumptions:
+  - id: a_referral_signal
+    statement: "\"Joined through the referral campaign\" means the user carries a referral_signup event. There is no campaign id in the data, so a user referred outside this campaign in the same month would be counted here too."
+    basis: operator_answer
+    settled_by: Dana Okafor, clarification round 1
+    affects: [c1, c2]
+  - id: a_month_is_new_york
+    statement: The campaign month is the calendar month of September 2026 in America/New_York. Every date filter converts explicitly, so a signup at 20:30 New York time on 2026-08-31 is August and not September.
+    basis: operator_answer
+    settled_by: Dana Okafor, clarification round 2
+    affects: [c1, c2]
+  - id: a_coverage_stops_mid_month
+    statement: Retained inputs cover signups and events to 2026-09-14. A user who signed up after 2026-09-07 cannot have had seven full days by then, so their retained_7d value does not exist yet rather than being zero.
+    basis: catalog_probe
+    settled_by: p_referred_counts
+    affects: [c1, c2]
+
+# Recorded even though the Analysis ends without an answer: registering it first is what keeps a thin result
+# from being re-cut until something looks significant.
+pre_registered_comparison:
+  statement: 7-day retention of referred September signups versus non-referred September signups, over the campaign month.
+  registered_before_cuts: true
+  registered_at: "2026-09-15T09:20:00Z"
+  source: question.primary_comparison in manifest.yaml, settled in clarification round 1 before any data was read
+
+probes:
+  - id: p_referral_signal
+    kind: exploratory
+    question: Is there a field or table that names the campaign a user came through, or only the referral_signup event?
+    observed: Neither users nor acquisition carries a campaign id. The only signal is the referral_signup event in events.
+    changed_plan: The population is "users with a referral_signup event in the window", and the limitation that this cannot distinguish this campaign from any other referral in the same month is recorded on the Claim.
+  - id: p_referred_counts
+    kind: exploratory
+    question: How many referred users are there in the window, and how many of them have had seven full days by the coverage date?
+    observed: 12 referred users in September 2026, of whom 5 had not completed seven days by 2026-09-14. Seven users have a mature seven-day window.
+    changed_plan: The falsifier was not written, the Analysis recommends insufficient_data, and the minimum-data Check became the point of the run rather than a gate in front of it.
+
+execution_order:
+  - kind: probe
+    id: p_referral_signal
+  - kind: probe
+    id: p_referred_counts
+  - kind: check
+    id: unique_users
+    note: Invariant. A user joined to their events must not be counted twice.
+  - kind: check
+    id: minimum_referred_users
+    note: "minimum_data, required false. It records fail, which is the business result this Finding reports."
+  - kind: query
+    id: referred
+    note: How many referred users there are, and how many are too recent to have a seven-day window.
+
+candidate_claims:
+  - id: c1
+    sentence_draft: The September referral campaign brought in twelve new users, and five of them signed up too recently to have had a full week yet.
+    type: descriptive
+    numeric: true
+    evidence:
+      - ref:referred.post.referred_users
+      - ref:referred.post.immature_users
+    comparison:
+      kind: none
+      pre_registered: true
+    population: Users with a referral_signup event dated September 2026 in New York time.
+    window: { start: "2026-09-01", end: "2026-09-30", timezone: America/New_York, description: Coverage stops at 2026-09-14. }
+    exclusions:
+      - Users whose referral_signup event falls outside September 2026 in New York time.
+    limitations:
+      - The data carries no campaign id, so a user referred through any other route in the same month is counted here too.
+      - Coverage stops at 2026-09-14, so the count is the campaign to date, not the whole month.
+    recheck_draft:
+      mode: automatic
+      predicate: The count of referred users in the campaign month is at least the minimum the Operator agrees before the next run, higher is better, in users.
+      method: count_threshold
+      evidence:
+        - ref:referred.post.referred_users
+      minimum_data: None beyond the count itself; this Claim is the count.
+      window_policy: fixed_window
+  - id: c2
+    sentence_draft: We cannot say whether referred users stick around better, because seven referred users with a full week of data cannot support a retention comparison either way.
+    type: descriptive
+    numeric: false
+    answer_bearing: true
+    evidence: []
+    comparison:
+      kind: none
+      pre_registered: true
+    population: The same referred users, and the September signups they would be compared with.
+    window: { start: "2026-09-01", end: "2026-09-30", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - A retention rate over seven users moves by roughly fourteen percentage points for each single user, so any comparison would be reporting noise.
+    material_caveat: This is not a finding that the campaign did not work. It is a finding that the campaign has not yet produced enough referred users with a full week of data for the question to be answerable either way.
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: There is no proposition to re-test yet. The Question's falsifier is unresolved on purpose, and inventing a threshold now would set the bar to fit the data that will be judged against it.
+      owner: Dana Okafor
+      review_hint: Re-run once the referred cohort passes the minimum the Operator sets, then write the falsifier first.
+
+outcome_recommendation:
+  outcome: insufficient_data
+  reason: "The minimum_data Check recorded fail on real numbers: twelve referred users in the window, seven of them with a mature seven-day window. That cannot support a retention comparison in either direction, and no cut of it can."
+  what_would_be_needed:
+    - An agreed minimum number of referred users per campaign, set before the next run rather than after seeing this one.
+    - Enough referred users past that minimum whose seventh day falls inside the coverage window.
+    - A campaign identifier in the data, or an accepted limitation that any referral in the month is counted as this campaign.
+
+needs_input:
+  - kind: clarification
+    description: How many referred users with a full seven-day window are enough for this comparison to be worth running? Setting the bar now, before the next campaign, keeps it from being chosen to fit a result. The falsifier cannot be written until this is answered.
+    owner: Dana Okafor
+    requested_at: "2026-09-15T11:05:00Z"
+    blocks: [question.falsifier, c2]
+  - kind: data_access
+    description: There is no campaign identifier on a referral_signup event, so this Analysis cannot separate this campaign from any other referral in the same month. Either add one to the event, or confirm that counting every September referral as this campaign is acceptable and it will be recorded as a limitation.
+    owner: Dana Okafor
+    requested_at: "2026-09-15T11:05:00Z"
+    blocks: [c1]
+
+notes:
+  - question.falsifier is absent, not empty and not a placeholder. An unresolved Question lists what is missing and never invents an executable contract it cannot run.
+  - "The minimum_data Check is required false on purpose: a Check that fails as a business result must not make the evidence invalid. A SQL error in the same Check would be an engine failure, and is never a business result."

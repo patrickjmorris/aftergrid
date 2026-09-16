@@ -10,6 +10,8 @@ export type Category =
   | "hook_not_installed" | "hook_self_test_failed"
   | "runtime_unavailable" | "missing_credential"
   | "dependency_missing" | "write_capable_role"
+  // the Analysis file (docs/contracts/analysis-directory.md): analysis.yaml disagreeing with its own contract
+  | "analysis_contract"
   // distribution (docs/contracts/distribution.md): the shipped package disagreeing with itself
   | "plugin_manifest" | "invocation_policy"
   // background intake (docs/contracts/intake.md): states a request can rest in, and why it stopped there
@@ -20,7 +22,7 @@ export type Category =
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
 
 export type Report = {
-  command: "new" | "check" | "render" | "decide" | "hook" | "setup" | "intake" | "plugin";
+  command: "new" | "check" | "render" | "decide" | "hook" | "setup" | "intake" | "plugin" | "capture" | "execute";
   finding?: string;
   state?: string;
   outcome?: string;
