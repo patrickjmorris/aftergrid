@@ -1,6 +1,6 @@
 # Spec: aftergrid v0 — one Finding end to end
 
-Source: `docs/design/v0-design-2026-09-15.md` (decisions), `CONTEXT.md` (vocabulary), `docs/adr/0001–0009`, `docs/design/reconciliation-2026-09-15.md`. This spec synthesises those; where they disagree, the design doc wins.
+Source: `docs/design/v0-design-2026-09-15.md` (decisions), `CONTEXT.md` (vocabulary), `docs/adr/0001–0010`, `docs/design/reconciliation-2026-09-15.md`. This spec synthesises those; where they disagree, the design doc wins.
 
 ## Problem Statement
 

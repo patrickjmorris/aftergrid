@@ -17,6 +17,7 @@ import { parse as parseYaml } from "yaml";
 import { DuckDbAdapter } from "../adapters/duckdb.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { newFinding } from "../commands/new-finding.ts";
+import { redactCommand } from "./redact.ts";
 import { emptyReport, type Report } from "../report.ts";
 import {
   collectSkillVersions, gitSha, packageVersion, pluginVersion, recordDir, summarise,
@@ -209,26 +210,37 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
       return new Promise<AnalyzerOutcome>((resolvePromise) => {
         let child: ReturnType<typeof spawn>;
         try {
+          // Its own process group, so a bound kills the analyzer and everything the analyzer started: a
+          // headless harness spawns subprocesses, and a grandchild that outlives the case would keep spending
+          // wall clock and API budget past a bound the run reports as enforced.
           child = spawnFn(argv[0]!, argv.slice(1), {
             cwd: ctx.instanceRoot,
             env: { ...process.env, AFTERGRID_INSTANCE: ctx.instanceRoot, AFTERGRID_FINDING_DIR: ctx.findingDir },
             stdio: ["ignore", "pipe", "pipe"],
-            timeout: opts.timeoutMs,
+            detached: process.platform !== "win32",
           });
         } catch (e) {
           resolvePromise({ status: "failed", cause: "analyzer_spawn_failed", reason: `the analyzer command could not start: ${(e as Error).message}` });
           return;
         }
+        const killGroup = () => {
+          try { if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL"); else child.kill("SIGKILL"); }
+          catch { try { child.kill("SIGKILL"); } catch { /* already gone */ } }
+        };
+        const bound = opts.timeoutMs && opts.timeoutMs > 0 ? setTimeout(killGroup, opts.timeoutMs) : null;
         let out = "", err = "";
         child.stdout?.on("data", (c) => { out += String(c); });
         child.stderr?.on("data", (c) => { err += String(c); });
-        child.on("error", (e) => resolvePromise({ status: "failed", cause: "analyzer_spawn_failed", reason: `the analyzer command failed to run: ${e.message}` }));
+        child.on("error", (e) => { if (bound) clearTimeout(bound); resolvePromise({ status: "failed", cause: "analyzer_spawn_failed", reason: `the analyzer command failed to run: ${e.message}` }); });
         child.on("close", (code) => {
+          if (bound) clearTimeout(bound);
           const parsed = lastJsonLine(out);
           const dir = parsed && typeof parsed.finding_dir === "string" && parsed.finding_dir.trim()
             ? (isAbsolute(parsed.finding_dir) ? parsed.finding_dir : join(ctx.instanceRoot, parsed.finding_dir))
             : ctx.findingDir;
-          const tail = err.trim() ? `: ${err.trim().split("\n").slice(-1)[0]}` : "";
+          // The last stderr line names the failure for the record; a CLI that echoes its arguments back would
+          // echo a credential too, so the line goes through the same redaction as the template.
+          const tail = err.trim() ? `: ${redactCommand(err.trim().split("\n").slice(-1)[0]) ?? ""}` : "";
           // An analyzer that says it declined has made a judgement, and that is not a crash.
           if (parsed && parsed.status === "declined") {
             resolvePromise({ status: "declined", reason: String(parsed.reason ?? "the analyzer declined without a reason") });
@@ -247,7 +259,7 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
           const produced = existsSync(join(dir, "manifest.yaml"))
             && !(resolve(dir) === resolve(ctx.findingDir) && draft !== null && manifestDigest(dir) === draft);
           if (produced) {
-            resolvePromise({ status: "produced", finding_dir: resolve(dir), source: argv.join(" "), model: opts.model ?? null, cost: costFromEnvelope(parsed) });
+            resolvePromise({ status: "produced", finding_dir: resolve(dir), source: redactCommand(argv.join(" ")) ?? "", model: opts.model ?? null, cost: costFromEnvelope(parsed) });
             return;
           }
           resolvePromise({
@@ -538,9 +550,17 @@ export type EvalOptions = {
   maxCostUsd?: number;
 };
 
-/** A promise that resolves after `ms`, without holding the event loop open on its own. */
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => { const t = setTimeout(r, ms); (t as { unref?: () => void }).unref?.(); });
+/**
+ * `work`, or `null` once `ms` has passed without it settling. The timer holds the event loop open on purpose: a
+ * case whose analyzer keeps no handle of its own (a fake, a stalled promise) would otherwise let the process
+ * drain before the bound fires, and node:test then reports a pending promise instead of the timeout verdict.
+ * The timer is cleared as soon as `work` settles, so a finished case never waits on it.
+ */
+function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => resolve(null), ms);
+    work.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
 }
 
 export type EvalReport = Report & { cases: CaseRecord[]; summary: EvalSummary | null };
@@ -664,7 +684,9 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
       report.errors.push({ category: "incomplete", location: "--analyzer-command", message: "the command analyzer needs a command template", remedy: 'pass --analyzer-command "<cmd> {finding_dir} {raw_ask}"' });
       return report;
     }
-    analyzer = createCommandAnalyzer({ command: opts.analyzerCommand, model: opts.model ?? null, timeoutMs: opts.analyzerTimeoutMs });
+    // The child is bounded by the case's own timeout unless told otherwise: an abandoned case must not leave a
+    // process behind that the record says was stopped.
+    analyzer = createCommandAnalyzer({ command: opts.analyzerCommand, model: opts.model ?? null, timeoutMs: opts.analyzerTimeoutMs ?? opts.caseTimeoutMs });
   } else {
     analyzer = createFixtureAnalyzer({ root: opts.fixtureRoot });
   }
@@ -800,9 +822,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
         record.reason = `the run's ${opts.budgetMs} ms wall-clock budget was spent before this case started, so it was not attempted`;
       } else {
         const work = runOne();
-        const patch = caseTimeoutMs === null
-          ? await work
-          : await Promise.race([work, sleep(caseTimeoutMs).then(() => null)]);
+        const patch = caseTimeoutMs === null ? await work : await withinTimeout(work, caseTimeoutMs);
         if (patch) {
           applyPatch(record, patch);
           if (patch.sqlExecuted) sqlExecuted = true;

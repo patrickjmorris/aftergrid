@@ -88,6 +88,21 @@ Declined by the fixer:
 | P3 | The single_transaction consistency claim is never exercised: no test mutates the source during a multi-table capture | `src/adapters/postgres.test.ts:242` |
 | P3 | `consistency: single_transaction` is stamped on every extract but only ever tested with a single-table capture | `src/adapters/postgres.test.ts:246` |
 
+### ag-nightly-eval-0dv
+
+Implemented in a worktree (merge 79268b2), reviewed with the same two lenses, fixed in a second worktree (merge af70e3d), re-verified independently against the reviewer's own repros, then two CI-only fixes (2f97c5d) and the re-verifier's new findings (this commit).
+
+Confirmed and fixed:
+
+- P1 A crashed or absent command analyzer was scored as a wrong Analysis: `new finding` writes a draft manifest before the analyzer runs, so "a manifest exists" was always true. Now exit code and a changed manifest are both required; otherwise `error` / `infrastructure` with a cause, zero assertions, no issue.
+- P1 The workflow printed "model in the loop: exercised" on the presence of the secret, installed no `claude`, and pointed `/analyze` at a temp Instance with no plugin. Now `eval summary` gates the heading on run.json evidence, the command branch installs the CLI and passes `--plugin-dir`; the path stays recorded as unexercised until a real run happens.
+- P2 A model id was recorded when no case ran; the scheduled run could never file issues (`inputs` is null on `schedule`); the CI golden step was a merge gate; `compare` classed pass→not_run as unchanged; the issue sink read one page of 100; redaction missed `--api-key=…`, vendor-prefixed flag names and keys with underscores.
+- P3 Template recorded for the fixture analyzer; `budget_minutes` evaluated as bash arithmetic; `--sha ../x` escaped `--out` on plain `eval`; `compare` crashed on a record without assertions; baseline could be a cancelled or off-branch run; cost never parsed.
+- Re-verification (all 12 held) found three more: the rendered argv and the analyzer's stderr tail reached case records unredacted; a grandchild of a timed-out analyzer survived. Fixed with shared redaction and process-group kill, each with a test that runs a real analyzer script.
+- CI: the per-case timeout timer was unref'd, so a stalled analyzer with no handle drained the loop on macOS Node 22.18; `fonts/` was missing from the package `files` after renderer 0.2.0.
+
+Not established: the headless `claude -p /analyze --plugin-dir …` invocation has never run; the first scheduled run with the secret is the test. The nightly issue label `aftergrid-eval` must exist before `report_issues` is useful.
+
 ## Not covered by this record
 
 - The human Reader session (a2f) and the manual real Finding (db2) are owner gates and were not touched.
