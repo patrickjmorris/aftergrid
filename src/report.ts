@@ -7,12 +7,18 @@ export type Category =
   | "unsafe_path" | "path_collision" | "duplicate_id" | "execution_binding" | "result_shape" | "value_type" | "derived_arity" | "check_error"
   | "decision_binding" | "decision_conflict" | "render_error" | "rerun_mismatch" | "admission" | "cancelled" | "resource_limit" | "sql_error" | "invalid_artifact" | "sql_policy" | "sql_parameter" | "check_shape" | "stale_review" | "minimum_data"
   | "policy_untrusted" | "solo_setup_invalid" | "tampered_output"
+  | "decision_binding" | "render_error" | "rerun_mismatch" | "admission" | "cancelled" | "resource_limit" | "sql_error" | "invalid_artifact" | "sql_policy" | "sql_parameter" | "check_shape" | "stale_review" | "minimum_data"
+  | "hook_not_installed" | "hook_self_test_failed"
   | "not_implemented";
 
 export type Problem = { category: Category; location: string; message: string; remedy?: string };
 
 export type Report = {
+<<<<<<< HEAD
   command: "new" | "check" | "render" | "decide";
+=======
+  command: "new" | "check" | "render" | "hook";
+>>>>>>> worktree-wf_f61e031f-155-4
   finding?: string;
   state?: string;
   outcome?: string;
