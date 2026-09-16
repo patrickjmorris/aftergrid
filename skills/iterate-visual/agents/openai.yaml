@@ -1,0 +1,8 @@
+interface:
+  display_name: "Iterate on a chart"
+  short_description: "Render each chart, look at it, score it against the visual rubric and revise it"
+  default_prompt: "Render every chart in this Finding, look at the PNG, score it against the visual rubric and revise it — at most three passes, and hand back any chart still failing an item."
+policy:
+  # Model-invoked, matching `user-invocable: false` in SKILL.md. The visual loop is craft inside writing a
+  # Finding; an agent reaches for it mid-task, and a human asks for `/revise-finding` instead.
+  allow_implicit_invocation: true

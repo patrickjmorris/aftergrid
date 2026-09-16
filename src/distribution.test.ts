@@ -76,7 +76,7 @@ test("a SKILL.md with no invocation policy fails, and says which file and what t
   const problem = report.errors.find((e) => e.category === "invocation_policy")!;
   assert.equal(problem.location, "skills/setup-aftergrid/SKILL.md");
   assert.match(problem.remedy ?? "", /disable-model-invocation: true|user-invocable: false/);
-  assert.equal(report.skills[0]!.invocation, "unstated", "an unstated policy is reported as unstated, never guessed");
+  assert.equal(report.skills.find((s) => s.name === "setup-aftergrid")!.invocation, "unstated", "an unstated policy is reported as unstated, never guessed");
   assert.equal(report.content, "incomplete");
 });
 

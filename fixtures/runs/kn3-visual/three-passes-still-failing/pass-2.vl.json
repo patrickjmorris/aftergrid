@@ -1,0 +1,12 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Bound by the renderer to result retention_by_week_arm. Six signup weeks, two arms side by side; grey except the checklist arm.",
+  "data": { "name": "result" },
+  "mark": { "type": "bar" },
+  "encoding": {
+    "x": { "field": "signup_week", "type": "nominal", "title": "Signup week" },
+    "y": { "field": "retained_7d_rate", "type": "quantitative", "title": "7-day retention", "axis": { "grid": false, "format": ".0%" }, "scale": { "domain": [0.2, 0.45] } },
+    "color": { "field": "arm", "type": "nominal", "scale": { "domain": ["checklist", "control"], "range": ["#0b6e4f", "#b9b9b9"] }, "legend": null },
+    "xOffset": { "field": "arm", "type": "nominal" }
+  }
+}
