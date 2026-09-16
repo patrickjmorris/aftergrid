@@ -24,7 +24,16 @@ pass, or calls a chart accepted while an item is `no`.
 | `outcome` | `accepted` with the surviving `spec`, or `returned_to_operator` with `failing_items` and a `next_step`. |
 | `variants[]` | Rejected candidates kept for the record: the `chart_id` each would carry, `variant_of` naming the survivor, and the `result_id` they share with it. |
 
-The result set both runs bind to is the synthetic `retention_by_arm` of the numeric exemplar: columns `arm`,
-`signups`, `retained` and `retained_7d_rate`. `src/revise.test.ts` renders `first-pass-passes/pass-1.vl.json`
-inside a copy of that Finding, so the direct-label spec is held to the real Vega-Lite subset and the real
-renderer rather than to a description of them.
+Both runs bind a result set of the numeric exemplar, and not the same one:
+
+| Run | `result_id` | Columns the specs name |
+| --- | --- | --- |
+| `first-pass-passes/` | `retention_by_arm` | `arm`, `retained_7d_rate` |
+| `three-passes-still-failing/` | `retention_by_week_arm` | `signup_week`, `arm`, `retained_7d_rate` |
+
+`src/revise.test.ts` renders `first-pass-passes/pass-1.vl.json` inside a copy of that Finding, so the
+direct-label spec is held to the real Vega-Lite subset and the real renderer rather than to a description of
+them. It also compiles **every** recorded pass spec against its own result set through the pinned house style,
+and holds the recorded verdicts to that image: a note may not describe a legend (the house style disables
+them), `grey_plus_accent` must be `yes` when the palette is the accent plus grey, and `axis_not_truncated` must
+follow the compiled position-scale domain. A verdict about something the renderer cannot draw fails the test.

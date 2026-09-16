@@ -12,7 +12,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 // @ts-ignore: shared path containment (JS module, no types).
-import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
+import { safePath, ContractError, fail } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: shared ESM validation library; the single implementation of the digest envelope.
 import { digestOf } from "../../scripts/lib/validate-finding.mjs";
 import { emptyReport, type Problem, type Report } from "../report.ts";
@@ -20,7 +20,7 @@ import { sha256 } from "../digest.ts";
 import { check } from "./check.ts";
 import { render } from "./render.ts";
 import { diffValues, normalizeManifest } from "../revise/diff.ts";
-import { classifyChartSpec, classifyManifestDifference, classifyMemo, overall, type Judgement, type Level } from "../revise/classify.ts";
+import { classifyChartSpec, classifyManifestDifference, classifyMemo, overall, promotions, type Judgement, type Level } from "../revise/classify.ts";
 import { archive, archivedPaths, digestMatches, findBaseline, readManifest, revisionDir } from "../revise/baseline.ts";
 
 export type ReviseMode = "pin" | "classify" | "apply";
@@ -53,6 +53,15 @@ export async function revise(opts: ReviseOptions): Promise<ReviseReport> {
   report.finding = `${manifest.finding.id} r${manifest.finding.revision}`;
   report.revision = Number(manifest.finding.revision);
 
+  // A file the manifest names and the Finding does not hold produces no difference to classify. Say it is
+  // missing rather than let "nothing to compare" be reported as "nothing changed".
+  const missing = missingArtifacts(dir, manifest);
+  if (missing.length) {
+    report.errors.push(...missing);
+    report.syntax = "invalid";
+    return report;
+  }
+
   if (opts.mode === "pin") return pin(dir, manifest, report, !!opts.force);
 
   // Evidence drift is readable from the manifest's own recorded hashes, with or without a baseline: a Finding
@@ -75,7 +84,13 @@ export async function revise(opts: ReviseOptions): Promise<ReviseReport> {
   }
   report.info.push(`baseline: ${baseline.source === "archive" ? `revisions/${manifest.finding.revision}` : opts.baseline}`);
 
-  judgements.push(...classifyAgainst(dir, baseline.dir, baseline.manifest, manifest));
+  try { judgements.push(...classifyAgainst(dir, baseline.dir, baseline.manifest, manifest)); }
+  catch (e) {
+    report.errors.push({ category: e instanceof ContractError ? (e as any).category : "invalid_artifact", location: e instanceof ContractError ? (e as any).location : dir, message: (e as Error).message, remedy: "fix the artifact, or restore it from the pinned revision" });
+    report.syntax = "invalid";
+    report.differences = judgements;
+    return report;
+  }
   report.differences = judgements;
   const level = overall(judgements);
   report.classification = level;
@@ -141,9 +156,18 @@ function refuseNumeric(report: ReviseReport, judgements: Judgement[]): ReviseRep
   return report;
 }
 
-async function applyRevision(dir: string, manifest: any, baseline: { dir: string; source: string }, report: ReviseReport, opts: ReviseOptions): Promise<ReviseReport> {
+async function applyRevision(dir: string, manifest: any, baseline: { dir: string; manifest: any; source: string }, report: ReviseReport, opts: ReviseOptions): Promise<ReviseReport> {
   const previous = Number(manifest.finding.revision);
   const next = previous + 1;
+  // `--baseline <dir>` names a copy of the reviewed Finding, and archiving it overwrites `revisions/<N>/`.
+  // Refuse when that would destroy an archive of some other state: a pinned revision N is the only copy of the
+  // artifact revision N's reviews and attestations were written against.
+  const blocked = archiveCollision(dir, previous, baseline, !!opts.force);
+  if (blocked) {
+    report.errors.push(blocked);
+    report.info.push("nothing was written");
+    return report;
+  }
   // The predecessor is archived from the baseline, never from the working tree: the reviewed artifact is the
   // one without the edits.
   report.archive = archive(baseline.dir, dir, previous, readManifest(baseline.dir));
@@ -187,6 +211,28 @@ async function applyRevision(dir: string, manifest: any, baseline: { dir: string
   return report;
 }
 
+/**
+ * Why archiving this baseline as revision N would destroy something, or `null`. Two ways it can: the baseline is
+ * a different state than the one already archived at `revisions/<N>/`, or it is not revision N at all.
+ */
+function archiveCollision(dir: string, previous: number, baseline: { dir: string; manifest: any; source: string }, force: boolean): Problem | null {
+  if (baseline.source !== "flag") return null; // the archive of revision N is the baseline; archiving it is a no-op
+  const revision = Number(baseline.manifest?.finding?.revision);
+  if (Number.isFinite(revision) && revision !== previous)
+    return { category: "needs_input", location: `revisions/${previous}`, message: `--baseline names revision ${revision} and the Finding is revision ${previous}, so archiving it would file revision ${revision}'s artifact as revision ${previous}`, remedy: `pass the copy of revision ${previous}, or bring the Finding back to revision ${revision}` };
+  // An archive has to be a state somebody reviewed, the rule `--pin` enforces. `--force` does not buy past it:
+  // there is nothing to gain by filing an unreviewed copy as the reviewed revision.
+  let hashes = false;
+  try { hashes = digestMatches(baseline.dir, baseline.manifest); } catch { hashes = false; }
+  if (!hashes)
+    return { category: "digest", location: `${baseline.dir}/manifest.yaml#/content_digest`, message: "--baseline does not hash to the digest its manifest pins, so it was never the reviewed state, and archiving it would replace the archive of the one that was", remedy: "run `aftergrid check` on the copy, or drop --baseline to archive the pinned revision itself" };
+  const existing = revisionDir(dir, previous);
+  if (force || !existsSync(`${existing}/manifest.yaml`)) return null;
+  const archived = readManifest(existing);
+  if (archived.content_digest?.value === baseline.manifest?.content_digest?.value) return null;
+  return { category: "exists", location: `revisions/${previous}`, message: `revisions/${previous} archives a different digest than --baseline holds, and applying would replace it`, remedy: `drop --baseline to use revisions/${previous} itself, or pass --force to replace the archive` };
+}
+
 function mergeInto(report: ReviseReport, other: Report, label: string) {
   const seen = new Set(report.errors.map((e) => `${e.category}@${e.location}`));
   for (const e of other.errors) if (!seen.has(`${e.category}@${e.location}`)) report.errors.push({ ...e, message: `${label}: ${e.message}` } as Problem);
@@ -209,8 +255,38 @@ export function classifyAgainst(dir: string, baselineDir: string, baseline: any,
     const spec = readIfPresent(dir, chart.spec_path);
     const old = readIfPresent(baselineDir, chart.spec_path);
     if (spec === null || old === null || spec === old) continue;
-    out.push(...classifyChartSpec(String(chart.id), String(chart.spec_path), JSON.parse(old), JSON.parse(spec)));
+    out.push(...classifyChartSpec(String(chart.id), String(chart.spec_path), parseSpec(baselineDir, chart.spec_path, old), parseSpec(dir, chart.spec_path, spec)));
   }
+
+  // Promoting a Variant changes the chart the Reader sees without either spec file changing, so the walk above
+  // sees nothing. Compare the spec that starts rendering against the one it replaced: a Variant carrying a
+  // truncated axis or another field binding costs what that change costs, whenever it reaches the page.
+  for (const [promoted, demoted] of promotions(nb, nw)) {
+    const spec = readIfPresent(dir, promoted.spec_path), old = readIfPresent(baselineDir, demoted.spec_path);
+    if (spec === null || old === null) continue;
+    out.push(...classifyChartSpec(String(promoted.id), String(promoted.spec_path), parseSpec(baselineDir, demoted.spec_path, old), parseSpec(dir, promoted.spec_path, spec))
+      .map((j) => ({ ...j, message: `${j.message} (against ${demoted.id}, the chart it replaces on the page)` })));
+  }
+  return out;
+}
+
+/** A chart spec that is not JSON is a typed `invalid_artifact`, never a stack trace out of the command. */
+function parseSpec(dir: string, rel: string, text: string): unknown {
+  try { return JSON.parse(text); }
+  catch (e) { return fail("invalid_artifact", `${dir}/${rel}`, `chart spec is not valid JSON: ${(e as Error).message}`); }
+}
+
+/**
+ * The files a revision compares that the manifest says exist. A missing one is reported here, because with
+ * nothing to read the classifier produces no judgement at all and would otherwise call the Finding unchanged.
+ */
+export function missingArtifacts(dir: string, manifest: any): Problem[] {
+  const out: Problem[] = [];
+  const mustExist = (rel: string, location: string, what: string) => {
+    if (readIfPresent(dir, rel) === null) out.push({ category: "missing_file", location, message: `${what} (${rel}) is missing from the Finding`, remedy: "restore the file, or remove what refers to it; `aftergrid check` lists everything it breaks" });
+  };
+  mustExist("memo.md", "memo.md", "the memo");
+  for (const [n, chart] of (manifest.charts ?? []).entries()) mustExist(String(chart.spec_path), `manifest.yaml#/charts/${n}`, `the spec of chart ${chart.id}`);
   return out;
 }
 
