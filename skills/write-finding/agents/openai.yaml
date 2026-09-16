@@ -1,0 +1,8 @@
+interface:
+  display_name: "Write finding"
+  short_description: "Turn a checked Analysis directory into a Finding a Reader can read and inspect"
+  default_prompt: "Write the Finding for this Analysis directory: read manifest.yaml, analysis.yaml and the saved results, type and bind every Claim, write memo.md in the six fixed sections, then run `aftergrid check` and `aftergrid render` and fix what you introduced."
+policy:
+  # Model-invoked, matching `user-invocable: false` in SKILL.md. The writer is a step inside /analyze, reached
+  # once /checked-analysis has pinned the evidence; a human asks for the Analysis, not for the memo.
+  allow_implicit_invocation: true

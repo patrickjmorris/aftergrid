@@ -1,0 +1,199 @@
+# Recorded run input: the Analysis directory as /checked-analysis leaves it, before /write-finding.
+# Question, definitions, snapshot, queries, executions, results and Checks are pinned; claims, charts, tables,
+# derived, external_sources, coverage, export_policy.allowed_fields and the memo are empty on purpose.
+# Paired with analysis.yaml in this directory. Regenerated only by hand; see fixtures/runs/README.md.
+schema_version: 0.1.0
+finding:
+  id: fnd_3p8r5t2y7vnc
+  revision: 1
+  slug: price-change-cancellations
+  title: Price change cancellations
+  state: draft
+  outcome: pending
+  generated_at: 2026-09-15T09:30:00Z
+  canonical_location: aftergrid/fixtures/runs/kpc-insufficient
+owner:
+  name: Dana Okafor
+  contact: dana@loop.example
+reader:
+  profile: generic
+question:
+  id: price_change_cancellations
+  raw_ask: Did the price increase on September 8 make more people cancel?
+  state: resolved
+  decision: Whether to keep the new price, roll it back, or wait.
+  metric:
+    id: weekly_cancellation_rate
+    version: 1
+  population: Paid subscriptions that were active when the price changed on 2026-09-08.
+  window:
+    start: 2026-09-08
+    end: 2026-09-14
+    timezone: America/New_York
+    description: Every full day of data since the change.
+  primary_comparison: Daily cancellation rate in the first four weeks after the change, compared with the four weeks before it.
+  falsifier:
+    kind: check
+    check_id: falsifier_cancel_rate
+    expected_outcome: pass
+    statement: Once four weeks and at least three hundred cancellations have accumulated, the belief that the price change did not raise cancellations is wrong if the daily cancellation rate after the change is more than a fifth higher than before it.
+snapshot:
+  id: snap_subscriptions
+  inputs:
+    - id: subscriptions
+      kind: extract
+      path: inputs/subscriptions.csv
+      content_hash:
+        algorithm: sha256
+        value: 212504567b09daa51c426160077ce79542d1c3c420e9fd1506fb531290726341
+      captured_at: 2026-09-15T04:00:00Z
+      description: All paid subscriptions with start and cancellation times, through the end of 2026-09-14.
+      source:
+        adapter: synthetic
+        method: generator seed 20260915, extract by scripts/capture-fixture-inputs.mjs
+        tables:
+          - subscriptions
+        consistency: single_transaction
+  guarantees:
+    - artifact_replay
+    - analysis_rerun
+definitions:
+  - id: weekly_cancellation_rate
+    version: 1
+    kind: metric
+    lifecycle: proposed
+    path: definitions/weekly_cancellation_rate.md
+    content_hash:
+      algorithm: sha256
+      value: 4dad915c7cdebfe0887b91c0d3618caf494948fc21265ee9c95bc3aa578e2efd
+    role: supporting
+queries:
+  - id: cancellations_since_change
+    path: queries/cancellations_since_change.sql
+    dialect: duckdb
+    purpose: What has accumulated since the change.
+    content_hash:
+      algorithm: sha256
+      value: 2ceba3e8aab0fe09822db7a74354e4b0390ffb94297c1e397222038ccf6ca528
+executions:
+  - id: ex_cancellations_since_change
+    query_id: cancellations_since_change
+    sql_hash:
+      algorithm: sha256
+      value: 2ceba3e8aab0fe09822db7a74354e4b0390ffb94297c1e397222038ccf6ca528
+    parameters:
+      analytical_timezone: America/New_York
+      tz: America/New_York
+      change_date: 2026-09-08
+      data_to: 2026-09-14
+      min_days: 28
+      min_cancellations: 300
+    input_ids:
+      - subscriptions
+    definition_refs: []
+    result_id: since_change
+    result_hash:
+      algorithm: sha256
+      value: 286e0fa8f31340f73d2171a8c7e80470ef767876aaa4f3809bc3dba2cce2c60e
+    adapter: duckdb
+    engine_version: 0.0.0-fixture
+    mode: retained_rerun
+    executed_at: 2026-09-15T22:58:07Z
+results:
+  - id: since_change
+    execution_id: ex_cancellations_since_change
+    path: results/since_change.json
+    row_key: period
+    columns:
+      - name: period
+        type: text
+        unit: text
+      - name: days_elapsed
+        type: integer
+        unit: days
+        display:
+          kind: integer
+        description: Full days of data since the change, inclusive.
+      - name: cancellations
+        type: integer
+        unit: count
+        display:
+          kind: integer
+        description: Subscriptions cancelled on or after the change date. A diagnostic count, not an approved metric.
+      - name: active_at_change
+        type: integer
+        unit: count
+        display:
+          kind: integer
+        description: Subscriptions active at the start of the change date.
+      - name: earliest_window_end
+        type: date
+        unit: date
+        display:
+          kind: date
+        description: The last day of the earliest observation window that satisfies the day-count minimum. Data for that day is complete only after it closes; the cancellation minimum and an approved definition are also required before an answer.
+      - name: minimum_met
+        type: integer
+        unit: count
+        display:
+          kind: integer
+        description: 1 when both policy minimums (days and cancellations) are met on the declared population, else 0.
+    row_count: 1
+    content_hash:
+      algorithm: sha256
+      value: 286e0fa8f31340f73d2171a8c7e80470ef767876aaa4f3809bc3dba2cce2c60e
+derived: []
+external_sources: []
+claims: []
+charts: []
+tables: []
+checks:
+  - id: unique_subscriptions
+    kind: invariant
+    path: checks/unique_subscriptions.sql
+    required: true
+    outcome: pass
+    description: No subscription is counted twice.
+    content_hash:
+      algorithm: sha256
+      value: a95db4eaefb4ca385585802aebb996b3b3a3885ed1481305f15d047718af774d
+    executed_at: 2026-09-15T22:58:07Z
+  - id: minimum_data
+    kind: minimum_data
+    path: checks/minimum_data.sql
+    required: false
+    outcome: fail
+    description: The policy minimum (four weeks, three hundred cancellations) is met. Failing is the expected business result of this Finding, not an engine failure.
+    content_hash:
+      algorithm: sha256
+      value: e532ed643f284895f8c4d0030e9c1940052c5e0fc9548aa277ca9f1a75cefd30
+    executed_at: 2026-09-15T22:58:07Z
+  - id: falsifier_cancel_rate
+    kind: falsifier
+    path: checks/falsifier_cancel_rate.sql
+    required: false
+    outcome: not_run
+    expected_outcome: pass
+    description: Once the minimum is met, the daily cancellation rate after the change is not more than a fifth above the rate before it. Not evaluable until then.
+    content_hash:
+      algorithm: sha256
+      value: 4dffbd858db38be3796bf53fc19eb31643ab3e59eee4b480675880009657501b
+    executed_at: 2026-09-15T22:58:07Z
+reviews: []
+attestations: []
+export_policy:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+  allowed_fields: []
+  delivery: html_file
+  private_marker: PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER
+coverage:
+  data_from: 1970-01-01
+  data_to: 1970-01-01
+  description: "Not written yet: coverage is the writer's to state from the retained inputs and the window."
+renderer:
+  version: 0.1.0
+  house_style_version: 0.1.0
+content_digest:
+  algorithm: sha256
+  value: 858f73795e279ff90319a5ebd09b1ba69f6e1e93060bff80a437ff5e5fa7763c

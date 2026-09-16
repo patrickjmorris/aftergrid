@@ -1,0 +1,51 @@
+# Recorded run: /write-finding on an Analysis that cannot answer yet, against the GENERIC Reader profile.
+# Regression fixture for src/writer.test.ts. Nothing here was produced by a model in the loop.
+schema_version: 0.1.0
+run_id: kpc-insufficient
+skill: write-finding
+skill_version: 0.1.0
+model: recorded by hand (no model run)
+recorded_on: "2026-09-16"
+
+input:
+  path: input
+  manifest_content_digest: 858f73795e279ff90319a5ebd09b1ba69f6e1e93060bff80a437ff5e5fa7763c
+  analysis_yaml_sha256: ee0cb7a5e7902327d2c4b656ece59c74e3d9331e1b0813c2b2fc5e2b0dbdcc1a
+  reader_profile: generic
+  finding_state: draft
+  finding_outcome: pending
+
+output:
+  path: output
+  manifest_content_digest: a4e94f3ad0c08b5252c2da196bc90e3bce975862c627391f83c74ee3de724e2c
+  analysis_yaml_sha256: ee0cb7a5e7902327d2c4b656ece59c74e3d9331e1b0813c2b2fc5e2b0dbdcc1a
+  reader_profile: generic          # the Engine fallback; exercises the generic branch and its disclosure
+  finding_state: complete
+  finding_outcome: insufficient_data
+  claims: [c1, c2]
+  claim_types: { c1: descriptive, c2: descriptive }
+
+verification:
+  check_artifact: { syntax: ok, content: complete, evidence: valid, sql_execution: not_performed, readiness: not_ready, errors: 0 }
+  check_rerun: { sql_execution: performed, errors: 0, note: the execution and all three Checks reproduced from the retained input }
+  render: { wrote: [render/finding.html], label: draft, warnings: 0 }
+  structural_or_value_corrections_after_first_check: 0
+
+reviewer_outcome:
+  state: not_exercised
+  reason: model-in-the-loop review cannot run in this suite; src/writer.test.ts asserts only the mechanical
+    criteria (evidence validity, the writer's field boundary, answer-first structure, bound values, absence
+    of causal wording) that a lint can judge.
+
+provenance:
+  derived_from: fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations
+  how: The Claim wording, table and memo prose come from that reviewed exemplar. The input directory was
+    produced by removing exactly the fields /write-finding owns; analysis.yaml was then written by hand so
+    that following the skill's steps from input/ reaches output/.
+  deviations_from_the_exemplar:
+    - reviews[] and attestations[] emptied, because the writer produces neither.
+    - renderer pinned to the shipped renderer (0.1.0) on both sides.
+    - reader.profile is `generic` rather than the exemplar's named profile, so this run exercises the
+      fallback branch.
+    - the title states the non-answer without a causal verb ("whether cancellations rose after the price
+      change"), so no causal wording appears anywhere in the output.

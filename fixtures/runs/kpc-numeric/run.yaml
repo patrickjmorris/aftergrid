@@ -1,0 +1,55 @@
+# Recorded run: /write-finding on a numeric Analysis that reaches an answer, against a NAMED Reader profile.
+# Regression fixture for src/writer.test.ts. Nothing here was produced by a model in the loop.
+schema_version: 0.1.0
+run_id: kpc-numeric
+skill: write-finding
+skill_version: 0.1.0
+model: recorded by hand (no model run)
+recorded_on: "2026-09-16"
+
+input:
+  path: input
+  # The Analysis directory as /checked-analysis leaves it: question resolved, definitions pinned, snapshot
+  # captured, queries/executions/results/checks pinned, claims empty, memo unwritten.
+  manifest_content_digest: 1f527e1c9a1fbed78c773548298c7180fad5c24ba08d3c026bbab0ea65d55ac1
+  analysis_yaml_sha256: 0da41e741385a3006ecf2917e9392d3c6a7ca2bfcf1c70a3ab865e444259c224
+  reader_profile: generic          # `new finding` default; analysis.yaml names the Reader the writer sets
+  finding_state: draft
+  finding_outcome: pending
+
+output:
+  path: output
+  manifest_content_digest: ba18cefb21f995c3b2ec8120c9d6ac9dbc44fbd0340dfd4c0e66a54a265d54de
+  analysis_yaml_sha256: 0da41e741385a3006ecf2917e9392d3c6a7ca2bfcf1c70a3ab865e444259c224
+  reader_profile: product_owner    # named profile in ../readers.md; exercises the named-profile branch
+  finding_state: complete
+  finding_outcome: answered
+  claims: [c1, c2]
+  claim_types: { c1: causal, c2: associational }
+
+# What `aftergrid check` and `aftergrid render` reported on output/ when the run was recorded.
+verification:
+  check_artifact: { syntax: ok, content: complete, evidence: valid, sql_execution: not_performed, readiness: not_ready, errors: 0 }
+  check_rerun: { sql_execution: performed, errors: 0, note: every execution and Check reproduced from the retained inputs }
+  render: { wrote: [render/finding.html, render/retention_by_arm_chart.svg], label: draft, warnings: 0 }
+  structural_or_value_corrections_after_first_check: 0
+
+# No reviewer ran. /analysis-review is a separate skill (bead ag-review-analyze-golden-4ka) and the writer
+# never records a review or an attestation, so output/manifest.yaml carries reviews: [] and attestations: [].
+reviewer_outcome:
+  state: not_exercised
+  reason: model-in-the-loop review cannot run in this suite; src/writer.test.ts asserts only the mechanical
+    criteria (evidence validity, the writer's field boundary, answer-first structure, bound values, Reader
+    vocabulary) that a lint can judge.
+
+provenance:
+  derived_from: fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention
+  how: The Claim wording, chart, tables and memo prose come from that reviewed exemplar. The input directory
+    was produced by removing exactly the fields /write-finding owns; analysis.yaml was then written by hand
+    so that following the skill's steps from input/ reaches output/. Digests were re-pinned by the shared
+    digestOf, which is what step 8 of the skill instructs.
+  deviations_from_the_exemplar:
+    - reviews[] and attestations[] emptied, because the writer produces neither.
+    - renderer pinned to the shipped renderer (0.1.0) on both sides, so render is a reproduction rather than
+      a version-mismatch draft preview.
+    - one memo sentence reworded to drop a word on the Reader profile's `avoid` list ("lifts").
