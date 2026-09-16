@@ -13,19 +13,28 @@ import { safePath, ContractError } from "../scripts/fixture-safety.mjs";
 const SCHEMA = new URL("../schema/decision-record.schema.json", import.meta.url);
 
 export type DecisionCheck = { records: number; unverified: number; errors: Problem[]; warnings: Problem[] };
+/** Every parsed record in a decisions directory, indexed by record id, with the problems reading them raised. */
+export type DecisionIndex = { records: Map<string, { rec: any; loc: string }>; errors: Problem[]; warnings: Problem[] };
 
-export function validateDecisionsFor(instanceRoot: string, manifest: any): DecisionCheck {
-  const out: DecisionCheck = { records: 0, unverified: 0, errors: [], warnings: [] };
-  let dir: string;
-  try { dir = safePath(instanceRoot, "decisions"); }
-  catch (e) { out.errors.push({ category: (e as any).category ?? "unsafe_path", location: "decisions", message: (e as Error).message }); return out; }
-  if (!existsSync(dir)) return out;
-  if (!lstatSync(dir).isDirectory()) { out.errors.push({ category: "invalid_artifact", location: "decisions", message: "decisions is not a directory" }); return out; }
-  const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv);
-  const schema = JSON.parse(readFileSync(SCHEMA, "utf8"));
+let validator: ((rec: unknown) => boolean) & { errors?: any[] } | null = null;
 
-  // Index every record by id first, so supersedes resolves by record identity rather than by file name.
-  const records = new Map<string, { rec: any; loc: string }>();
+/** Schema problems for one Decision record, as report entries. Empty when valid. The single place the schema is read. */
+export function decisionSchemaErrors(rec: unknown, loc: string): Problem[] {
+  if (!validator) {
+    const ajv = new Ajv2020({ allErrors: true, strict: false }); addFormats(ajv);
+    validator = ajv.compile(JSON.parse(readFileSync(SCHEMA, "utf8"))) as typeof validator;
+  }
+  if (validator!(rec)) return [];
+  return (validator!.errors ?? []).map((e: any) => ({ category: "schema" as const, location: `${loc}#${e.instancePath}`, message: e.message ?? "invalid", remedy: "fix against schema/decision-record.schema.json" }));
+}
+
+/**
+ * Read every `<dec_id>.yaml` in a decisions directory. Records are indexed by their own `id`, so `supersedes`
+ * resolves by record identity rather than by file name; the file-name/id agreement is reported separately.
+ * Shared by `check` (src/commands/check.ts) and `decide` (src/commands/decide.ts).
+ */
+export function readDecisionRecords(dir: string): DecisionIndex {
+  const out: DecisionIndex = { records: new Map(), errors: [], warnings: [] };
   const entries = readdirSync(dir).sort();
   for (const other of entries) if (other.endsWith(".yml")) out.warnings.push({ category: "invalid_artifact", location: `decisions/${other}`, message: "Decision records use the .yaml extension; this file is ignored" });
   for (const name of entries.filter((f) => f.endsWith(".yaml"))) {
@@ -35,19 +44,31 @@ export function validateDecisionsFor(instanceRoot: string, manifest: any): Decis
     catch (e) { out.errors.push({ category: e instanceof ContractError ? (e as any).category : "syntax", location: loc, message: (e as Error).message }); continue; }
     if (!rec || typeof rec !== "object") { out.errors.push({ category: "invalid_artifact", location: loc, message: "not a record" }); continue; }
     if (typeof rec.id === "string") {
-      if (records.has(rec.id)) out.errors.push({ category: "duplicate_id", location: loc, message: `record id ${rec.id} also appears in ${records.get(rec.id)!.loc}` });
-      else records.set(rec.id, { rec, loc });
+      if (out.records.has(rec.id)) out.errors.push({ category: "duplicate_id", location: loc, message: `record id ${rec.id} also appears in ${out.records.get(rec.id)!.loc}` });
+      else out.records.set(rec.id, { rec, loc });
       if (rec.id !== name.replace(/\.yaml$/, "")) out.errors.push({ category: "decision_binding", location: loc, message: `file name does not match record id ${rec.id}`, remedy: "one file per record, named by its id" });
     }
   }
+  return out;
+}
+
+export function validateDecisionsFor(instanceRoot: string, manifest: any): DecisionCheck {
+  const out: DecisionCheck = { records: 0, unverified: 0, errors: [], warnings: [] };
+  let dir: string;
+  try { dir = safePath(instanceRoot, "decisions"); }
+  catch (e) { out.errors.push({ category: (e as any).category ?? "unsafe_path", location: "decisions", message: (e as Error).message }); return out; }
+  if (!existsSync(dir)) return out;
+  if (!lstatSync(dir).isDirectory()) { out.errors.push({ category: "invalid_artifact", location: "decisions", message: "decisions is not a directory" }); return out; }
+
+  const index = readDecisionRecords(dir);
+  out.errors.push(...index.errors); out.warnings.push(...index.warnings);
+  const records = index.records;
 
   for (const [, { rec, loc }] of records) {
     if (rec.finding?.id !== manifest.finding.id) continue;
     out.records++;
-    if (!ajv.validate(schema, rec)) {
-      for (const e of ajv.errors ?? []) out.errors.push({ category: "schema", location: `${loc}#${e.instancePath}`, message: e.message ?? "invalid", remedy: "fix against schema/decision-record.schema.json" });
-      continue;
-    }
+    const schemaProblems = decisionSchemaErrors(rec, loc);
+    if (schemaProblems.length) { out.errors.push(...schemaProblems); continue; }
     // Binding is verified only against the exact revision this directory holds.
     if (rec.finding.revision !== manifest.finding.revision) {
       out.unverified++;
