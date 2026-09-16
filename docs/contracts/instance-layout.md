@@ -49,7 +49,7 @@ owner:
 
 ## Why one file per Decision record
 
-The design assumed `decisions.md` as the log. `aftergrid decide` must be idempotent on retry, reject conflicting duplicates, and never lose a record under concurrent writes. One YAML file per record, named by the caller-supplied stable id, makes those properties achievable with plain git semantics; `decisions.md` becomes a generated index. The layout does not by itself guarantee them: atomic create-if-absent, conflict detection on differing duplicate input and concurrent-write behaviour belong to the `aftergrid decide` bead (`ag-v0-spec-9an.1`). Owner-confirmed 2026-09-15.
+The design assumed `decisions.md` as the log. `aftergrid decide` must be idempotent on retry, reject conflicting duplicates, and never lose a record under concurrent writes. One YAML file per record, named by the caller-supplied stable id, makes those properties achievable with plain git semantics; `decisions.md` becomes a generated index. The layout does not by itself guarantee them: atomic create-if-absent, conflict detection on differing duplicate input and concurrent-write behaviour belong to `aftergrid decide` and are specified in `docs/contracts/decide.md`. Owner-confirmed 2026-09-15.
 
 ## Definition file
 
