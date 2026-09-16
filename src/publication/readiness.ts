@@ -53,8 +53,10 @@ const SKEW_MS = 60_000;
  * and to the pull request's head sha; an approver on `trusted_approvers`; and a pull request opened by the
  * Instance's `automation_login`, who is neither the approver nor a trusted approver.
  *
- * Any read that could not be completed (no client, no token, network, HTTP, malformed body) yields unknown.
- * Anything definitely wrong yields not_ready with a problem. Nothing here ever yields ready by default.
+ * Any read that could not be completed (no client, no token, network, HTTP, malformed body), or a later objection
+ * whose timestamp cannot be ordered against the approval, yields unknown. Anything definitely wrong — including a
+ * pointer the Finding wrote that the client refuses before any network call — yields not_ready with a problem.
+ * Nothing here ever yields ready by default.
  */
 export async function assessReadiness(opts: ReadinessOptions): Promise<ReadinessAssessment> {
   const dir = resolve(opts.dir);
@@ -76,7 +78,8 @@ export async function assessReadiness(opts: ReadinessOptions): Promise<Readiness
 
   const { policy, problems: policyProblems } = readPublicationPolicy(dir, opts.instanceRoot);
   // An Instance that cannot verify publication is not a defect in this Finding: it is a warning plus not_ready.
-  warnings.push(...policyProblems);
+  // A policy file the Finding itself carries is the opposite — a defect in the Finding — and is reported as an error.
+  for (const p of policyProblems) (p.category === "policy_untrusted" ? warnings : errors).push(p);
   for (const p of policyProblems) reasons.push(`Instance policy: ${p.message}`);
   if (!policy) return { readiness: "not_ready", reasons, verified, errors, warnings };
 
@@ -122,8 +125,15 @@ export async function assessReadiness(opts: ReadinessOptions): Promise<Readiness
       pull = await opts.github.getPullRequest(source.repository, source.pull_request);
       reviews = await opts.github.listReviews(source.repository, source.pull_request);
     } catch (e) {
+      const cls = errorClassOf(e);
+      if (cls === "invalid_request") {
+        // The client refused a value the Finding wrote, before any network call. A pointer the Finding got wrong is
+        // a defect in the Finding, not an API that could not be read, so it is never reported as unknown.
+        reject("untrusted_attestation", `the attestation's GitHub pointer for ${where} was refused before any API call (${cls}: ${(e as Error).message})`, "record the repository, pull request number and review id exactly as the GitHub API reports them");
+        continue;
+      }
       unreadable = true;
-      reasons.push(`${label}: GitHub could not be read for ${where} (${errorClassOf(e)}: ${(e as Error).message}); readiness is unknown, never approved`);
+      reasons.push(`${label}: GitHub could not be read for ${where} (${cls}: ${(e as Error).message}); readiness is unknown, never approved`);
       continue;
     }
 
@@ -184,6 +194,20 @@ export async function assessReadiness(opts: ReadinessOptions): Promise<Readiness
     }
     if (!eq(pull.user_login, policy.automationLogin)) {
       reject("untrusted_attestation", `${where} was opened by ${pull.user_login}, but the Instance policy expects the automation identity ${policy.automationLogin}`, "open Finding pull requests from the configured automation account, or change the Instance policy through its own review");
+      continue;
+    }
+
+    // Last, once nothing else is definitely wrong: an objection that carries no readable time cannot be ordered
+    // against this approval. Dropping it would let a CHANGES_REQUESTED with an unreadable timestamp pass as if it
+    // had never been left, so the honest answer is unknown — the same answer an unreadable API gets, and the same
+    // rule the approving review itself is held to at the `submitted === null` rejection above.
+    const unorderable = reviews.filter((r) =>
+      r.id !== review.id && (r.state === "CHANGES_REQUESTED" || r.state === "DISMISSED") && at(r) === null
+      && (eq(r.user_login, review.user_login) || policy.trustedApprovers.includes(r.user_login.toLowerCase())));
+    if (unorderable.length) {
+      const u = unorderable[0]!;
+      unreadable = true;
+      reasons.push(`${label}: review ${u.id} on ${where} is ${u.state} by ${u.user_login} with no readable submitted_at (${JSON.stringify(u.submitted_at)}), so it cannot be ordered against the approval; readiness is unknown, never approved`);
       continue;
     }
 

@@ -3,7 +3,7 @@
 // through the injectable fake: the real API is never called from a test, and no test ever impersonates a reviewer.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ import { readPublicationPolicy } from "./publication/policy.ts";
 import { createFakeGitHub, createGitHubClient, tokenFromEnv, GitHubError, type PullRequest, type Review } from "./publication/github.ts";
 import { verifyGeneratedOutputs } from "./publication/outputs.ts";
 import { render } from "./commands/render.ts";
+import { check } from "./commands/check.ts";
 // @ts-ignore: shared ESM validation library.
 import { digestOf, definitionHash } from "../scripts/lib/validate-finding.mjs";
 
@@ -346,4 +347,138 @@ test("the token is read from the environment only, and the real client makes rea
     fetchImpl: (async () => ({ ok: false, status: 403, headers: new Headers({ "x-ratelimit-remaining": "0" }), json: async () => ({}) })) as unknown as typeof fetch,
   });
   await assert.rejects(() => rateLimited.getPullRequest(REPO, PR), (e: any) => e.errorClass === "rate_limited");
+});
+
+// ---- regression: the confirmed findings of the 2026-09-15 review of this bead -------------------------------
+
+test("an aftergrid.yaml inside the Finding directory never becomes the policy that judges it", async () => {
+  // The attack: a Finding pull request adds files inside its own directory, and one of them is a policy naming the
+  // repository, the allowlist and the automation identity the Finding is then judged against.
+  const { dir, manifest } = setUp((m) => {
+    m.attestations[0].source = { type: "github_pr_review", repository: "attacker/forge", pull_request: 1, review_id: 1, commit_sha: SHA };
+  });
+  writeFileSync(join(dir, "aftergrid.yaml"), toYaml({
+    schema_version: "0.1.0",
+    publication: { repository: "attacker/forge", trusted_approvers: ["mallory"], automation_login: "mallory-bot" },
+  }));
+
+  const planted = readPublicationPolicy(dir);
+  assert.equal(planted.policy, null, "a policy carried by the Finding is refused, not read");
+  assert.deepEqual(planted.problems.map((p) => p.category), ["invalid_artifact"]);
+  assert.equal(planted.problems[0]!.location, "aftergrid.yaml");
+
+  const client = createFakeGitHub({
+    repository: "attacker/forge", pull_request: 1,
+    pull: { head_sha: SHA, user_login: "mallory-bot", state: "open", merged: false },
+    reviews: [{ id: 1, user_login: "mallory", state: "APPROVED", commit_id: SHA, submitted_at: "2026-07-20T15:00:00Z" }],
+  });
+  const r = await assessReadiness({ dir, manifest, github: client, now: NOW });
+  assert.equal(r.readiness, "not_ready", JSON.stringify(r.reasons));
+  assert.deepEqual(categories(r), ["invalid_artifact"], "a policy the Finding carries is a defect in the Finding, not a warning about the Instance");
+  assert.deepEqual(warnings(r), []);
+  assert.deepEqual(r.verified, []);
+  assert.deepEqual(client.calls, [], "the planted policy never makes the runner talk to the repository it names");
+  assert.match(r.reasons.join("\n"), /cannot carry the publication policy that judges it/);
+
+  // With the planted file gone, the Instance policy above the Finding is the one that resolves, unchanged.
+  rmSync(join(dir, "aftergrid.yaml"));
+  const trusted = readPublicationPolicy(dir).policy!;
+  assert.deepEqual([trusted.repository, trusted.trustedApprovers, trusted.automationLogin], [REPO, [HUMAN], BOT]);
+});
+
+test("an instanceRoot that is not strictly above the Finding is not a policy this Finding is judged by", () => {
+  const { dir } = setUp();
+  writeFileSync(join(dir, "aftergrid.yaml"), toYaml({ schema_version: "0.1.0", publication: { repository: "attacker/forge", trusted_approvers: ["mallory"], automation_login: "mallory-bot" } }));
+  const self = readPublicationPolicy(dir, dir);
+  assert.equal(self.policy, null);
+  rmSync(join(dir, "aftergrid.yaml"));
+  const elsewhere = readPublicationPolicy(dir, join(dir, "queries"));
+  assert.equal(elsewhere.policy, null);
+  assert.match(elsewhere.problems[0]!.message, /does not contain this Finding as a descendant/);
+});
+
+test("a later objection whose timestamp cannot be ordered makes readiness unknown, never ready", async () => {
+  const { dir, manifest } = setUp();
+  for (const submitted_at of ["", "not-a-date"]) {
+    for (const state of ["CHANGES_REQUESTED", "DISMISSED"] as const) {
+      const reviews = [approvingReview(), { id: REVIEW_ID + 1, user_login: HUMAN, state, commit_id: SHA, submitted_at }];
+      const r = await assessReadiness({ dir, manifest, github: github(botPull(), reviews), now: NOW });
+      assert.equal(r.readiness, "unknown", `${state} at ${JSON.stringify(submitted_at)}: ${JSON.stringify(r.reasons)}`);
+      assert.deepEqual(r.errors, [], "an unreadable timestamp is not a defect in the Finding");
+      assert.deepEqual(r.verified, []);
+      assert.match(r.reasons.join("\n"), /cannot be ordered against the approval; readiness is unknown, never approved/);
+    }
+  }
+  // Scope: rule 8 orders the same reviewer and the trusted approvers. A drive-by login is not an objection at all.
+  const stranger = [approvingReview(), { id: REVIEW_ID + 2, user_login: "passer-by", state: "CHANGES_REQUESTED" as const, commit_id: SHA, submitted_at: "" }];
+  const unaffected = await assessReadiness({ dir, manifest, github: github(botPull(), stranger), now: NOW });
+  assert.equal(unaffected.readiness, "ready", JSON.stringify(unaffected.reasons));
+
+  // A definite defect still wins: unknown is only ever reached once nothing else is wrong.
+  const untrusted = [approvingReview({ user_login: "mallory" }), { id: REVIEW_ID + 3, user_login: "mallory", state: "CHANGES_REQUESTED" as const, commit_id: SHA, submitted_at: "" }];
+  const defect = await assessReadiness({ dir, manifest, github: github(botPull(), untrusted), now: NOW });
+  assert.equal(defect.readiness, "not_ready", JSON.stringify(defect.reasons));
+  assert.deepEqual(categories(defect), ["untrusted_attestation"]);
+});
+
+test("the client refuses a submitted review with no commit_id or submitted_at instead of defaulting them", async () => {
+  const clientFor = (reviews: unknown[]) => createGitHubClient({
+    token: "t",
+    fetchImpl: (async (url: any) => ({
+      ok: true, status: 200, headers: new Headers(),
+      json: async () => (String(url).includes("/reviews") ? reviews : { head: { sha: SHA }, user: { login: BOT }, state: "open", merged: false }),
+    }) as unknown as Response) as unknown as typeof fetch,
+  });
+  const malformed = (e: any) => e instanceof GitHubError && e.errorClass === "malformed_response";
+  await assert.rejects(() => clientFor([{ id: 8, user: { login: HUMAN }, state: "CHANGES_REQUESTED", commit_id: SHA }]).listReviews(REPO, PR), malformed);
+  await assert.rejects(() => clientFor([{ id: 8, user: { login: HUMAN }, state: "APPROVED", submitted_at: "2026-07-20T15:00:00Z" }]).listReviews(REPO, PR), malformed);
+  await assert.rejects(() => clientFor([{ id: 8, user: { login: HUMAN }, state: "DISMISSED", commit_id: SHA, submitted_at: 17 }]).listReviews(REPO, PR), malformed);
+  // PENDING is the one state the API returns unsubmitted, to its own author; it is neither approval nor objection.
+  assert.deepEqual(
+    await clientFor([{ id: 9, user: { login: HUMAN }, state: "PENDING" }]).listReviews(REPO, PR),
+    [{ id: 9, user_login: HUMAN, state: "PENDING", commit_id: "", submitted_at: "" }],
+  );
+});
+
+test("a pointer the client refuses before any network call is a defect in the Finding, not an unreadable API", async () => {
+  const { dir, manifest } = setUp((m) => { m.attestations[0].source.pull_request = -1; });
+  let fetched = 0;
+  const client = createGitHubClient({
+    token: "t",
+    fetchImpl: (async () => { fetched++; throw new Error("the network must never be reached for a pointer the client rejects"); }) as unknown as typeof fetch,
+  });
+  const r = await assessReadiness({ dir, manifest, github: client, now: NOW });
+  assert.equal(r.readiness, "not_ready", JSON.stringify(r.reasons));
+  assert.deepEqual(categories(r), ["untrusted_attestation"]);
+  assert.match(r.reasons.join("\n"), /refused before any API call \(invalid_request/);
+  assert.equal(fetched, 0);
+});
+
+test("a Finding directly under the Instance root is staged with its whole Instance, not blamed for the missing one", async () => {
+  const root = copy();
+  const instance = join(root, "analytics");
+  const dir = join(instance, SLUG);
+  cpSync(join(instance, "findings", SLUG), dir, { recursive: true });
+  rmSync(join(instance, "findings"), { recursive: true, force: true });
+
+  const { resetSVGDefIds } = await import("vega");
+  resetSVGDefIds();
+  const rendered = await render({ dir });
+  assert.deepEqual(rendered.errors, [], "the Finding renders in place at this layout");
+
+  const v = await verifyGeneratedOutputs(dir);
+  assert.equal(v.status, "verified", JSON.stringify(v.problems));
+  assert.deepEqual(v.problems, []);
+  assert.deepEqual(v.compared, ["render/finding.html", "render/retention_by_arm_chart.svg"]);
+});
+
+test("evidence errors force not_ready in check, even when the GitHub review could not be read", async () => {
+  const { dir } = setUp();
+  // A change outside the digest envelope: the attestation stays bound, but a retained input no longer hashes.
+  appendFileSync(join(dir, "inputs", "users.csv"), "u_999999,2026-07-01T00:00:00Z,checklist,ios\n");
+  const report = await check({ dir, github: null });
+  assert.equal(report.evidence, "invalid");
+  assert.ok(report.errors.some((e) => e.category === "hash_mismatch"), JSON.stringify(report.errors));
+  assert.equal(report.readiness, "not_ready", "a Finding whose retained inputs no longer hash is definitely wrong, not merely unanswerable");
+  assert.match(report.readiness_reasons.join("\n"), /forces not_ready whatever the GitHub review says/);
 });

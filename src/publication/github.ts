@@ -53,7 +53,9 @@ export type GitHubClientOptions = {
 
 /**
  * The real client: GET only, against api.github.com by default. Every response is shape-checked before it is
- * believed; a field of the wrong type is a malformed_response, not a default value.
+ * believed; a field of the wrong type is a malformed_response, not a default value. The single exception is a
+ * PENDING review, which the API returns unsubmitted (no commit_id, no submitted_at) to its own author and which is
+ * neither an approval nor an objection.
  */
 export function createGitHubClient(options: GitHubClientOptions = {}): GitHubClient {
   const token = options.token === undefined ? tokenFromEnv() : options.token;
@@ -113,6 +115,14 @@ export function createGitHubClient(options: GitHubClientOptions = {}): GitHubCli
           }
           const state = String(r.state).toUpperCase();
           if (!STATES.has(state)) throw new GitHubError("malformed_response", `review ${r.id} has an unrecognised state '${r.state}'`);
+          // A submitted review always carries commit_id and submitted_at. Defaulting them to "" would make a review
+          // unorderable against the approval it is meant to supersede, so a missing or non-string field is a
+          // malformed_response (read as unknown) and never a value. PENDING is the one state the API legitimately
+          // returns unsubmitted, to its own author; it can never be an approval or an objection.
+          const pending = state === "PENDING";
+          if (!pending && (typeof r.commit_id !== "string" || typeof r.submitted_at !== "string")) {
+            throw new GitHubError("malformed_response", `review ${r.id} on ${repo}#${number} is ${state} but is missing a string commit_id or submitted_at`);
+          }
           out.push({
             id: r.id,
             user_login: r.user.login,
