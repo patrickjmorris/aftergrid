@@ -199,3 +199,51 @@ run 1 failed and why an earlier probe that used a temp Instance could not reprod
 runner (temp Instance) uses `acceptEdits`; runs of this in-repo demo Instance use `bypassPermissions`, or the
 plugin should be loaded from a copy outside the repository.
 
+
+## Citi Bike run 1 — 2026-09-17T18:10:08Z to 18:40:41Z (30 min; Opus; usage reported as ≈$29 at API list price)
+
+Ask: "Are Citi Bike members riding e-bikes more than they were a year ago?" Reader `bike_product_manager`. Plugin
+copy + acceptEdits, goldens held out, `--model opus` (owner's choice).
+
+Outcome: **halted `needs_attention` at `analysis_review`**, with a complete, evidence-valid draft behind it.
+`answered`: e-bikes were 69.2% of member rides in January 2025 against 62.8% in January 2024 (1,329,923 vs
+1,055,584 member e-bike rides on a member total that rose from 1,679,647 to 1,922,501). Falsifier pre-registered
+at 18:12:36Z before `clarified_at` and before any query, `required: false`: **passed**. Weather Check failed as
+designed (10 of 31 aligned days comparable). Adapter path; rerun reproduced all six results.
+
+Why it halted: the method reviewer found that all four `percent_change` derived values were written with the
+operands in baseline-then-after order, so every rendered percent change carries the opposite sign ("rose by
+−20.6%"). `aftergrid check` cannot see this: both operand orders are valid arithmetic. The model did not ship the
+draft and named the one-line fix. That is the review stage doing its job.
+
+Also flagged by two reviewers: the memo says the weather bar was "set before any weather number was read" while
+`analysis.yaml` records (probe `p_weather_result_known_in_advance`) that the likely outcome was known from the
+neighbouring Finding on the same two months. Disclosed in the record, not to the Reader.
+
+Gap for the Engine: a percent-change operand order the arithmetic cannot check. Worth a `derived` convention
+(`after` and `baseline` named operands, not positional) so the sign is a declared fact the Engine can verify.
+
+Resume (run 2) instructed to apply the fix, carry the weather disclosure into the caveat, and finish.
+
+## Citi Bike run 2 — 2026-09-17T18:41:46Z to 18:52:17Z (10 min; Opus; ≈$22 at API list price)
+
+Resume with the Operator instruction to apply the method reviewer's fix. `revise --classify` refused (no pinned
+baseline on revision 1) and `--apply` treats an operand change as `numeric`, so the draft was edited in place and
+re-pinned, which is what the halt reason prescribed for an unpublished revision 1. No query, Check, result or
+the pre-registered falsifier changed; a post-hoc probe records the repair. Rendered values now: member e-bike
+rides +26.0%, member total +14.5%, classic −5.0%, casual total −3.0%. The weather disclosure (the bar's likely
+outcome was known from the neighbouring Finding) now sits in the material caveat beside the Answer.
+
+Three current reviews at the final digest `fa002688`, no blocking findings. The manifest also keeps the three
+round-1 reviews at the earlier digest, and `review status` warns `stale_review` on each of those by index, plus a
+second trio of warnings without an index. The Operator (this session) misread that as "all reviews stale" and
+launched run 3 to redo them.
+
+Gap: superseded reviews are history, not staleness; `review status` should say "superseded by the review at
+the current digest" and reserve `stale_review` for a kind with no current review.
+
+## Citi Bike run 3 — 2026-09-17T18:53:31Z to 18:56:41Z (3 min; Opus; ≈$2)
+
+Instructed to re-run the three reviews. The run read the manifest, found reviews 3–5 already at the current
+digest, showed that `review record` would dedupe on (kind, reviewer, digest) and write nothing, and stopped
+without spending on reviews that could not be recorded. The refusal was correct; the instruction was not.
