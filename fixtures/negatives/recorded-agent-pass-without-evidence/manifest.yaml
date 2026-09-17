@@ -133,8 +133,8 @@ derived:
   - id: days_short
     operation: difference
     operands:
-      - ext:minimum_days
-      - ref:since_change.post.days_elapsed
+      minuend: ext:minimum_days
+      subtrahend: ref:since_change.post.days_elapsed
     unit: days
     display:
       kind: integer
@@ -143,8 +143,8 @@ derived:
   - id: cancellations_short
     operation: difference
     operands:
-      - ext:minimum_cancellations
-      - ref:since_change.post.cancellations
+      minuend: ext:minimum_cancellations
+      subtrahend: ref:since_change.post.cancellations
     unit: count
     display:
       kind: integer
@@ -321,7 +321,7 @@ reviews:
     date: 2026-09-16
     content_digest: &a1
       algorithm: sha256
-      value: 8bf702b4859709cd46d1a478ed019f468efe26863e260b6ebfe834a90c071137
+      value: 126d70ccb0ebbe32c2ae41c3e21a82f40b4ae7c0dec4c1aba52b4d443ce60f69
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.

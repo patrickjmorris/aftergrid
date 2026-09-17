@@ -9,5 +9,3 @@ category: hash_mismatch
 location_pattern: ^manifest\.yaml#/executions/0$
 defect: The harness-recorded execution pins a result_hash that is not the hash of the result set it names.
 description: aftergrid did not run this query, so the pinned hashes are the whole of what ties the recorded SQL to the recorded numbers. A result_hash that does not match the saved result breaks that tie and is reported, not tolerated because nothing was executed.
-also_warnings:
-  - direction_unstated

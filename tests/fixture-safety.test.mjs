@@ -25,6 +25,12 @@ test('named operands declare the direction of a difference, ratio or percent cha
   assert.equal(shown({after:baseline,baseline:after}),'-33.3%');
   assert.throws(()=>calculate('sum',{after,baseline},'ratio'),e=>e.category==='derived_arity');
   assert.throws(()=>calculate('difference',{after},'ratio'),e=>e.category==='derived_arity');
+  // The second vocabulary: a signed difference or ratio that is not an after/baseline pair.
+  assert.deepEqual(calculate('difference',{minuend:after,subtrahend:baseline},'ratio'),calculate('difference',[after,baseline],'ratio'));
+  assert.deepEqual(calculate('ratio',{numerator:after,denominator:baseline},'ratio'),calculate('ratio',[after,baseline],'ratio'));
+  assert.throws(()=>calculate('ratio',{minuend:after,subtrahend:baseline},'ratio'),e=>e.category==='derived_arity');
+  assert.throws(()=>calculate('percent_change',{numerator:after,denominator:baseline},'percent'),e=>e.category==='derived_arity');
+  assert.throws(()=>calculate('difference',{after,denominator:baseline},'ratio'),e=>e.category==='derived_arity');
 });
 test('invalid numeric inputs and incompatible units fail explicitly',()=>{
   for(const v of ['NaN','Infinity','1e100000','',true,{},'12garbage'])assert.throws(()=>decimal(v));

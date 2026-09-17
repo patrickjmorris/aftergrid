@@ -90,14 +90,14 @@ results:
 derived:
   - id: days_short
     operation: difference
-    operands: [ ext:minimum_days, ref:since_change.post.days_elapsed ]
+    operands: { minuend: ext:minimum_days, subtrahend: ref:since_change.post.days_elapsed }
     unit: days
     display: { kind: integer }
     on_zero_denominator: not_available
     on_null: not_available
   - id: cancellations_short
     operation: difference
-    operands: [ ext:minimum_cancellations, ref:since_change.post.cancellations ]
+    operands: { minuend: ext:minimum_cancellations, subtrahend: ref:since_change.post.cancellations }
     unit: count
     display: { kind: integer }
     on_zero_denominator: not_available
@@ -179,7 +179,7 @@ reviews:
     date: "2026-09-16"
     content_digest:
       algorithm: sha256
-      value: 37b76b721669752409ca0fbc1b08c66cdf8081ac3f5d19aeadfd405f7eb72db5
+      value: e354962b21d31d049fd86947bc3066043617d55e680e00cf5fdbeadbf2d3b9c0
     blocking: []
     non_blocking:
       - The weekly cancellation rate definition is proposed, so no rate is shown; only counts.
@@ -206,4 +206,4 @@ renderer:
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 37b76b721669752409ca0fbc1b08c66cdf8081ac3f5d19aeadfd405f7eb72db5
+  value: e354962b21d31d049fd86947bc3066043617d55e680e00cf5fdbeadbf2d3b9c0

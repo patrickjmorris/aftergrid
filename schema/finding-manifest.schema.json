@@ -950,10 +950,10 @@
               "min",
               "max"
             ],
-            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... min/max: smallest/largest operand (identical units). Operand order is positional, or declared by name: difference, ratio and percent_change also accept the named pair { after, baseline } and compute after-baseline, after/baseline and 100*(after-baseline)/baseline. Their sign depends on which operand is which and both orders are valid arithmetic, so the named form is the one that makes the direction checkable; the positional form is reported as `direction_unstated`."
+            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... min/max: smallest/largest operand (identical units). Operand order is positional, or declared by name: difference accepts { after, baseline } or { minuend, subtrahend }, ratio accepts { after, baseline } or { numerator, denominator }, and percent_change accepts { after, baseline } only, because a percent change without a baseline is not one. Their sign depends on which operand is which and both orders are valid arithmetic, so a named form is what makes the direction checkable; the positional form is reported as `direction_unstated`."
           },
           "operands": {
-            "description": "A positional list, or the named pair { after, baseline }. The named form is defined for difference, ratio and percent_change only, and always means after against baseline; named operands on any other operation are refused (`derived_arity`).",
+            "description": "A positional list, or one named pair: { after, baseline } for a before-and-after comparison (difference, ratio, percent_change), { minuend, subtrahend } for a subtraction that is not a comparison (difference), { numerator, denominator } for a division that is not a comparison (ratio). Each named form is a declaration of order and each clears `direction_unstated`. Keys from two vocabularies cannot be mixed, and a named pair on an operation that does not accept it is refused (`derived_arity`).",
             "oneOf": [
               {
                 "type": "array",
@@ -974,6 +974,38 @@
                     "$ref": "#/$defs/value_ref"
                   },
                   "baseline": {
+                    "$ref": "#/$defs/value_ref"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "minuend",
+                  "subtrahend"
+                ],
+                "properties": {
+                  "minuend": {
+                    "$ref": "#/$defs/value_ref"
+                  },
+                  "subtrahend": {
+                    "$ref": "#/$defs/value_ref"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "numerator",
+                  "denominator"
+                ],
+                "properties": {
+                  "numerator": {
+                    "$ref": "#/$defs/value_ref"
+                  },
+                  "denominator": {
                     "$ref": "#/$defs/value_ref"
                   }
                 }

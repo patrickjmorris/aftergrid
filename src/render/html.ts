@@ -122,6 +122,23 @@ const unitWords = (col: any): string => {
 };
 type TrailRow = [title: string, detail: string, status: string, cls?: string];
 
+/**
+ * How a derived value's operands read on the page. Named operands are shown BY NAME: the value is the same
+ * arithmetic either way, and what a Reader (and the reviewer reading over their shoulder) can see here is
+ * which operand the manifest declared as which — the one thing that decides the sign. Each vocabulary reads
+ * as what it means: a comparison against a baseline, a subtraction, a division. A positional pair says only
+ * that there were two of them, which is what `direction_unstated` is about.
+ *
+ * `cells` are already-rendered operand cells, in the order `operandRefs` returns them.
+ */
+function operandWording(d: any, cells: string[], positionalJoin = " and "): string {
+  if (Array.isArray(d?.operands)) return `of ${cells.join(positionalJoin)}`;
+  const [a, b] = cells as [string, string];
+  if (d?.operands?.minuend) return `of ${a} less ${b}`;
+  if (d?.operands?.numerator) return `of ${a} over ${b}`;
+  return `of after ${a} against baseline ${b}`;
+}
+
 export type RenderInputs = { dir: string; manifest: any; results: Results; memo: string; readiness: string; readinessReasons: string[]; content: string; readerLabel: string; generatedAt?: string; charts?: boolean; font?: ResolvedFont };
 
 function mailto(manifest: any, claimId?: string): string {
@@ -165,14 +182,9 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
       sub = `${rid} · ${key} · ${col}`; rows = refRows(rid, key, col);
     } else if (kind === "derived") {
       const d = m.derived.find((x: any) => x.id === body);
-      // Named operands are shown BY NAME. The value is the same arithmetic either way; what the Reader (and
-      // the reviewer reading over their shoulder) can see here is which operand the manifest declared as the
-      // measured value and which as the reference — the one thing that decides the sign.
       const refs: string[] = operandRefs(d);
       const cell = (o: string) => `${esc(displayValue(m, results, o, loc))} <span class="flag">(${esc(o.replace(/^ref:/, ""))})</span>`;
-      const how = Array.isArray(d.operands)
-        ? `of ${refs.map(cell).join(" and ")}`
-        : `of after ${cell(refs[0]!)} against baseline ${cell(refs[1]!)}`;
+      const how = operandWording(d, refs.map(cell));
       sub = `${d.operation.replace(/_/g, " ")} · ${refs.length} values`;
       const first = /^ref:([a-z0-9_]+)\.([A-Za-z0-9_-]+)\.([a-z0-9_]+)$/.exec(refs[0] ?? "");
       rows = [["Calculation", `The ${esc(d.operation.replace(/_/g, " "))} ${how}${d.description ? `. ${esc(d.description)}` : ""}`, "computed at render"], ...(first ? refRows(first[1]!, first[2]!, first[3]!) : [])];
@@ -260,7 +272,7 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
       ...m.derived.filter((d: any) => c.evidence.includes(`derived:${d.id}`)).map((d: any) => {
         const refs: string[] = operandRefs(d);
         const code = (o: string) => `<code>${esc(o)}</code>`;
-        const how = Array.isArray(d.operands) ? `of ${refs.map(code).join(", ")}` : `of after ${code(refs[0]!)} against baseline ${code(refs[1]!)}`;
+        const how = operandWording(d, refs.map(code), ", ");
         return `<li><code>${esc(d.id)}</code> is the ${esc(d.operation.replace(/_/g, " "))} ${how}${d.description ? `: ${esc(d.description)}` : ""}</li>`;
       }),
       ...m.external_sources.filter((x: any) => c.evidence.includes(`ext:${x.id}`)).map((x: any) => `<li><code>${esc(x.id)}</code> is a ${esc(x.kind.replace(/_/g, " "))} from a ${esc(x.source.type.replace(/_/g, " "))} dated ${esc(x.source.date)}: ${esc(x.source.description)}</li>`),

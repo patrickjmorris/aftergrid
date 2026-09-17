@@ -366,7 +366,7 @@ function validateMemo(manifest, results) {
     if (DIRECTIONAL_OPERATIONS.includes(d.operation) && Array.isArray(d.operands)) {
       warn("direction_unstated", `manifest.yaml#/derived/${n}`,
         `${d.id} computes ${d.operation} from a positional operand pair, so which operand is the measured value and which is the reference is not declared and the sign of the rendered number cannot be checked`,
-        "name the pair: `operands: { after: <ref>, baseline: <ref> }`. difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline, so the direction becomes a declared fact rather than an operand order a reader has to trust");
+        "name the pair. For a before-and-after comparison, `operands: { after: <ref>, baseline: <ref> }`: difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline. For a signed difference or ratio that is not a comparison — a policy minimum less what accumulated, a part over a whole — `operands: { minuend: <ref>, subtrahend: <ref> }` on a difference or `operands: { numerator: <ref>, denominator: <ref> }` on a ratio. Either way the direction becomes a declared fact rather than an operand order a reader has to trust");
     }
     resolveValueRef(manifest, "derived:" + d.id, `manifest.yaml#/derived/${n}`, results);
   }

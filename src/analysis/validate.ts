@@ -31,9 +31,12 @@ import addFormats from "ajv-formats";
 import type { Problem } from "../report.ts";
 import { sha256 } from "../digest.ts";
 // @ts-ignore: shared path containment (JS module, no types).
-import { safePath, ContractError, DIRECTIONAL_OPERATIONS } from "../../scripts/fixture-safety.mjs";
+import { safePath, ContractError, DIRECTIONAL_OPERATIONS, OPERAND_VOCABULARIES, operandVocabulary, vocabulariesFor } from "../../scripts/fixture-safety.mjs";
 
 export const ANALYSIS_FILE = "analysis.yaml";
+/** `{ after, baseline } or { minuend, subtrahend }` — the named operand forms as a reader reads them. */
+const namedForms = (vocabularies: { keys: string[] }[]): string =>
+  vocabularies.map((v) => `{ ${v.keys.join(", ")} }`).join(" or ");
 const SCHEMA_PATH = fileURLToPath(new URL("./analysis.schema.json", import.meta.url));
 
 export type AnalysisStage = "clarified" | "analysed";
@@ -355,14 +358,24 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
       (d.operands ?? []).forEach((ref, j) => refProblem(`${at}/${j}`, ref));
       return;
     }
-    // The named pair declares a direction, and only the three operations whose sign depends on operand order
-    // have one to declare. The same refusal, with the same category, as `manifest.derived` (fixture-safety.mjs).
-    if (!DIRECTIONAL_OPERATIONS.includes(d.operation)) {
-      problems.push({ category: "derived_arity", location: at, message: `named operands declare a direction and '${d.operation}' has none`, remedy: `only ${DIRECTIONAL_OPERATIONS.join(", ")} take { after, baseline }; give ${d.operation} a positional list of operands` });
+    // A named pair declares a direction, and only the three operations whose sign depends on operand order
+    // have one to declare — and each accepts only the vocabularies whose reading it can honour. The same
+    // refusals, with the same category, as `manifest.derived` (fixture-safety.mjs).
+    const allowed = vocabulariesFor(d.operation) as { keys: string[] }[];
+    if (!allowed.length) {
+      problems.push({ category: "derived_arity", location: at, message: `named operands declare a direction and '${d.operation}' has none`, remedy: `only ${DIRECTIONAL_OPERATIONS.join(", ")} take a named pair; give ${d.operation} a positional list of operands` });
       return;
     }
-    refProblem(`${at}/after`, d.operands.after);
-    refProblem(`${at}/baseline`, d.operands.baseline);
+    const vocabulary = operandVocabulary(d.operands) as { keys: string[] } | null;
+    if (!vocabulary) {
+      problems.push({ category: "derived_arity", location: at, message: `named operands are exactly one of ${namedForms(OPERAND_VOCABULARIES)}; this entry declares { ${Object.keys(d.operands).join(", ") || "nothing"} }`, remedy: "declare one vocabulary and both of its keys; keys from two vocabularies together name no order at all" });
+      return;
+    }
+    if (!allowed.includes(vocabulary)) {
+      problems.push({ category: "derived_arity", location: at, message: `'${d.operation}' takes ${namedForms(allowed)}, not ${namedForms([vocabulary])}`, remedy: `use ${namedForms(allowed)}, or change the operation to one whose value ${namedForms([vocabulary])} describes` });
+      return;
+    }
+    for (const key of vocabulary.keys) refProblem(`${at}/${key}`, (d.operands as Record<string, string>)[key]!);
   });
 
   const definitions = new Map((manifest.definitions ?? []).map((d: any) => [d.id, d]));
@@ -409,7 +422,7 @@ export function analysisWarnings(dir: string): Problem[] {
       category: "direction_unstated",
       location: `${ANALYSIS_FILE}#/requested_derived/${i}/operands`,
       message: `'${d.id}' requests ${d.operation} over a positional operand pair, so which operand is the measured value and which is the reference is not declared`,
-      remedy: "name the pair: `operands: { after: <ref>, baseline: <ref> }`. difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline — the writer carries the names into manifest.derived, and the sign becomes a fact `check` stands behind",
+      remedy: "name the pair. For a before-and-after comparison, `operands: { after: <ref>, baseline: <ref> }`: difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline. For a signed difference or ratio that is not a comparison, `operands: { minuend: <ref>, subtrahend: <ref> }` on a difference or `operands: { numerator: <ref>, denominator: <ref> }` on a ratio. The writer carries the names into manifest.derived, and the sign becomes a fact `check` stands behind",
     });
   });
   // An unparseable or absent `at` is the schema's error to report, so it is skipped rather than double-reported.

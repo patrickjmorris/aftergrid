@@ -45,19 +45,57 @@ baseline-then-after renders a real number with the opposite sign, and only a hum
 it. A real run did exactly that, four times, and rendered "rose by −20.6%"
 (`examples/nyc-open-data/docs/run-log.md`, Citi Bike run 1).
 
-These three therefore accept **named operands**, and the named form is the one to write:
+These three therefore accept **named operands**, and a named form is the one to write. There are two
+vocabularies, because not every signed difference or ratio is a before-and-after comparison.
+
+### A comparison: `{ after, baseline }`
 
 ```yaml
 operands: { after: ref:crz_trips_by_period.after.crz_trips, baseline: ref:crz_trips_by_period.baseline.crz_trips }
 ```
 
-- `after` is the measured value — the one the Claim is about.
-- `baseline` is what it is measured against — the earlier period, the control arm, the reference group.
-- `difference` is `after − baseline`. `ratio` is `after / baseline`. `percent_change` is
-  `100 × (after − baseline) / baseline`. The named form computes exactly what the positional `[a, b]` computes;
-  what it adds is the declaration, so the sign is a fact the Engine stands behind and a renderer can show.
-- The render names them: a popover on a named derived value reads "the difference of after … against
-  baseline …", so a Reader and a reviewer see the direction without opening the manifest.
+| Key | What it is | Operations | Value |
+| --- | --- | --- | --- |
+| `after` | the measured value, the one the Claim is about | `difference` | `after − baseline` |
+| `baseline` | what it is measured against — the earlier period, the control arm, the reference group | `ratio` | `after / baseline` |
+| | | `percent_change` | `100 × (after − baseline) / baseline` |
+
+The render names them: a popover on such a value reads "the difference of after … against baseline …", so a
+Reader and a reviewer see the direction without opening the manifest.
+
+### Not a comparison: `{ minuend, subtrahend }` and `{ numerator, denominator }`
+
+A policy minimum less what has accumulated is a subtraction with a direction and no "after". A part over a
+whole is a division with a direction and no "baseline". Both need the direction declared and neither has an
+honest after/baseline reading, so each has its own vocabulary:
+
+```yaml
+operands: { minuend: ext:minimum_days, subtrahend: ref:since_change.post.days_elapsed }
+operands: { numerator: ref:retention_by_platform_arm.web_control.retained, denominator: ref:retention_by_platform_arm.web_control.signups }
+```
+
+| Keys | Operation | Value | Reads as |
+| --- | --- | --- | --- |
+| `{ minuend, subtrahend }` | `difference` | `minuend − subtrahend` | "the difference of … less …" |
+| `{ numerator, denominator }` | `ratio` | `numerator / denominator` | "the ratio of … over …" |
+
+`percent_change` takes `{ after, baseline }` only. A percent change is by definition a change measured against
+a baseline, so a percent change without one is not a percent change; the other vocabularies on it are refused
+(`derived_arity`), as is `{ minuend, subtrahend }` on a `ratio` or `{ numerator, denominator }` on a
+`difference`. Keys from two vocabularies together (`{ after, denominator }`) name no order at all and are
+refused by the schema.
+
+### Choosing
+
+Use `{ after, baseline }` when the value **is** a before-and-after comparison — a change over time, a
+treatment arm against a control, a group against a reference group. Use `{ minuend, subtrahend }` or
+`{ numerator, denominator }` otherwise: when the two operands are not a measurement and the thing it is
+measured against, naming them `after` and `baseline` is a false declaration, and a false declaration is worse
+than an undeclared one.
+
+Every named form computes exactly what the positional `[a, b]` computes; what it adds is the declaration, so
+the sign is a fact the Engine stands behind and a renderer can show. Every named form clears
+`direction_unstated`.
 
 A positional pair on one of the three is still valid and still resolves, and `check` reports the warning
 `direction_unstated` at `manifest.yaml#/derived/<i>` (and at `analysis.yaml#/requested_derived/<i>/operands`,

@@ -88,17 +88,20 @@ this order:
    operands; where the schema carries the typed list, `analysis.yaml#requested_derived` says the same thing
    in fields. Prefer a value the SQL already produced; a `derived` entry exists for display-time arithmetic
    the query did not do.
-   **A `difference`, `ratio` or `percent_change` names its operands** — `operands: { after: <ref>, baseline:
-   <ref> }`, never a positional pair. A run wrote four percent changes baseline-then-after and every rendered
-   change carried the opposite sign ("rose by −20.6%"); `check` could not see it, because both orders are
-   valid arithmetic, and only the method reviewer caught it. `after` is the measured value, `baseline` is what
-   it is compared with, and naming them makes the sign a declared fact the Engine verifies. A positional pair
-   on one of those three is the warning `direction_unstated`; named operands on `sum`, `min`, `max` or
+   **A `difference`, `ratio` or `percent_change` names its operands**, never a positional pair. A run wrote
+   four percent changes baseline-then-after and every rendered change carried the opposite sign ("rose by
+   −20.6%"); `check` could not see it, because both orders are valid arithmetic, and only the method reviewer
+   caught it. For a before-and-after comparison write `operands: { after: <ref>, baseline: <ref> }`: `after`
+   is the measured value, `baseline` is what it is compared with. When the value is not a comparison — a
+   policy minimum less what accumulated, a part over a whole — write `{ minuend: <ref>, subtrahend: <ref> }`
+   on a `difference` or `{ numerator: <ref>, denominator: <ref> }` on a `ratio`; `percent_change` takes
+   `{ after, baseline }` only. Either way the sign becomes a declared fact the Engine verifies. A positional
+   pair on one of those three is the warning `direction_unstated`; named operands on `sum`, `min`, `max` or
    `percent_of` are refused, because those operations have no direction to declare.
 3. Each Claim's `evidence` array, listing every value the Claim rests on.
 
 **Done when** every derived value and external source the Analysis recorded is declared with a unit and a
-display rule, every `difference`, `ratio` and `percent_change` names its `after` and `baseline` operands, every reference in every `evidence` array resolves to a declared result cell, derived value or
+display rule, every `difference`, `ratio` and `percent_change` names its operand pair in one of the vocabularies its operation accepts, every reference in every `evidence` array resolves to a declared result cell, derived value or
 external source, and no declared value carries a number the Analysis did not record.
 
 ## 5. Write the Claims

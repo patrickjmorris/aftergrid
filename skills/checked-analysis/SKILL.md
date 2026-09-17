@@ -303,12 +303,14 @@ Set `stage: analysed` and fill in everything the writer reads and cannot re-deri
 - Every evidence reference resolves to a cell that exists: `ref:<result>.<row_key>.<column>` names a row the
   query actually produced. A value the *writer* will create is named first — `requested_derived` for a
   derivation, `requested_external_sources` for a typed target or assumption — and then cited as `derived:<id>`
-  or `ext:<id>`. A requested `difference`, `ratio` or `percent_change` names its operands,
-  `operands: { after: <ref>, baseline: <ref> }`: their sign depends on which operand is which and both orders
-  are valid arithmetic, so a positional pair written baseline-then-after reaches the memo as a real number
-  with the opposite sign — one run rendered four of them as "rose by −20.6%", and only the method reviewer
-  saw it. Declare the direction here, where the value is first written down; a positional pair is the warning
-  `direction_unstated`, and named operands on any other operation are refused. Each definition a Claim's numbers rest on goes in `definition_refs` and must be pinned in
+  or `ext:<id>`. A requested `difference`, `ratio` or `percent_change` names its operands: their sign depends
+  on which operand is which and both orders are valid arithmetic, so a positional pair written
+  baseline-then-after reaches the memo as a real number with the opposite sign — one run rendered four of them
+  as "rose by −20.6%", and only the method reviewer saw it. Write `{ after: <ref>, baseline: <ref> }` for a
+  before-and-after comparison, or `{ minuend, subtrahend }` on a difference and `{ numerator, denominator }`
+  on a ratio when the value is not a comparison. Declare the direction here, where the value is first written
+  down; a positional pair is the warning `direction_unstated`, and a named pair on an operation that does not
+  take it is refused. Each definition a Claim's numbers rest on goes in `definition_refs` and must be pinned in
   `manifest.definitions` at that version.
 - `outcome_recommendation` — `answered`, `inconclusive`, `insufficient_data` or `needs_reframing`, with the
   reason. Every outcome except `answered` also carries `what_would_be_needed`, and the schema requires it.

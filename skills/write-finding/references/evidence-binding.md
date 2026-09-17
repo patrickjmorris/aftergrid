@@ -44,9 +44,9 @@ Prefer SQL. A `derived` entry exists for arithmetic the query did not do.
 
 | `operation` | Value | Operands |
 | --- | --- | --- |
-| `difference` | after − baseline | **named**: `{ after, baseline }`, identical units |
-| `ratio` | after / baseline | **named**: `{ after, baseline }`, any units, yields `ratio` |
-| `percent_change` | 100 × (after − baseline) / baseline | **named**: `{ after, baseline }`, any units, yields `percent` |
+| `difference` | after − baseline, or minuend − subtrahend | **named**: `{ after, baseline }` or `{ minuend, subtrahend }`, identical units |
+| `ratio` | after / baseline, or numerator / denominator | **named**: `{ after, baseline }` or `{ numerator, denominator }`, any units, yields `ratio` |
+| `percent_change` | 100 × (after − baseline) / baseline | **named**: `{ after, baseline }` only, any units, yields `percent` |
 | `sum` | a + b + … | positional, 1 or more, identical units |
 | `min` / `max` | smallest / largest | positional, 1 or more, identical units |
 | `percent_of` | 100 × a / b | positional, 2, any units, yields `percent` |
@@ -64,10 +64,20 @@ Prefer SQL. A `derived` entry exists for arithmetic the query did not do.
 The three named operations take their SIGN from which operand is which, and both orders are valid arithmetic,
 so `check` cannot tell a flipped pair from an intended one. A real run wrote four percent changes
 baseline-then-after and rendered every one with the opposite sign — "rose by −20.6%" — and only the method
-reviewer could see it. `after` is the measured value the Claim is about; `baseline` is the earlier period, the
-control arm or the reference group it is compared with. A positional pair on one of the three still resolves
-and is reported as the warning `direction_unstated`. Named operands on `sum`, `min`, `max` or `percent_of`
-are refused (`derived_arity`): those operations have no direction to declare.
+reviewer could see it.
+
+**Choosing the vocabulary.** Use `{ after, baseline }` when the value is a before-and-after comparison:
+`after` is the measured value the Claim is about, `baseline` is the earlier period, the control arm or the
+reference group it is compared with. Use `{ minuend, subtrahend }` (on a `difference`) or
+`{ numerator, denominator }` (on a `ratio`) when it is not a comparison — a policy minimum less what has
+accumulated, a part over a whole. Those operands are not a measurement and the thing it is measured against,
+so calling them `after` and `baseline` would be a false declaration. `percent_change` takes
+`{ after, baseline }` only, because a percent change without a baseline is not one.
+
+Both vocabularies are declarations of order, both clear the warning, and keys from two of them cannot be
+mixed. A positional pair on one of the three still resolves and is reported as the warning
+`direction_unstated`. Named operands on `sum`, `min`, `max` or `percent_of` are refused (`derived_arity`):
+those operations have no direction to declare.
 
 Every entry declares `unit`, `on_zero_denominator: not_available` and `on_null: not_available`. A derived
 value may reference another derived value; a cycle is `derived_cycle`. Arithmetic runs on the saved decimal

@@ -91,14 +91,14 @@ results:
 derived:
   - id: days_short
     operation: difference
-    operands: [ ext:minimum_days, ref:since_change.post.days_elapsed ]
+    operands: { minuend: ext:minimum_days, subtrahend: ref:since_change.post.days_elapsed }
     unit: days
     display: { kind: integer }
     on_zero_denominator: not_available
     on_null: not_available
   - id: cancellations_short
     operation: difference
-    operands: [ ext:minimum_cancellations, ref:since_change.post.cancellations ]
+    operands: { minuend: ext:minimum_cancellations, subtrahend: ref:since_change.post.cancellations }
     unit: count
     display: { kind: integer }
     on_zero_denominator: not_available
@@ -188,7 +188,7 @@ reviews:
     date: 2026-09-17
     content_digest:
       algorithm: sha256
-      value: 2ebe51ae88ed3c97f41c5c892342744f2b0ba9de95221dd31b7d5268e3d2f743
+      value: 27a49f2210e1871e39f50870faf49d695f2d9db6423a0f8791d795bc0b9b80a6
     blocking: []
     non_blocking:
       - "Re-reviewed after the exemplar was rebuilt: the round-1 review above is superseded, not stale."
@@ -214,4 +214,4 @@ renderer:
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 2ebe51ae88ed3c97f41c5c892342744f2b0ba9de95221dd31b7d5268e3d2f743
+  value: 27a49f2210e1871e39f50870faf49d695f2d9db6423a0f8791d795bc0b9b80a6

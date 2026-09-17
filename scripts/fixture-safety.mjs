@@ -59,31 +59,75 @@ export function validateStructure(m, dir, instance) {
 /**
  * Operations whose value has a direction: which operand is the measured value and which is the reference
  * decides the SIGN, and both orders are valid arithmetic, so no arithmetic check can tell a flipped pair from
- * an intended one. These three therefore accept NAMED operands, `{ after, baseline }`, and the named form makes
- * the direction a declared fact. A real run wrote four `percent_change` values baseline-then-after and rendered
- * every one with the opposite sign ("rose by −20.6%"); `check` could not see it and only the method reviewer
- * could (examples/nyc-open-data/docs/run-log.md, Citi Bike run 1). `percent_of` is not here: "a as a percent of
- * b" names its own order, and `sum`, `min` and `max` are order-free.
+ * an intended one. These three therefore accept NAMED operands, and the named form makes the direction a
+ * declared fact. A real run wrote four `percent_change` values baseline-then-after and rendered every one with
+ * the opposite sign ("rose by −20.6%"); `check` could not see it and only the method reviewer could
+ * (examples/nyc-open-data/docs/run-log.md, Citi Bike run 1). `percent_of` is not here: "a as a percent of b"
+ * names its own order, and `sum`, `min` and `max` are order-free.
  */
 export const DIRECTIONAL_OPERATIONS = ['difference', 'ratio', 'percent_change'];
 
 /**
+ * The named operand forms, in the order they are offered. Each is a declaration of which operand is which,
+ * and each clears `direction_unstated` — what differs is what the pair MEANS.
+ *
+ * `{ after, baseline }` is a before-and-after comparison: a measured value against what it is measured
+ * against. It is the form for a lift, a change over time, a treatment arm against a control.
+ *
+ * `{ minuend, subtrahend }` and `{ numerator, denominator }` are for the signed differences and ratios that
+ * are not comparisons at all. A policy minimum minus what has accumulated is a subtraction with a direction
+ * and no "after"; a part over a whole is a division with a direction and no "baseline". Before these existed
+ * those entries had to stay positional and carry `direction_unstated` forever, and naming them after/baseline
+ * would have been a false declaration (bead ag-derived-direction-none-9kp).
+ *
+ * `percent_change` takes `{ after, baseline }` only: a percent change is by definition a change against a
+ * baseline, so a percent change without one is not a percent change.
+ */
+export const OPERAND_VOCABULARIES = [
+  { keys: ['after', 'baseline'], operations: ['difference', 'ratio', 'percent_change'] },
+  { keys: ['minuend', 'subtrahend'], operations: ['difference'] },
+  { keys: ['numerator', 'denominator'], operations: ['ratio'] },
+];
+
+const vocabularyName = (v) => `{ ${v.keys.join(', ')} }`;
+const ALL_VOCABULARIES = OPERAND_VOCABULARIES.map(vocabularyName).join(', ');
+
+/** The named forms `operation` accepts, in offer order; empty for an operation with no direction to declare. */
+export function vocabulariesFor(operation) {
+  return OPERAND_VOCABULARIES.filter((v) => v.operations.includes(operation));
+}
+
+/**
+ * The vocabulary whose keys are exactly the keys of `operands`, or null — for a positional list, a non-object,
+ * a partial pair, or a mix of two vocabularies (`{ after, denominator }` declares nothing).
+ */
+export function operandVocabulary(operands) {
+  if (!operands || typeof operands !== 'object' || Array.isArray(operands)) return null;
+  const declared = Object.keys(operands);
+  return OPERAND_VOCABULARIES.find((v) => declared.length === v.keys.length && v.keys.every((k) => operands[k])) ?? null;
+}
+
+/**
  * The operands of a derived value as a positional list, whichever form declared them, or `derived_arity` when
- * the shape is not one this contract defines. The named pair always yields `[after, baseline]`, so
- * `after - baseline`, `after / baseline` and `100 * (after - baseline) / baseline` are exactly the arithmetic
- * the positional form computes: the names add the declaration, never a different sum.
+ * the shape is not one this contract defines. Every named pair yields `[first, second]` in its own key order,
+ * so `after - baseline`, `minuend - subtrahend`, `after / baseline` and `numerator / denominator` are exactly
+ * the arithmetic the positional form computes: the names add the declaration, never a different sum.
  */
 export function operandList(operation, operands, location = operation) {
   if (Array.isArray(operands)) return operands;
-  if (!operands || typeof operands !== 'object') fail('derived_arity', location, 'operands is a positional list, or the named pair { after, baseline }');
-  if (!DIRECTIONAL_OPERATIONS.includes(operation)) {
-    fail('derived_arity', location, `named operands declare a direction and ${operation} has none; only ${DIRECTIONAL_OPERATIONS.join(', ')} take { after, baseline }`);
+  if (!operands || typeof operands !== 'object') fail('derived_arity', location, `operands is a positional list, or one of the named pairs ${ALL_VOCABULARIES}`);
+  const allowed = vocabulariesFor(operation);
+  if (!allowed.length) {
+    fail('derived_arity', location, `named operands declare a direction and ${operation} has none; only ${DIRECTIONAL_OPERATIONS.join(', ')} take a named pair`);
   }
-  const declared = Object.keys(operands);
-  if (declared.length !== 2 || !operands.after || !operands.baseline) {
-    fail('derived_arity', location, `named operands are exactly { after, baseline }; this entry declares { ${declared.join(', ') || 'nothing'} }`);
+  const vocabulary = operandVocabulary(operands);
+  if (!vocabulary) {
+    fail('derived_arity', location, `named operands are exactly one of ${ALL_VOCABULARIES}; this entry declares { ${Object.keys(operands).join(', ') || 'nothing'} }`);
   }
-  return [operands.after, operands.baseline];
+  if (!allowed.includes(vocabulary)) {
+    fail('derived_arity', location, `${operation} takes ${allowed.map(vocabularyName).join(' or ')}, not ${vocabularyName(vocabulary)}`);
+  }
+  return vocabulary.keys.map((k) => operands[k]);
 }
 
 /**
@@ -93,8 +137,9 @@ export function operandList(operation, operands, location = operation) {
  */
 export function operandRefs(d) {
   if (Array.isArray(d?.operands)) return d.operands;
-  if (!d?.operands || typeof d.operands !== 'object') return [];
-  return ['after', 'baseline'].map((k) => d.operands[k]).filter((ref) => ref !== undefined && ref !== null);
+  const vocabulary = operandVocabulary(d?.operands);
+  if (!vocabulary) return [];
+  return vocabulary.keys.map((k) => d.operands[k]);
 }
 
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
@@ -117,9 +162,10 @@ const reduce = ({n, d}) => {
 };
 /**
  * The value of one derived entry, exactly, as `{ n, d }`, or null when an operand is null or a denominator is
- * zero. `operands` is a positional list of resolved records, or the named pair `{ after, baseline }` the
- * directional operations accept; `after - baseline` is the same arithmetic as the positional `[a, b]`, so the
- * two forms agree on the value and differ only in whether the direction was declared.
+ * zero. `operands` is a positional list of resolved records, or one of the named pairs the directional
+ * operations accept (`{ after, baseline }`, `{ minuend, subtrahend }`, `{ numerator, denominator }`); each
+ * names the same `[a, b]` the positional form passes, so the forms agree on the value and differ only in
+ * whether the direction was declared.
  */
 export function calculate(operation, operands, unit) {
   const list = operandList(operation, operands, operation);

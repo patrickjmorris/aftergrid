@@ -294,8 +294,8 @@ derived:
   - id: web_control_rate
     operation: ratio
     operands:
-      - ref:retention_by_platform_arm.web_control.retained
-      - ref:retention_by_platform_arm.web_control.signups
+      numerator: ref:retention_by_platform_arm.web_control.retained
+      denominator: ref:retention_by_platform_arm.web_control.signups
     unit: ratio
     display:
       kind: percent
@@ -492,7 +492,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: cd707ae0a1e03588c4d78f79c1fb38104d61b8d151d365cdb1105265dca2a6e5
+      value: db4865a82a9300df09c161bc57a548f3b39824007a63cf27bf2fbabbbf458a4d
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.

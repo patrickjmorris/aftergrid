@@ -248,9 +248,8 @@ export const CASES: NegativeCase[] = [
     category: "none",
     location_pattern: "",
     // Both of this exemplar's derived values subtract what has accumulated from a policy minimum. Neither
-    // operand is an "after" or a "baseline", so the pair is not named and `direction_unstated` is reported:
-    // the direction really is undeclared, and the honest repair is a reframe, not a relabelling.
-    also_warnings: ["direction_unstated"],
+    // operand is an "after" or a "baseline", so they declare their direction as { minuend, subtrahend }
+    // (ag-derived-direction-none-9kp) and there is no `direction_unstated` warning left to allow for.
     defect: "None. A complete Finding whose honest outcome is a non-answer (insufficient_data), with a minimum-data Check recorded as fail.",
     description: "A non-answer is an analytical outcome, not an engine failure: check must report no error and evidence valid even though a Check recorded fail.",
     render: { must_contain: ["We cannot tell yet", "this failure is the result of the Finding, not an error"] },
@@ -328,10 +327,9 @@ export const CASES: NegativeCase[] = [
     category: "none",
     location_pattern: "",
     // `web_control_rate` divides a count of returners by a count of signups: a part over a whole, where
-    // neither operand is an "after" or a "baseline". So the pair is left positional and `direction_unstated`
-    // is reported and declared here. The warning is right — which operand is the denominator decides the
-    // value, and nothing in the entry says so — and naming this pair after/baseline would be a false label.
-    also_warnings: ["direction_unstated"],
+    // neither operand is an "after" or a "baseline". Which operand is the denominator still decides the
+    // value, so the direction is declared as { numerator, denominator } — the vocabulary for a division that
+    // is not a comparison — rather than mislabelled after/baseline or left unstated.
     defect: "None. The web control arm has no signups, so a derived ratio divides by zero and a rate cell is null.",
     description: 'A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.',
     render: { must_contain: ["the share of that group who came back is <span class=\"ref\"", ">not available<", "</span> on the web"], must_not_contain: [PRIVATE_MARKER] },
@@ -345,7 +343,7 @@ export const CASES: NegativeCase[] = [
       m.export_policy.allowed_fields.push("retention_by_platform_arm.retained");
       m.derived.push({
         id: "web_control_rate", operation: "ratio",
-        operands: ["ref:retention_by_platform_arm.web_control.retained", "ref:retention_by_platform_arm.web_control.signups"],
+        operands: { numerator: "ref:retention_by_platform_arm.web_control.retained", denominator: "ref:retention_by_platform_arm.web_control.signups" },
         unit: "ratio", display: { kind: "percent", decimals: 1 }, on_zero_denominator: "not_available", on_null: "not_available",
         description: "Share of the web control arm who came back. Its denominator is zero in this Snapshot.",
       });
@@ -813,7 +811,6 @@ export const CASES: NegativeCase[] = [
     base: "recorded",
     layer: "engine_category",
     expect: "error",
-    also_warnings: ["direction_unstated"],   // the recorded exemplar's two positional differences; see control-non-answer
     category: "unevidenced_outcome",
     location_pattern: "^checks/unique_subscriptions$",
     defect: "A required Check is reported pass by the harness and names no evidence file; the artifact the pass rested on is gone from the manifest and from the directory.",
@@ -829,7 +826,6 @@ export const CASES: NegativeCase[] = [
     base: "recorded",
     layer: "engine_category",
     expect: "error",
-    also_warnings: ["direction_unstated"],   // the recorded exemplar's two positional differences; see control-non-answer
     category: "hash_mismatch",
     location_pattern: "^manifest\\.yaml#/executions/0$",
     defect: "The harness-recorded execution pins a result_hash that is not the hash of the result set it names.",
