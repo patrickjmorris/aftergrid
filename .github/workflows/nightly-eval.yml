@@ -112,17 +112,16 @@ jobs:
             # carries the raw ask, the reader and the Question, so the skill needs the directory rather than
             # the prose; AFTERGRID_FINDING_DIR and AFTERGRID_INSTANCE are in the child's environment as well.
             #
-            # --permission-mode bypassPermissions, not acceptEdits. A real run under acceptEdits + --plugin-dir
-            # had every write into the Finding directory refused as "a sensitive file", and no allow rule lifted
-            # it (examples/nyc-open-data/docs/run-log.md, run 1); bypass is the one mode that wrote in that
-            # session AND in the probes of 2026-09-17 with claude 2.1.274 (docs/contracts/eval.md, "What the
-            # headless run needs"). What it is allowed to reach is the sandbox, not the mode: the analyzer's
-            # Instance is a mkdtemp COPY of fixtures/instance created per case, on an ephemeral runner, and the
-            # eval writes nothing back to the repository — there is nothing outside that copy for a bypassing
-            # run to damage. A refusal is no longer silent either way: /analyze halts with permission_denied
+            # --permission-mode acceptEdits, and the Instance OUTSIDE the plugin directory. Run 1 of the demo had
+            # every write refused as "a sensitive file" because its Instance lived inside the repository that
+            # --plugin-dir pointed at: Claude Code protects the plugin's own tree. Probed 2026-09-17 with claude
+            # 2.1.274: acceptEdits + --plugin-dir writes into a Finding outside the plugin dir and is refused
+            # inside it (docs/contracts/eval.md, "What the headless run needs"). The runner's Instance is a
+            # mkdtemp copy of fixtures/instance, outside the repository, so acceptEdits is enough and bypass
+            # is not needed. A refusal is no longer silent either way: /analyze halts with permission_denied
             # and the runner records it as infrastructure (cause harness_permission_denied), never as a wrong
             # answer.
-            ARGS+=(--analyzer command --analyzer-command "claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode bypassPermissions --max-budget-usd {max_cost_usd} --output-format json")
+            ARGS+=(--analyzer command --analyzer-command "claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode acceptEdits --max-budget-usd {max_cost_usd} --output-format json")
           else
             ARGS+=(--analyzer fixture)
           fi

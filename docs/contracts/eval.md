@@ -250,25 +250,21 @@ has no `--max-turns` flag):
 | `--permission-mode dontAsk` | **denied** — "Permission to use Write has been denied because Claude Code is running in don't ask mode" | not probed | $0.58 |
 | `--allowedTools "Write" "Edit" "Bash(aftergrid:*)"` (no mode flag) | ok | ok | $0.56 + $0.57 |
 | `--permission-mode acceptEdits` | not probed | **ok** | $0.56 |
+| `--permission-mode acceptEdits`, Instance **outside** the plugin dir (a temp dir) | — | **ok** | $0.56 |
+| `--permission-mode acceptEdits`, Instance **inside** the plugin dir (the repo's `examples/`) | — | **denied**, "sensitive file" | $0.57 |
 
-Two facts, and they are different facts. `dontAsk` refuses the write outright and is unusable for a nightly.
-And **run 1's refusal did not reproduce**: at this CLI version, in a temporary Instance, `acceptEdits` +
-`--plugin-dir` wrote into a Finding directory without complaint. So the cause of run 1 is still not established
-— it is a version, an environment or a settings difference nobody has isolated — and "acceptEdits works" is a
-statement about 2026-09-17 on one machine, not a repair.
+Two facts. `dontAsk` refuses the write outright and is unusable for a nightly. And the cause of run 1 **is**
+established by the last two rows: with `--plugin-dir <repo>` loaded, Claude Code treats every path inside that
+plugin directory as a sensitive file and refuses to write it under `acceptEdits`, whatever allow rules are passed.
+Run 1's Instance was `examples/nyc-open-data/analytics`, inside the repository the flag named. The same flags,
+the same session version, a Finding in a temp directory: written without complaint. The demo Instance is the
+odd case, because it lives inside the Engine's own checkout; an Operator's Instance and the runner's both sit
+outside it.
 
-The workflow therefore uses **`--permission-mode bypassPermissions`**: the only mode with recorded evidence of
-writing under *both* conditions — the session that was refused, and today's probes. The price is paid in the
-sandbox rather than in the mode: each case's Instance is a `mkdtemp` **copy** of `fixtures/instance` created by
-the runner, the job runs on an ephemeral CI runner, and the eval writes nothing back into the repository, so
-there is nothing outside that copy for a bypassing run to reach that matters. Narrowing it later is a real
-option — the `--allowedTools` set above wrote fine today and is the least-privileged thing that did — but it
-must enumerate every tool `/analyze` needs, and it was never tested against the condition that produced run 1,
-where scoped allow rules did not lift the refusal.
-
-None of this is load-bearing for honesty any more, which is the point of the halt: if the harness refuses a
-write, `/analyze` stops and says so in its own output, and the run is recorded as `harness_permission_denied`
-infrastructure rather than as an Analysis that got the answer wrong.
+The workflow therefore uses **`--permission-mode acceptEdits`**, the least-privileged mode that writes where the
+runner writes: each case's Instance is a `mkdtemp` copy of `fixtures/instance` outside the repository. Runs of
+the in-repo demo Instance use `bypassPermissions` and say so in their run log. Narrowing further to an
+`--allowedTools` set is possible (it wrote fine in the probes) but must enumerate every tool `/analyze` needs,
 
 Without the secret the job runs the fixture analyzer. Either way the job summary's claim comes from
 `aftergrid eval summary` reading `run.json`, never from the secret being set, so there is no configuration in

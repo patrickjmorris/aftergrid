@@ -188,3 +188,14 @@ proper — the manifest, the six results, the five Checks and their outcomes —
 The same review also removed `analytical_outcome` from the categories a halt can excuse. That category means a
 Finding still records `answered` over a falsifier that fired, which is the publication the contract exists to
 stop; a halt is not a place to park it. This Finding never had one: it records `pending`, not `answered`.
+
+### Root cause of the run-1 block, established (2026-09-17, claude 2.1.274)
+
+Two more probes, same flags (`--plugin-dir <repo> --permission-mode acceptEdits`), same version, one file each
+(~$0.56 each): a Finding in a temp directory **outside** the repository was written; the same write into
+`examples/nyc-open-data/analytics/findings/` **inside** it was refused as "a sensitive file". Claude Code
+protects the tree of a plugin loaded with `--plugin-dir`, and this Instance lives inside that tree. That is why
+run 1 failed and why an earlier probe that used a temp Instance could not reproduce it. Consequence: the nightly
+runner (temp Instance) uses `acceptEdits`; runs of this in-repo demo Instance use `bypassPermissions`, or the
+plugin should be loaded from a copy outside the repository.
+
