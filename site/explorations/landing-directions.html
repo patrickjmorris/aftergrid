@@ -541,6 +541,57 @@ code, pre, .mono { font-family: var(--mono); }
 .hero-collage .centered .cta-row { justify-content: center; }
 
 /* ============================================================
+   Skills-first components
+   ============================================================ */
+.hero-skills { padding-block: 72px 80px; display: grid; gap: 40px; }
+.hero-skills .centered { text-align: center; display: grid; justify-items: center; gap: 22px; }
+.hero-skills .centered h1 { font-size: clamp(40px, 6cqw, 76px); max-width: 17ch; }
+.hero-skills .centered .lead { max-width: 56ch; }
+.hero-skills .centered .cta-row { justify-content: center; }
+.cmds { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.cmds code { font: 500 13px var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.cmds code.m { color: var(--ink-2); background: transparent; border-style: dashed; }
+.session { contain: inline-size; max-width: 900px; width: 100%; margin: 0 auto; background: var(--term-bg); color: #DCE6F5; border-radius: 16px; border: 1px solid #22355A; box-shadow: var(--shadow-card); font-family: var(--mono); font-size: 13px; line-height: 1.55; overflow: hidden; }
+.session .sbar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); font-size: 11.5px; color: #7B8CA8; }
+.session .sbar .dots { display: flex; gap: 6px; } .session .sbar .dots i { width: 10px; height: 10px; border-radius: 999px; background: #2C3E60; display: block; }
+.session .prompt { padding: 18px 22px 10px; font-size: 14px; color: #E9F0FA; overflow-wrap: anywhere; }
+.session .prompt b { color: #8FB0E6; font-weight: 500; margin-right: 8px; }
+.session .prompt code { color: #E9F0FA; background: rgba(143,176,230,.14); border-radius: 5px; padding: 1px 6px; }
+.session .stages { padding: 4px 22px 6px; }
+.session .st2 { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 14px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.06); align-items: start; }
+.session .st2:first-child { border-top: 0; }
+.session .k { color: #8FB0E6; white-space: nowrap; }
+.session .v { color: #C9D6EA; overflow-wrap: anywhere; }
+.session .ok { color: #7ED9B2; } .session .warn { color: #F3C36B; } .session .dim { color: #7B8CA8; }
+.session .done { margin: 6px 22px 18px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.12); color: #E9F0FA; overflow-wrap: anywhere; }
+.session .done .dim { display: block; margin-top: 4px; }
+@container page (max-width: 640px) { .session .st2 { grid-template-columns: minmax(0,1fr); gap: 2px; } .session { font-size: 12.5px; } }
+
+.skills { display: grid; gap: 44px; }
+.skills .group > .gh { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.skills .group > .gh h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.015em; }
+.skills .group > .gh span { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.skill-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 14px; }
+.skill { padding: 18px 18px; }
+.skill { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; display: grid; gap: 10px; align-content: start; box-shadow: var(--shadow-float); min-width: 0; }
+.skill .cmd { font: 500 14px var(--mono); color: var(--ink); background: var(--tint); border-radius: 6px; padding: 4px 9px; width: max-content; max-width: 100%; overflow-wrap: anywhere; }
+.skill p { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+.skill .use { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+.skill .use b { color: var(--ink-2); font-weight: 600; }
+.skill a { font-size: 13px; color: var(--blue-3); text-decoration: none; }
+.skill a:hover { text-decoration: underline; }
+
+.install { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 20px; }
+.way { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; display: grid; gap: 12px; align-content: start; box-shadow: var(--shadow-float); }
+.way h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.015em; }
+.way p { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+.way pre { margin: 0; background: var(--term-bg); color: #DCE6F5; border-radius: 10px; padding: 12px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #22355A; }
+.way pre .p { color: #8FB0E6; } .way pre .c { color: #7B8CA8; }
+.way .fine { font-size: 12.5px; }
+@container page (max-width: 900px) { .install { grid-template-columns: minmax(0,1fr); } }
+.L-skills .section { padding-block: 104px; }
+
+/* ============================================================
    Layout modifiers
    ============================================================ */
 .L-manifesto .wrap { max-width: 900px; }
@@ -622,7 +673,7 @@ code, pre, .mono { font-family: var(--mono); }
 
 <script>
 /* ===================== helpers & product material ===================== */
-const nb = (h) => esc(h).replace(/re-(checks|tested|check)/g, '<span style="white-space:nowrap">re-$1</span>');
+const nb = (h) => esc(h).replace(/re-(checks|tested|check)/g, '<span style="white-space:nowrap">re-$1</span>').replace('write SQL', '<span style="white-space:nowrap">write SQL</span>');
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const symbol = `<svg class="sym" viewBox="0 0 100 100" aria-hidden="true"><path d="M10 42 V84 a6 6 0 0 0 6 6 H58 V72 H28 V42 Z"/><path d="M42 10 H84 a6 6 0 0 1 6 6 V58 H72 V28 H42 Z"/></svg>`;
 const wordmark = `<a class="wordmark" href="#top" aria-label="aftergrid home">${symbol}aftergrid</a>`;
@@ -762,6 +813,9 @@ const HEADLINES = {
   h7:  { name:'Knows where', h:'Every number knows where it came from.', sub:'Findings are short, reviewed answers to product questions. Each figure resolves to a saved result, a retained snapshot and a versioned definition.' },
   h8:  { name:'Evidence', h:'Product questions answered with evidence anyone can inspect.', sub:'Open-source skills and a thin CLI for Claude Code. The output is a Finding your non-data teammates can read on a phone and act on.' },
   h10: { name:'No trail', h:'Five tools. One number. No trail.', sub:'By Monday a retention number has been copied from SQL to a sheet to a slide to Slack, and nobody can say where it came from. A Finding is the number with its trail attached.' },
+  h11: { name:'Write SQL', h:'Your agent can write SQL. These skills make it do analysis.', sub:'Nine open-source skills for Claude Code and Codex: sharpen the question, write the Checks before the numbers, write the Finding, look at the charts, review it three ways, revise it without breaking it.' },
+  h12: { name:'Skills for CC', h:'Analysis skills for Claude Code.', sub:'Open-source skills, Checks and a thin CLI. Type /analyze: the question gets sharpened, the Checks get written before the numbers, three reviewers read the draft, and out comes a Finding your team can inspect.' },
+  h13: { name:'Nine skills', h:'Nine skills. One reviewed Finding.', sub:'A standard practice for analysis inside the coding agent you already use. Every number traced to its query, snapshot and definition; every run halts with a reason when a gate fails.' },
   h9:  { name:'Beyond sheet', h:'Beyond the spreadsheet: a document you can act on.', sub:'Sheets hold copies. A Finding holds an answer, its evidence and the decision it informs, reviewed as a pull request before anyone reads it.' },
 };
 const heroCopy = (hl, opts = {}) => `<div class="hero-copy"><p class="eyebrow">Open source · MIT · pre-release</p><h1 class="display">${nb(hl.h)}</h1><p class="lead">${esc(hl.sub)}</p><div class="cta-row"><a class="btn btn-primary" href="#">${opts.primary || 'Read the example Finding'}</a><a class="btn btn-ghost" href="#">${opts.secondary || 'Star on GitHub'}</a></div><p class="fine">TypeScript CLI · DuckDB and Postgres · runs inside Claude Code and Codex</p></div>`;
@@ -771,7 +825,7 @@ const V = {};
 const sec = (eyebrow, inner, extra = '') => `<div class="wrap"><div class="section">${eyebrow ? `<p class="eyebrow">${esc(eyebrow)}</p>` : ''}${inner}</div></div>`;
 
 /* NAV */
-V['nav-min'] = { name:'Minimal', html: () => `<div class="wrap"><nav class="nav">${wordmark}<div class="nav-links"><a  class="hide-sm"href="https://github.com/patrickjmorris/aftergrid/tree/main/docs" target="_blank" rel="noopener">Docs</a><a  class="hide-sm"href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/spec/v0-one-finding-end-to-end.md" target="_blank" rel="noopener">Spec</a><a href="https://github.com/patrickjmorris/aftergrid" target="_blank" rel="noopener">GitHub</a><a  class="btn btn-ghost hide-sm"href="example-finding/">Read an example Finding</a></div></nav></div>` };
+V['nav-min'] = { name:'Minimal', html: () => `<div class="wrap"><nav class="nav">${wordmark}<div class="nav-links"><a class="hide-sm" href="#skills">Skills</a><a  class="hide-sm"href="https://github.com/patrickjmorris/aftergrid/tree/main/docs" target="_blank" rel="noopener">Docs</a><a  class="hide-sm"href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/spec/v0-one-finding-end-to-end.md" target="_blank" rel="noopener">Spec</a><a href="https://github.com/patrickjmorris/aftergrid" target="_blank" rel="noopener">GitHub</a><a  class="btn btn-ghost hide-sm"href="example-finding/">Read an example Finding</a></div></nav></div>` };
 V['nav-install'] = { name:'Install chip', html: () => `<div class="wrap"><nav class="nav">${wordmark}<div class="nav-links"><span class="chip hide-sm"><span class="dollar">$</span>npm i -g aftergrid</span><a href="https://github.com/patrickjmorris/aftergrid" target="_blank" rel="noopener">GitHub</a></div></nav></div>` };
 V['nav-bare'] = { name:'Bare', html: () => `<div class="wrap"><nav class="nav">${wordmark}<span class="tag">Pre-release</span></nav></div>` };
 
@@ -797,7 +851,7 @@ V['problem-lines'] = { name:'Big lines', html: () => sec('', `<div class="big-li
 
 /* ANATOMY */
 V['anat-trace'] = { name:'Hover to trace', html: () => sec('A Finding', `<div class="grid2" style="gap:64px;align-items:center"><div><h2 class="h2">Hover any number. It knows where it came from.</h2><p class="lead" style="margin-top:20px">Every data-bearing value resolves from a typed reference: a saved result row, the query that produced it, the retained snapshot it ran on, and the definition it used. If a reference does not resolve, the Finding does not render.</p><div style="margin-top:28px;display:grid;gap:14px"><div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;font-size:14.5px;color:var(--ink-2)"><code style="font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:3px 7px">{{ref:…}}</code><span><b style="color:var(--ink)">Reference, not value.</b> The memo holds the token; the renderer fills in 34.8%.</span></div><div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;font-size:14.5px;color:var(--ink-2)"><code style="font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:3px 7px">sha256</code><span><b style="color:var(--ink)">Pinned.</b> Result hashes, input hashes, definition versions, renderer version. Change any of them and the review is invalid.</span></div></div></div><div class="visual"><div class="glow"></div>${frame(findingDoc('claim'))}<p class="figcap"><span class="n">fig. 2</span><span>Excerpt of the example Finding. Dotted numbers carry their evidence.</span></p></div></div>`) };
-V['anat-figure'] = { name:'Figure with labels', html: () => sec('A Finding', `<div class="head"><h2 class="h2">Anatomy of a Finding.</h2><p class="lead">Six fixed sections, in this order, every time. A linter enforces the structure; a reviewer judges the language.</p></div><div class="fig"><div class="side l"><div class="lbl" style="--t:7%"><span class="k">Answer</span><b>One sentence, first.</b>Inconclusive and "insufficient data" are valid answers.</div><div class="lbl" style="--t:28%"><span class="k">Caveat</span><b>What would change this.</b>Not a confidence score.</div><div class="lbl" style="--t:50%"><span class="k">Claim type</span><b>Cause and effect, or pattern.</b>Declared, never implied.</div><div class="lbl" style="--t:70%"><span class="k">Chart</span><b>The title states the claim.</b>Grey plus one colour, no legend.</div></div>${frame(findingDoc('short'))}<div class="side r"><div class="lbl" style="--t:4%"><span class="k">Reader</span><b>Named up front.</b>Written for a non-technical product owner on a phone.</div><div class="lbl" style="--t:46%"><span class="k">Reference</span><b>Every number is a token.</b><code>{{ref:retention_by_arm.checklist.retained_7d_rate}}</code></div><div class="lbl" style="--t:78%"><span class="k">Population</span><b>Who, compared with what, when.</b>Stated for every claim.</div></div></div><p class="figcap"><span class="n">fig. 3</span><span><b>The example Finding, unretouched.</b> Real output of <code>aftergrid render</code> on synthetic data.</span></p>`) };
+V['anat-figure'] = { name:'Figure with labels', html: () => sec('A Finding', `<div class="head"><h2 class="h2">What the skills produce: a Finding.</h2><p class="lead">Six fixed sections, in this order, every time. /write-finding writes it, /shape-narrative orders it, /analysis-review reads it, aftergrid check enforces it. Hover any number.</p></div><div class="fig"><div class="side l"><div class="lbl" style="--t:7%"><span class="k">Answer</span><b>One sentence, first.</b>Inconclusive and "insufficient data" are valid answers.</div><div class="lbl" style="--t:28%"><span class="k">Caveat</span><b>What would change this.</b>Not a confidence score.</div><div class="lbl" style="--t:50%"><span class="k">Claim type</span><b>Cause and effect, or pattern.</b>Declared, never implied.</div><div class="lbl" style="--t:70%"><span class="k">Chart</span><b>The title states the claim.</b>Grey plus one colour, no legend.</div></div>${frame(findingDoc('short'))}<div class="side r"><div class="lbl" style="--t:4%"><span class="k">Reader</span><b>Named up front.</b>Written for a non-technical product owner on a phone.</div><div class="lbl" style="--t:46%"><span class="k">Reference</span><b>Every number is a token.</b><code>{{ref:retention_by_arm.checklist.retained_7d_rate}}</code></div><div class="lbl" style="--t:78%"><span class="k">Population</span><b>Who, compared with what, when.</b>Stated for every claim.</div></div></div><p class="figcap"><span class="n">fig. 3</span><span><b>The example Finding, unretouched.</b> Real output of <code>aftergrid render</code> on synthetic data.</span></p>`) };
 V['anat-annot'] = { name:'Annotated document', html: () => sec('A Finding', `<div class="head"><h2 class="h2">Six fixed sections, in this order, every time.</h2></div><div class="grid2" style="gap:56px">${frame(findingDoc('full'))}<div style="position:sticky;top:80px;display:grid;gap:18px">${[['1','Answer','One sentence, first. Inconclusive and "insufficient data" are valid answers.'],['2','Decision it informs','Who decides, and the bar agreed before the data was looked at.'],['3','Evidence','One Claim per subsection, typed descriptive, associational or causal. Who is counted, compared with what, over when.'],['4','How we checked','Separate facts, never one badge: Checks, definition approval, method review, publication approval, data guarantees.'],['5','What would change our mind','Written as a runnable test. This is what a Revisit evaluates.'],['6','One Reader action','Question or flag it. Carries ids only, never numbers.']].map(([n,t,d]) => `<div style="display:grid;grid-template-columns:28px 1fr;gap:14px;align-items:start"><b style="width:26px;height:26px;border-radius:999px;background:var(--navy);color:var(--ice);font:600 12px/26px var(--mono);text-align:center">${n}</b><div><b style="display:block;font-size:16px">${t}</b><span style="color:var(--ink-2);font-size:14.5px">${d}</span></div></div>`).join('')}</div></div>`) };
 V['anat-source'] = { name:'Source ↔ render', html: () => sec('A Finding', `<div class="head"><h2 class="h2">What the Operator writes. What the Reader sees.</h2><p class="lead">The memo holds references, never values. The renderer resolves each one against a saved result and refuses to render if any reference fails.</p></div><div class="src-render"><div class="src"><div class="src-lbl">memo.md</div><pre>### New users who saw the checklist came back
 within a week more often:
@@ -822,7 +876,7 @@ V['how-reader'] = { name:'Reader outcome', html: () => sec('How it works', `<div
 const factsHTML = `<div class="doc"><ul class="facts" style="font-size:14.5px"><li><span class="mk ok">✓</span><b>Checks passed</b><span>4 of 4, including the question's own falsifier</span></li><li><span class="mk wn">!</span><b>Definition</b><span>retained_7d v2 · approval recorded, not verified</span></li><li><span class="mk ok">✓</span><b>Method review</b><span>15 Sep · no blocking findings</span></li><li><span class="mk no">×</span><b>Publication</b><span>None. This is a draft.</span></li><li><span class="mk ok">✓</span><b>Data</b><span>Replay and rerun both possible · to 19 July</span></li></ul></div>`;
 V['trust-vs-badge'] = { name:'Badge vs facts', html: () => sec('Trust', `<div class="head"><h2 class="h2">Five separate facts. Never one badge.</h2><p class="lead">A green tick invites you to stop reading. A Finding shows each fact on its own, so a Reader can see the arithmetic holds while the conclusion is still unreviewed.</p></div><div class="vs-grid"><div class="pane bad"><div class="lbl">Not this</div><span class="badge-bad"><span class="pct">34.8%</span><span class="v">✓ Verified</span><span>92% confidence</span></span><p>One number that means nothing, one word that means everything.</p></div><div class="pane"><div class="lbl">This</div>${factsHTML}<p>Each fact stands or falls on its own. Reviewer and date are named.</p></div></div>`) };
 V['trust-facts'] = { name:'Separate facts', html: () => sec('Trust', `<div class="head"><h2 class="h2">Five separate facts. Never one badge.</h2><p class="lead">A green tick invites you to stop reading. Each fact is shown on its own, with the reviewer and the date.</p></div><ul class="facts-big"><li><span class="mk ok">✓</span><b>Checks passed</b><span>Runnable assertions: no user counted twice, groups balanced, the retained count reconciles with the approved definition computed a second way.</span></li><li><span class="mk wn">!</span><b>Definition approved</b><span>retained_7d v2 is recorded as approved by Dana on 28 May. A recorded lifecycle is not a verified approval, and the Finding says so.</span></li><li><span class="mk ok">✓</span><b>Method reviewed</b><span>Reviewer and date. Denominators, bias, whether "caused" is earned.</span></li><li><span class="mk no">×</span><b>Publication approved</b><span>None yet. A current GitHub review by an allowlisted human at the exact commit, verified through the API, not a field an agent can edit.</span></li><li><span class="mk ok">✓</span><b>Data guarantees</b><span>Artifact replay and analysis rerun from retained inputs. Coverage window stated. Generated-at stated.</span></li></ul>`) };
-V['trust-checks'] = { name:'Checks table', html: () => sec('Checks', `<div class="head"><h2 class="h2">Tests for analysis, the way software has tests.</h2><p class="lead">A Check establishes one stated property. Passing Checks never by themselves make a Finding trustworthy, and the Finding says so.</p></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Check</th><th>What it establishes</th><th>This Finding</th></tr></thead><tbody><tr><td><code>unique_users</code></td><td>No user is counted twice across arms.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>arm_balance</code></td><td>The two groups are about the same size, as random assignment should produce.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>retained_7d_reconcile</code></td><td>The retained count matches the approved definition computed a second way.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>falsifier_lift</code></td><td>The gap is at least 3 pp with at least five hundred people in each group.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>references_resolve</code></td><td>Every <code>{{ref}}</code> in the memo points at a saved result row and column.</td><td><span class="st holds">pass</span></td></tr><tr><td>Publication readiness</td><td>A current human approval bound to this exact content digest.</td><td><span class="st contra">not ready</span></td></tr></tbody></table></div>`) };
+V['trust-checks'] = { name:'Checks table', html: () => sec('Checks', `<div class="head"><h2 class="h2">Checks are written before the numbers.</h2><p class="lead">/checked-analysis writes them first, then runs the analysis SQL. A Check establishes one stated property. Passing Checks never by themselves make a Finding trustworthy, and the Finding says so.</p></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Check</th><th>What it establishes</th><th>This Finding</th></tr></thead><tbody><tr><td><code>unique_users</code></td><td>No user is counted twice across arms.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>arm_balance</code></td><td>The two groups are about the same size, as random assignment should produce.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>retained_7d_reconcile</code></td><td>The retained count matches the approved definition computed a second way.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>falsifier_lift</code></td><td>The gap is at least 3 pp with at least five hundred people in each group.</td><td><span class="st holds">pass</span></td></tr><tr><td><code>references_resolve</code></td><td>Every <code>{{ref}}</code> in the memo points at a saved result row and column.</td><td><span class="st holds">pass</span></td></tr><tr><td>Publication readiness</td><td>A current human approval bound to this exact content digest.</td><td><span class="st contra">not ready</span></td></tr></tbody></table></div>`) };
 V['trust-strip'] = { name:'Label strip', html: () => sec('Trust', `<div class="head"><h2 class="h2">Every number carries five facts with it.</h2><p class="lead">Not a confidence score. Not a "verified" badge. Five things a Reader can check, shown one at a time.</p></div><div class="strip"><div><b>Where this number came from</b><span>Query <code>retention_by_arm</code>, result row <code>checklist</code></span></div><div><b>When the data was taken</b><span>Snapshot to 19 July 2026, two retained inputs, hashed</span></div><div><b>What "came back" means here</b><span>Definition <code>retained_7d</code> v2, approval recorded 28 May</span></div><div><b>What we checked</b><span>4 of 4 Checks pass, including the question's own falsifier</span></div><div><b>Who reviewed it</b><span>Method review 15 Sep. Publication approval: none yet</span></div></div>`) };
 V['trust-ticker'] = { name:'Ticker band', html: () => { const items = `<span class="ok">unique_users</span><span class="dim">no user counted twice</span><span class="ok">arm_balance</span><span class="dim">groups within 5%</span><span class="ok">retained_7d_reconcile</span><span class="dim">matches approved definition v2</span><span class="ok">falsifier_lift</span><span class="dim">gap ≥ 3 pp · n ≥ 500 per arm</span><span class="ok">references_resolve</span><span class="dim">12 of 12 tokens</span><span>snapshot 2026-07-19</span><span class="dim">sha256 2f9a…c41e</span><span>method review 2026-09-15</span><span class="dim">publication: not ready</span>`; return `<div class="section" style="padding-block:0"><div class="wrap" style="padding-block:96px 40px"><p class="eyebrow">Checks</p><div class="head" style="margin-bottom:0"><h2 class="h2">Every Finding carries its own test results.</h2><p class="lead">Runnable Checks, evidence references, snapshot hashes and review dates travel with the document. Passing Checks never by themselves make it trustworthy, and the document says so.</p></div></div><div class="ticker" aria-label="Check results for the example Finding"><div class="track">${items}${items}</div></div><div style="height:56px"></div></div>`; } };
 
@@ -858,10 +912,55 @@ V['cta-wait'] = { name:'Waitlist', html: () => sec('', `<div class="cta-big"><h2
 V['cta-finding'] = { name:'Read the Finding', html: () => sec('', `<div class="cta-big"><h2>The whole pitch is one document.</h2><p class="lead" style="margin-bottom:26px">Read the example Finding on your phone. If you can explain the answer in your own words, name the denominator and say what would change it, the product works.</p><div class="cta-row"><a class="btn btn-primary" href="example-finding/">Read the Finding</a><a class="btn btn-ghost" href="https://github.com/patrickjmorris/aftergrid" target="_blank" rel="noopener">GitHub</a></div></div>`) };
 V['footer'] = { name:'Footer', html: () => `<div class="wrap"><div class="footer"><span>aftergrid · MIT · pre-release</span><span><a href="https://github.com/patrickjmorris/aftergrid">GitHub</a> · <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/spec/v0-one-finding-end-to-end.md">Spec</a> · <a href="https://github.com/patrickjmorris/aftergrid/tree/main/docs/contracts">Contracts</a> · <a href="https://github.com/patrickjmorris/aftergrid/tree/main/docs/adr">ADRs</a></span></div></div>` };
 
+/* ===================== skills-first components ===================== */
+const GH = 'https://github.com/patrickjmorris/aftergrid';
+const SKILLS = {
+  user: [
+    ['setup-aftergrid', 'Scaffold an Instance in your repo, check the dependencies, validate the warehouse connection if you asked for one, install the guardrail hook, and say what is still missing.', 'once per repository'],
+    ['grill-question', 'Interview you in rounds until a raw ask is a Question: the decision, the Reader, the metric, the population, the window, the primary comparison and a falsifier.', 'before any analysis runs, or when an ask names no metric or window'],
+    ['analyze', 'The one orchestrator. Raw ask to reviewed Finding draft: clarify, analyse under Checks, write, illustrate, shape, review, check. Halts with a precise reason.', 'to run an analysis end to end, or resume one that stopped'],
+    ['revise-finding', 'Classify your feedback as presentation, interpretation or numeric. Apply the cheap kind as a new revision; say exactly what the other two reopen.', '"make it horizontal", "lead with retention", "reword the answer"'],
+  ],
+  model: [
+    ['checked-analysis', 'Probe the catalog, write the Checks before the analysis SQL, run the queries and Checks, record what ran and on what.', 'after a Question is sharpened'],
+    ['write-finding', 'Turn a checked Analysis into a Finding: six fixed sections, typed Claims, charts and tables, every displayed value bound to a saved result.', 'once results are pinned'],
+    ['iterate-visual', 'Render each chart, look at the PNG, score it against the Storytelling with Data rubric, revise up to three times, hand back what still fails.', 'after a chart spec is written or changed'],
+    ['shape-narrative', 'Answer first. Each Evidence heading states its Claim, each chart title states its Claim, the caveat sits beside the Answer, in the Reader\'s words.', 'after writing and charts, before review'],
+    ['analysis-review', 'Method, Question and Reader reviewers dispatched in parallel. Each returns blocking and non-blocking findings, recorded against the content digest.', 'before aftergrid check, or when a revision left reviews stale'],
+  ],
+};
+const skillCard = ([name, what, when]) => `<div class="skill"><code class="cmd">/${name}</code><p>${esc(what)}</p><p class="use"><b>Use</b> ${esc(when)}.</p><a href="${GH}/blob/main/docs/skills/${name}.md">Read the skill →</a></div>`;
+const cmdStrip = `<div class="cmds">${SKILLS.user.map(([n]) => `<code>/${n}</code>`).join('')}${SKILLS.model.map(([n]) => `<code class="m">/${n}</code>`).join('')}</div>`;
+const SESSION = `<div class="session" role="img" aria-label="A Claude Code session running /analyze"><div class="sbar"><span class="dots"><i></i><i></i><i></i></span><span>Claude Code · loop-example/analytics</span></div>
+<div class="prompt"><b>›</b><code>/analyze</code> Did the onboarding checklist help new users come back?</div>
+<div class="stages">
+<div class="st2"><span class="k">clarify</span><span class="v">3 rounds · decision: keep or remove the checklist · metric retained_7d v2 · window 1 Jun to 12 Jul · falsifier: gap ≥ 3 pp</span></div>
+<div class="st2"><span class="k">/checked-analysis</span><span class="v">4 Checks written before the SQL · 3 queries run on retained inputs · analysis.yaml recorded</span></div>
+<div class="st2"><span class="k">/write-finding</span><span class="v">memo.md in six sections · 2 typed Claims · 12 values bound to saved results</span></div>
+<div class="st2"><span class="k">/iterate-visual</span><span class="v">1 chart · pass 2 of 3 · title states the Claim, no legend</span></div>
+<div class="st2"><span class="k">/shape-narrative</span><span class="v">answer first · material caveat beside the Answer · Reader: non-technical product owner</span></div>
+<div class="st2"><span class="k">/analysis-review</span><span class="v">Method <span class="ok">✓</span> · Question <span class="ok">✓</span> · Reader <span class="ok">✓</span> <span class="dim">(1 non-blocking note)</span></span></div>
+<div class="st2"><span class="k">aftergrid check</span><span class="v">syntax <span class="ok">ok</span> · content <span class="ok">complete</span> · evidence <span class="ok">valid</span> · publication <span class="warn">not ready</span> <span class="dim">(no human approval yet)</span></span></div>
+</div>
+<div class="done">Draft ready for your review: findings/2026-07-20-onboarding-checklist-retention<span class="dim">Next: aftergrid render, then open the pull request. No number reached the memo without a saved result behind it.</span></div></div>`;
+
+V['hero-skills'] = { name:'Skills first', html: (hl) => `<div class="wrap"><div class="hero-skills"><div class="centered"><p class="eyebrow">Open source · MIT · pre-release</p><h1 class="display">${nb(hl.h)}</h1><p class="lead">${esc(hl.sub)}</p><div class="cta-row"><a class="btn btn-primary" href="${GH}#install-from-a-local-tarball">Install the skills</a><a class="btn btn-ghost" href="${GH}">Star on GitHub</a></div>${cmdStrip}</div>${SESSION}<p class="figcap" style="justify-content:center"><span class="n">fig. 1</span><span><b>One run of /analyze.</b> Each stage is its own skill. The run halts, with a reason, when a gate fails.</span></p></div></div>` };
+V['skills-grid'] = { name:'Nine skills', html: () => sec('The skills', `<div class="head"><h2 class="h2">Nine skills. Four you type, five the agent reaches for.</h2><p class="lead">A skill is a procedure the agent follows, written for agents. No user-invoked skill calls another; the agent picks up the model-invoked ones mid-task. Each ships with a docs page and a Codex-style <code>agents/openai.yaml</code>.</p></div><div class="skills"><div class="group"><div class="gh"><h3>You type these</h3><span>user-invoked</span></div><div class="skill-cards">${SKILLS.user.map(skillCard).join('')}</div></div><div class="group"><div class="gh"><h3>The agent reaches for these</h3><span>model-invoked</span></div><div class="skill-cards">${SKILLS.model.map(skillCard).join('')}</div></div></div>`) };
+V['install-ways'] = { name:'Three ways in', html: () => sec('Install', `<div class="head"><h2 class="h2">Runs where your agent already works.</h2><p class="lead">Nothing is on npm or a marketplace yet. The plugin installs from a checkout, the CLI from a local tarball. Node 22.18 or newer; DuckDB ships prebuilt, so nothing compiles.</p></div><div class="install"><div class="way"><h3>Claude Code plugin</h3><p>The manifest is <code>.claude-plugin/plugin.json</code>. Point Claude Code at the checkout and the nine skills appear as slash commands.</p><pre><span class="p">$</span> git clone ${GH}
+<span class="c"># plugin manifest: .claude-plugin/plugin.json</span>
+<span class="c"># also install mattpocock-skills (grilling, writing-for-agents)</span></pre><p class="fine">Setup checks that <code>mattpocock-skills</code> is present and prints the exact install line if not.</p></div><div class="way"><h3>The CLI</h3><p>Checks, render, decide and intake. TypeScript sources, no build step, no native compiler.</p><pre><span class="p">$</span> pnpm pack
+<span class="p">$</span> npm install --ignore-scripts ./aftergrid-0.0.0.tgz
+<span class="p">$</span> npx aftergrid --help</pre><p class="fine">Or run from source: <code>node src/cli.ts --help</code>.</p></div><div class="way"><h3>Codex-style agents</h3><p>Every skill carries <code>agents/openai.yaml</code> beside its <code>SKILL.md</code>: display name, description and the invocation policy, stated the same way twice.</p><pre><span class="c">skills/analyze/</span>
+  SKILL.md
+  agents/openai.yaml   <span class="c"># allow_implicit_invocation: false</span></pre><p class="fine">The layout mirrors mattpocock-skills, so a skills.sh install addresses a skill by its directory name.</p></div></div>`) };
+V['cta-skills'] = { name:'Install the skills', html: () => sec('', `<div class="cta-big"><h2>Install the skills. Run /analyze on your data.</h2><p class="lead" style="margin-bottom:26px">Start on the public example: New York City open data, a real Question, a Finding you can read on your phone. Then point setup at the warehouse you cannot share.</p><div class="cta-row"><a class="btn btn-primary" href="${GH}">Install from GitHub</a><a class="btn btn-ghost" href="${GH}">Star on GitHub</a></div></div>`) };
+
 /* ===================== slots & layouts ===================== */
 const SLOTS = {
   nav:      { label:'Nav',       variants:['nav-min','nav-install','nav-bare'] },
-  hero:     { label:'Hero',      variants:['hero-doc','hero-doc-full','hero-collage','hero-layered','hero-type','hero-split','hero-chain','hero-terminal'] },
+  hero:     { label:'Hero',      variants:['hero-skills','hero-doc','hero-doc-full','hero-collage','hero-layered','hero-type','hero-split','hero-chain','hero-terminal'] },
+  skills:   { label:'Skills',    variants:['skills-grid'] },
+  install:  { label:'Install',   variants:['install-ways'] },
   headline: { label:'Headline',  variants:Object.keys(HEADLINES) },
   problem:  { label:'Problem',   variants:['problem-collage','problem-chain','problem-three','problem-dash','problem-rot','problem-lines'] },
   anatomy:  { label:'Finding',   variants:['anat-trace','anat-figure','anat-reading','anat-annot','anat-source','anat-sections'] },
@@ -869,38 +968,42 @@ const SLOTS = {
   trust:    { label:'Trust',     variants:['trust-vs-badge','trust-facts','trust-checks','trust-strip','trust-ticker'] },
   revisit:  { label:'Revisit',   variants:['rev-stack','rev-diff','rev-board','rev-terminal'] },
   oss:      { label:'Open source', variants:['oss-split','oss-tree','oss-blurb'] },
-  cta:      { label:'CTA',       variants:['cta-install','cta-star','cta-wait','cta-finding'] },
+  cta:      { label:'CTA',       variants:['cta-skills','cta-install','cta-star','cta-wait','cta-finding'] },
 };
 const LAYOUTS = {
-  collage: { name:'A · Collage', cls:'L-collage', surface:'plain',
+  skills: { name:'A · Skills', cls:'L-skills', surface:'plain',
+    rationale:'Skills are the launch surface. The hero is a real /analyze run, stage by stage; the nine skills follow as cards split by who invokes them; then how to install; then the problem collage, the Finding they produce, Checks, the decision log, engine/instance, install CTA.',
+    order:['nav','hero','skills','install','problem','anatomy','trust','revisit','oss','cta'],
+    defaults:{ nav:'nav-min', hero:'hero-skills', headline:'h11', skills:'skills-grid', install:'install-ways', problem:'problem-collage', anatomy:'anat-figure', trust:'trust-checks', revisit:'rev-board', oss:'oss-split', cta:'cta-skills' } },
+  collage: { name:'B · Collage', cls:'L-collage', surface:'plain',
     rationale:'Spatial. The problem is drawn as scattered artifacts wired together with the Finding at the end of the only solid line. Figure captions, blueprint grid, ticker of Checks. Best if the page must feel designed, not templated.',
     order:['nav','hero','anatomy','how','trust','revisit','oss','cta'],
     defaults:{ nav:'nav-min', hero:'hero-collage', headline:'h10', anatomy:'anat-figure', how:'how-hybrid', trust:'trust-checks', revisit:'rev-board', oss:'oss-split', cta:'cta-finding' } },
-  doc: { name:'B · Document', cls:'L-doc', surface:'plain',
+  doc: { name:'C · Document', cls:'L-doc', surface:'plain',
     rationale:'The Finding is the hero, in a browser frame with three pins. Everything below explains why it can be trusted. Best if the product must be understood by looking at one artifact.',
     order:['nav','hero','problem','anatomy','how','trust','revisit','oss','cta'],
     defaults:{ nav:'nav-min', hero:'hero-doc', headline:'h1', problem:'problem-collage', anatomy:'anat-trace', how:'how-hybrid', trust:'trust-vs-badge', revisit:'rev-stack', oss:'oss-split', cta:'cta-install' } },
-  manifesto: { name:'C · Manifesto', cls:'L-manifesto', surface:'plain',
+  manifesto: { name:'D · Manifesto', cls:'L-manifesto', surface:'plain',
     rationale:'Typography carries it. One narrow column, a 100px headline with the last word marked, the argument in big lines, then the Finding read as an essay. Best for a pre-release page with a point of view.',
     order:['nav','hero','problem','anatomy','how','trust','revisit','oss','cta'],
     defaults:{ nav:'nav-bare', hero:'hero-type', headline:'h5', problem:'problem-lines', anatomy:'anat-reading', how:'how-operator', trust:'trust-vs-badge', revisit:'rev-terminal', oss:'oss-blurb', cta:'cta-star' } },
-  split: { name:'D · Two readers', cls:'L-split', surface:'grid',
+  split: { name:'E · Two readers', cls:'L-split', surface:'grid',
     rationale:'The Operator in a terminal beside the Reader on a phone, joined by one line. Best if both audiences must find themselves in the first screen. Risk: two proofs compete.',
     order:['nav','hero','how','anatomy','trust','revisit','oss','cta'],
     defaults:{ nav:'nav-min', hero:'hero-split', headline:'h3', how:'how-hybrid', anatomy:'anat-trace', trust:'trust-facts', revisit:'rev-board', oss:'oss-split', cta:'cta-install' } },
-  chain: { name:'E · Before / after', cls:'L-chain', surface:'plain',
+  chain: { name:'F · Before / after', cls:'L-chain', surface:'plain',
     rationale:'Problem-led. The copy-paste chain crossed out, the Finding beside it. Best if the audience feels the pain daily. Risk: the "before" reads as a competitor diagram.',
     order:['nav','hero','anatomy','how','trust','revisit','oss','cta'],
     defaults:{ nav:'nav-install', hero:'hero-chain', headline:'h2', anatomy:'anat-annot', how:'how-reader', trust:'trust-checks', revisit:'rev-diff', oss:'oss-tree', cta:'cta-finding' } },
-  terminal: { name:'F · Terminal first', cls:'L-terminal', surface:'grid',
+  terminal: { name:'G · Terminal first', cls:'L-terminal', surface:'grid',
     rationale:'Speaks to the Operator only. Install chip, a real check session, checks table, repo tree. Best for GitHub traffic. Risk: the Reader and the deliverable are underplayed.',
     order:['nav','hero','anatomy','trust','revisit','problem','oss','cta'],
     defaults:{ nav:'nav-install', hero:'hero-terminal', headline:'h6', anatomy:'anat-source', trust:'trust-checks', revisit:'rev-terminal', problem:'problem-three', oss:'oss-tree', cta:'cta-install' } },
 };
 
 /* ===================== state ===================== */
-const LS = 'aftergrid-landing-directions-v3';
-let state = { layout:'collage', width:'desktop', face:'sans', surface:'auto', controls:'off', picks:{}, pref:'', notes:'' };
+const LS = 'aftergrid-landing-directions-v4';
+let state = { layout:'skills', width:'desktop', face:'sans', surface:'auto', controls:'off', picks:{}, pref:'', notes:'' };
 try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && typeof s === 'object') state = Object.assign(state, s); } catch (e) {}
 function save() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
 function picksFor(l) { state.picks[l] = state.picks[l] || {}; return state.picks[l]; }
@@ -908,7 +1011,7 @@ function pick(slot) { const L = LAYOUTS[state.layout]; const v = picksFor(state.
 
 /* ===================== render ===================== */
 function render() {
-  const L = LAYOUTS[state.layout] || LAYOUTS.collage; if (!LAYOUTS[state.layout]) state.layout = 'collage';
+  const L = LAYOUTS[state.layout] || LAYOUTS.skills; if (!LAYOUTS[state.layout]) state.layout = 'skills';
   const hl = HEADLINES[pick('headline')];
   const parts = L.order.map(slot => `<section class="sec" data-slot="${slot}">${slotControl(slot, pick(slot))}${V[pick(slot)].html(hl)}</section>`);
   parts.push(`<section class="sec">${V.footer.html()}</section>`);

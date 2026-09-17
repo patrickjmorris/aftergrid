@@ -44,7 +44,11 @@ Default composition per layout is recorded in the explorer; every slot can be sw
 | Open source | engine / instance boxes / repo tree / blurb | Engine/Instance is the positioning; tree is the proof it is just files |
 | CTA | install + example / star + spec / waitlist / read the Finding | Pre-npm: star + spec or read the Finding |
 
-## Decision (2026-09-16)
+## Decision, revised (2026-09-17): skills are the launch surface
+
+The owner judged that the nine skills carry more utility than the Finding as a headline, so the page now leads with them. New default direction **A · Skills**: hero is a faithful `/analyze` run shown stage by stage (clarify → /checked-analysis → /write-finding → /iterate-visual → /shape-narrative → /analysis-review → aftergrid check) under "Your agent can write SQL. These skills make it do analysis."; then the nine skills as cards split by who invokes them (four user-invoked, five model-invoked), each linking to its docs page; then install (Claude Code plugin from a checkout, CLI from a tarball, Codex-style `agents/openai.yaml`), stated honestly as pre-npm and pre-marketplace; then the problem collage, the Finding as "what the skills produce", Checks tied to /checked-analysis, the decision log, engine/instance, and an install CTA. The Collage direction is kept as B.
+
+## Decision (2026-09-16), superseded above
 
 Chosen: **Collage** (now direction A in the explorer), plain surface, Geist for the Finding. Composition: minimal nav → collage hero with "Five tools. One number. No trail." → labelled figure → two lanes → Checks table → decision-log board → engine / instance → "Read the Finding" CTA. Built as a static page at `site/index.html` (no JavaScript except popover placement). The number popovers were redesigned as a light provenance card: value and its arithmetic, then saved result → query → snapshot → definition with a status per step, the SQL, and the memo token. `aftergrid render` itself now emits the same popover on every resolved token (CSS only, keyboard and touch reachable; see `docs/contracts/render.md`), and `site/example-finding/` is real renderer output rather than the hand-authored reference, so the linked Finding does what the page says it does. The example renders in Geist: the fixture Instance sets `render.font: { preset: geist }` and the renderer embeds the vendored variable font (`fonts/geist`, SIL OFL); any Instance can bring its own files the same way.
 
