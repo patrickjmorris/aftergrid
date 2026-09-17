@@ -1,0 +1,31 @@
+{
+  "result_id": "weather_pairs",
+  "execution_id": "ex_weather_pairs",
+  "row_key": "weather_class",
+  "columns": [
+    "weather_class",
+    "class_label",
+    "day_pairs",
+    "all_day_pairs"
+  ],
+  "rows": [
+    {
+      "weather_class": "comparable",
+      "class_label": "Comparable weather",
+      "day_pairs": 10,
+      "all_day_pairs": 31
+    },
+    {
+      "weather_class": "not_comparable",
+      "class_label": "Not comparable",
+      "day_pairs": 21,
+      "all_day_pairs": 31
+    },
+    {
+      "weather_class": "unknown",
+      "class_label": "No observation",
+      "day_pairs": 0,
+      "all_day_pairs": 31
+    }
+  ]
+}

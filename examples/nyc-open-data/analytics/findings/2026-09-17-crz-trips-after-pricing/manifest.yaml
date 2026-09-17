@@ -1,0 +1,477 @@
+# Draft created by `aftergrid new finding`. State draft, outcome pending: nothing here is evidence yet.
+schema_version: 0.1.0
+finding:
+  id: fnd_l1lnb6r5tcdr
+  revision: 1
+  slug: crz-trips-after-pricing
+  title: Crz trips after pricing
+  state: draft
+  outcome: pending
+  generated_at: 2026-09-17T15:06:18Z
+  canonical_location: patrickjmorris/aftergrid/analytics/findings/2026-09-17-crz-trips-after-pricing
+owner:
+  name: Patrick Morris
+  contact: patrickjohnmorris@gmail.com
+reader:
+  profile: city_transport_analyst
+question:
+  id: crz_trips_after_pricing
+  raw_ask: Did trips into the Congestion Relief Zone change after congestion pricing started, compared with the same period a year earlier?
+  state: resolved
+  decision: What the transport programme lead reports upward about how trips into the Congestion Relief Zone in January 2025 compare with January 2024, how firmly to say it, and whether to wait for a longer period after the charge before drawing a conclusion. Owned by the programme lead this Finding is written for (Reader profile city_transport_analyst).
+  metric:
+    id: crz_trip
+    version: 1
+  population: Yellow taxi and high-volume for-hire (app-based, such as Uber and Lyft) trips that started or ended in one of the 38 taxi zones of the Congestion Relief Zone, counted once each on their pickup date. Green taxis, other for-hire vehicles, private cars, buses and the subway are not in the data.
+  window:
+    start: 2025-01-01
+    end: 2025-01-31
+    timezone: America/New_York
+  primary_comparison: Total trips into the zone over the whole of January 2025 (the after period, 1 to 31 January inclusive) against the whole of January 2024 (the baseline period), yellow taxi and high-volume for-hire together. The Instance records no start date for the charge, so the after period is the calendar month and no date inside it is treated as the start.
+  falsifier:
+    kind: check
+    check_id: falsifier_direction_holds_by_day_type
+    expected_outcome: pass
+    statement: The Answer names the direction in which trips into the zone moved between January 2024 and January 2025. It is wrong if that direction is only a calendar effect, that is, if average trips into the zone per weekday or per weekend day did not move the same way as the monthly total.
+snapshot:
+  id: snap_crz_trips_after_pricing
+  inputs:
+    - id: crz_daily
+      kind: extract
+      path: inputs/crz_daily.csv
+      content_hash:
+        algorithm: sha256
+        value: 941faf983ccf8a45a1417fe7b730fb534a007e5aefce1b4dcbeefede78cddac2
+      captured_at: 2026-09-17T15:09:29Z
+      description: Whole-table extract of crz_daily from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from crz_daily order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - crz_daily
+        consistency: single_transaction
+    - id: weather_daily
+      kind: extract
+      path: inputs/weather_daily.csv
+      content_hash:
+        algorithm: sha256
+        value: 2ef4e03d68e653f5d4c1f0085f166013d9b369fbff6be59190c4c1a5276f83ca
+      captured_at: 2026-09-17T15:09:29Z
+      description: Whole-table extract of weather_daily from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from weather_daily order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - weather_daily
+        consistency: single_transaction
+    - id: trips_sample
+      kind: extract
+      path: inputs/trips_sample.csv
+      content_hash:
+        algorithm: sha256
+        value: b3d8a327aa2282aaa7784ed5d465f955566b4e32aee60636fa06b6d610017cb0
+      captured_at: 2026-09-17T15:09:29Z
+      description: Whole-table extract of trips_sample from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from trips_sample order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - trips_sample
+        consistency: single_transaction
+    - id: build_provenance
+      kind: extract
+      path: inputs/build_provenance.csv
+      content_hash:
+        algorithm: sha256
+        value: 6a0fe32fb2265252eafe47335634229dbbd256202e8e42e0e9620d32ae3733ad
+      captured_at: 2026-09-17T15:09:29Z
+      description: Whole-table extract of build_provenance from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from build_provenance order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - build_provenance
+        consistency: single_transaction
+  guarantees:
+    - artifact_replay
+    - analysis_rerun
+definitions:
+  - id: crz_trip
+    version: 1
+    kind: metric
+    lifecycle: proposed
+    path: definitions/crz_trip.md
+    content_hash:
+      algorithm: sha256
+      value: e5cc52e7193a5f84a969d9cf07506f1402afae49b2e0352330a0ffe05860357e
+    role: supporting
+  - id: weekday_share
+    version: 1
+    kind: diagnostic
+    lifecycle: proposed
+    path: definitions/weekday_share.md
+    content_hash:
+      algorithm: sha256
+      value: d9766637116aec91ab387d84c2fb822bd7c5afe20c7841fcd77283ada39c1313
+    role: supporting
+  - id: comparable_weather_day
+    version: 1
+    kind: diagnostic
+    lifecycle: proposed
+    path: definitions/comparable_weather_day.md
+    content_hash:
+      algorithm: sha256
+      value: 417977038dca0c54f4cd707758a3a6133a60153a5b4906c64ccf308ccf093de8
+    role: supporting
+queries:
+  - id: crz_trips_by_period
+    path: queries/crz_trips_by_period.sql
+    content_hash:
+      algorithm: sha256
+      value: a095839564aebdd1580cc614026d29d13c1f4c100cb319eb98d70125b935d9ca
+    dialect: duckdb
+    purpose: Pre-registered comparison - trips into the zone, all trips and the share, baseline month against after month
+  - id: crz_trips_by_period_service
+    path: queries/crz_trips_by_period_service.sql
+    content_hash:
+      algorithm: sha256
+      value: 26753382f485de2952ed60bf07c03c072c107d8d52d4ff9d887bd0b4191f2ae9
+    dialect: duckdb
+    purpose: The same comparison split by service
+  - id: crz_trips_by_day_type
+    path: queries/crz_trips_by_day_type.sql
+    content_hash:
+      algorithm: sha256
+      value: 755fb34bf30255bf45129e7773a1e6f1ced8609d21a6a1b917d7ba4d88bde24d
+    dialect: duckdb
+    purpose: Trips into the zone per weekday and per weekend day in each month
+  - id: crz_trips_daily
+    path: queries/crz_trips_daily.sql
+    content_hash:
+      algorithm: sha256
+      value: df7c28656ee590c73ab373dc0eb761f3db1d2d0e74dcc73452f3403107a882ef
+    dialect: duckdb
+    purpose: Daily series of trips into the zone in both months
+  - id: weather_pairs
+    path: queries/weather_pairs.sql
+    content_hash:
+      algorithm: sha256
+      value: 1d46c1ad4d9f41cfe683ec270ce02fde024e09c004d1a60499b1deafb391278b
+    dialect: duckdb
+    purpose: comparable_weather_day v1 classes counted over the aligned day pairs
+  - id: weather_by_period
+    path: queries/weather_by_period.sql
+    content_hash:
+      algorithm: sha256
+      value: 11e275ba043978f19613887bb06d6ccc04a11b8147807361e3bd435024f8d2d9
+    dialect: duckdb
+    purpose: Weather in each month, including snow, which the v1 rule does not test
+executions:
+  - id: ex_crz_trips_by_period
+    query_id: crz_trips_by_period
+    sql_hash:
+      algorithm: sha256
+      value: a095839564aebdd1580cc614026d29d13c1f4c100cb319eb98d70125b935d9ca
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 } ]
+    result_id: crz_trips_by_period
+    result_hash:
+      algorithm: sha256
+      value: 3edf41644c7112e8ff60329bd60c7117268dd97c378d21a70ef90b31123cfa91
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+  - id: ex_crz_trips_by_period_service
+    query_id: crz_trips_by_period_service
+    sql_hash:
+      algorithm: sha256
+      value: 26753382f485de2952ed60bf07c03c072c107d8d52d4ff9d887bd0b4191f2ae9
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 } ]
+    result_id: crz_trips_by_period_service
+    result_hash:
+      algorithm: sha256
+      value: 4425f1684a845280d045e4c6e9154c981570296958be4c97cc3c23af0a525316
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+  - id: ex_crz_trips_by_day_type
+    query_id: crz_trips_by_day_type
+    sql_hash:
+      algorithm: sha256
+      value: 755fb34bf30255bf45129e7773a1e6f1ced8609d21a6a1b917d7ba4d88bde24d
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 } ]
+    result_id: crz_trips_by_day_type
+    result_hash:
+      algorithm: sha256
+      value: 6d682fbe9d1c90b5f675f59c97db1b89cc809f013c2eb892117d9af6ddb7d427
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+  - id: ex_crz_trips_daily
+    query_id: crz_trips_daily
+    sql_hash:
+      algorithm: sha256
+      value: df7c28656ee590c73ab373dc0eb761f3db1d2d0e74dcc73452f3403107a882ef
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 } ]
+    result_id: crz_trips_daily
+    result_hash:
+      algorithm: sha256
+      value: 30400f0cc8f6e33636bb98eabfff463cacf374819c15104e48980be709db2e69
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+  - id: ex_weather_pairs
+    query_id: weather_pairs
+    sql_hash:
+      algorithm: sha256
+      value: 1d46c1ad4d9f41cfe683ec270ce02fde024e09c004d1a60499b1deafb391278b
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ weather_daily ]
+    definition_refs: [ { id: comparable_weather_day, version: 1 } ]
+    result_id: weather_pairs
+    result_hash:
+      algorithm: sha256
+      value: 8240b2106265f2cd14401b07fe4cf5b0339bba902cbc3acb5205e5df2ad0b734
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+  - id: ex_weather_by_period
+    query_id: weather_by_period
+    sql_hash:
+      algorithm: sha256
+      value: 11e275ba043978f19613887bb06d6ccc04a11b8147807361e3bd435024f8d2d9
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ weather_daily ]
+    definition_refs: []
+    result_id: weather_by_period
+    result_hash:
+      algorithm: sha256
+      value: 619d30585294d2a735be89b66d50e903d2f25a03c9ce332c1b21badf2690b136
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T15:20:36Z
+results:
+  - id: crz_trips_by_period
+    execution_id: ex_crz_trips_by_period
+    path: results/crz_trips_by_period.json
+    row_key: period
+    columns:
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: first_day, type: date, unit: date }
+      - { name: last_day, type: date, unit: date }
+      - { name: days, type: integer, unit: days, display: { kind: integer } }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
+      - { name: other_trips, type: integer, unit: count, display: { kind: integer } }
+      - { name: crz_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: crz_trips_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: weekday_days, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: weekday_share, version: 1 } }
+      - { name: weekday_share_all_trips, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: weekday_share, version: 1 } }
+    row_count: 2
+    content_hash:
+      algorithm: sha256
+      value: 3edf41644c7112e8ff60329bd60c7117268dd97c378d21a70ef90b31123cfa91
+  - id: crz_trips_by_period_service
+    execution_id: ex_crz_trips_by_period_service
+    path: results/crz_trips_by_period_service.json
+    row_key: period_service
+    columns:
+      - { name: period_service, type: text, unit: text }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: service, type: text, unit: text }
+      - { name: service_label, type: text, unit: text }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
+      - { name: crz_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: crz_trip, version: 1 } }
+    row_count: 4
+    content_hash:
+      algorithm: sha256
+      value: 4425f1684a845280d045e4c6e9154c981570296958be4c97cc3c23af0a525316
+  - id: crz_trips_by_day_type
+    execution_id: ex_crz_trips_by_day_type
+    path: results/crz_trips_by_day_type.json
+    row_key: period_day_type
+    columns:
+      - { name: period_day_type, type: text, unit: text }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: day_type, type: text, unit: text }
+      - { name: day_type_label, type: text, unit: text }
+      - { name: days, type: integer, unit: days, display: { kind: integer } }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: crz_trips_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+    row_count: 4
+    content_hash:
+      algorithm: sha256
+      value: 6d682fbe9d1c90b5f675f59c97db1b89cc809f013c2eb892117d9af6ddb7d427
+  - id: crz_trips_daily
+    execution_id: ex_crz_trips_daily
+    path: results/crz_trips_daily.json
+    row_key: pickup_date
+    columns:
+      - { name: pickup_date, type: date, unit: date }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: day_of_month, type: integer, unit: days, display: { kind: integer } }
+      - { name: day_name, type: text, unit: text }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
+    row_count: 62
+    content_hash:
+      algorithm: sha256
+      value: 30400f0cc8f6e33636bb98eabfff463cacf374819c15104e48980be709db2e69
+  - id: weather_pairs
+    execution_id: ex_weather_pairs
+    path: results/weather_pairs.json
+    row_key: weather_class
+    columns:
+      - { name: weather_class, type: text, unit: text }
+      - { name: class_label, type: text, unit: text }
+      - { name: day_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: all_day_pairs, type: integer, unit: days, display: { kind: integer } }
+    row_count: 3
+    content_hash:
+      algorithm: sha256
+      value: 8240b2106265f2cd14401b07fe4cf5b0339bba902cbc3acb5205e5df2ad0b734
+  - id: weather_by_period
+    execution_id: ex_weather_by_period
+    path: results/weather_by_period.json
+    row_key: period
+    columns:
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: days_observed, type: integer, unit: days, display: { kind: integer } }
+      - { name: mean_tmax_c, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+      - { name: freezing_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: wet_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: snow_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: total_prcp_mm, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+      - { name: total_snow_mm, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+    row_count: 2
+    content_hash:
+      algorithm: sha256
+      value: 619d30585294d2a735be89b66d50e903d2f25a03c9ce332c1b21badf2690b136
+derived: []
+external_sources: []
+claims: []
+charts: []
+tables: []
+checks:
+  - id: inv_grain_unique_and_valid
+    kind: invariant
+    path: checks/inv_grain_unique_and_valid.sql
+    content_hash:
+      algorithm: sha256
+      value: 71b8a8a6d7d8506fdb221b8a8205880a0eefaf7efc4fa093b86797fbacb34ee7
+    description: Inside both months the table has one row per pickup date, service and zone side, only yellow and high-volume for-hire, and no missing or negative trip count, so nothing is double counted.
+    required: true
+    outcome: pass
+    execution_id: ex_crz_trips_by_period
+    executed_at: 2026-09-17T15:20:36Z
+  - id: inv_definition_sql_matches_analysis
+    kind: invariant
+    path: checks/inv_definition_sql_matches_analysis.sql
+    content_hash:
+      algorithm: sha256
+      value: 99d490d388604efe00d65c386f3f010530f43b15825d9685d1372c11cf674a60
+    description: The monthly totals the analysis computes equal the sum of the daily rows the crz_trip v1 SQL returns as written. crz_trip v1 is proposed, so this shows the analysis follows the definition's text; it is not a reconciliation against an approved definition, because none exists.
+    required: true
+    outcome: pass
+    execution_id: ex_crz_trips_by_period
+    executed_at: 2026-09-17T15:20:36Z
+  - id: min_data_every_day_present
+    kind: minimum_data
+    path: checks/min_data_every_day_present.sql
+    content_hash:
+      algorithm: sha256
+      value: faf3ea4a0acab0d2649f0f0e99c2558b50578e720d7227e2c899d5935ab094f4
+    description: Both months are whole - every calendar day is present for both services on both sides of the zone, with at least one trip into the zone.
+    required: false
+    outcome: pass
+    execution_id: ex_crz_trips_by_period
+    executed_at: 2026-09-17T15:20:36Z
+  - id: min_data_weather_observed
+    kind: minimum_data
+    path: checks/min_data_weather_observed.sql
+    content_hash:
+      algorithm: sha256
+      value: 9de196bb7434870eee347eed2cdb217b317f072bc93993a3d3ad30f70568991c
+    description: Every day of both months has a maximum temperature and a precipitation observation from one station, so no aligned day pair is unknown for lack of data.
+    required: false
+    outcome: pass
+    execution_id: ex_weather_pairs
+    executed_at: 2026-09-17T15:20:36Z
+  - id: falsifier_direction_holds_by_day_type
+    kind: falsifier
+    path: checks/falsifier_direction_holds_by_day_type.sql
+    content_hash:
+      algorithm: sha256
+      value: 271d684cc9c1b007b246ff3dd0d54924f599141e77a4795fc7a19112c02b70eb
+    description: The direction of the change in the monthly total of trips into the zone is also the direction of the change in average trips per weekday and per weekend day. Not evaluable when a month is missing a day or the totals are equal.
+    required: true
+    outcome: fail
+    execution_id: ex_crz_trips_by_day_type
+    expected_outcome: pass
+    executed_at: 2026-09-17T15:20:36Z
+reviews: []
+attestations: []
+export_policy:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+  allowed_fields: []
+  delivery: html_file
+coverage:
+  data_from: 1970-01-01
+  data_to: 1970-01-01
+  description: Not determined yet. No data has been read.
+renderer:
+  version: 0.0.0
+  house_style_version: 0.2.0
+content_digest:
+  algorithm: sha256
+  value: 2807146fe522ea50dd7d88aa8d6bce4043bbbe84f326b1e5aa2fa77eea838be1

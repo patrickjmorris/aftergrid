@@ -1,0 +1,49 @@
+{
+  "result_id": "crz_trips_by_period",
+  "execution_id": "ex_crz_trips_by_period",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "period_label",
+    "first_day",
+    "last_day",
+    "days",
+    "crz_trips",
+    "all_trips",
+    "other_trips",
+    "crz_share",
+    "crz_trips_per_day",
+    "weekday_days",
+    "weekday_share_all_trips"
+  ],
+  "rows": [
+    {
+      "period": "baseline",
+      "period_label": "January 2024",
+      "first_day": "2024-01-01",
+      "last_day": "2024-01-31",
+      "days": 31,
+      "crz_trips": 9037182,
+      "all_trips": 22628536,
+      "other_trips": 13591354,
+      "crz_share": "0.399371",
+      "crz_trips_per_day": "291522.0",
+      "weekday_days": 23,
+      "weekday_share_all_trips": "0.716894"
+    },
+    {
+      "period": "after",
+      "period_label": "January 2025",
+      "first_day": "2025-01-01",
+      "last_day": "2025-01-31",
+      "days": 31,
+      "crz_trips": 9277575,
+      "all_trips": 23880870,
+      "other_trips": 14603295,
+      "crz_share": "0.388494",
+      "crz_trips_per_day": "299276.6",
+      "weekday_days": 23,
+      "weekday_share_all_trips": "0.732371"
+    }
+  ]
+}

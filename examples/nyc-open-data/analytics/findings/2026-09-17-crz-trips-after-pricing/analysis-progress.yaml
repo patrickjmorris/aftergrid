@@ -1,0 +1,4 @@
+stage: checked_analysis
+status: needs_attention
+reason: "check_failed at checks/falsifier_direction_holds_by_day_type: the required falsifier, written before any total was seen and expecting pass, recorded fail (monthly total of trips into the zone up, per-weekday average up, per-weekend-day average down). aftergrid check reports evidence invalid and render is refused while it stands. This is a disagreement about what the data support, not a broken execution: all six results reran exactly and the other four Checks passed. The Check was not edited after the result. analysis.yaml recommends inconclusive. Owner: Patrick Morris (Operator) - decide whether to accept inconclusive as it stands or open a new revision with a newly pre-registered Question; write_finding onward has not run."
+updated: "2026-09-17T15:22:48Z"

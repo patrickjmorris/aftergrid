@@ -1,0 +1,163 @@
+schema_version: 0.1.0
+stage: analysed
+reader_profile: city_transport_analyst
+assumptions:
+  - id: a_operator_answers_from_instance
+    statement: The Operator asked that clarification answers be taken from README.md, readers.md and the definitions rather than from an interview, and recorded here. No round of questions was put to a person.
+    basis: operator_answer
+    settled_by: Operator run context for this /analyze invocation, 2026-09-17
+    affects: [decision, metric, population, window, primary_comparison, falsifier]
+  - id: a_decision_from_reader_profile
+    statement: The decision is what the programme lead reports upward about how the charge is going and how firmly, and whether to wait for a longer window. Taken from the decisions list of the city_transport_analyst profile, which is a composite and not a person.
+    basis: instance_document
+    settled_by: readers.md, city_transport_analyst
+    affects: [decision]
+  - id: a_metric_is_proposed_crz_trip
+    statement: "'Trips into the zone' means crz_trip v1: a yellow or high-volume for-hire trip whose pickup or dropoff zone is in crz_zones, counted once. The definition is proposed and carries no approval. The Operator, who owns the definition, directed that it be used as written and its status stated. It is pinned with role supporting and may not headline a published decision metric until approved."
+    basis: operator_answer
+    settled_by: Operator run context; definitions/crz_trip.md
+    affects: [metric, population, publication]
+  - id: a_window_whole_months
+    statement: The after period is the whole of January 2025 and the baseline is the whole of January 2024, as half-open pickup-date ranges. The Instance records no start date for the congestion charge, so none is asserted and days inside January 2025 are not split into before and after.
+    basis: operator_answer
+    settled_by: Operator run context
+    affects: [window, primary_comparison]
+  - id: a_timezone_is_file_local
+    statement: The analytical timezone is America/New_York. pickup_date in crz_daily is already the local New York date the TLC file carries and the build converts nothing, so the SQL applies no timezone conversion, and the parameter is recorded without being used in a date expression.
+    basis: instance_document
+    settled_by: definitions/crz_trip.md (window), definitions/weekday_share.md
+    affects: [window]
+  - id: a_no_materiality_threshold
+    statement: Nothing in the Instance records how large a change is large enough to act on. The Analysis reports the size of the change and does not label it large or small; the falsifier tests direction only.
+    basis: instance_document
+    settled_by: readers.md lists the decision but no threshold
+    affects: [falsifier, claims]
+  - id: a_falsifier_before_data
+    statement: The falsifier was written after a structural look at the retained inputs (row and day counts per month, null counts, and the first four rows of each CSV, which are 1 January 2024) and before any total, share or comparison was computed.
+    basis: catalog_probe
+    affects: [falsifier]
+pre_registered_comparison:
+  statement: Total crz_trip v1 trips (yellow plus high-volume for-hire) with pickup dates 2025-01-01 to 2025-01-31 against the same total for 2024-01-01 to 2024-01-31. Secondary, also fixed before any number was seen - the same comparison as a share of all yellow and high-volume for-hire trips, by service, and by weekday against weekend; the comparable_weather_day v1 count over the 31 aligned day pairs.
+  registered_before_cuts: true
+  registered_at: "2026-09-17T15:18:58Z"
+  source: analysis.yaml, written at the clarify stage before any analysis query existed
+probes:
+  - id: p_catalog
+    at: "2026-09-17T15:16:30Z"
+    kind: exploratory
+    question: Which tables and columns exist, and which can be captured under the admission cap?
+    observed: aftergrid capture --catalog listed 10 tables. crz_daily has pickup_date, service, in_crz, trips and three sums; weather_daily has tmax_c, prcp_mm, snow_mm. trips_daily is over the cap and not admissible. The Finding already held whole-table extracts of crz_daily, weather_daily, trips_sample and build_provenance, captured at 2026-09-17T15:09:29Z before this run. The same command printed the first four data rows of each CSV, all dated 1 January 2024; no total was computed.
+    changed_plan: Plan reads crz_daily and weather_daily only. crz_zones was not captured and is not needed, because in_crz already carries the rule. trips_sample is retained but unused.
+  - id: p_no_duckdb_cli
+    at: "2026-09-17T15:16:40Z"
+    kind: dead_end
+    question: Can the retained CSVs be probed with a duckdb command-line client or the Python duckdb module?
+    observed: Neither is installed on this machine. Nothing was read.
+    changed_plan: Structural probes used the Python standard library csv reader instead. All evidence SQL runs through aftergrid execute.
+  - id: p_coverage
+    at: "2026-09-17T15:16:51Z"
+    kind: exploratory
+    question: Are both months whole in crz_daily and weather_daily, and what does build_provenance say was read?
+    observed: crz_daily has 124 rows over 31 days for each of 2024-01, 2024-12 and 2025-01, and 112 rows over 28 days for 2025-02, two services, no null or negative trips and no bad zone flag. weather_daily has 31 observed days in each January with no missing maximum temperature, precipitation or snow, one station. The 2025-01 TLC files were last modified 23 April 2025 and the 2024-01 files 21 March 2024; the high-volume for-hire files were streamed and never hashed. Row and day counts only; no trip total was computed.
+    changed_plan: Both whole-month windows are available. The Checks were written next, before any analysis query.
+  - id: p_text_typed_inputs
+    at: "2026-09-17T15:20:25Z"
+    kind: dead_end
+    question: Do the Checks and queries run as first written against the retained extracts?
+    observed: The first aftergrid execute stopped with a binder error, a text column compared with a date, and wrote nothing, so no number was seen. Retained extracts load every column as text. The time here was read when the repair began, straight after the failure; the failing run itself was not separately timed. A second execute stopped on two manifest strings containing a colon, again before writing anything.
+    changed_plan: Every Check and query gained one leading block that casts the columns it reads. No condition, threshold, filter or expected outcome in any Check changed.
+  - id: p_read_results
+    at: "2026-09-17T15:20:54Z"
+    kind: exploratory
+    question: What did the pinned results and Checks show?
+    observed: Four Checks passed. The falsifier recorded fail - the monthly total of trips into the zone rose, average trips per weekday rose, and average trips per weekend day fell. aftergrid check reports check_failed, evidence invalid, and check --mode rerun reproduced all six results exactly. The falsifier was left as written, required and expecting pass.
+    changed_plan: The recommendation is inconclusive, not answered. No Check, threshold or requirement was altered after the result was seen. The run halts for a person to look at the failed falsifier.
+execution_order:
+  - { kind: probe, id: p_catalog }
+  - { kind: probe, id: p_no_duckdb_cli }
+  - { kind: probe, id: p_coverage }
+  - { kind: check, id: falsifier_direction_holds_by_day_type, note: written first - at the clarify stage }
+  - { kind: check, id: inv_grain_unique_and_valid }
+  - { kind: check, id: inv_definition_sql_matches_analysis }
+  - { kind: check, id: min_data_every_day_present }
+  - { kind: check, id: min_data_weather_observed }
+  - { kind: query, id: crz_trips_by_period, note: the pre-registered comparison }
+  - { kind: query, id: crz_trips_by_period_service }
+  - { kind: query, id: crz_trips_by_day_type }
+  - { kind: query, id: crz_trips_daily }
+  - { kind: query, id: weather_pairs }
+  - { kind: query, id: weather_by_period }
+  - { kind: probe, id: p_text_typed_inputs, post_hoc: true, note: after the SQL files were written and before any result existed }
+  - { kind: probe, id: p_read_results, post_hoc: true }
+requested_derived:
+  - { id: crz_trips_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_period.baseline.crz_trips", "ref:crz_trips_by_period.after.crz_trips"], unit: ratio, display: { kind: percent, decimals: 1 }, description: Change in trips into the zone from the baseline month to the after month }
+  - { id: all_trips_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_period.baseline.all_trips", "ref:crz_trips_by_period.after.all_trips"], unit: ratio, display: { kind: percent, decimals: 1 }, description: Change in all yellow and high-volume for-hire trips }
+  - { id: crz_share_change, operation: difference, operands: ["ref:crz_trips_by_period.after.crz_share", "ref:crz_trips_by_period.baseline.crz_share"], unit: ratio, display: { kind: percentage_points, decimals: 1 }, description: Change in the share of all trips that touched the zone }
+  - { id: weekday_per_day_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_day_type.baseline_weekday.crz_trips_per_day", "ref:crz_trips_by_day_type.after_weekday.crz_trips_per_day"], unit: ratio, display: { kind: percent, decimals: 1 } }
+  - { id: weekend_per_day_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_day_type.baseline_weekend.crz_trips_per_day", "ref:crz_trips_by_day_type.after_weekend.crz_trips_per_day"], unit: ratio, display: { kind: percent, decimals: 1 } }
+  - { id: yellow_crz_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_period_service.baseline_yellow.crz_trips", "ref:crz_trips_by_period_service.after_yellow.crz_trips"], unit: ratio, display: { kind: percent, decimals: 1 } }
+  - { id: hvfhs_crz_pct_change, operation: percent_change, operands: ["ref:crz_trips_by_period_service.baseline_hvfhs.crz_trips", "ref:crz_trips_by_period_service.after_hvfhs.crz_trips"], unit: ratio, display: { kind: percent, decimals: 1 } }
+candidate_claims:
+  - id: c1
+    sentence_draft: This Analysis cannot say which way trips into the zone moved. The monthly total was higher in January 2025 than in January 2024, and so was the average weekday, but the average weekend day was lower, which is the result the Question said in advance would show a one-direction answer wrong.
+    type: descriptive
+    numeric: true
+    answer_bearing: true
+    evidence: ["ref:crz_trips_by_period.baseline.crz_trips", "ref:crz_trips_by_period.after.crz_trips", "derived:crz_trips_pct_change", "derived:weekday_per_day_pct_change", "derived:weekend_per_day_pct_change"]
+    definition_refs: [{ id: crz_trip, version: 1 }, { id: weekday_share, version: 1 }]
+    comparison: { kind: baseline_period, description: The whole of January 2025 against the whole of January 2024, pre_registered: true }
+    population: Yellow taxi and high-volume for-hire trips whose pickup or dropoff zone is one of the 38 zones in crz_zones, counted once on the pickup date (crz_trip v1, proposed)
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: [Green taxis and non-high-volume for-hire vehicles are not in the build, Private cars, buses, subway and bikes are not in the data, Trips with an unknown zone at both ends never count as into the zone but stay in all trips]
+    limitations: [One month either side is not a trend, The Instance records no start date for the charge so January 2025 is not split into before and after, crz_trip v1 and weekday_share v1 are proposed and not approved, Public holidays are counted as weekdays in both months, Trip records carry no rider identity so this is about trips and not people, The retained input is the derived crz_daily table and not the TLC trip files, The TLC restates published months and the high-volume for-hire files were streamed without a hash]
+    material_caveat: A difference between January 2024 and January 2025 is not the effect of the charge. Nothing here separates the charge from weather, from a year of change in how people travel, or from growth in taxi and app-based trips across the city.
+    recheck_draft: { mode: not_automatically_evaluable, reason: The pre-registered falsifier failed on this data and a longer period after the charge is not in the Instance, owner: Patrick Morris, review_hint: Rebuild with later months and rerun the same Checks unchanged }
+  - id: c2
+    sentence_draft: Trips into the zone were a smaller share of all taxi and app-based trips in January 2025 than in January 2024, because all trips grew faster than trips into the zone.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:crz_trips_by_period.baseline.crz_share", "ref:crz_trips_by_period.after.crz_share", "derived:crz_share_change", "derived:all_trips_pct_change"]
+    definition_refs: [{ id: crz_trip, version: 1 }]
+    comparison: { kind: baseline_period, description: Share in January 2025 against share in January 2024, pre_registered: true }
+    population: Yellow taxi and high-volume for-hire trips whose pickup or dropoff zone is one of the 38 zones in crz_zones, counted once on the pickup date (crz_trip v1, proposed)
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: [Trips with an unknown zone stay in all trips and never count as into the zone]
+    limitations: [All trips means yellow plus high-volume for-hire only and is dominated by high-volume for-hire, A falling share is not a fall in trips across the city]
+    recheck_draft: { mode: not_automatically_evaluable, reason: Later months are not in the Instance, owner: Patrick Morris }
+  - id: c3
+    sentence_draft: The two services moved in opposite directions - yellow taxi trips into the zone were higher and app-based for-hire trips into the zone were lower.
+    type: descriptive
+    numeric: true
+    evidence: ["derived:yellow_crz_pct_change", "derived:hvfhs_crz_pct_change", "ref:crz_trips_by_period_service.baseline_yellow.crz_trips", "ref:crz_trips_by_period_service.after_yellow.crz_trips", "ref:crz_trips_by_period_service.baseline_hvfhs.crz_trips", "ref:crz_trips_by_period_service.after_hvfhs.crz_trips"]
+    definition_refs: [{ id: crz_trip, version: 1 }]
+    comparison: { kind: baseline_period, description: Each service in January 2025 against itself in January 2024, pre_registered: true }
+    population: Yellow taxi and high-volume for-hire trips whose pickup or dropoff zone is one of the 38 zones in crz_zones, counted once on the pickup date (crz_trip v1, proposed)
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: []
+    limitations: [High-volume for-hire excludes black car, livery and limousine trips, The high-volume for-hire source files were streamed and never hashed]
+    recheck_draft: { mode: not_automatically_evaluable, reason: Later months are not in the Instance, owner: Patrick Morris }
+  - id: c4
+    sentence_draft: The two Januaries were not alike on weather - fewer than half of the aligned day pairs had comparable weather, and January 2025 was colder and much drier.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:weather_pairs.comparable.day_pairs", "ref:weather_pairs.not_comparable.day_pairs", "ref:weather_pairs.comparable.all_day_pairs", "ref:weather_by_period.baseline.mean_tmax_c", "ref:weather_by_period.after.mean_tmax_c", "ref:weather_by_period.baseline.wet_days", "ref:weather_by_period.after.wet_days", "ref:weather_by_period.baseline.total_snow_mm", "ref:weather_by_period.after.total_snow_mm"]
+    definition_refs: [{ id: comparable_weather_day, version: 1 }]
+    comparison: { kind: baseline_period, description: Day n of January 2025 against day n of January 2024 at Central Park, pre_registered: true }
+    population: Aligned day pairs with a maximum temperature and precipitation observation at station USW00094728
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: []
+    limitations: [comparable_weather_day v1 is a proposed diagnostic and does not test snow, Pairs are aligned by date and not by day of the week, A weather match would not make the comparison causal and a mismatch does not explain the difference]
+    recheck_draft: { mode: not_automatically_evaluable, reason: A diagnostic about two fixed months does not change with new data, owner: Patrick Morris }
+outcome_recommendation:
+  outcome: inconclusive
+  reason: The falsifier written before any total was seen recorded fail. The monthly total of trips into the zone and the average weekday were higher in January 2025, the average weekend day was lower, the two services moved in opposite directions, and only a minority of aligned day pairs had comparable weather. The data do not support one direction for trips into the zone.
+  what_would_be_needed:
+    - A person to look at the failed required falsifier. aftergrid check reports check_failed and evidence invalid, and render is refused while it stands. Changing the Check, its requirement or its expected outcome now would be setting the bar after the result, so it was not done.
+    - If the Operator wants weekdays and weekend days answered as two Questions, that is a new pre-registration in a new revision, not an edit to this one.
+    - More months after January 2025 in the build, so one month either side stops being the whole comparison.
+    - A recorded start date for the charge in the Instance, if any day inside January 2025 is to be treated as before it.
+notes:
+  - Data path - adapter. aftergrid execute ran every query and Check on the retained extracts, and check --mode rerun reproduced all six results exactly. snapshot.guarantees are artifact_replay and analysis_rerun.
+  - All three definitions used are proposed and unapproved and are pinned with role supporting, at the Operator's direction. crz_trip v1 needs approval before it can be a published decision metric.
+  - weekday_share v1 names trips_daily, which cannot be captured. Its rule was applied to crz_daily, which the README says is summed from trips_daily without dropping a trip.
+  - README.md quotes 9,277,575 trips for a January crz_trip run. It was read during clarification, before the Checks were written, without knowing which January it was. It equals the January 2025 total here.

@@ -1,0 +1,574 @@
+{
+  "result_id": "crz_trips_daily",
+  "execution_id": "ex_crz_trips_daily",
+  "row_key": "pickup_date",
+  "columns": [
+    "pickup_date",
+    "period",
+    "period_label",
+    "day_of_month",
+    "day_name",
+    "crz_trips",
+    "all_trips"
+  ],
+  "rows": [
+    {
+      "pickup_date": "2024-01-01",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 1,
+      "day_name": "Monday",
+      "crz_trips": 257425,
+      "all_trips": 719419
+    },
+    {
+      "pickup_date": "2024-01-02",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 2,
+      "day_name": "Tuesday",
+      "crz_trips": 195265,
+      "all_trips": 553773
+    },
+    {
+      "pickup_date": "2024-01-03",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 3,
+      "day_name": "Wednesday",
+      "crz_trips": 208956,
+      "all_trips": 580759
+    },
+    {
+      "pickup_date": "2024-01-04",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 4,
+      "day_name": "Thursday",
+      "crz_trips": 257101,
+      "all_trips": 675533
+    },
+    {
+      "pickup_date": "2024-01-05",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 5,
+      "day_name": "Friday",
+      "crz_trips": 282749,
+      "all_trips": 759832
+    },
+    {
+      "pickup_date": "2024-01-06",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 6,
+      "day_name": "Saturday",
+      "crz_trips": 333071,
+      "all_trips": 806145
+    },
+    {
+      "pickup_date": "2024-01-07",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 7,
+      "day_name": "Sunday",
+      "crz_trips": 232189,
+      "all_trips": 610310
+    },
+    {
+      "pickup_date": "2024-01-08",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 8,
+      "day_name": "Monday",
+      "crz_trips": 214066,
+      "all_trips": 599628
+    },
+    {
+      "pickup_date": "2024-01-09",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 9,
+      "day_name": "Tuesday",
+      "crz_trips": 275521,
+      "all_trips": 718319
+    },
+    {
+      "pickup_date": "2024-01-10",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 10,
+      "day_name": "Wednesday",
+      "crz_trips": 262319,
+      "all_trips": 662258
+    },
+    {
+      "pickup_date": "2024-01-11",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 11,
+      "day_name": "Thursday",
+      "crz_trips": 291597,
+      "all_trips": 713286
+    },
+    {
+      "pickup_date": "2024-01-12",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 12,
+      "day_name": "Friday",
+      "crz_trips": 305814,
+      "all_trips": 787244
+    },
+    {
+      "pickup_date": "2024-01-13",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 13,
+      "day_name": "Saturday",
+      "crz_trips": 367021,
+      "all_trips": 857465
+    },
+    {
+      "pickup_date": "2024-01-14",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 14,
+      "day_name": "Sunday",
+      "crz_trips": 328591,
+      "all_trips": 778233
+    },
+    {
+      "pickup_date": "2024-01-15",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 15,
+      "day_name": "Monday",
+      "crz_trips": 254832,
+      "all_trips": 636283
+    },
+    {
+      "pickup_date": "2024-01-16",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 16,
+      "day_name": "Tuesday",
+      "crz_trips": 282576,
+      "all_trips": 709607
+    },
+    {
+      "pickup_date": "2024-01-17",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 17,
+      "day_name": "Wednesday",
+      "crz_trips": 321639,
+      "all_trips": 790122
+    },
+    {
+      "pickup_date": "2024-01-18",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 18,
+      "day_name": "Thursday",
+      "crz_trips": 328388,
+      "all_trips": 794300
+    },
+    {
+      "pickup_date": "2024-01-19",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 19,
+      "day_name": "Friday",
+      "crz_trips": 323062,
+      "all_trips": 834561
+    },
+    {
+      "pickup_date": "2024-01-20",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 20,
+      "day_name": "Saturday",
+      "crz_trips": 400508,
+      "all_trips": 933423
+    },
+    {
+      "pickup_date": "2024-01-21",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 21,
+      "day_name": "Sunday",
+      "crz_trips": 304432,
+      "all_trips": 762339
+    },
+    {
+      "pickup_date": "2024-01-22",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 22,
+      "day_name": "Monday",
+      "crz_trips": 245422,
+      "all_trips": 656667
+    },
+    {
+      "pickup_date": "2024-01-23",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 23,
+      "day_name": "Tuesday",
+      "crz_trips": 285879,
+      "all_trips": 688410
+    },
+    {
+      "pickup_date": "2024-01-24",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 24,
+      "day_name": "Wednesday",
+      "crz_trips": 306561,
+      "all_trips": 726853
+    },
+    {
+      "pickup_date": "2024-01-25",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 25,
+      "day_name": "Thursday",
+      "crz_trips": 324765,
+      "all_trips": 763289
+    },
+    {
+      "pickup_date": "2024-01-26",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 26,
+      "day_name": "Friday",
+      "crz_trips": 327035,
+      "all_trips": 821186
+    },
+    {
+      "pickup_date": "2024-01-27",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 27,
+      "day_name": "Saturday",
+      "crz_trips": 375739,
+      "all_trips": 862709
+    },
+    {
+      "pickup_date": "2024-01-28",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 28,
+      "day_name": "Sunday",
+      "crz_trips": 329154,
+      "all_trips": 795649
+    },
+    {
+      "pickup_date": "2024-01-29",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 29,
+      "day_name": "Monday",
+      "crz_trips": 237975,
+      "all_trips": 635464
+    },
+    {
+      "pickup_date": "2024-01-30",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 30,
+      "day_name": "Tuesday",
+      "crz_trips": 283969,
+      "all_trips": 683989
+    },
+    {
+      "pickup_date": "2024-01-31",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 31,
+      "day_name": "Wednesday",
+      "crz_trips": 293561,
+      "all_trips": 711481
+    },
+    {
+      "pickup_date": "2025-01-01",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 1,
+      "day_name": "Wednesday",
+      "crz_trips": 260514,
+      "all_trips": 753751
+    },
+    {
+      "pickup_date": "2025-01-02",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 2,
+      "day_name": "Thursday",
+      "crz_trips": 208956,
+      "all_trips": 614070
+    },
+    {
+      "pickup_date": "2025-01-03",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 3,
+      "day_name": "Friday",
+      "crz_trips": 245226,
+      "all_trips": 704040
+    },
+    {
+      "pickup_date": "2025-01-04",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 4,
+      "day_name": "Saturday",
+      "crz_trips": 300971,
+      "all_trips": 770155
+    },
+    {
+      "pickup_date": "2025-01-05",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 5,
+      "day_name": "Sunday",
+      "crz_trips": 241281,
+      "all_trips": 665464
+    },
+    {
+      "pickup_date": "2025-01-06",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 6,
+      "day_name": "Monday",
+      "crz_trips": 213379,
+      "all_trips": 643009
+    },
+    {
+      "pickup_date": "2025-01-07",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 7,
+      "day_name": "Tuesday",
+      "crz_trips": 255017,
+      "all_trips": 709175
+    },
+    {
+      "pickup_date": "2025-01-08",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 8,
+      "day_name": "Wednesday",
+      "crz_trips": 283986,
+      "all_trips": 754924
+    },
+    {
+      "pickup_date": "2025-01-09",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 9,
+      "day_name": "Thursday",
+      "crz_trips": 308946,
+      "all_trips": 806335
+    },
+    {
+      "pickup_date": "2025-01-10",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 10,
+      "day_name": "Friday",
+      "crz_trips": 311557,
+      "all_trips": 825465
+    },
+    {
+      "pickup_date": "2025-01-11",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 11,
+      "day_name": "Saturday",
+      "crz_trips": 371133,
+      "all_trips": 876022
+    },
+    {
+      "pickup_date": "2025-01-12",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 12,
+      "day_name": "Sunday",
+      "crz_trips": 296884,
+      "all_trips": 736146
+    },
+    {
+      "pickup_date": "2025-01-13",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 13,
+      "day_name": "Monday",
+      "crz_trips": 261323,
+      "all_trips": 674247
+    },
+    {
+      "pickup_date": "2025-01-14",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 14,
+      "day_name": "Tuesday",
+      "crz_trips": 303419,
+      "all_trips": 737542
+    },
+    {
+      "pickup_date": "2025-01-15",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 15,
+      "day_name": "Wednesday",
+      "crz_trips": 315940,
+      "all_trips": 782335
+    },
+    {
+      "pickup_date": "2025-01-16",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 16,
+      "day_name": "Thursday",
+      "crz_trips": 337479,
+      "all_trips": 825821
+    },
+    {
+      "pickup_date": "2025-01-17",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 17,
+      "day_name": "Friday",
+      "crz_trips": 320399,
+      "all_trips": 848044
+    },
+    {
+      "pickup_date": "2025-01-18",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 18,
+      "day_name": "Saturday",
+      "crz_trips": 356809,
+      "all_trips": 877178
+    },
+    {
+      "pickup_date": "2025-01-19",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 19,
+      "day_name": "Sunday",
+      "crz_trips": 306615,
+      "all_trips": 778761
+    },
+    {
+      "pickup_date": "2025-01-20",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 20,
+      "day_name": "Monday",
+      "crz_trips": 236170,
+      "all_trips": 661353
+    },
+    {
+      "pickup_date": "2025-01-21",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 21,
+      "day_name": "Tuesday",
+      "crz_trips": 299874,
+      "all_trips": 777156
+    },
+    {
+      "pickup_date": "2025-01-22",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 22,
+      "day_name": "Wednesday",
+      "crz_trips": 329787,
+      "all_trips": 813470
+    },
+    {
+      "pickup_date": "2025-01-23",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 23,
+      "day_name": "Thursday",
+      "crz_trips": 346571,
+      "all_trips": 836471
+    },
+    {
+      "pickup_date": "2025-01-24",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 24,
+      "day_name": "Friday",
+      "crz_trips": 346615,
+      "all_trips": 884181
+    },
+    {
+      "pickup_date": "2025-01-25",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 25,
+      "day_name": "Saturday",
+      "crz_trips": 398445,
+      "all_trips": 928396
+    },
+    {
+      "pickup_date": "2025-01-26",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 26,
+      "day_name": "Sunday",
+      "crz_trips": 301023,
+      "all_trips": 759082
+    },
+    {
+      "pickup_date": "2025-01-27",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 27,
+      "day_name": "Monday",
+      "crz_trips": 241938,
+      "all_trips": 664420
+    },
+    {
+      "pickup_date": "2025-01-28",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 28,
+      "day_name": "Tuesday",
+      "crz_trips": 286320,
+      "all_trips": 717172
+    },
+    {
+      "pickup_date": "2025-01-29",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 29,
+      "day_name": "Wednesday",
+      "crz_trips": 307118,
+      "all_trips": 738188
+    },
+    {
+      "pickup_date": "2025-01-30",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 30,
+      "day_name": "Thursday",
+      "crz_trips": 337423,
+      "all_trips": 820231
+    },
+    {
+      "pickup_date": "2025-01-31",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 31,
+      "day_name": "Friday",
+      "crz_trips": 346457,
+      "all_trips": 898266
+    }
+  ]
+}

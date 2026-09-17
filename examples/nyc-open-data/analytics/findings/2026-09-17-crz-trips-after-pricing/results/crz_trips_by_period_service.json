@@ -1,0 +1,57 @@
+{
+  "result_id": "crz_trips_by_period_service",
+  "execution_id": "ex_crz_trips_by_period_service",
+  "row_key": "period_service",
+  "columns": [
+    "period_service",
+    "period",
+    "period_label",
+    "service",
+    "service_label",
+    "crz_trips",
+    "all_trips",
+    "crz_share"
+  ],
+  "rows": [
+    {
+      "period_service": "baseline_hvfhs",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "service": "hvfhs",
+      "service_label": "App-based for-hire",
+      "crz_trips": 6919669,
+      "all_trips": 19663930,
+      "crz_share": "0.351897"
+    },
+    {
+      "period_service": "after_hvfhs",
+      "period": "after",
+      "period_label": "January 2025",
+      "service": "hvfhs",
+      "service_label": "App-based for-hire",
+      "crz_trips": 6783338,
+      "all_trips": 20405666,
+      "crz_share": "0.332424"
+    },
+    {
+      "period_service": "baseline_yellow",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "service": "yellow",
+      "service_label": "Yellow taxi",
+      "crz_trips": 2117513,
+      "all_trips": 2964606,
+      "crz_share": "0.714265"
+    },
+    {
+      "period_service": "after_yellow",
+      "period": "after",
+      "period_label": "January 2025",
+      "service": "yellow",
+      "service_label": "Yellow taxi",
+      "crz_trips": 2494237,
+      "all_trips": 3475204,
+      "crz_share": "0.717724"
+    }
+  ]
+}
