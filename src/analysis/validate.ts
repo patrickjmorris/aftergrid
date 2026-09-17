@@ -40,6 +40,8 @@ export type AnalysisStage = "clarified" | "analysed";
 export type ProbeKind = "exploratory" | "dead_end" | "reframe";
 export type Probe = { id: string; at: string; kind: ProbeKind; question: string; observed: string; sql_path?: string; changed_plan?: string };
 export type ExecutionStep = { kind: "probe" | "check" | "query"; id: string; exploratory?: boolean; post_hoc?: boolean; note?: string };
+/** A Check's SQL as it stood when it was written, before any analysis query ran. See the schema's description. */
+export type PreregisteredCheck = { check_id: string; content_hash: { algorithm: "sha256"; value: string }; at: string; note?: string };
 export type RequestedDerived = { id: string; operation: string; operands: string[]; unit: string; display?: Record<string, unknown>; description?: string };
 export type RequestedExternalSource = { id: string; kind: string; value: number | string; unit: string; source: Record<string, unknown> };
 export type Analysis = {
@@ -49,6 +51,7 @@ export type Analysis = {
   assumptions: { id: string; statement: string; basis: string; settled_by?: string; affects?: string[] }[];
   pre_registered_comparison?: { statement: string; registered_before_cuts: boolean; registered_at?: string; source?: string };
   probes?: Probe[];
+  checks_preregistered?: PreregisteredCheck[];
   execution_order?: ExecutionStep[];
   candidate_claims?: Record<string, any>[];
   requested_derived?: RequestedDerived[];
@@ -207,6 +210,30 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   if (!manifest) {
     return problems;
   }
+  // --- a pre-registered Check is the Check that ran ---
+  // The one mechanical answer to "was this falsifier written before the number was known, and left alone
+  // afterwards?". A recorded hash that no longer matches the manifest means the file changed between
+  // pre-registration and the run; the honest repair is to say so, never to re-pin the recorded hash.
+  const checkById = new Map((manifest.checks ?? []).map((c: any) => [c.id, c]));
+  (analysis.checks_preregistered ?? []).forEach((entry, i) => {
+    const ck: any = checkById.get(entry.check_id);
+    if (!ck) {
+      problems.push({ category: "unresolved_reference", location: `${ANALYSIS_FILE}#/checks_preregistered/${i}/check_id`, message: `Check '${entry.check_id}' is not in manifest.yaml#/checks`, remedy: "name a Check the manifest declares, or drop the entry" });
+      return;
+    }
+    if (ck.content_hash?.value !== entry.content_hash.value) {
+      err(`${ANALYSIS_FILE}#/checks_preregistered/${i}/content_hash`,
+        `Check '${entry.check_id}' was pre-registered at ${entry.at} with a different SQL file than the one the manifest pins`,
+        "the Check changed after it was pre-registered. Say so — a falsifier edited after its result was seen is not a falsifier — and record the change as a probe of kind reframe with what it changed and why. Never re-pin the pre-registration hash to match the file");
+    }
+  });
+  const prereg = analysis.checks_preregistered ?? [];
+  prereg.forEach((entry, i) => {
+    if (prereg.findIndex((o) => o.check_id === entry.check_id) !== i) {
+      err(`${ANALYSIS_FILE}#/checks_preregistered/${i}/check_id`, `'${entry.check_id}' is pre-registered twice`, "one entry per Check: the file as it stood when it was written");
+    }
+  });
+
   const manifestChecks = new Set((manifest.checks ?? []).map((c: any) => c.id));
   const manifestQueries = new Set((manifest.queries ?? []).map((q: any) => q.id));
   for (const [i, step] of order.entries()) {
@@ -346,6 +373,12 @@ export function analysisSummary(dir: string): string[] {
   const byKind = (k: ProbeKind) => probeList.filter((p) => p?.kind === k).length;
   const kinds = `${byKind("exploratory")} exploratory, ${byKind("dead_end")} dead end(s), ${byKind("reframe")} reframe(s)`;
   lines.push(`analysis.yaml: ${(analysis.assumptions ?? []).length} assumption(s), ${probeList.length} probe(s) (${kinds}), ${(analysis.candidate_claims ?? []).length} candidate Claim(s)`);
+  // What a reviewer needs to judge a falsifier: whether its content was pinned when it was written, or only its
+  // place in the timeline. Said either way, because "no hash recorded" is itself the reviewer's answer.
+  const prereg = analysis.checks_preregistered ?? [];
+  lines.push(prereg.length
+    ? `analysis.yaml: ${prereg.length} Check(s) pre-registered with a content hash (${prereg.map((c) => `${c?.check_id} at ${c?.at}`).join(", ")}); check compares each with the manifest`
+    : "analysis.yaml: no Check pre-registration hashes recorded; whether a Check was edited after its result can only be read from the probe and execution_order timeline");
   if (!analysis.pre_registered_comparison) lines.push("analysis.yaml: no pre-registered comparison recorded; every Claim here is exploratory");
   else if (!analysis.pre_registered_comparison.registered_before_cuts) lines.push("analysis.yaml: the primary comparison was registered AFTER cuts were explored, and says so");
   for (const n of analysis.needs_input ?? []) lines.push(`analysis.yaml needs input (${n?.kind}, owner ${n?.owner}): ${n?.description}`);

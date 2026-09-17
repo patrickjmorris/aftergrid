@@ -54,6 +54,12 @@ completed Analysis reaches, and they run all the way through review and `check` 
 matters: a `minimum_data` Check that **failed** is the answer; a Check that **errored** is a run that did not
 happen, and that is a halt.
 
+**Is a failed falsifier a halt?** No. A pre-registered falsifier that records the outcome it did not expect is
+the Analysis working: it said in advance what would show the Answer wrong, and that happened. The outcome
+becomes `inconclusive` (or `needs_reframing`) and the run writes the Finding, reviews it and renders it like
+any other. `check` reports a `falsifier_failed` warning, not an error. Halting there would leave the honest
+Finding unwritten, which is the failure the rule exists to prevent.
+
 **What stops it from inventing a falsifier to finish clarifying?** The halt. Where the Operator cannot answer,
 the Question stays `unresolved` with the missing parts listed, and the run stops. The same rule covers metrics,
 populations, windows, approvals and Claims: nothing is filled in to make a field non-empty.

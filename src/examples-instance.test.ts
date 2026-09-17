@@ -136,7 +136,12 @@ test("every Golden Question loads through the eval's own loader, validates, and 
     for (const t of g.expected.tables_read) assert.ok(DEMO_TABLES.has(t), `${g.id}: table ${t} is not one the build writes`);
     // Nothing here was randomised: a policy that started on one date for everybody admits no causal Claim.
     assert.notEqual(g.expected.claim_type, "causal", `${g.id}: an observational before/after supports no causal Claim`);
-    outcomes.add(g.expected.outcome);
+    // A case may list more than one acceptable outcome; every one of them counts toward the range below.
+    for (const o of Array.isArray(g.expected.outcome) ? g.expected.outcome : [g.expected.outcome]) outcomes.add(o);
+    if (Array.isArray(g.expected.outcome)) {
+      assert.ok(g.expected.falsifier_dependent === true, `${g.id}: a list of acceptable outcomes must say why more than one is honest`);
+      assert.ok(typeof g.expected.falsifier_note === "string" && g.expected.falsifier_note.length > 0, `${g.id}: falsifier_dependent needs a note`);
+    }
   }
   // The demo is meant to show a range, not five wins.
   assert.ok(outcomes.has("answered"), "no answerable case");

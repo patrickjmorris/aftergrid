@@ -393,11 +393,39 @@ function validateMemo(manifest, results) {
     if (!new RegExp(`^## ${manifest.reader.profile}\\s*$`, "m").test(readers)) err("unresolved_reference", "manifest.yaml#/reader/profile", `profile ${manifest.reader.profile} not in readers.md`, "add the profile or use generic");
   }
   // Checks: evidence validity
+  //
+  // Two axes, kept apart. `required: true` is an EVIDENCE-VALIDITY condition: the Check must pass or the
+  // numbers do not stand. A `kind: falsifier` Check is never that — it is the pre-registered observation that
+  // would show the Answer wrong, so its recorded outcome decides the Finding's OUTCOME, and a falsifier
+  // declared `required` confuses the two (`check_shape`).
+  const falsifierStatement = manifest.question.falsifier?.kind === "check" ? manifest.question.falsifier.statement : null;
   for (const ck of manifest.checks) {
     if (ck.outcome === "error") err("check_error", ck.path, "recorded SQL error is not an analytical outcome", "fix and rerun the Check");
-    if (ck.required && ck.outcome !== "pass") { err("check_failed", `checks/${ck.id}`, `required Check ${ck.id} outcome ${ck.outcome}`, "fix the analysis or the Check"); }
-    // A falsifier's business result (pass/fail/not_run) is a different kind of fact from an engine failure (error).
-    if (ck.kind === "falsifier" && ck.outcome !== "error" && manifest.finding.outcome === "answered" && ck.outcome !== ck.expected_outcome) err("falsifier", `checks/${ck.id}`, `falsifier outcome ${ck.outcome}, expected ${ck.expected_outcome}`, "the Answer is contradicted by its own falsifier");
+    if (ck.kind === "falsifier" && ck.required === true) {
+      err("check_shape", `checks/${ck.id}`, `falsifier Check ${ck.id} declares required: true`,
+        "falsifiers decide the outcome, not validity: set `required: false`. A falsifier that records the outcome it did not expect makes the Finding inconclusive (or needs_reframing) and is written up; it is not an evidence failure that refuses the Finding");
+    }
+    if (ck.required && ck.kind !== "falsifier" && ck.outcome !== "pass") { err("check_failed", `checks/${ck.id}`, `required Check ${ck.id} outcome ${ck.outcome}`, "fix the analysis or the Check"); }
+    // A falsifier's business result (pass/fail/not_run) is a different kind of fact from an engine failure
+    // (error). A RECORDED outcome that is not the expected one is the falsifier firing: an analytical fact,
+    // reported as a warning at the Check with the Question's statement, and an error only when the manifest
+    // still claims `answered`. `not_run` is the falsifier DECLINING to evaluate (below its minimum-data gate),
+    // which is not the falsifier firing and carries no warning — it is still never compatible with `answered`.
+    if (ck.kind === "falsifier" && ck.outcome !== "error" && ck.outcome !== ck.expected_outcome) {
+      const fired = ck.outcome === "pass" || ck.outcome === "fail";
+      if (fired) {
+        warn("falsifier_failed", `checks/${ck.id}`,
+          `the pre-registered falsifier recorded ${ck.outcome} and expected ${ck.expected_outcome}${falsifierStatement ? `: ${falsifierStatement}` : ""}`);
+        report.info.push(`falsifier ${ck.id} recorded ${ck.outcome}: an analytical outcome, not an evidence failure. The honest Finding is inconclusive or needs_reframing, written up with the Check shown.`);
+      }
+      if (manifest.finding.outcome === "answered") {
+        err("analytical_outcome", `checks/${ck.id}`,
+          `the Finding is recorded as answered and its pre-registered falsifier ${fired ? `recorded ${ck.outcome}, expected ${ck.expected_outcome}` : "was not run"}`,
+          fired
+            ? "a falsifier that fired makes the outcome inconclusive or needs_reframing: set finding.outcome and say in the memo what the falsifier asked and what the data showed. Do not loosen, un-require or rewrite the Check after seeing its result"
+            : "a falsifier that was not run cannot support an Answer: run it, or record the honest non-answer outcome");
+      }
+    }
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && manifest.finding.outcome !== "insufficient_data") warn("minimum_data", `checks/${ck.id}`, "minimum-data Check failed but outcome is not insufficient_data");
     if (ck.kind === "minimum_data" && ck.outcome === "fail" && !ck.required) report.info.push(`minimum-data Check ${ck.id} failed: a business result, not an engine failure`);
     // An agent-reported outcome (docs/contracts/record.md, ADR 0010) is the harness's word. It is checked for the

@@ -114,6 +114,12 @@ Neither halt is a failure of the Analysis, and neither is an outcome. `insuffici
 `check` like any other. A Check that **errored** is a run that did not happen; a `minimum_data` Check that
 **failed** is the answer.
 
+**A pre-registered falsifier that failed is not `needs_attention` either.** It is the answer too: the Analysis
+said in advance what would show the Answer wrong and that happened, so the outcome is `inconclusive` (or
+`needs_reframing`) and the run carries on to `/write-finding` and review. `check` reports it as a
+`falsifier_failed` warning, not an error, and `render` writes the page with the falsifier on it. Halting there
+leaves the honest Finding unwritten, which is the one outcome this skill must never produce.
+
 Both halts leave the Finding directory resumable: every artifact produced so far stays, `analysis-progress.yaml`
 names the stage and the reason, and the manifest records the state. The shapes are in
 [`references/halting.md`](references/halting.md).

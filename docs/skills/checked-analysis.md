@@ -79,6 +79,14 @@ them, and its admissibility before anything is copied.
 what is missing. A failing `required` invariant or reconciliation Check means the Analysis does not establish
 what it asserts, and it is reported as an error. A Check that *errors* is never a business result.
 
+A failing **falsifier** is a third thing, and the most important one. A falsifier is never `required: true` —
+`required` asks whether the numbers stand, a falsifier asks whether the *Answer* does — so a falsifier that
+records the outcome it did not expect makes the Finding `inconclusive` (or `needs_reframing`) and the run
+carries straight on to `/write-finding`. `check` reports it as a `falsifier_failed` warning, not an error, and
+`render` writes the page with the falsifier on it. The one thing the skill will not do is loosen the threshold,
+drop `required`, flip `expected_outcome` or rewrite the SQL after seeing the result; `checks_preregistered`
+records each Check's hash when it was written so a reviewer can check that mechanically.
+
 **What if no approved definition fits?** It proposes one — `lifecycle: proposed`, no approval block — and that
 definition may back a supporting or diagnostic Claim with its status shown. It can never be the published
 decision metric. If the Question's decision metric is the one that is only proposed, the run stops with a

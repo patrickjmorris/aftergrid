@@ -3,7 +3,10 @@ export type Category =
   | "syntax" | "schema" | "template" | "incomplete" | "exists" | "missing_file" | "hash_mismatch"
   | "unresolved_reference" | "duplicate_row_key" | "missing_column" | "null_value" | "unit_mismatch" | "derived_cycle"
   | "untraced_numeral" | "chart_subset" | "export_policy" | "definition_version" | "definition_not_approved"
-  | "check_failed" | "falsifier" | "provisional_evidence" | "digest" | "stale_attestation" | "untrusted_attestation"
+  // `falsifier` is retained and no longer emitted: a falsifier's recorded outcome is an analytical fact, not an
+  // engine failure, and is reported as the `falsifier_failed` warning plus `analytical_outcome` when the
+  // manifest still claims `answered` (docs/contracts/checks-and-results.md).
+  | "check_failed" | "falsifier" | "falsifier_failed" | "analytical_outcome" | "provisional_evidence" | "digest" | "stale_attestation" | "untrusted_attestation"
   | "unsafe_path" | "path_collision" | "duplicate_id" | "execution_binding" | "result_shape" | "value_type" | "derived_arity" | "check_error"
   // the recorded data path (docs/contracts/record.md, ADR 0010): the harness ran it and the Engine wrote it down
   | "recorded_path" | "rerun_unavailable" | "unevidenced_outcome" | "false_guarantee"

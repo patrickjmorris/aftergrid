@@ -346,7 +346,7 @@ checks:
   - id: falsifier_lift
     kind: falsifier
     path: checks/falsifier_lift.sql
-    required: true
+    required: false
     outcome: pass
     expected_outcome: pass
     description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm.
@@ -371,4 +371,4 @@ renderer:
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 484da36404f0549e5f6ad9b034d91449076db79b97b0a591eb7e82473e75c782
+  value: 0aa36ad38ff0e7c576443daca21cba293b37ed9aec785a36fe8c989e7e413b3c

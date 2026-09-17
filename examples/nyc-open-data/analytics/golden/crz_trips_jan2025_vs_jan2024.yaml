@@ -10,7 +10,15 @@ id: crz_trips_jan2025_vs_jan2024
 raw_ask: Did trips into the Congestion Relief Zone change after congestion pricing started, compared with the same period a year earlier?
 reader: city_transport_analyst
 expected:
-  outcome: answered
+  outcome: [answered, inconclusive]
+  falsifier_dependent: true
+  falsifier_note: >-
+    Both are honest, and which one is reached is decided by the falsifier the Analysis pre-registers, not by how
+    hard it tries. A falsifier on the monthly comparison itself (the zone's share of all trips fell) is met by
+    this data and the outcome is `answered`. A falsifier that also requires the direction to hold per weekday and
+    per weekend day records `fail` here — the monthly total and the per-weekday average rose while the
+    per-weekend-day average fell — and the outcome is then `inconclusive`. Grading only `answered` would reward
+    the looser falsifier, which is the opposite of what this Instance is for.
   claim_type: associational
   definition_ids: [crz_trip, taxi_trip, fhv_trip, comparable_weather_day, weekday_share]
   tables_read: [trips_daily, crz_zones, weather_daily]
@@ -36,6 +44,8 @@ expected:
     - describe the two periods as comparable on weather
     - generalise one January against one January into a trend
   reasoning: >-
+    A pre-registered day-type falsifier makes `inconclusive` the honest outcome, so both outcomes are accepted
+    and the falsifier the Analysis wrote is what decides between them.
     A defined population (crz_trip), a stated window, a named baseline period and a falsifier a Check can
     evaluate. The data answers what changed: trips into the zone rose about 2.7% while all trips rose about
     5.5%, so the zone's share of trips fell by about 1.1 percentage points. The denominator is the whole point

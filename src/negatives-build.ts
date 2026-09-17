@@ -252,6 +252,55 @@ export const CASES: NegativeCase[] = [
     render: { must_contain: ["We cannot tell yet", "this failure is the result of the Finding, not an error"] },
   },
   {
+    // ag-falsifier-outcome-cov. The positive control for the falsifier seam: a pre-registered falsifier fired,
+    // the Finding says inconclusive, and everything else is untouched. `check` must report no error and
+    // exactly one `falsifier_failed` warning, and `render` must produce the page with the falsifier on it.
+    name: "falsifier-failed-inconclusive",
+    base: "numeric",
+    layer: "analytical_outcome",
+    expect: "pass",
+    category: "none",
+    location_pattern: "",
+    also_warnings: ["falsifier_failed"],
+    defect: "None. The pre-registered falsifier recorded fail, and the Finding records the outcome that follows: inconclusive.",
+    description:
+      "A failing falsifier is an analytical outcome, not an evidence failure: check must report no error, one falsifier_failed warning, and evidence valid, and render must show the falsifier as its own fact on a draft page.",
+    render: {
+      must_contain: [
+        "<strong>Falsifier</strong>",
+        "recorded fail; this Finding is inconclusive",
+        "7-day retention is not at least 3 percentage points above the control arm",
+      ],
+      must_not_contain: [PRIVATE_MARKER],
+    },
+    mutate: (m, files) => {
+      m.checks.find((c: any) => c.id === "falsifier_lift").outcome = "fail";
+      m.finding.outcome = "inconclusive";
+      m.finding.title = "Whether the onboarding checklist earns its place is not settled by this experiment";
+      const claim = m.claims.find((c: any) => c.id === "c1");
+      // The measured gap is still what it is; what the falsifier denies is that it clears the bar the team set.
+      claim.material_caveat =
+        "This is a fair comparison only because the two groups were assigned at random. The pre-registered falsifier asked whether the checklist group was at least {{ext:keep_threshold}} ahead with at least five hundred people in each group, and it recorded fail, so this Finding does not say the checklist earned its place. The gap above is one experiment's measurement, not a promise that it stays that size.";
+      editMemo(files, (memo) => {
+        memo = replaceOnce(memo, "# New users who got the onboarding checklist came back more often",
+          "# Whether the onboarding checklist earns its place is not settled by this experiment");
+        memo = replaceOnce(memo,
+          "Yes. New users who saw the onboarding checklist came back within a week more often than new users who did not, and the difference is big enough to keep the checklist.",
+          "Not settled. New users who saw the onboarding checklist came back within a week more often than new users who did not, and the falsifier the team wrote before the experiment ran recorded fail, so this Finding does not say the difference is big enough to keep the checklist.");
+        memo = replaceOnce(memo,
+          "This is a fair comparison only because the two groups were assigned at random. If the checklist had gone to a particular kind of user (for example only iPhone users), the difference could be about those users, not the checklist. And the gap is one experiment's measurement: the {{ext:keep_threshold}} bar is a rule the team agreed in advance for acting on it, not a promise that the gap stays that size.",
+          claim.material_caveat);
+        memo = replaceOnce(memo,
+          "- The count of people who came back matches the approved definition of \"came back within a week\" computed a second way (Check retained_7d_reconcile).",
+          "- The count of people who came back matches the approved definition of \"came back within a week\" computed a second way (Check retained_7d_reconcile).\n- The falsifier written before the experiment ran recorded fail (Check falsifier_lift, expected to pass). That is why this Finding is inconclusive; the Check was not loosened or rewritten after its result was seen.");
+        memo = replaceOnce(memo,
+          "If the checklist group were not at least {{ext:keep_threshold}} ahead of the other group, with at least five hundred people in each group, the checklist did not help enough to keep (Check falsifier_lift, expected to pass).",
+          "The falsifier said: if the checklist group were not at least {{ext:keep_threshold}} ahead of the other group, with at least five hundred people in each group, the checklist did not help enough to keep (Check falsifier_lift, expected to pass). It recorded fail. What would change this Finding is a longer or larger experiment that the same Check can evaluate.");
+        return memo;
+      });
+    },
+  },
+  {
     name: "control-prose-dates-ids",
     base: "numeric",
     layer: "engine_category",
@@ -558,6 +607,35 @@ export const CASES: NegativeCase[] = [
         replaceOnce(memo, "- The count of people who came back matches the approved definition of \"came back within a week\" computed a second way (Check retained_7d_reconcile).",
           "- The count of people who came back does NOT match the approved definition of \"came back within a week\" computed a second way (Check retained_7d_reconcile, which failed)."));
     },
+  },
+  {
+    // ag-falsifier-outcome-cov. `required: true` is an evidence-validity condition; a falsifier is not one.
+    name: "falsifier-required",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "error",
+    category: "check_shape",
+    location_pattern: "^checks/falsifier_lift$",
+    defect: "The falsifier Check is declared `required: true`, as though it were an evidence-validity condition.",
+    description:
+      "A falsifier decides the Finding's outcome and never its evidence validity. Declaring one required makes a failing falsifier look like a broken execution, which is the mistake that stops an honest inconclusive Finding from existing.",
+    render: { refused: true },
+    mutate: (m) => void (m.checks.find((c: any) => c.id === "falsifier_lift").required = true),
+  },
+  {
+    // ag-falsifier-outcome-cov. The falsifier fired and the manifest still claims an Answer.
+    name: "falsifier-failed-but-answered",
+    base: "numeric",
+    layer: "analytical_outcome",
+    expect: "error",
+    category: "analytical_outcome",
+    location_pattern: "^checks/falsifier_lift$",
+    also_warnings: ["falsifier_failed"],
+    defect: "The pre-registered falsifier recorded fail and the Finding is still recorded as answered.",
+    description:
+      "A falsifier that fired forces the outcome to inconclusive or needs_reframing. The Answer standing over its own contradicted falsifier is the one thing the falsifier exists to stop.",
+    render: { refused: true },
+    mutate: (m) => void (m.checks.find((c: any) => c.id === "falsifier_lift").outcome = "fail"),
   },
   {
     name: "snapshot-input-hash-mismatch",

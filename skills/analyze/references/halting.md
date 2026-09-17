@@ -59,6 +59,22 @@ looking at a broken execution or at a disagreement about method.
 
 ## What is not a halt
 
+**A failing pre-registered falsifier.** A falsifier that records the outcome it did not expect is the Analysis
+working as designed: it said in advance what would show the Answer wrong, and that observation happened. The run
+**continues** — set `analysis.yaml#/outcome_recommendation.outcome` to `inconclusive` (or `needs_reframing`
+where the Question itself is the problem) and go on to `/write-finding`, `/shape-narrative` and
+`/analysis-review` as normal. The Finding this produces is the point of the whole system, and halting at
+`needs_attention` leaves it unwritten.
+
+`check` reports a fired falsifier as a `falsifier_failed` **warning**, not an error, and `render` writes the
+page with the falsifier on it (`docs/contracts/checks-and-results.md`). A falsifier Check is never
+`required: true`; if it is, `check` reports `check_shape` and that *is* a halt — fix the shape, do not change
+the Check's threshold, `expected_outcome` or SQL, which after seeing the result would be the one edit this whole
+mechanism exists to prevent.
+
+The Operator still has a decision to make — accept the inconclusive Finding, or open a revision with a newly
+pre-registered Question — but they make it about a written Finding they can read, not about a halted directory.
+
 **A missing or unconfigured adapter.** The recorded data path is the default (ADR 0010,
 `docs/contracts/record.md`): the harness runs the SQL and `aftergrid record` writes down what it ran. There is
 no stage, status or `needs_input` kind for an absent adapter, and writing one would stop a run that can finish.

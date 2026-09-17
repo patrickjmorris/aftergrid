@@ -289,14 +289,14 @@ checks:
   - { id: unique_users, kind: invariant, path: checks/unique_users.sql, required: true, outcome: pass, description: No user is counted twice., content_hash: { algorithm: sha256, value: 8b9adc36ea4e969bd5b9f4ffb73a570e05974d0557ec452e9124328f883a363e }, executed_at: 2026-09-15T22:44:31Z }
   - { id: arm_balance, kind: invariant, path: checks/arm_balance.sql, required: true, outcome: pass, description: "The two groups are about the same size, as random assignment should produce.", content_hash: { algorithm: sha256, value: 319f0c3081d8e8d8acace194276b3a34525f0fcf429980e89acec2e8c513de32 }, executed_at: 2026-09-15T22:44:31Z }
   - { id: retained_7d_reconcile, kind: reconciliation, path: checks/retained_7d_reconcile.sql, required: true, outcome: pass, description: The count of users who came back matches the approved retained_7d definition computed a second way., content_hash: { algorithm: sha256, value: 2adcd612e2875fc4031b44b7640d25dc99b5c466f1563f59fca4c515eb4064ab }, executed_at: 2026-09-15T22:44:31Z }
-  - { id: falsifier_lift, kind: falsifier, path: checks/falsifier_lift.sql, required: true, outcome: pass, expected_outcome: pass, description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm., content_hash: { algorithm: sha256, value: f25b01fd9b160e88717fabc30a950b83c9e5bcd894a7d84490f89f519e0e0ccd }, executed_at: 2026-09-15T22:44:31Z }
+  - { id: falsifier_lift, kind: falsifier, path: checks/falsifier_lift.sql, required: false, outcome: pass, expected_outcome: pass, description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm., content_hash: { algorithm: sha256, value: f25b01fd9b160e88717fabc30a950b83c9e5bcd894a7d84490f89f519e0e0ccd }, executed_at: 2026-09-15T22:44:31Z }
 reviews:
   - kind: method
     reviewer: "fixture: hand review by the exemplar author (CrimsonLotus, claude-fable-5-1)"
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf
+      value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16
     blocking: []
     non_blocking: [ "c2 is an exploratory split; it is labelled as such." ]
 attestations:
@@ -306,7 +306,7 @@ attestations:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf
+      value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16
 export_policy:
   recipient_scope: named_readers
   granularity: aggregate_only
@@ -330,4 +330,4 @@ renderer:
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 4040cfa2c7439b4f41612f818de2d07f68905b3febd68165ee0315722f7c7cbf
+  value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16

@@ -1209,7 +1209,7 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Required Checks must pass (or, for the falsifier, match expected_outcome) for evidence validity."
+            "description": "Required Checks must pass for evidence validity. Never true on a `kind: falsifier` Check: a falsifier is not an evidence-validity condition, it decides the Finding's outcome. `check` refuses `required: true` on a falsifier with `check_shape` (docs/contracts/checks-and-results.md)."
           },
           "outcome": {
             "type": "string",
@@ -1234,7 +1234,7 @@
               "pass",
               "fail"
             ],
-            "description": "Only for kind falsifier; mirrors question.falsifier.expected_outcome."
+            "description": "Only for kind falsifier; mirrors question.falsifier.expected_outcome. A recorded outcome that differs from it is the falsifier firing: the Finding's outcome is then inconclusive or needs_reframing, never answered."
           },
           "reported_by": {
             "$ref": "#/$defs/reported_by"

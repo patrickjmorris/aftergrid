@@ -2,11 +2,21 @@
 // Checks every committed example Finding in artifact mode and decides whether the tree is acceptable.
 //
 // The examples commit real run output, halts included: a Finding whose `analysis-progress.yaml` records
-// `needs_attention` or `needs_input` is a truthful state, not a broken artifact. Such a Finding passes when the
-// only errors `aftergrid check` reports are the ones the recorded halt names (a `check_failed` on the Check the
-// reason cites). Anything else — a syntax, hash or digest error, an error on a Finding with no recorded halt, or
-// a halt whose reason names no Check that actually failed — fails the run. Exit 0 when every Finding is
-// acceptable, 1 otherwise, 2 on usage.
+// `needs_attention` or `needs_input` is a truthful state, not a broken artifact. Such a Finding passes when
+// every error `aftergrid check` reports is one the repository's own record accounts for:
+//
+//   1. A Check-level error — `check_failed`, `check_shape` or `analytical_outcome` — at a Check the halt reason
+//      names. The halt is a statement about that Check; all three categories are the Engine saying something
+//      about the same Check, and which one it says can change as the contract sharpens.
+//   2. A `hash_mismatch` on a `manifest.yaml#/definitions/<n>` pin. That is the INSTANCE moving on after the
+//      run: the definition file was improved, and this Finding is a faithful record of the definition as it
+//      stood when it ran. Re-pinning it would mean editing committed run output to agree with a file the run
+//      never saw. A new revision is the repair, and the run log says what it would change.
+//
+// Every other error — a syntax or digest error, a hash mismatch on a result, an input or a Check FILE, an error
+// on a Finding with no recorded halt, or a halt whose reason names no Check that actually failed — fails the
+// run. A result or input whose bytes no longer match its pin is tampered evidence, and no halt excuses it.
+// Exit 0 when every Finding is acceptable, 1 otherwise, 2 on usage.
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -25,6 +35,11 @@ export function recordedHalt(dir) {
   return { status: y.status, stage: y.stage ?? null, reason: String(y.reason ?? "") };
 }
 
+/** Categories that are the Engine saying something about one Check; the halt reason must name that Check. */
+const CHECK_CATEGORIES = new Set(["check_failed", "check_shape", "analytical_outcome"]);
+/** A definition pin that moved because the Instance's definition file did. See the header. */
+const DEFINITION_PIN = /^manifest\.yaml#\/definitions\/\d+$/;
+
 /**
  * Decide one Finding. `report` is the JSON `aftergrid check --mode artifact --json` printed; `halt` is
  * `recordedHalt(dir)`. Returns { ok, why }.
@@ -34,9 +49,14 @@ export function verdict(report, halt) {
   if (report?.syntax && report.syntax !== "ok") return { ok: false, why: `syntax ${report.syntax}` };
   if (!errors.length) return { ok: true, why: halt ? `recorded halt (${halt.status} at ${halt.stage}) with no evidence error` : "valid" };
   if (!halt) return { ok: false, why: `${errors.length} error(s) and no recorded halt: ${errors.map((e) => `${e.category} at ${e.location}`).join("; ")}` };
-  const unexplained = errors.filter((e) => !(e.category === "check_failed" && halt.reason.includes(String(e.location).replace(/^checks\//, "").replace(/\.sql$/, ""))));
+  const accounted = (e) => {
+    const location = String(e.location);
+    if (CHECK_CATEGORIES.has(e.category)) return halt.reason.includes(location.replace(/^checks\//, "").replace(/\.sql$/, ""));
+    return e.category === "hash_mismatch" && DEFINITION_PIN.test(location);
+  };
+  const unexplained = errors.filter((e) => !accounted(e));
   if (unexplained.length) return { ok: false, why: `recorded halt does not explain: ${unexplained.map((e) => `${e.category} at ${e.location}`).join("; ")}` };
-  return { ok: true, why: `recorded halt (${halt.status} at ${halt.stage}) explains every error: ${errors.map((e) => e.location).join(", ")}` };
+  return { ok: true, why: `recorded halt (${halt.status} at ${halt.stage}) accounts for every error: ${errors.map((e) => `${e.category} at ${e.location}`).join(", ")}` };
 }
 
 export function findingDirs(root = REPO) {

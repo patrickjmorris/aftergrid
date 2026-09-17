@@ -87,6 +87,29 @@
         ]
       }
     },
+    "checks_preregistered": {
+      "type": "array",
+      "description": "Each Check as it stood when it was written, before any analysis query ran: its id, the sha256 of its SQL file at that moment, and when that was. Optional, and the only mechanical evidence a reviewer has that a Check — above all a falsifier — was not loosened, un-required or rewritten after its result was seen. When an entry is present, `check` compares its hash with the manifest's Check hash and reports `analysis_contract` when they differ. Absent, the reviewer falls back to the probe/execution_order timeline, which shows the order and not the content.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check_id", "content_hash", "at"],
+        "properties": {
+          "check_id": { "$ref": "#/$defs/id" },
+          "content_hash": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["algorithm", "value"],
+            "properties": {
+              "algorithm": { "const": "sha256" },
+              "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          },
+          "at": { "$ref": "#/$defs/timestamp", "description": "When the Check file was written, read from the harness's clock. Never a time invented afterwards." },
+          "note": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "execution_order": {
       "type": "array",
       "minItems": 1,

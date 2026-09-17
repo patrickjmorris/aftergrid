@@ -18,6 +18,14 @@ Every planted item declares which layer it lives in. They are different kinds of
 
 A population mix shift does not by itself require a mechanical Check failure: the numbers are right, the interpretation is what needs care.
 
+## More than one honest outcome
+
+`expected.outcome` is a single outcome, or a **list** of outcomes that would all be honest on the same data. A list is not a looser bar — every entry is reviewed and written down like any other expectation — and `assess()` passes when the Finding's outcome is any of them.
+
+The list exists for one situation: where the pre-registered falsifier decides between them. Two Analyses can read the same Question, the same tables and the same window, write different falsifiers before seeing any number, and honestly reach different outcomes — one `answered`, one `inconclusive`, because the stricter falsifier fired (`docs/contracts/checks-and-results.md`). Grading only the `answered` case would score the Engine down for writing the stricter falsifier, which is precisely the behaviour these fixtures exist to reward.
+
+So a list carries `expected.falsifier_dependent: true` and an `expected.falsifier_note` saying which falsifier leads to which outcome, and the `reasoning` says it too. A case that lists several outcomes for any other reason — because the reviewer was unsure, or to stop a case failing — is a case that has stopped being a reference.
+
 ## Reference values
 
 `expected.values[]` are produced by `reference.queries[]`, plain SQL over the warehouse tables with named parameters, keyed by `row_key`. `src/golden.test.ts` runs them through the DuckDB adapter and asserts each value within its tolerance, so the file is checked, not trusted. Tolerances are absolute in the value's unit. Causal conclusions are only expected where the data was generated with randomised assignment; everywhere else `claim_type` is descriptive or associational.

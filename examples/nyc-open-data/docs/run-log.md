@@ -102,3 +102,51 @@ Gaps this run exposed:
 - **`trips_sample` was captured (6.8 MB) and never read** by any Claim. Capture-before-clarify again.
 - The Operator decision the run asks for: accept `inconclusive` as it stands, or open a new revision with weekday
   and weekend as separate pre-registered Questions. Not taken by the agent.
+
+## After `ag-falsifier-outcome-cov` — re-checked 2026-09-17, no file in the Finding touched
+
+The contract changed under the run-2 Finding: a `kind: falsifier` Check is no longer an evidence-validity
+condition, a falsifier that records the outcome it did not expect is an analytical fact, and `render` no longer
+refuses a Finding over one. `examples/nyc-open-data/analytics/findings/2026-09-17-crz-trips-after-pricing` is
+committed run output and was **not edited** — what `aftergrid check --mode artifact` says about it now is the
+evidence that the change landed.
+
+What it reports today (verbatim categories and locations):
+
+| | Before | Now |
+| --- | --- | --- |
+| `checks/falsifier_direction_holds_by_day_type` | error `check_failed` — "required Check … outcome fail" | error `check_shape` — "falsifier Check … declares `required: true`", remedy: falsifiers decide the outcome, not validity |
+| the same Check, as a fact | nothing | warning `falsifier_failed`, carrying the Question's falsifier statement in full, plus an info line saying the honest Finding is inconclusive or needs_reframing |
+| `manifest.yaml#/definitions/1` (`weekday_share`) | no error | error `hash_mismatch` — the definition was edited (it now reads `crz_daily`, the bounded table, as run 2 said it should) and this Finding pins the version it actually read |
+| overall | syntax ok, content incomplete, evidence invalid | unchanged: syntax ok, content incomplete, evidence invalid, publication not_ready |
+
+So the halt is still a halt, and for a better-stated reason: the complaint is no longer "your falsifier failed"
+but "your falsifier was declared a validity condition, and it is not one". There is no longer any rule that
+stops the honest Finding from existing — the same Check recorded `fail` with `required: false` and
+`finding.outcome: inconclusive` reports **no error**, one `falsifier_failed` warning, and renders, with the
+falsifier as its own line on the page ("Falsifier: … — recorded fail; this Finding is inconclusive"). That is
+covered by `fixtures/negatives/falsifier-failed-inconclusive` and by `src/render.test.ts`.
+
+**What a revision (r2) would change**, if the Operator takes it — none of this is done here:
+
+1. `checks[falsifier_direction_holds_by_day_type].required: true` → `false`. The Check's SQL, its threshold and
+   its `expected_outcome` are **not** touched; it recorded `fail` and that stands.
+2. `finding.outcome: pending` → `inconclusive`, `finding.state: draft` → `complete`, and the Claims and memo
+   written by `/write-finding`: the month rose, weekdays rose, weekend days fell, the zone's share of all trips
+   fell, and the two Januaries are not weather-comparable. The Answer sentence says the Question is not settled
+   and names what the falsifier asked and what the data showed.
+3. `definitions[weekday_share].content_hash` re-pinned to the current `weekday_share.md`, or the Analysis rerun
+   against it. Version stays 1: the rule did not change, only the table it reads.
+4. `coverage.data_from`, `data_to` and `description`, which are still the `new finding` scaffold sentinels.
+5. `analysis.yaml#/checks_preregistered` filled in, so a reviewer can see mechanically that the falsifier is the
+   one written before any total was computed. Run 2 established that from the probe timeline only.
+
+`scripts/examples-check.mjs` accepts this tree because the recorded halt accounts for every error: the two
+Check-level categories at the Check its `reason` names, and a definition pin that moved because the Instance's
+own definition file did. A hash mismatch on a **result**, an **input** or the content digest is still fatal
+there — that would be tampered evidence, and no halt excuses it.
+
+The golden was updated in the same change: `crz_trips_jan2025_vs_jan2024` now accepts
+`[answered, inconclusive]` with `falsifier_dependent: true`, because which one is honest is decided by the
+falsifier the Analysis pre-registers, and grading only `answered` would have scored run 2 down for writing the
+stricter falsifier. The `must_state` list is unchanged.

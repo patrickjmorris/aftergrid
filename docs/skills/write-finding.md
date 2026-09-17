@@ -83,7 +83,8 @@ location and stops rather than writing around it.
   retained input, execution or definition changed.
 - Every number on the rendered page can be traced, by clicking into the calculation, back to a saved result.
 - A Finding that could not answer says so in its first sentence and contains no invented threshold, falsifier
-  or number.
+  or number. Where the pre-registered falsifier fired, the outcome is `inconclusive` (or `needs_reframing`) and
+  the Answer names what the falsifier asked and what the data showed — the numbers stay, the Answer does not.
 - `reviews` and `attestations` are as empty as they were before the skill ran.
 - Recorded runs: `fixtures/runs/kpc-numeric` (a named Reader profile, `answered`, a causal Claim earned by
   randomised assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no

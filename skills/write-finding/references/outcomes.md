@@ -12,7 +12,7 @@ isn't one. Leave the slot in the state the evidence supports and say who owns cl
 | Outcome | The Analysis found | `question.state` |
 | --- | --- | --- |
 | `insufficient_data` | The comparison is the right one; there is not enough data to make it yet. | `resolved` |
-| `inconclusive` | The comparison was made and does not separate the options. | `resolved` |
+| `inconclusive` | The comparison was made and does not separate the options — **or the pre-registered falsifier fired**. | `resolved` |
 | `needs_reframing` | The ask cannot be answered as posed: the quantity is not measured, the population cannot be identified, the window has no clean before. | `not_answerable`, with `unresolved` listing the parts |
 
 `analysis.yaml#outcome_recommendation` picks one. Carry it across; never upgrade it because the evidence
@@ -51,6 +51,32 @@ it; if it did not, say the Analysis did not establish that rather than estimatin
 
 The falsifier ran and its outcome is recorded, whatever it was. `check` only requires a falsifier outcome to
 match its expectation when the outcome is `answered`, so an `inconclusive` Finding reports what happened.
+
+#### When the falsifier is *why* it is inconclusive
+
+This is the common shape, and it has its own discipline. The Analysis wrote down in advance what would show the
+Answer wrong; that observation happened; the Finding says so. It is the system working, not a failure, and the
+memo is written that way — never as an apology, never as a hedged version of the Answer that was hoped for.
+
+The memo must carry all of this:
+
+- **Answer**: the first clause says the Question is not settled by this Analysis. Then, in the Reader's words,
+  what the falsifier asked, that it recorded `fail`, and the observation that made it fail. A Finding that says
+  "inconclusive" without naming the contradicting observation has told the Reader nothing.
+- **material_caveat**: names the falsifier too, because the caveat travels with the Answer everywhere it goes.
+- **How we checked**: the falsifier among the Checks with its recorded outcome, and the sentence that it was
+  not loosened, un-required or rewritten after its result was seen. Where `analysis.yaml#/checks_preregistered`
+  pins its hash, say that a reviewer can verify it.
+- **What would change our mind**: what would settle the Question instead — a longer window, a larger
+  population, a Question reframed so that weekday and weekend (or whatever the falsifier split on) are asked
+  separately and pre-registered separately. Not the fired falsifier restated as though it were still open.
+- **Evidence**: the numbers stay. The evidence is valid; it is the Answer that does not stand. Claims the data
+  do support are still made, still traced, still charted. `check` reports one `falsifier_failed` warning and no
+  error, and `render` writes the page with the falsifier on it as its own fact.
+
+The falsifier Check is `required: false`, as `/checked-analysis` writes it. A second falsifier written after the
+first one fired is not a falsifier; a threshold moved to clear the result is the thing this outcome exists to
+prevent.
 
 ### needs_reframing
 

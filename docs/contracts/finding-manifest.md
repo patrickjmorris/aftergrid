@@ -17,6 +17,19 @@
 
 A complete, evidence-valid `insufficient_data` Finding is a normal, good result. A `draft` can be rendered with a draft label. Nothing in the manifest lets an author claim readiness.
 
+### What the Checks force the outcome to be
+
+Two Check kinds decide the outcome, and neither decides evidence validity. They are the reason a non-answer is a result rather than a failure.
+
+| Recorded | Outcome it forces | How `check` reports it |
+| --- | --- | --- |
+| `minimum_data` Check recorded `fail` (normally `required: false`) | `insufficient_data` | a `minimum_data` warning when the outcome is something else; an info line saying the failure is a business result |
+| `kind: falsifier` recorded `pass`/`fail` that is not its `expected_outcome` — the falsifier **fired** | `inconclusive` or `needs_reframing`, whichever the Analysis recommends; **never** `answered` | the warning `falsifier_failed` at `checks/<id>` with the Question's statement, plus the error `analytical_outcome` while the manifest still says `answered` |
+| `kind: falsifier` recorded `not_run` — the falsifier **declined** (below its minimum-data gate) | anything but `answered` | no warning; `analytical_outcome` when `answered` is claimed anyway |
+| any Check recorded `error` | none — this is invalid evidence, not a result | the error `check_error` |
+
+`required: true` on a `kind: falsifier` Check is refused with `check_shape`: `required` is an evidence-validity condition, and a falsifier is not one (`docs/contracts/checks-and-results.md`). A fired falsifier does not make the evidence invalid and does not stop `render`; the memo states what the falsifier asked and what the data showed (`docs/contracts/memo-template.md`).
+
 ## Identity
 
 - `finding.id` is `fnd_` plus 12 lowercase base-36 characters, minted once by `new finding`. `revision` is an integer; any content change after attestation is a new revision. A refresh or Revisit is always a new revision.

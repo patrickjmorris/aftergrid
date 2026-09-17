@@ -63,7 +63,25 @@ You are reviewing whether this Finding answers the Question that was asked.
   `insufficient_data` Finding that goes on to recommend an action anyway.
 - **The falsifier.** A resolved Question carries a falsifier Check with an expected outcome. An unresolved or
   not-answerable Question lists what is missing. A falsifier invented to fill the field — one that could not
-  fail, or that tests something other than the Question — is blocking.
+  fail, or that tests something other than the Question — is blocking. So is a falsifier declared
+  `required: true`: `required` is an evidence-validity condition and a falsifier is not one, and `check`
+  refuses that shape with `check_shape`.
+- **The falsifier was pre-registered, and was not edited afterwards.** This is the review's sharpest question,
+  because a falsifier decides the outcome. Establish it in this order:
+  1. **If `analysis.yaml#/checks_preregistered` names the Check**, compare the `content_hash` it recorded with
+     the Check's `content_hash` in `manifest.yaml`. Equal means the SQL that ran is the SQL that was written
+     before any result existed, and `check` asserts that mechanically. Different is blocking, and `check`
+     already reports it as `analysis_contract`; a pre-registration hash re-pinned to match an edited file is the
+     dishonest repair, so read the probes for what changed.
+  2. **Otherwise use the timeline**: `analysis.yaml#/execution_order` is grouped probe → check → query, so the
+     falsifier's `check` step must appear before the first `query` step, and `probes` must show no look at the
+     result the falsifier tests taken before it. That shows the *order* the files were written and not their
+     content, so say in the review that the content was not verifiable, rather than reporting it as verified.
+- **A fired falsifier is written up, not buried.** Where the falsifier's recorded outcome is not its
+  `expected_outcome`, `finding.outcome` is `inconclusive` or `needs_reframing` — never `answered` — and the
+  memo names what the falsifier asked and what the data showed. A Finding whose falsifier fired and whose
+  Answer sentence still reads like an answer is blocking. So is a threshold that moved, an
+  `expected_outcome` that flipped, or a second falsifier written after the first one failed.
 - **What is still open.** Anything the Question asked for that the Finding does not address is a finding:
   blocking when the decision depends on it, non-blocking otherwise.
 

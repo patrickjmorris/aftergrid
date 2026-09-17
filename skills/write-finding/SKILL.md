@@ -197,7 +197,10 @@ answer-first here and let that skill sharpen it.
   badge.
 - **What would change our mind** — the Question's falsifier in plain words, then each Claim's Recheck policy
   in plain words, then the earliest date a re-check means anything. Where `question.falsifier.kind` is
-  `not_evaluable`, say that none can be written yet and name who owns that.
+  `not_evaluable`, say that none can be written yet and name who owns that. Where the falsifier **already
+  fired** — its recorded outcome is not its `expected_outcome` — say so here and say what would settle the
+  Question instead; the outcome is then `inconclusive` or `needs_reframing`, and `references/outcomes.md` has
+  the shape that memo takes.
 - **Appendix** — query ids and paths, result ids, the parameters, and **what was run and by which tool**. On
   the recorded path that is the tool `executions[].executed_by.tool` names, and the Appendix says plainly that
   no copy of the data was kept: what was run is in the manifest — the query text, the parameters, the tool, and
@@ -249,4 +252,5 @@ Each of these is a hard rule, stated as what to do and then as the line not to c
 | Write `export_policy.allowed_fields` and `reader.profile`, and leave the rest of both blocks as you found them. | Touch `export_policy.recipient_scope`, `granularity`, `delivery` or `private_marker`. Dropping the marker turns off both sentinel guards silently, because each one is conditional on its presence. |
 | Call the Finding a draft, and say which facts are recorded. | Describe it as verified, approved, reviewed or complete-and-trusted. Those are separate facts a human establishes. |
 | State the falsifier `/checked-analysis` recorded, or that none exists yet and who owns writing it. | Invent a falsifier, a threshold, a definition or a caveat to fill a template slot. |
+| Write the Finding `inconclusive` when the pre-registered falsifier fired, and name in the Answer what it asked and what the data showed. | Keep `answered` over a fired falsifier, loosen the Check, or write a second falsifier once the first one failed. |
 | Write "not available" where a value is null or a denominator is zero. | Write 0, a blank or a dash. |

@@ -128,7 +128,7 @@ agree with it.
 | `invariant` | Something the data must be true of: no double counting, arms balanced, no negative counts | `required: true` |
 | `reconciliation` | The calculation matches the approved definition's canonical SQL, computed a second way | `required: true` |
 | `minimum_data` | There is enough data for the comparison to mean anything | `required: false` |
-| `falsifier` | The Question's falsifier, with `expected_outcome` | `required: true` |
+| `falsifier` | The Question's falsifier, with `expected_outcome` | `required: false` |
 
 Each file is one `SELECT` returning exactly one row: a boolean-or-null `pass` and an optional text `detail`.
 `pass = NULL` means *not evaluable on this data* and records `not_run` — that is how a falsifier declines to
@@ -136,6 +136,24 @@ answer below its minimum-data bar instead of flipping.
 
 A `minimum_data` Check that records `fail` is a **business result**: the Finding's outcome becomes
 `insufficient_data` and the memo says what is missing. A Check that errors is never a business result.
+
+**A falsifier is never `required: true`.** `required` is an evidence-validity condition — the numbers do not
+stand without it. A falsifier asks a different question: whether the *Answer* stands. Marking one `required`
+makes the one Check written to be allowed to fail into a reason to refuse the whole Finding, and `check` refuses
+that shape (`check_shape`).
+
+**A failing falsifier is the inconclusive path, not a halt. Write it up.** When a falsifier records the outcome
+it did not expect, the Analysis did its job: it said in advance what would show the Answer wrong, and that thing
+happened. Set `outcome_recommendation.outcome` to `inconclusive` (or `needs_reframing` where the Question itself
+is the problem), record what the data showed, and continue to `/write-finding`. Do not stop at
+`needs_attention`, and above all do not loosen the threshold, drop `required`, flip `expected_outcome` or
+rewrite the SQL after seeing the result — a falsifier edited after its result is not a falsifier. `check`
+reports a fired falsifier as a `falsifier_failed` warning, not an error, and `render` writes the page with the
+falsifier on it. The only error is claiming `answered` over a falsifier that fired (`analytical_outcome`).
+
+Record each Check's file hash in `analysis.yaml#/checks_preregistered` as you write it (`check_id`,
+`content_hash`, `at`). It costs one line and it is the only mechanical evidence a reviewer has that the
+falsifier is the one you wrote before the numbers existed.
 
 Write only the Checks that apply. A reconciliation Check needs an approved definition to reconcile against; when
 there is none, that is a `needs_input` of kind `definition_approval`, not a Check invented to fill the table.
@@ -147,8 +165,9 @@ rather than run against a table set nobody recorded. Declare the binding on the 
 which run an outcome belongs to, and it is what makes the Finding upgradable later.
 
 Done when: every applicable Check has a file under `checks/`, a manifest entry with its `kind`, `required`,
-`description` and its `execution_id`, and an entry in `analysis.yaml#/execution_order` — all of them before the
-first `query` entry.
+`description` and its `execution_id`, an entry in `analysis.yaml#/execution_order` and one in
+`analysis.yaml#/checks_preregistered` — all of them before the first `query` entry — and no `kind: falsifier`
+entry is `required: true`.
 
 ## 5. Write the analysis SQL
 

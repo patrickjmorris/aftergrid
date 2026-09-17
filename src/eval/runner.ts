@@ -46,7 +46,16 @@ export type GoldenQuestion = {
   raw_ask: string;
   reader: string;
   expected: {
-    outcome: string;
+    /**
+     * The outcome an honest Analysis reaches, or every outcome that would be honest. A list is the shape to
+     * use when the case's pre-registered falsifier decides between them: a stricter falsifier than the one the
+     * golden's reasoning assumes makes `inconclusive` the truthful answer to the same Question, and grading
+     * that as a failure would teach the Engine to prefer a loose falsifier (docs/contracts/golden-questions.md).
+     */
+    outcome: string | string[];
+    /** Set when the outcome list exists BECAUSE the falsifier choice decides it; `falsifier_note` says how. */
+    falsifier_dependent?: boolean;
+    falsifier_note?: string;
     definition_ids: string[];
     tables_read: string[];
     claim_type?: "descriptive" | "associational" | "causal";
@@ -354,9 +363,13 @@ export function assertCase(opts: AssertOptions): Assertion[] {
   const expected = golden.expected;
 
   const gotOutcome = manifest?.finding?.outcome ?? "(none)";
-  out.push(gotOutcome === expected.outcome
-    ? pass("outcome", "analytical", `outcome ${expected.outcome}`, `outcome ${gotOutcome}`)
-    : fail("outcome", "analytical", `outcome ${expected.outcome}`, `outcome ${gotOutcome}`));
+  // One acceptable outcome or several. Several is not a looser bar: each one is reviewed and written down, and
+  // the reasoning says why more than one is honest — normally because the case's falsifier decides between them.
+  const acceptable = Array.isArray(expected.outcome) ? expected.outcome : [expected.outcome];
+  const wanted = `outcome ${acceptable.join(" or ")}${expected.falsifier_dependent ? " (which one depends on the pre-registered falsifier)" : ""}`;
+  out.push(acceptable.includes(gotOutcome)
+    ? pass("outcome", "analytical", wanted, `outcome ${gotOutcome}`)
+    : fail("outcome", "analytical", wanted, `outcome ${gotOutcome}`));
 
   const citedDefs: string[] = (manifest?.definitions ?? []).map((d: any) => String(d.id));
   const missingDefs = expected.definition_ids.filter((d) => !citedDefs.includes(d));

@@ -258,14 +258,27 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     ...(m.executions ?? []).filter((e: any) => e.executed_by?.kind === "harness").map((e: any) => String(e.executed_by.tool)),
     ...(m.checks ?? []).filter((c: any) => c.reported_by).map((c: any) => String(c.reported_by.tool)),
   ])];
-  const checksPassed = m.checks.filter((c: any) => c.outcome === "pass").map((c: any) => esc(c.description));
-  const checksFailed = m.checks.filter((c: any) => c.outcome === "fail").map((c: any) => `${esc(c.description)}${c.kind === "minimum_data" ? " (this failure is the result of the Finding, not an error)" : ""}`);
+  // A pre-registered falsifier that recorded the outcome it did not expect is not one more failed Check: it is
+  // the reason this Finding does not answer its Question, so it gets its own fact line in the Question's own
+  // words and is kept out of the "Checks that did not pass" list rather than said twice.
+  const firedFalsifiers = m.checks.filter((c: any) =>
+    c.kind === "falsifier" && (c.outcome === "pass" || c.outcome === "fail") && c.outcome !== c.expected_outcome);
+  const firedIds = new Set(firedFalsifiers.map((c: any) => c.id));
+  const falsifierStatement: string | null = m.question?.falsifier?.kind === "check" ? String(m.question.falsifier.statement) : null;
+  const OUTCOME_WORD: Record<string, string> = {
+    answered: "answered", inconclusive: "inconclusive", insufficient_data: "not answerable on this data yet",
+    needs_reframing: "a Question that needs reframing", pending: "still a draft with no outcome recorded",
+  };
+  const checksPassed = m.checks.filter((c: any) => c.outcome === "pass" && !firedIds.has(c.id)).map((c: any) => esc(c.description));
+  const checksFailed = m.checks.filter((c: any) => c.outcome === "fail" && !firedIds.has(c.id)).map((c: any) => `${esc(c.description)}${c.kind === "minimum_data" ? " (this failure is the result of the Finding, not an error)" : ""}`);
   const checksNotRun = m.checks.filter((c: any) => c.outcome === "not_run").map((c: any) => esc(c.description));
   const fact = (mark: string, title: string, body: string) => `<li><span class="mk ${mark}">${mark === "ok" ? "✓" : mark === "wn" ? "!" : mark === "no" ? "×" : "–"}</span><span><strong>${title}</strong> ${body}</span></li>`;
   const facts = [
     checksPassed.length ? fact("ok", "Checks passed", checksPassed.join(" · ")) : "",
     checksFailed.length ? fact("no", "Checks that did not pass", checksFailed.join(" · ")) : "",
     checksNotRun.length ? fact("na", "Not run", checksNotRun.join(" · ")) : "",
+    ...firedFalsifiers.map((c: any) => fact("no", "Falsifier",
+      `${esc(falsifierStatement ?? String(c.description))} — recorded ${esc(String(c.outcome))}; this Finding is ${esc(OUTCOME_WORD[String(m.finding.outcome)] ?? String(m.finding.outcome))}.`)),
     ...m.definitions.map((d: any) => fact(d.lifecycle === "approved" ? "wn" : "na", "Definition", `${esc(d.id)}, version ${esc(String(d.version))}, recorded as ${esc(d.lifecycle)}${d.approval ? ` (approval recorded by ${esc(d.approval.approver)} on ${esc(d.approval.date)}; a recorded lifecycle is not a verified approval)` : ""}.`)),
     ...m.reviews.map((r: any) => fact(r.content_digest.value !== m.content_digest.value || r.blocking?.length ? "wn" : "ok", `${esc(r.kind.replace(/^./, (x: string) => x.toUpperCase()))} review`, `Recorded ${esc(r.date)} by ${esc(r.reviewer)}${r.content_digest.value !== m.content_digest.value ? "; for an earlier version of this content, so it is stale" : ""}${r.blocking?.length ? `; blocking: ${r.blocking.map(esc).join("; ")}` : ""}.`)),
     fact(inp.readiness === "ready" ? "ok" : "no", "Publication approval", inp.readiness === "ready" ? "Verified." : "None verified. This is a draft."),

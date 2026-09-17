@@ -237,6 +237,35 @@ test("checked-analysis steps 3 and 6 write the recorded path before the adapter 
   assert.match(six, /rerun_unavailable/, "step 6 may not offer `check --mode rerun` on this path without saying it is refused");
 });
 
+// ag-falsifier-outcome-cov. The skill told a model to mark the falsifier `required: true`, `check` then read a
+// failing falsifier as an evidence error, and the honest inconclusive Finding could not be written at all.
+test("checked-analysis writes the falsifier as required: false, and calls a failing one the inconclusive path", () => {
+  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+  const four = step(skill, 4);
+
+  const row = four.split("\n").find((l) => /^\|\s*`falsifier`\s*\|/.test(l));
+  assert.ok(row, "step 4 must still carry the Check-kinds table row for `falsifier`");
+  assert.match(row!, /`required: false`/, `the falsifier row must say required: false, it says: ${row}`);
+  assert.doesNotMatch(row!, /`required: true`/, "a falsifier is never an evidence-validity condition");
+
+  assert.match(four, /never `required: true`|is never `required: true`/, "step 4 must say so in prose, not only in the table");
+  assert.match(four, /check_shape/, "and name what `check` reports when it is");
+  assert.match(four, /inconclusive/, "step 4 must name the outcome a failing falsifier forces");
+  assert.match(four, /[Ww]rite it up|continue to `\/write-finding`|Write it up/, "and say the run writes it up");
+  assert.match(four, /not a halt|Do not stop at\s*\n?`?needs_attention`?|needs_attention/, "and say it is not a needs_attention halt");
+  assert.match(four, /checks_preregistered/, "step 4 must tell the model to pin each Check's hash when it writes it");
+
+  // The same rule, in the two places a harness might read instead of the skill body.
+  const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
+  assert.match(halting, /## What is not a halt[\s\S]*failing pre-registered falsifier/i, "the halting reference lists it as a non-halt");
+  const doc = readFileSync(join(REPO, "docs", "skills", "checked-analysis.md"), "utf8");
+  assert.match(doc, /falsifier_failed/, "the docs page must name the warning `check` reports");
+
+  // And the contract the prose describes really refuses the shape, so the two cannot drift apart.
+  const validator = readFileSync(join(REPO, "scripts", "lib", "validate-finding.mjs"), "utf8");
+  assert.match(validator, /kind === "falsifier" && ck\.required === true/, "the validator must be the thing that refuses it");
+});
+
 test("the /analyze halt conditions do not name a missing adapter", () => {
   const skill = readFileSync(join(REPO, "skills", "analyze", "SKILL.md"), "utf8");
   const halts = step(skill, 4);

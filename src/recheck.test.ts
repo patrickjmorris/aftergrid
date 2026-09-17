@@ -89,17 +89,46 @@ test("the Question falsifier must reference an executable falsifier Check with m
   assert.ok(cats(await check({ dir })).some((c) => c.startsWith("schema@manifest.yaml#/question")), "a resolved Question cannot carry a not_evaluable falsifier");
 });
 
+// ag-falsifier-outcome-cov. A falsifier is never an evidence-validity condition: `required: true` on one is a
+// shape error, a recorded outcome that is not the expected one is an analytical fact (a warning, plus an error
+// only while the manifest still claims `answered`), and a SQL error is still invalid evidence.
 test("a falsifier business result is distinct from an engine failure; neither runs the evaluator", async () => {
   const root = copyInstance();
+  // The falsifier fired and the Finding still answers: an analytical_outcome error at the Check.
   let dir = mutate(root, NUMERIC, (m) => { m.checks.find((c: any) => c.id === "falsifier_lift").outcome = "fail"; });
-  let c = cats(await check({ dir }));
-  assert.ok(c.includes("falsifier@checks/falsifier_lift") && !c.some((x) => x.startsWith("check_error")), c.join("\n"));
-  dir = mutate(root, NUMERIC, (m) => { m.checks.find((c: any) => c.id === "falsifier_lift").outcome = "error"; });
+  let report = await check({ dir });
+  let c = cats(report);
+  assert.ok(c.includes("analytical_outcome@checks/falsifier_lift") && !c.some((x) => x.startsWith("check_error")), c.join("\n"));
+  assert.ok(report.warnings.some((w) => w.category === "falsifier_failed" && w.location === "checks/falsifier_lift"), JSON.stringify(report.warnings));
+  assert.ok(report.warnings.some((w) => /3 percentage points above the control arm/.test(w.message)), "the warning carries the Question's statement");
+
+  // The same falsifier, with the outcome the Finding honestly reaches: no error, the warning stands, and the
+  // Finding is renderable. This is the case the whole contract exists for.
+  dir = mutate(root, NUMERIC, (m) => {
+    m.checks.find((x: any) => x.id === "falsifier_lift").outcome = "fail";
+    m.finding.outcome = "inconclusive";
+  });
+  report = await check({ dir });
+  assert.equal(report.errors.length, 0, JSON.stringify(report.errors));
+  assert.equal(report.evidence, "valid");
+  assert.equal(report.warnings.filter((w) => w.category === "falsifier_failed").length, 1);
+
+  // `required: true` on a falsifier confuses validity with outcome, and is refused on its own.
+  dir = mutate(root, NUMERIC, (m) => { m.checks.find((x: any) => x.id === "falsifier_lift").required = true; });
   c = cats(await check({ dir }));
-  assert.ok(c.includes("check_error@checks/falsifier_lift.sql") && !c.some((x) => x.startsWith("falsifier@")), c.join("\n"));
+  assert.ok(c.includes("check_shape@checks/falsifier_lift") && !c.some((x) => x.startsWith("check_failed@")), c.join("\n"));
+
+  // A SQL error is never an analytical outcome, whatever the Check's kind.
+  dir = mutate(root, NUMERIC, (m) => { m.checks.find((x: any) => x.id === "falsifier_lift").outcome = "error"; });
+  c = cats(await check({ dir }));
+  assert.ok(c.includes("check_error@checks/falsifier_lift.sql") && !c.some((x) => x.startsWith("falsifier")), c.join("\n"));
+
+  // A falsifier that declined below its minimum-data gate is not a falsifier that fired: no warning, and the
+  // insufficient-data Finding it belongs to stays clean.
   const r = await check({ dir: join(root, "analytics", "findings", INSUFFICIENT) });
   assert.equal(r.sql_execution, "not_performed");
   assert.ok(r.info.some((i) => /falsifier_cancel_rate=not_run/.test(i)));
+  assert.equal(r.warnings.filter((w) => w.category === "falsifier_failed").length, 0, "not_run is the falsifier declining, not firing");
 });
 
 test("Decision records bind to an existing Finding revision, its digest, its Claim ids and its falsifier; schedules carry a timezone", async () => {

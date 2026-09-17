@@ -47,6 +47,7 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | --- | --- | --- | --- |
 | `control-valid` | engine_category | `none` | The unmodified base every numeric case is derived from. If this fails, the base is broken, not the defect. |
 | `control-non-answer` | analytical_outcome | `none` | A complete `insufficient_data` Finding whose minimum-data Check is recorded as `fail`. A non-answer is an analytical outcome, never an engine failure. |
+| `falsifier-failed-inconclusive` | analytical_outcome | `none` | The pre-registered falsifier recorded `fail` and the Finding records `inconclusive`. A falsifier that fires decides the outcome; it is not an evidence failure, so `check` reports one `falsifier_failed` warning and no error, and `render` writes the page with the falsifier on it. |
 | `control-prose-dates-ids` | engine_category | `none` | Memo prose with an ISO date, a timestamp, a numbered heading, manifest ids, a definition version, a file path and a `{{literal:…}}`. None is a measured quantity, so `untraced_numeral` must not fire. |
 | `zero-denominator-derived` | engine_category | `none` | The web control arm has no signups, so a derived ratio divides by zero. The render says "not available" in words, never 0. |
 | `nullable-null-not-available` | engine_category | `none` | A column declared `nullable` holds `null`. Valid evidence; renders as "not available" in prose and in the table. |
@@ -76,6 +77,8 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `private-marker-in-memo` | engine_category | `export_policy` | The Instance's `export_policy.private_marker` is typed into the memo prose, where every byte is Reader-facing. `check` reports it with a line and column and `render` is refused; it is not left to the output-byte check. |
 | `definition-version-not-pinned` | engine_category | `definition_version` | The Question cites a definition version the manifest does not pin. |
 | `failing-reconciliation-check` | engine_category | `check_failed` | The required reconciliation Check is recorded as `fail` while the Finding still answers the Question. Render is refused. |
+| `falsifier-required` | engine_category | `check_shape` | The falsifier Check is declared `required: true`, as though it were an evidence-validity condition. A falsifier decides the outcome, never validity. Render is refused. |
+| `falsifier-failed-but-answered` | analytical_outcome | `analytical_outcome` | The pre-registered falsifier recorded `fail` and the Finding is still recorded as `answered`. Render is refused. |
 | `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` | The pinned content hash of the first retained input does not match the file. |
 | `stale-attestation` | engine_category | `stale_attestation` | A trusted `github_pr_review` approval is bound to a content digest this directory does not have. |
 | `artifact-modified-after-attestation` | engine_category | `stale_attestation` | The memo was edited after the approval and the method review were recorded, without a new revision. The stale review is only a warning; the stale approval is the error. |

@@ -16,8 +16,17 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["outcome", "definition_ids", "tables_read", "reasoning"],
+      "dependentRequired": { "falsifier_dependent": ["falsifier_note"], "falsifier_note": ["falsifier_dependent"] },
       "properties": {
-        "outcome": { "type": "string", "enum": ["answered", "inconclusive", "insufficient_data", "needs_reframing"] },
+        "outcome": {
+          "description": "The outcome an honest Analysis reaches, or the list of outcomes that would all be honest. Use a list when the case's pre-registered falsifier decides between them, and say so with falsifier_dependent and falsifier_note.",
+          "oneOf": [
+            { "type": "string", "enum": ["answered", "inconclusive", "insufficient_data", "needs_reframing"] },
+            { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["answered", "inconclusive", "insufficient_data", "needs_reframing"] } }
+          ]
+        },
+        "falsifier_dependent": { "const": true, "description": "Set only when the acceptable outcomes differ BECAUSE of which pre-registered falsifier the Analysis wrote. Requires falsifier_note." },
+        "falsifier_note": { "type": "string", "minLength": 1, "description": "Which falsifier leads to which acceptable outcome, in the reviewer's words." },
         "definition_ids": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, "description": "Definitions an honest Analysis must cite (any version)." },
         "tables_read": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" } },
         "claim_type": { "type": "string", "enum": ["descriptive", "associational", "causal"], "description": "Strongest Claim type the evidence supports for the answer-bearing Claim." },

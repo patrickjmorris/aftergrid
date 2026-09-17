@@ -8,7 +8,12 @@ Conventions the manifest schema cannot express. `aftergrid check` and the DuckDB
 - `pass = true` records outcome `pass`; `pass = false` records `fail`; `pass = NULL` records `not_run`, meaning the Check declares itself not evaluable on this data (a falsifier before its minimum-data gate, for example). A SQL error records `error`.
 - A Check runs against the same retained inputs as the analysis, with the parameters of the execution named by its `execution_id`, or of the first execution when none is named. Parameters bind as `$name`.
 - `required: true` Checks must record `pass` for evidence validity. A `minimum_data` Check that fails is a business result and is normally `required: false`; the Finding's outcome is then `insufficient_data`.
-- `kind: falsifier` Checks carry `expected_outcome`. For an `answered` Finding the recorded outcome must equal it; `not_run` is only acceptable when the outcome is not `answered`.
+- **A `kind: falsifier` Check is never an evidence-validity condition.** `required` and `kind: falsifier` answer different questions: `required` asks whether the numbers stand, a falsifier asks whether the Answer does. `required: true` on a falsifier is refused with `check_shape` at `checks/<id>`, because it turns the one Check written to be allowed to fail into a reason to refuse the Finding — and the honest inconclusive Finding then cannot be written, reviewed or rendered at all.
+- `kind: falsifier` Checks carry `expected_outcome`, which mirrors `question.falsifier.expected_outcome`.
+  - A recorded `pass` or `fail` that is **not** the expected outcome is the falsifier **firing**. That is an analytical fact, not an engine failure: `check` reports the warning `falsifier_failed` at `checks/<id>`, carrying the Question's falsifier statement. The Finding's outcome must then be `inconclusive` or `needs_reframing` — whichever the Analysis recommends — and never `answered`. While the manifest still says `answered`, `check` adds the error `analytical_outcome` at the same location, and that is the only error a fired falsifier produces.
+  - `not_run` is the falsifier **declining** to evaluate — below its minimum-data gate, for instance. It is not the falsifier firing, so it raises no `falsifier_failed` warning; it is still never compatible with `answered`, and `analytical_outcome` is reported when it is claimed.
+  - The Check is never loosened, un-required or rewritten after its result is seen. `analysis.yaml#/checks_preregistered` records each Check's SQL hash at the moment it was written so a reviewer can see that mechanically (`docs/contracts/analysis-directory.md`).
+  - `render` does **not** refuse a Finding whose only non-passing Check is a fired falsifier with a consistent outcome. The falsifier appears on the page as its own fact, in the Question's own words, with a `no` mark: *Falsifier: &lt;statement&gt; — recorded fail; this Finding is inconclusive.* It is said once — a fired falsifier is kept out of the "Checks that did not pass" list.
 - A SQL error in any Check, required or not, is invalid evidence: an `error` outcome is never a business result. Only `fail` on a `minimum_data` Check (or on an optional Check the memo explains) is.
 - A Check statement is a single SELECT. Retained inputs are the only relations it may read; external file access, attach and installation of extensions are disabled in the execution sandbox, and each execution sees only the inputs its manifest entry declares.
 - Artifact-verification mode does not execute Checks and reports SQL execution as not performed; it never turns a recorded `not_run` into `pass`.
@@ -85,6 +90,7 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | --- | --- | --- |
 | `control-valid` | engine_category | no error (the unmodified base) |
 | `control-non-answer` | analytical_outcome | no error: a complete `insufficient_data` Finding with a `minimum_data` Check recorded `fail` |
+| `falsifier-failed-inconclusive` | analytical_outcome | no error, one `falsifier_failed` warning: the pre-registered falsifier recorded `fail` and the Finding records `inconclusive`. `render` writes the page, with the falsifier on it |
 | `control-prose-dates-ids` | engine_category | no error: dates, timestamps, numbered headings, ids, definition versions, file paths and `{{literal:…}}` are not data-bearing |
 | `zero-denominator-derived` | engine_category | no error; the render says "not available", never 0 |
 | `nullable-null-not-available` | engine_category | no error; a declared null renders "not available" in prose and in the table |
@@ -104,6 +110,8 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `private-marker-in-memo` | engine_category | `export_policy` at `memo.md:<line>:<col>`; `render` is refused |
 | `definition-version-not-pinned` | engine_category | `definition_version` |
 | `failing-reconciliation-check` | engine_category | `check_failed`; `render` is refused |
+| `falsifier-required` | engine_category | `check_shape`; `render` is refused: a falsifier is not an evidence-validity condition |
+| `falsifier-failed-but-answered` | analytical_outcome | `analytical_outcome` (plus a `falsifier_failed` warning); `render` is refused |
 | `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` |
 | `stale-attestation` | engine_category | `stale_attestation` |
 | `artifact-modified-after-attestation` | engine_category | `stale_attestation` (plus a `stale_review` warning, which is never the failure by itself) |

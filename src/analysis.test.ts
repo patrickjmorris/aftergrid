@@ -22,7 +22,7 @@ import { newFinding } from "./commands/new-finding.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
 import { check } from "./commands/check.ts";
-import { validateAnalysisFile, analysisWarnings } from "./analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings, analysisSummary } from "./analysis/validate.ts";
 import { proposeDefinition } from "./analysis/definitions.ts";
 
 const REPO = fileURLToPath(new URL("../", import.meta.url));
@@ -476,6 +476,38 @@ test("analysis.yaml records the Checks before the analysis queries, and a Check 
   const order = problems.find((p) => p.category === "analysis_contract" && /recorded after a query/.test(p.message));
   assert.ok(order, JSON.stringify(problems));
   assert.match(order!.remedy ?? "", /before the final analysis SQL/);
+});
+
+// ag-falsifier-outcome-cov. A falsifier decides the outcome, so a reviewer needs to know it was not edited
+// after its result was seen. `checks_preregistered` is the only mechanical answer; its absence is reported too.
+test("a pre-registered Check hash must match the Check the manifest pins, and its absence is said rather than assumed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ag-prereg-"));
+  const base: any = parseYaml(readFileSync(join(RUNS, "7qg-onboarding", "analysis.yaml"), "utf8"));
+  const manifest: any = parseYaml(readFileSync(join(EXEMPLAR, "manifest.yaml"), "utf8"));
+  const falsifier = manifest.checks.find((c: any) => c.kind === "falsifier");
+
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(base, { lineWidth: 0 }));
+  assert.ok(analysisSummary(dir).some((l) => /no Check pre-registration hashes recorded/.test(l)), analysisSummary(dir).join("\n"));
+
+  const pinned = structuredClone(base);
+  pinned.checks_preregistered = [{ check_id: falsifier.id, content_hash: { ...falsifier.content_hash }, at: "2026-07-19T09:00:00Z" }];
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(pinned, { lineWidth: 0 }));
+  assert.deepEqual(validateAnalysisFile(dir, manifest), [], JSON.stringify(validateAnalysisFile(dir, manifest)));
+  assert.ok(analysisSummary(dir).some((l) => new RegExp(`1 Check\\(s\\) pre-registered.*${falsifier.id}`).test(l)), analysisSummary(dir).join("\n"));
+
+  // The file moved after it was pre-registered: a falsifier edited after its result is not a falsifier.
+  const edited = structuredClone(pinned);
+  edited.checks_preregistered[0].content_hash.value = "0".repeat(64);
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(edited, { lineWidth: 0 }));
+  const problems = validateAnalysisFile(dir, manifest);
+  const drift = problems.find((p) => p.category === "analysis_contract" && /different SQL file/.test(p.message));
+  assert.ok(drift, JSON.stringify(problems));
+  assert.match(drift!.remedy ?? "", /Never re-pin/);
+
+  const unknown = structuredClone(pinned);
+  unknown.checks_preregistered[0].check_id = "no_such_check";
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(unknown, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir, manifest).some((p) => p.category === "unresolved_reference"), "a pre-registration naming no Check is unresolved");
 });
 
 test("the recorded onboarding run is an Analysis the writer can consume against the exemplar's manifest", () => {

@@ -109,6 +109,34 @@ test("render refuses invalid evidence and forbidden chart specs, leaving previou
   assert.ok(r2.errors.some((e) => e.category === "chart_subset"), JSON.stringify(r2.errors));
 });
 
+// ag-falsifier-outcome-cov. The Finding this bead exists for: a pre-registered falsifier recorded fail, the
+// Finding says inconclusive, and the page must EXIST — with the falsifier on it in the Question's own words.
+test("a failed falsifier is its own fact on a draft page, and never a reason to refuse the render", async () => {
+  const root = copy();
+  const dir = finding(root, NUMERIC);
+  const mp = join(dir, "manifest.yaml");
+  const m = parseYaml(readFileSync(mp, "utf8"));
+  m.checks.find((c: any) => c.id === "falsifier_lift").outcome = "fail";
+  m.finding.outcome = "inconclusive";
+  // Reviews and attestations bind content, so they are dropped rather than rebound to a Finding they never saw.
+  m.reviews = []; m.attestations = [];
+  m.content_digest = digestOf(m, dir);
+  rmSync(join(root, "analytics", "decisions"), { recursive: true, force: true });
+  writeFileSync(mp, toYaml(m, { lineWidth: 0 }));
+
+  const r = await render({ dir, generatedAt: "2026-09-16T12:00:00Z" });
+  assert.equal(r.errors.length, 0, JSON.stringify(r.errors));
+  assert.ok(r.warnings.some((w) => w.category === "falsifier_failed"), JSON.stringify(r.warnings));
+  const html = readFileSync(join(dir, "render", "finding.html"), "utf8");
+  assert.ok(
+    /<span class="mk no">×<\/span><span><strong>Falsifier<\/strong> [^<]*7-day retention is not at least 3 percentage points above the control arm[^<]*— recorded fail; this Finding is inconclusive\./.test(html),
+    "the falsifier is one fact, in the Question's words, with a no mark",
+  );
+  assert.ok(!/<strong>Checks that did not pass<\/strong>[^<]*at least 500 users/.test(html), "it is said once, not twice");
+  assert.ok(/class="draft"/.test(html), "an inconclusive Finding is still a draft until a human approves it");
+  assert.ok(html.includes("<svg"), "the evidence still renders: the numbers are not in doubt, the Answer is");
+});
+
 test("an incomplete draft renders with an incomplete label and no invented content", async () => {
   const root = copy();
   const r = await render({ dir: finding(root, "companion-needs-input") });

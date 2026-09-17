@@ -475,7 +475,7 @@ checks:
   - id: falsifier_lift
     kind: falsifier
     path: checks/falsifier_lift.sql
-    required: true
+    required: false
     outcome: pass
     expected_outcome: pass
     description: The checklist arm is at least 3 percentage points ahead with at least 500 users in each arm.
@@ -489,7 +489,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: b4e00db97c9a854cba112f0fe9c45a2a17ae2b55bce146c864453a871a8a5af0
+      value: 4ee2de98d4aac9a4b37fc08ab4cd3c580d165490c0d248c344bd59c3543e28f4
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.
