@@ -273,6 +273,16 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
         child.on("close", (code) => {
           if (bound) clearTimeout(bound);
           const parsed = lastJsonLine(out);
+          // A harness that refused a write inside the Finding directory is infrastructure, and it is read
+          // before anything else: the run never got to have an analytical opinion, whatever it exited with and
+          // whatever it managed to write before the refusal. `/analyze` prints this halt as the last line of
+          // its final message precisely because the halt artifact lives in the directory that refused the
+          // write (skills/analyze/references/halting.md).
+          const denied = permissionHalt(parsed);
+          if (denied) {
+            resolvePromise({ status: "failed", cause: "harness_permission_denied", reason: denied });
+            return;
+          }
           const dir = parsed && typeof parsed.finding_dir === "string" && parsed.finding_dir.trim()
             ? (isAbsolute(parsed.finding_dir) ? parsed.finding_dir : join(ctx.instanceRoot, parsed.finding_dir))
             : ctx.findingDir;
@@ -309,6 +319,38 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
       });
     },
   };
+}
+
+/**
+ * The `/analyze` permission halt, read out of what the analyzer printed, or null when there is none.
+ *
+ * The halt is a single JSON object on the **last line of the run's final message**:
+ * `{"aftergrid":"halt","status":"permission_denied","stage":…,"paths":[…],"reason":…}`. Under the headless
+ * CLI's `--output-format json` that message is the envelope's `result` string, so the line is looked for
+ * there; an analyzer that prints the halt object directly as its own last stdout line is read too, because
+ * the contract is about the halt, not about which harness wrapped it.
+ *
+ * Returned as the `reason` prose for the failed outcome, built from the stage, the refused paths and the
+ * harness's own denial text — all three through the same redaction as everything else the run writes about an
+ * invocation, because a denial text quotes the command or path that was refused.
+ */
+export function permissionHalt(parsed: Record<string, unknown> | null): string | null {
+  if (!parsed) return null;
+  const halt = isPermissionHalt(parsed)
+    ? parsed
+    : (typeof parsed.result === "string" ? lastJsonLine(parsed.result) : null);
+  if (!halt || !isPermissionHalt(halt)) return null;
+  const clean = (v: unknown): string => redactCommand(String(v ?? "").replace(/\s+/g, " ").trim()) ?? "";
+  const stage = clean(halt.stage) || "(no stage named)";
+  const paths = (Array.isArray(halt.paths) ? halt.paths : []).map(clean).filter(Boolean);
+  const reason = clean(halt.reason) || "the halt named no denial text";
+  return `the harness refused a write inside the Finding directory at stage ${stage}: ${reason}`
+    + (paths.length ? ` (refused: ${paths.join(", ")})` : " (the halt named no path)");
+}
+
+/** The halt envelope, by its two stable words. Any other `aftergrid` halt is not this one and is left alone. */
+function isPermissionHalt(v: Record<string, unknown>): boolean {
+  return v.aftergrid === "halt" && v.status === "permission_denied";
 }
 
 /** The bytes of a Finding's manifest, or null when there is none to compare against. */

@@ -87,6 +87,7 @@ has none.
 ```yaml
 schema_version: 0.1.0
 stage: clarified|analysed       # absent means analysed; see "The two stages" below
+clarified_at: <RFC 3339>        # optional: when the Question was settled; capture is expected to follow it
 reader_profile: <reader profile id from readers.md, or generic>
 assumptions:                    # one per choice the Question did not settle
   - { id, statement, basis: operator_answer|catalog_probe|instance_document|engine_default|unverified, settled_by?, affects? }
@@ -117,7 +118,7 @@ needs_input:                    # what the Analysis stopped for; each specific e
 
 ### The two stages
 
-`stage: clarified` is the seed `/grill-question` writes: `reader_profile`, `assumptions`,
+`stage: clarified` is the seed `/grill-question` writes: `reader_profile`, `clarified_at`, `assumptions`,
 `pre_registered_comparison`, `needs_input`. It is a **complete artifact for that stage**, `check` reports its
 evidence `valid`, and `execute` reports it as a warning naming what is not filled in yet — never as an error,
 because `/checked-analysis` runs `execute` at step (d) before it writes the working record.
@@ -208,6 +209,17 @@ Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
 - **`probes` reads as a timeline.** A probe timestamped before the one above it is reported by
   `analysisWarnings(dir)` as a **warning** with the location of the offending `at` — `check`, `execute` and
   `record` print it, and none of them refuses the Finding over it.
+- **Capture follows clarification.** `clarified_at` is when the Question was settled, written by
+  `/grill-question` (and by the shared clarification procedure `/analyze` and `/checked-analysis` follow) from
+  the harness's clock at that moment. A Snapshot input whose `manifest.snapshot.inputs[].captured_at` is
+  **earlier** than it is reported by `analysisWarnings(dir)` as the **warning** `capture_before_clarify`, at
+  `manifest.yaml#/snapshot/inputs/<i>/captured_at`, naming the input: an extract chosen before the Question was
+  settled was chosen without knowing what it had to answer. A warning and not an error — the extract is what it
+  is, its hash still pins it, and the repair is the next revision's order of work, not a claim about this
+  evidence. With no `clarified_at`, `pre_registered_comparison.registered_at` is read instead; with neither,
+  **nothing is reported**, because the order of work is then unknown rather than wrong. The earliest probe is
+  deliberately not used as a stand-in: a probe is a look taken after clarification, so it would date
+  clarification by something that followed it.
 
 The `requested_*` lists exist because `derived` and `external_sources` are fields `/write-finding` owns: they are
 empty while the Analysis directory is the Analysis directory. Naming a requested value here lets a candidate

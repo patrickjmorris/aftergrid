@@ -59,9 +59,35 @@ analytical regressions out of a broken orchestrator.
 | `analyzer_spawn_failed` | the binary could not be started (ENOENT, permissions) | no |
 | `analyzer_killed` | the child was killed before it exited (a timeout or a signal) | yes |
 | `analyzer_wrote_nothing` | it exited 0 and left the draft exactly as `new finding` wrote it | yes |
+| `harness_permission_denied` | the run halted because the harness refused a write inside the Finding directory | no — not until the harness is configured to allow it |
 
 An analyzer that prints `{"status":"declined", ...}` has made a judgement rather than crashed: that case stays
 `not_run`.
+
+### A harness that refused the write
+
+`/analyze` halts with `permission_denied` when the harness refuses a write inside the Finding directory, and
+prints the halt as the **last line of its final message** — because the halt artifact
+(`analysis-progress.yaml`) lives in the directory that just refused a write, so there may be no file to read
+(`skills/analyze/references/halting.md`):
+
+```json
+{"aftergrid": "halt", "status": "permission_denied", "stage": "checked_analysis", "paths": ["checks/minimum_data.sql"], "reason": "Claude requested permissions to edit <path> which is a sensitive file"}
+```
+
+Under `--output-format json` that final message is the envelope's `result` string, so `permissionHalt` reads
+the last JSON line **of `result`**; an analyzer that prints the halt object as its own last stdout line is read
+too. The halt is read **before** the exit code and before the draft comparison: a run blocked this way is
+`failed` with cause `harness_permission_denied` — an `error` case, `infrastructure`, **zero assertions** —
+whatever it exited with and whatever it managed to write before the refusal. The Analysis never got to have an
+opinion, and scoring one out of a blocked run would file a permission problem as a wrong answer. The stage, the
+refused paths and the harness's own denial text go into the case record's `reason` (through the same redaction
+as everything else the run writes about an invocation); `summary.md` and any issue body carry the cause word
+only, and the failure is marked **not recoverable**: the same flags refuse the same write tomorrow.
+
+A `needs_input` or `needs_attention` halt is **not** this. Those are written into the Finding, the directory
+comes back changed, and the case is scored exactly as it is today — assertions and all, with the halt showing
+up as the outcome and state the manifest records.
 
 ### Cost
 
@@ -195,13 +221,54 @@ The job runs the **command** analyzer — headless Claude Code invoking `/analyz
 today's skills), and the template it passes is
 
 ```
-claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode acceptEdits \
+claude -p /analyze --plugin-dir {repo_root} --add-dir {finding_dir} --permission-mode bypassPermissions \
        --max-budget-usd {max_cost_usd} --output-format json
 ```
 
 `/analyze` is a skill of **this repository's plugin**, and the Finding lives in a `mkdtemp` copy of the
 Instance, so the plugin has to be loaded explicitly; `{repo_root}` is the Engine checkout the runner resolves
-from its own module URL. Whether that invocation does what it says is still unverified: no model has run it.
+from its own module URL. The permission mode is the subject of "What the headless run needs" below. Whether
+that invocation produces a Finding is still unverified: no model has run the suite end to end.
+
+### What the headless run needs
+
+The permission flags are not a preference. Run 1 of `/analyze` on the NYC open-data Instance
+(`examples/nyc-open-data/docs/run-log.md`) invoked the CLI the way the template above used to read —
+`--plugin-dir <repo> --permission-mode acceptEdits` — and **every** write into the Finding directory was refused
+as *"Claude requested permissions to edit <path> which is a sensitive file"*: sixteen refusals across eight
+paths, including the halt artifact itself. That session's own probe matrix found `acceptEdits` alone fine,
+`--add-dir` fine, `--plugin-dir` + `acceptEdits` refused even with `Write(//<instance>/**)` and
+`Edit(//<instance>/**)` allow rules, and `--plugin-dir` + `bypassPermissions` fine.
+
+**Probed again on 2026-09-17 with `claude 2.1.274`** (the plugin under test is this repository; each probe is
+one headless session asking for a single file to be written, bounded by `--max-budget-usd 2` — this CLI version
+has no `--max-turns` flag):
+
+| Flags, all with `--plugin-dir <repo>` | Wrote `<instance>/probe/checks/p.sql` | Wrote `<instance>/findings/<slug>/checks/p.sql` | Reported cost |
+| --- | --- | --- | --- |
+| `--permission-mode bypassPermissions` | ok | not probed | $1.09 |
+| `--permission-mode dontAsk` | **denied** — "Permission to use Write has been denied because Claude Code is running in don't ask mode" | not probed | $0.58 |
+| `--allowedTools "Write" "Edit" "Bash(aftergrid:*)"` (no mode flag) | ok | ok | $0.56 + $0.57 |
+| `--permission-mode acceptEdits` | not probed | **ok** | $0.56 |
+
+Two facts, and they are different facts. `dontAsk` refuses the write outright and is unusable for a nightly.
+And **run 1's refusal did not reproduce**: at this CLI version, in a temporary Instance, `acceptEdits` +
+`--plugin-dir` wrote into a Finding directory without complaint. So the cause of run 1 is still not established
+— it is a version, an environment or a settings difference nobody has isolated — and "acceptEdits works" is a
+statement about 2026-09-17 on one machine, not a repair.
+
+The workflow therefore uses **`--permission-mode bypassPermissions`**: the only mode with recorded evidence of
+writing under *both* conditions — the session that was refused, and today's probes. The price is paid in the
+sandbox rather than in the mode: each case's Instance is a `mkdtemp` **copy** of `fixtures/instance` created by
+the runner, the job runs on an ephemeral CI runner, and the eval writes nothing back into the repository, so
+there is nothing outside that copy for a bypassing run to reach that matters. Narrowing it later is a real
+option — the `--allowedTools` set above wrote fine today and is the least-privileged thing that did — but it
+must enumerate every tool `/analyze` needs, and it was never tested against the condition that produced run 1,
+where scoped allow rules did not lift the refusal.
+
+None of this is load-bearing for honesty any more, which is the point of the halt: if the harness refuses a
+write, `/analyze` stops and says so in its own output, and the run is recorded as `harness_permission_denied`
+infrastructure rather than as an Analysis that got the answer wrong.
 
 Without the secret the job runs the fixture analyzer. Either way the job summary's claim comes from
 `aftergrid eval summary` reading `run.json`, never from the secret being set, so there is no configuration in

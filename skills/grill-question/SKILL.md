@@ -50,7 +50,9 @@ settled or explicitly recorded as unsettled with its reason.
 ## 4. Write it down
 
 Follow *Writing the result*. `question` and `reader` in `manifest.yaml`; `stage: clarified`, `reader_profile`,
-`assumptions`, `pre_registered_comparison` and any `needs_input` in `analysis.yaml`. `stage: clarified` is what
+`clarified_at` (the harness's clock at the moment the Question was settled — it is what lets `check` see whether
+capture followed clarification), `assumptions`, `pre_registered_comparison` and any `needs_input` in
+`analysis.yaml`. `stage: clarified` is what
 says this file is a seed: without it the Analysis file is read as a finished working record and `check` reports
 the probes, execution order, candidate Claims and outcome it is missing.
 

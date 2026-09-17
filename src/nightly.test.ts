@@ -13,7 +13,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { contentDigest } from "./digest.ts";
-import { loadGoldens } from "./eval/runner.ts";
+import { loadGoldens, permissionHalt } from "./eval/runner.ts";
 import {
   DEFAULT_BUDGET_MS, RUN_FILE, SUMMARY_FILE, COMPARISON_FILE, RUN_LEVEL_ASSERTION,
   failuresOf, fingerprintFor, nightlyExitCode, readCaseRecords, redactCommand, runNightly,
@@ -764,6 +764,79 @@ test("a credential on the command line reaches no file the run writes even when 
   assert.equal(scored.cases[0]!.failure_cause ?? null, null, "the analyzer produced a Finding, so the case was judged");
   assert.match(String(scored.cases[0]!.analyzer.source), /--anthropic-api-key <redacted>/);
   assert.deepEqual(grepTree(out2, secret), []);
+});
+
+/* ------------------------------------------------ a harness permission block is infrastructure */
+
+/** The halt `/analyze` prints when the harness refuses a write inside the Finding directory. */
+const HALT_LINE = '{"aftergrid": "halt", "status": "permission_denied", "stage": "checked_analysis", '
+  + '"paths": ["checks/minimum_data.sql", "analysis-progress.yaml"], '
+  + '"reason": "Claude requested permissions to edit <path> which is a sensitive file"}';
+
+test("a permission halt is read out of the CLI envelope, and from a raw last line, and no other halt is", () => {
+  const envelope = { type: "result", subtype: "success", is_error: false, result: `I stopped and wrote nothing.\n${HALT_LINE}` };
+  const fromEnvelope = permissionHalt(envelope as Record<string, unknown>);
+  assert.match(String(fromEnvelope), /stage checked_analysis/);
+  assert.match(String(fromEnvelope), /sensitive file/);
+  assert.match(String(fromEnvelope), /checks\/minimum_data\.sql, analysis-progress\.yaml/);
+
+  // An analyzer that is not the Claude CLI prints the halt object itself: the contract is the halt, not the wrapper.
+  assert.equal(permissionHalt(JSON.parse(HALT_LINE)), fromEnvelope);
+
+  assert.equal(permissionHalt(null), null);
+  assert.equal(permissionHalt({ type: "result", result: "done" }), null, "an ordinary run carries no halt");
+  assert.equal(
+    permissionHalt({ result: '{"aftergrid": "halt", "status": "needs_input", "stage": "clarify"}' }),
+    null,
+    "a needs_input halt is written into the Finding and scored as it always was; only a refused write is infrastructure",
+  );
+  const credential = permissionHalt({ result: `x\n{"aftergrid":"halt","status":"permission_denied","stage":"clarify","paths":[],"reason":"denied: claude --api-key sk-ant-api03-LEAKED"}` });
+  assert.match(String(credential), /--api-key <redacted>/, "a denial text quoting an invocation goes through the same redaction as everything else");
+});
+
+test("an analyzer whose run was blocked by the harness is an infrastructure error, never a wrong answer", async () => {
+  const out = temp();
+  const bin = temp();
+  const analyzer = join(bin, "denied.sh");
+  // Exits 0, and even leaves a touched manifest behind — a run that got some writes in before the refusal. The
+  // halt still decides: the Analysis never had an opinion to score.
+  writeFileSync(analyzer, [
+    "#!/bin/sh",
+    'printf "\\n# touched before the refusal\\n" >> "$1/manifest.yaml"',
+    "cat <<'JSON'",
+    `{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.42,"usage":{"input_tokens":11,"output_tokens":22},"result":"I could not write into the Finding directory and did not route around it.\\n${HALT_LINE.replace(/"/g, '\\"')}"}`,
+    "JSON",
+    "",
+  ].join("\n"), { mode: 0o755 });
+
+  const report = await runNightly({
+    golden: "referral_campaign", analyzer: "command", outDir: out, sha: "denied01",
+    analyzerCommand: `sh ${analyzer} {finding_dir}`, caseTimeoutMs: 10_000,
+  });
+
+  const blocked = report.cases[0]!;
+  assert.equal(blocked.outcome, "error");
+  assert.equal(blocked.failure_category, "infrastructure");
+  assert.equal(blocked.failure_cause, "harness_permission_denied");
+  assert.deepEqual(blocked.assertions, [], "a blocked run is asserted against nothing");
+  assert.match(blocked.reason, /sensitive file/, "the harness's own denial text is what the record carries");
+  assert.match(blocked.reason, /checks\/minimum_data\.sql/);
+
+  const failure = report.run.failures[0]!;
+  assert.equal(failure.category, "infrastructure");
+  assert.equal(failure.assertion_id, RUN_LEVEL_ASSERTION);
+  assert.equal(failure.cause, "harness_permission_denied");
+  assert.equal(failure.recoverable, false, "the same flags refuse the same write tomorrow");
+
+  const filed = await reportFailures({ run: report.run, sink: createFakeIssueSink() });
+  assert.deepEqual(filed.created, [], "a blocked harness opens no analytical regression issue");
+
+  const summary = readFileSync(join(out, "denied01", SUMMARY_FILE), "utf8");
+  assert.match(summary, /infrastructure error.*cause `harness_permission_denied`/);
+  for (const line of summary.split("\n").filter((l) => l.startsWith("- `"))) {
+    assert.doesNotMatch(line, /analytical failure/, "no case line calls a refused write a wrong answer");
+  }
+  assert.equal(summary.includes("sensitive file"), false, "the denial prose stays in the retained record");
 });
 
 test("a grandchild of a timed-out analyzer does not outlive the case", async () => {

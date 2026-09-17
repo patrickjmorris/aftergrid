@@ -19,6 +19,9 @@ export type Category =
   | "dependency_missing" | "write_capable_role"
   // the Analysis file (docs/contracts/analysis-directory.md): analysis.yaml disagreeing with its own contract
   | "analysis_contract"
+  // a Snapshot input captured before the Question was clarified (docs/contracts/analysis-directory.md): a
+  // warning, because the evidence is still what it is — it was just chosen before anyone knew what was asked
+  | "capture_before_clarify"
   // distribution (docs/contracts/distribution.md): the shipped package disagreeing with itself
   | "plugin_manifest" | "invocation_policy"
   // background intake (docs/contracts/intake.md): states a request can rest in, and why it stopped there

@@ -178,7 +178,7 @@ test("nothing under analytics/ claims an approval, a review or a Finding that do
     assert.equal(manifest.finding.state, "draft", `${f} is not a draft`);
     if (manifest.finding.outcome === "pending") {
       const progress = parseYaml(readFileSync(join(dir, "analysis-progress.yaml"), "utf8"));
-      assert.ok(["needs_attention", "needs_input"].includes(progress.status), `${f} is pending but records no halt`);
+      assert.ok(["needs_attention", "needs_input", "permission_denied"].includes(progress.status), `${f} is pending but records no halt`);
       assert.ok(progress.reason && progress.reason.length > 20, `${f}'s halt gives no reason`);
     }
   }

@@ -84,6 +84,15 @@ Two things are **unavailable** until retained inputs exist, and neither is a fai
 check --mode rerun`, which refuses a recorded Finding with `rerun_unavailable`, and Revisit, which needs a
 rerun. Say that; never describe a recorded Finding as rerun, verified or ready.
 
+**Capture follows clarification, always.** An extract read before the Question was settled was chosen without
+knowing what it had to answer: it is the wrong tables as often as the right ones, and it is how a run captures
+93,739 rows no Claim ever reads (`examples/nyc-open-data/docs/run-log.md`, run 1). This is checkable, not
+advice — `check` reports the warning **`capture_before_clarify`** at `manifest.yaml#/snapshot/inputs/<i>/captured_at`
+for any input captured before `analysis.yaml#/clarified_at` (or, where that is absent,
+`pre_registered_comparison.registered_at`). A warning, never an error: the extract is still what it is and its
+hash still pins it. If step 1 has not ended with a resolved Question and a recorded `clarified_at`, do not
+capture.
+
 **When the Instance configures an adapter** (`connection.adapter` in `aftergrid.yaml`), capture instead — the
 exception, and the upgrade:
 
@@ -116,7 +125,8 @@ Revisit.
 
 Done when: on the recorded path, `snapshot.inputs` is empty and every execution declares `input_ids: []` and
 `mode: recorded`. On the adapter path, `snapshot.inputs` names every table the plan reads, each with a
-`content_hash` and the file present.
+`content_hash` and the file present, and every `captured_at` is after `clarified_at` — no
+`capture_before_clarify` warning.
 
 ## 4. Write the Checks — before the analysis SQL
 

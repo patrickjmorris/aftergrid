@@ -1,6 +1,6 @@
 ---
 name: analyze
-description: Take a raw ask, or an already sharpened Question, all the way to a reviewed Finding draft — clarify, analyse under Checks, write, illustrate, shape, review, check. Use to run an analysis end to end, or to resume one that stopped for missing input or a blocking review.
+description: Take a raw ask, or an already sharpened Question, all the way to a reviewed Finding draft — clarify, analyse under Checks, write, illustrate, shape, review, check. Use to run an analysis end to end, or to resume one that stopped for missing input, a blocking review or a harness that refused a write.
 disable-model-invocation: true
 ---
 
@@ -17,7 +17,8 @@ gate that nothing here touches (`docs/contracts/publication.md`).
 
 Run them in this order. Each writes its stage into `analysis-progress.yaml` in the Finding directory before
 starting and again when it ends, so a stopped run can be picked up where it stopped
-([`references/halting.md`](references/halting.md) has the file's shape and the two halt artifacts).
+([`references/halting.md`](references/halting.md) has the file's shape, the halt artifacts and the halt the
+run prints when the directory refuses one).
 
 | Stage | Owner | Ends when |
 | --- | --- | --- |
@@ -88,7 +89,7 @@ Done when `aftergrid check <finding-dir>` reports no errors, or the run has halt
 
 ## 4. Halt conditions
 
-Two halts, and the difference matters to whoever picks the Finding up.
+Three halts, and the difference matters to whoever picks the Finding up.
 
 **`needs_input` — a person owes the run something.**
 
@@ -103,13 +104,32 @@ Two halts, and the difference matters to whoever picks the Finding up.
 - any error from `aftergrid check`, including a Check that errored, a hash mismatch or a rerun mismatch
 - a chart handed back by `/iterate-visual` after its third pass
 
-**These two lists are the whole set.** Nothing else halts a run. In particular, a missing or unconfigured
-adapter is not on either list: the analysis runs on the recorded path, the Finding is complete, checkable and
+**`permission_denied` — the harness refused a write inside the Finding directory.**
+
+- any write the stage needs — `analysis-progress.yaml`, `analysis.yaml`, `checks/*.sql`, the manifest — refused
+  by the harness, through any tool
+
+**Do not route around a refusal.** No shell redirect, `mkdir`, heredoc, copy through `/tmp`, editor, extra CLI
+flag or second tool that happens not to be refused. One attempt through the tool the stage normally uses, then
+stop: a refusal a run walks around is a permission system that stopped existing. Write `analysis-progress.yaml`
+with `status: permission_denied` **only if it is writable** — it lives in the directory that just refused a
+write — and in **every** case print the halt as the last line of the final message, one JSON object:
+
+```json
+{"aftergrid": "halt", "status": "permission_denied", "stage": "checked_analysis", "paths": ["<every refused path>"], "reason": "<the harness's denial text, verbatim>"}
+```
+
+That line is the whole report when no file could be written, and it is what a headless harness reads
+(`docs/contracts/eval.md`: the nightly records it as infrastructure — no assertion, never an analytical
+failure). Say the same thing in words above it for a person.
+
+**These three lists are the whole set.** Nothing else halts a run. In particular, a missing or unconfigured
+adapter is on none of the three lists: the analysis runs on the recorded path, the Finding is complete, checkable and
 renderable, and the only things that stop having an answer are `check --mode rerun` (refused with
 `rerun_unavailable`, exit 2) and Revisit. `checks_reported_by_agent: true` is not a halt either; it lowers
 publication readiness to `unknown` at most, and `unknown` is reported, never rounded up.
 
-Neither halt is a failure of the Analysis, and neither is an outcome. `insufficient_data`, `inconclusive` and
+No halt is a failure of the Analysis, and none is an outcome. `insufficient_data`, `inconclusive` and
 `needs_reframing` are outcomes a completed Analysis reaches, and they run all the way through review and
 `check` like any other. A Check that **errored** is a run that did not happen; a `minimum_data` Check that
 **failed** is the answer.
@@ -120,19 +140,20 @@ said in advance what would show the Answer wrong and that happened, so the outco
 `falsifier_failed` warning, not an error, and `render` writes the page with the falsifier on it. Halting there
 leaves the honest Finding unwritten, which is the one outcome this skill must never produce.
 
-Both halts leave the Finding directory resumable: every artifact produced so far stays, `analysis-progress.yaml`
-names the stage and the reason, and the manifest records the state. The shapes are in
+Every halt leaves the Finding directory resumable: every artifact produced so far stays,
+`analysis-progress.yaml` names the stage and the reason, and the manifest records the state. The shapes are in
 [`references/halting.md`](references/halting.md).
 
-Done when the halt artifact is written and the reason names the stage, what is missing or blocking, and who
-owns it.
+Done when the halt is reported where it can be read — the artifact for `needs_input` and `needs_attention`, the
+artifact *and* the last-line JSON for `permission_denied`, the JSON alone when the directory refused it — and
+the reason names the stage, what is missing, blocking or refused, and who owns it.
 
 ## 5. Report
 
 Give the Operator, in this order:
 
 1. The outcome, in the Finding's own words.
-2. Where the run stopped: `complete`, `needs_input` or `needs_attention`, and why.
+2. Where the run stopped: `complete`, `needs_input`, `needs_attention` or `permission_denied`, and why.
 3. What `aftergrid check` reported on each of its axes — syntax, content, evidence, sql, publication — using
    the words the command used. On the recorded path, also: which tool ran the queries and Checks, that the
    Check outcomes were reported rather than executed (`checks_reported_by_agent`), and that the Snapshot

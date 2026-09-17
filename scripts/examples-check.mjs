@@ -29,7 +29,9 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const HALTS = new Set(["needs_attention", "needs_input"]);
+// `permission_denied` is here for the same reason as the other two: a run the harness blocked records the
+// halt when the progress file itself is writable, and that record accounts for the errors the same way.
+const HALTS = new Set(["needs_attention", "needs_input", "permission_denied"]);
 
 /** The recorded halt of a Finding directory, or null when none is recorded. */
 export function recordedHalt(dir) {

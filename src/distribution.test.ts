@@ -271,11 +271,15 @@ test("the /analyze halt conditions do not name a missing adapter", () => {
   const halts = step(skill, 4);
 
   const bullets = halts.split("\n").filter((l) => l.startsWith("- "));
-  assert.ok(bullets.length >= 6, `expected the two halt lists, found ${bullets.length} bullet(s)`);
+  assert.ok(bullets.length >= 7, `expected the three halt lists, found ${bullets.length} bullet(s)`);
   for (const bullet of bullets) {
     assert.doesNotMatch(bullet, /adapter/i, `a missing adapter is not a halt (ADR 0010), but a halt bullet names one: ${bullet}`);
   }
-  assert.match(halts, /adapter is not on either list/, "the halt section must say so explicitly, not leave it to be inferred");
+  assert.match(halts, /adapter is on none of the three lists/, "the halt section must say so explicitly, not leave it to be inferred");
+  // The third halt: a harness refusal is reported through the run's own output, because the halt artifact may
+  // be the very file that was refused (ag-analyze-permission-halt-pr7).
+  assert.match(halts, /permission_denied/, "a harness refusal is a halt state of its own");
+  assert.match(halts, /"aftergrid": "halt"/, "and it is printed as the last line of the final message");
   assert.match(halts, /rerun_unavailable/, "the halt section must say what a recorded Finding costs instead of halting");
 
   const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");

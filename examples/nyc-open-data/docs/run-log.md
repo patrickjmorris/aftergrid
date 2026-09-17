@@ -57,6 +57,26 @@ refusal that no allow rule lifts; only bypass mode writes. The cause inside Clau
 install`, which this Instance skipped). Run 2 uses bypass mode with the model instructed to stay inside the
 Instance. The nightly template must do the same or find the real cause: bead `ag-analyze-permission-halt-pr7`.
 
+#### Re-probed under `ag-analyze-permission-halt-pr7`, 2026-09-17, `claude 2.1.274`
+
+Four more probes, each a headless session bounded by `--max-budget-usd 2` (this CLI version has no
+`--max-turns`), asking for one file to be written into a throwaway copy of `fixtures/instance`:
+
+| Flags, all with `--plugin-dir <repo>` | Into `<instance>/probe/checks/` | Into `<instance>/findings/<slug>/checks/` | Cost |
+| --- | --- | --- | --- |
+| `--permission-mode bypassPermissions` | ok | — | $1.09 |
+| `--permission-mode dontAsk` | **denied** — "Permission to use Write has been denied because Claude Code is running in don't ask mode" | — | $0.58 |
+| `--allowedTools "Write" "Edit" "Bash(aftergrid:*)"` (no mode flag) | ok | ok | $0.56 + $0.57 |
+| `--permission-mode acceptEdits` | — | **ok** | $0.56 |
+
+So `dontAsk` is unusable, and **run 1's refusal did not reproduce**: at this CLI version, at the same shape of
+path, `acceptEdits` + `--plugin-dir` wrote into a Finding directory without complaint. The cause of run 1 is
+still not established — a version, an environment or a settings difference nobody has isolated — and the nightly
+template now uses `bypassPermissions`, the one mode with evidence of writing under both conditions
+(`docs/contracts/eval.md`, "What the headless run needs"). The block is no longer silent either way: `/analyze`
+halts with `permission_denied` and prints it as the last line of its output, and the eval records that as
+infrastructure rather than as a wrong answer.
+
 ## Run 2 — 2026-09-17T15:15:14Z to 15:23:07Z (7 min 53 s, 28 turns, $5.78)
 
 Same invocation as run 1 except `--permission-mode bypassPermissions` (see the probe table) and `/analyze` pointed

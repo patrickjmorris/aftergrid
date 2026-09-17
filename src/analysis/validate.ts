@@ -58,6 +58,8 @@ export type RequestedExternalSource = { id: string; kind: string; value: number 
 export type Analysis = {
   schema_version: string;
   stage?: AnalysisStage;
+  /** When the Question was settled. Capture is meant to follow it; `analysisWarnings` says when it did not. */
+  clarified_at?: string;
   reader_profile: string;
   assumptions: { id: string; statement: string; basis: string; settled_by?: string; affects?: string[] }[];
   pre_registered_comparison?: { statement: string; registered_before_cuts: boolean; registered_at?: string; source?: string };
@@ -377,7 +379,7 @@ export function analysisWarnings(dir: string): Problem[] {
   let analysis: Analysis | null;
   try { analysis = readAnalysis(dir); } catch { return []; }
   const probes = Array.isArray(analysis?.probes) ? analysis!.probes! : [];
-  const warnings: Problem[] = [];
+  const warnings: Problem[] = [...captureBeforeClarify(dir, analysis)];
   // An unparseable or absent `at` is the schema's error to report, so it is skipped rather than double-reported.
   const timed = probes
     .map((probe, i) => ({ probe, i, ms: Date.parse(String(probe?.at)) }))
@@ -393,6 +395,39 @@ export function analysisWarnings(dir: string): Problem[] {
     });
   }
   return warnings;
+}
+
+/**
+ * Clarify, then capture. A Snapshot input retained before the Question was settled was chosen before anyone
+ * knew what was being asked — the skill says so in words (`skills/checked-analysis/SKILL.md`, step 3), and a
+ * real run captured four tables before clarifying, one of them 93,739 rows that no Claim ever read
+ * (`examples/nyc-open-data/docs/run-log.md`). This is what makes that checkable.
+ *
+ * A **warning**, never an error: the extract is what it is, its hash still pins it, and the repair is the next
+ * revision's order of work rather than anything about this evidence. Nothing is claimed when the clarification
+ * moment was not recorded — `clarified_at`, else `pre_registered_comparison.registered_at`, else silence,
+ * because inferring one from the earliest probe would time-stamp clarification by a look that came after it.
+ */
+function captureBeforeClarify(dir: string, analysis: Analysis | null): Problem[] {
+  const recorded = analysis?.clarified_at ?? analysis?.pre_registered_comparison?.registered_at;
+  const clarifiedMs = Date.parse(String(recorded));
+  if (!Number.isFinite(clarifiedMs)) return [];
+  const field = analysis?.clarified_at ? "clarified_at" : "pre_registered_comparison.registered_at";
+  let manifest: any;
+  try { manifest = parseYaml(readFileSync(safePath(dir, "manifest.yaml"), "utf8")); } catch { return []; }
+  const inputs = Array.isArray(manifest?.snapshot?.inputs) ? manifest.snapshot.inputs : [];
+  const out: Problem[] = [];
+  inputs.forEach((input: any, i: number) => {
+    const capturedMs = Date.parse(String(input?.captured_at));
+    if (!Number.isFinite(capturedMs) || capturedMs >= clarifiedMs) return;
+    out.push({
+      category: "capture_before_clarify",
+      location: `manifest.yaml#/snapshot/inputs/${i}/captured_at`,
+      message: `input '${input?.id ?? i}' was captured at ${input.captured_at}, before the Question was clarified at ${recorded} (${ANALYSIS_FILE}#/${field}); an extract chosen before the Question was settled was chosen without knowing what it had to answer`,
+      remedy: "clarify first, then capture what the settled Question needs. The extract is kept and stays pinned; recapture under the clarified Question in the next revision, and say in analysis.yaml why this one was read early if it was",
+    });
+  });
+  return out;
 }
 
 /** One line per fact worth reporting from an Analysis file; empty when there is no file. Never throws. */

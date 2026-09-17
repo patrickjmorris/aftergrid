@@ -1062,6 +1062,47 @@ test("probes out of timeline order are a warning, never an error: the fix is the
   assert.deepEqual(analysisWarnings(dir), [], "non-decreasing, not strictly increasing");
 });
 
+test("an input captured before the Question was clarified is a warning naming the input, and check still passes", async () => {
+  const { dir } = await builtFinding();
+  const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+  const capturedAt = m.snapshot.inputs[0].captured_at;
+  assert.ok(Date.parse(capturedAt), "capture recorded when it read the tables");
+  const write = (extra: Record<string, any>) =>
+    writeFileSync(join(dir, "analysis.yaml"), toYaml(analysedFor(extra), { lineWidth: 0 }));
+
+  // Neither moment recorded: nothing is claimed either way.
+  write({});
+  assert.deepEqual(analysisWarnings(dir), [], "with no clarification time recorded, the order of work is unknown, not wrong");
+
+  // Clarified after the extracts were read: the capture chose the evidence before the Question was settled.
+  const afterCapture = new Date(Date.parse(capturedAt) + 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  write({ clarified_at: afterCapture });
+  const warnings = analysisWarnings(dir);
+  assert.equal(warnings.length, m.snapshot.inputs.length, JSON.stringify(warnings));
+  assert.equal(warnings[0]!.category, "capture_before_clarify");
+  assert.equal(warnings[0]!.location, "manifest.yaml#/snapshot/inputs/0/captured_at");
+  assert.match(warnings[0]!.message, /before the Question was clarified/);
+  assert.match(warnings[0]!.message, /'users'/, "the input is named, so the reader knows which extract was chosen early");
+  assert.deepEqual(validateAnalysisFile(dir), [], "and the Analysis is not refused over it: the extract is still what it is");
+
+  // Clarified first, captured after: the order the skill asks for.
+  const beforeCapture = new Date(Date.parse(capturedAt) - 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  write({ clarified_at: beforeCapture });
+  assert.deepEqual(analysisWarnings(dir), [], "capture following clarification has nothing to report");
+
+  // With no clarified_at, the pre-registered comparison's own timestamp stands in for it.
+  write({ pre_registered_comparison: { statement: "Checklist arm against control, 7-day return.", registered_before_cuts: true, registered_at: afterCapture } });
+  const fallback = analysisWarnings(dir);
+  assert.equal(fallback.length, m.snapshot.inputs.length, JSON.stringify(fallback));
+  assert.match(fallback[0]!.message, /pre_registered_comparison\.registered_at/);
+
+  // check reports it where a warning goes, and fails nothing over it.
+  write({ clarified_at: afterCapture });
+  const report = await check({ dir, github: null });
+  assert.ok(report.warnings.some((w) => w.category === "capture_before_clarify"), JSON.stringify(report.warnings));
+  assert.ok(!report.errors.some((e) => e.category === "capture_before_clarify"), JSON.stringify(report.errors));
+});
+
 test("every recorded run's probes carry a time and a kind, in order, with the dead end kept", () => {
   const files = [
     join(RUNS, "7qg-onboarding", "analysis.yaml"),

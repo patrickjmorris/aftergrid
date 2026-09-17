@@ -107,10 +107,15 @@ Into `manifest.yaml`:
   - `not_answerable` — the ask cannot be answered as posed; the Finding's outcome will be `needs_reframing`.
 - `reader.profile`.
 
-Into `analysis.yaml` (`docs/contracts/analysis-directory.md`): `stage: clarified`, `reader_profile`, one
-`assumptions` entry per choice the rounds made with its `basis`, `pre_registered_comparison` with
-`registered_before_cuts: true` when it was settled before any data was read, and a `needs_input` entry for
+Into `analysis.yaml` (`docs/contracts/analysis-directory.md`): `stage: clarified`, `reader_profile`,
+`clarified_at`, one `assumptions` entry per choice the rounds made with its `basis`, `pre_registered_comparison`
+with `registered_before_cuts: true` when it was settled before any data was read, and a `needs_input` entry for
 anything left to a named owner.
+
+`clarified_at` is the harness's clock at the moment the Question was settled, read then rather than worked out
+later. It is what makes "clarify before capture" checkable: `check` reports `capture_before_clarify` for any
+Snapshot input whose `captured_at` is earlier than it. Where the Question stays `unresolved`, there is no
+moment to record and the field is left out.
 
 `stage: clarified` is what makes that file complete for where it is. The four sections `/checked-analysis`
 fills — `probes`, `execution_order`, `candidate_claims`, `outcome_recommendation` — are required only at

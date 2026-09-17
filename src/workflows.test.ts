@@ -61,7 +61,11 @@ test("the analyzer template loads this repository as a plugin and carries a spen
   assert.equal(tokens[tokens.indexOf("--add-dir") + 1], "{finding_dir}");
   assert.equal(tokens[tokens.indexOf("--max-budget-usd") + 1], "{max_cost_usd}",
     "the spend ceiling is enforced by the CLI, and the runner substitutes what --max-cost-usd configured");
-  assert.equal(tokens[tokens.indexOf("--permission-mode") + 1], "acceptEdits");
+  // bypassPermissions, not acceptEdits: acceptEdits + --plugin-dir had every write into the Finding directory
+  // refused as "a sensitive file" in a real run, and no allow rule lifted it (examples/nyc-open-data/docs/
+  // run-log.md, run 1). Bypass is the one mode that wrote there and in the 2026-09-17 probes; the sandbox is
+  // the mkdtemp copy of the Instance the runner makes per case (docs/contracts/eval.md).
+  assert.equal(tokens[tokens.indexOf("--permission-mode") + 1], "bypassPermissions");
   assert.equal(tokens[tokens.indexOf("--output-format") + 1], "json");
   // There is no shell: a quoted token would be substituted with its quotes.
   assert.equal(/["']/.test(template), false, `the template is split per token, so quotes would become literal: ${template}`);

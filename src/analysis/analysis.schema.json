@@ -17,6 +17,10 @@
       "enum": ["clarified", "analysed"],
       "description": "How far this file has been filled in. `clarified` is the seed /grill-question writes: reader_profile, assumptions, pre_registered_comparison and needs_input, with no evidence recorded yet — a complete artifact for that stage, not a defective one. `analysed` is the working record /checked-analysis leaves once the run has happened, and it requires probes, execution_order, candidate_claims and outcome_recommendation. Absent means `analysed`, so a file written before this field existed keeps its meaning."
     },
+    "clarified_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "When the Question was settled: the moment `/grill-question` (or the shared clarification procedure `/analyze` and `/checked-analysis` follow) wrote `question.state: resolved` into the manifest, read from the harness's clock then. It is what makes 'clarify before capture' checkable rather than advice: `analysisWarnings` reports `capture_before_clarify` for any `manifest.snapshot.inputs[].captured_at` earlier than this. Absent means only that the moment was not recorded — `pre_registered_comparison.registered_at` is read instead, and with neither, nothing is claimed either way."
+    },
     "reader_profile": {
       "$ref": "#/$defs/id",
       "description": "The Reader profile id this Analysis is aimed at, from the Instance's readers.md. `generic` when the Instance names none."

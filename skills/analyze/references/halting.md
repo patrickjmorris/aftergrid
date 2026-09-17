@@ -13,7 +13,7 @@ nothing in it reaches a Reader.
 ```yaml
 stage: analysis_review          # clarify | checked_analysis | write_finding | iterate_visual |
                                 # shape_narrative | analysis_review | check
-status: needs_attention         # running | done | needs_input | needs_attention
+status: needs_attention         # running | done | needs_input | needs_attention | permission_denied
 reason: "Method review: the 7-day retention rate for the promo cohort has no stated denominator (c2)."
 stale_definitions: []           # optional: definition ids whose Instance file moved after this run
 updated: "2026-09-16T14:22:05Z"
@@ -61,6 +61,43 @@ manifest. `aftergrid review status <dir>` reprints them with the reviewer that r
 
 A `check` error goes into `reason` as its category and location, so the next person knows whether they are
 looking at a broken execution or at a disagreement about method.
+
+## Halting with `permission_denied`
+
+The harness refused a write inside the Finding directory. This is not the Analysis saying anything: the run
+never got to have an opinion, and neither the data, the method nor the Operator is the blocker. The tooling is.
+
+**Stop at the refusal.** Do not route around it — no writing the same bytes through a shell redirect, `mkdir`,
+`cat > `, a heredoc, `git`, an editor, a copy into `/tmp` and back, a different CLI flag, or a second tool that
+happens not to be refused. A refusal that a run walks around is a permission system that stopped existing, and
+the Finding it produces was written by a run nobody sanctioned. One attempt through the tool the stage normally
+uses, then stop. (This halt exists because a real run — `examples/nyc-open-data/docs/run-log.md`, run 1 — hit
+sixteen refusals across eight paths and stopped, correctly, with nothing written.)
+
+Then:
+
+1. **Write `analysis-progress.yaml` only if it is writable.** `stage` is the stage that was refused, `status`
+   is `permission_denied`, `reason` is the harness's own denial text. The artifact lives in the same directory
+   that just refused a write, so attempting it once and failing is the expected case, not an error to report
+   twice.
+2. **In every case — written or not — print the halt as the LAST line of the final message**, as a single JSON
+   object on one line:
+
+```json
+{"aftergrid": "halt", "status": "permission_denied", "stage": "checked_analysis", "paths": ["analytics/findings/2026-09-17-x/checks/minimum_data.sql", "analytics/findings/2026-09-17-x/analysis-progress.yaml"], "reason": "Claude requested permissions to edit <path> which is a sensitive file"}
+```
+
+   `paths` lists every path that was refused, the progress file included when that is one of them. `reason`
+   quotes the denial text as the harness gave it, never a paraphrase and never a diagnosis of the cause.
+   Nothing follows that line: a headless harness reads the run's own stdout, and it is the only channel left
+   when no file could be written (`docs/contracts/eval.md`; `src/eval/runner.ts` reads it out of the CLI's
+   `--output-format json` envelope and records the case as infrastructure, never as an analytical failure).
+
+3. Say the same thing in words above that line, for a person: which stage, which paths, the denial text, and
+   that the run stopped rather than worked around it.
+
+A `permission_denied` halt is resumable in the ordinary way once the harness is configured to allow the write:
+every artifact that did get written stays, and the stage is rerun from the top.
 
 ## What is not a halt
 

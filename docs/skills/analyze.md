@@ -36,12 +36,23 @@ Not for: presentation feedback on a finished Finding (`/revise-finding`), sharpe
 user-invoked skill invokes another. Both read the same clarification procedure,
 `skills/checked-analysis/references/clarification.md`, so the interview is the same one either way.
 
-**What is the difference between the two halts?** `needs_input` means a person owes the run something — a
+**What is the difference between the three halts?** `needs_input` means a person owes the run something — a
 clarification, an approved Metric definition for a published decision metric, a provisional-read sign-off.
 `needs_attention` means the run produced something a person must look at — a blocking review finding, an error
-from `aftergrid check`, or a chart `/iterate-visual` handed back after its third pass. Both leave every
-artifact in place and both are resumable. Those two lists are the whole set; anything not on them, a missing
-adapter included, is reported rather than halted on.
+from `aftergrid check`, or a chart `/iterate-visual` handed back after its third pass. `permission_denied`
+means the harness refused a write inside the Finding directory: not the data, not the method, not the Operator,
+but the tooling. All three leave every artifact in place and all three are resumable. Those three lists are the
+whole set; anything not on them, a missing adapter included, is reported rather than halted on.
+
+**What happens when the harness refuses a write?** The run stops at the refusal and does not route around it —
+no shell redirect, no copy through `/tmp`, no second tool that happens not to be refused. It writes
+`analysis-progress.yaml` with `status: permission_denied` **only if that file is writable**, which it often is
+not, because it lives in the directory that just refused a write. So the halt is also printed as the last line
+of the final message, as one JSON object: `{"aftergrid": "halt", "status": "permission_denied", "stage": …,
+"paths": [… every refused path …], "reason": "… the harness's denial text …"}`. A headless harness reads that
+line from stdout when no file could be written; the nightly eval records it as **infrastructure** with the
+cause `harness_permission_denied` — zero assertions, never an analytical failure
+([`docs/contracts/eval.md`](../contracts/eval.md)).
 
 **Is a missing adapter a halt?** No, and it never was one. The default data path is the recorded one (ADR 0010,
 [`docs/contracts/record.md`](../contracts/record.md)): your harness runs the SQL and `aftergrid record` writes
@@ -77,6 +88,8 @@ a Claim, never shown to a Reader.
   instead of starting over.
 - A blocking review finding stops the run at `analysis_review`, and the reason names the reviewer and the
   finding.
+- A write the harness refuses stops the run where it happened, with the refused paths and the denial text in
+  the last line of its output — and nothing was written around the refusal.
 - A Finding it completes carries three current reviews and no attestation, and the summary reports publication
   readiness in the word `aftergrid check` used — including `unknown`.
 - On the recorded path the reviewers were told the Check outcomes were agent-reported
