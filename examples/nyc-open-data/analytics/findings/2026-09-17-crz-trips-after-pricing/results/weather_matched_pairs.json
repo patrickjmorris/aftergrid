@@ -1,0 +1,46 @@
+{
+  "result_id": "weather_matched_pairs",
+  "execution_id": "ex_weather_matched_pairs",
+  "row_key": "day_type",
+  "columns": [
+    "day_type",
+    "day_type_label",
+    "matched_pairs",
+    "holiday_pairs",
+    "comparable_pairs",
+    "not_comparable_pairs",
+    "unknown_pairs",
+    "base_crz_trips",
+    "after_crz_trips",
+    "base_crz_trips_per_day",
+    "after_crz_trips_per_day"
+  ],
+  "rows": [
+    {
+      "day_type": "weekday",
+      "day_type_label": "Weekdays",
+      "matched_pairs": 21,
+      "holiday_pairs": 3,
+      "comparable_pairs": 5,
+      "not_comparable_pairs": 13,
+      "unknown_pairs": 0,
+      "base_crz_trips": 1473846,
+      "after_crz_trips": 1393921,
+      "base_crz_trips_per_day": "294769.2",
+      "after_crz_trips_per_day": "278784.2"
+    },
+    {
+      "day_type": "weekend",
+      "day_type_label": "Weekend days",
+      "matched_pairs": 8,
+      "holiday_pairs": 0,
+      "comparable_pairs": 1,
+      "not_comparable_pairs": 7,
+      "unknown_pairs": 0,
+      "base_crz_trips": 328591,
+      "after_crz_trips": 296884,
+      "base_crz_trips_per_day": "328591.0",
+      "after_crz_trips_per_day": "296884.0"
+    }
+  ]
+}

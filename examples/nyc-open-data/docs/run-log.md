@@ -199,3 +199,36 @@ run 1 failed and why an earlier probe that used a temp Instance could not reprod
 runner (temp Instance) uses `acceptEdits`; runs of this in-repo demo Instance use `bypassPermissions`, or the
 plugin should be loaded from a copy outside the repository.
 
+
+## Run 3 — 2026-09-17T17:18:49Z to 17:46:47Z (28 min, 171 turns; usage reported as ≈$29 at API list price)
+
+Operator decision (Patrick Morris): reframe, weekday and weekend as separate Questions. Same invocation shape as
+run 2 with two changes: the plugin was loaded from a **copy outside the repository** (`--plugin-dir <tmp copy>`),
+which lets `--permission-mode acceptEdits` write into this in-repo Instance (the run-1 refusal was Claude Code
+protecting the loaded plugin's own tree), and the database had been rebuilt with `build-data.mjs/2.0.0` (the
+`trips_daily` hash is unchanged; `crz_daily` and `weather_daily` hashes match revision 1's captures). `golden/`
+held out again.
+
+Outcome: **complete, `inconclusive`, evidence valid, revision 2.** `aftergrid check --mode rerun` reproduced
+all six results; three agent reviews, no blocking findings, 25 non-blocking; rendered draft; nothing published.
+
+- Revision 1 archived under `revisions/1/` by `aftergrid revise --pin`; the reframe is probe `p_reframe_day_types`,
+  marked post hoc, naming run 2's falsifier result. Every Claim carries `pre_registered: false`.
+- New falsifier, pinned in `analysis.yaml#/checks_preregistered` (SQL hash, `required: false`, expected `pass`,
+  statement hash) at 17:26:49Z, before any query existed: the weekday direction must hold within day pairs
+  matched on day of week, non-holiday and comparable weather. It recorded **fail**: over the whole month the
+  average weekday had 5.3% more trips into the zone; among the 5 matched weekday pairs, 5.4% fewer. The weekend
+  side was not evaluable (1 of 8 pairs weather-comparable, gate 3). The zone's share of all trips fell on both
+  day types (weekdays 39.2% → 38.3%, weekends 41.7% → 40.3%).
+- The model's own choices, recorded as unverified assumptions: the holiday dates and the 5-pair / 3-pair gates.
+  After the result it noticed two of the five matched pairs sit right after New Year; recorded as a limitation,
+  the Check unchanged.
+- `trips_sample` dropped from the Snapshot (no query read it); its CSV and revision 1's Check and query files
+  stay on disk unreferenced. Revision 1's queries/Checks/results were not copied into the archive because the
+  harness refused a `cp`; they remain in git history (77435a5).
+- Reviewer items worth a human's eye: the Answer sentence is ~90 words; it does not say only yellow and app-based
+  trips are counted; the chart highlights the whole-month weekday rise the Finding says did not hold.
+
+Cost note: every run here ran on a claude.ai Max subscription (`apiKeySource: none`); the dollar figures in the
+CLI's JSON envelope are estimates at API list price, not charges. Run 3's volume was the plugin and contract
+context re-read on each of 171 turns.
