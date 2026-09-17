@@ -44,9 +44,41 @@ Default composition per layout is recorded in the explorer; every slot can be sw
 | Open source | engine / instance boxes / repo tree / blurb | Engine/Instance is the positioning; tree is the proof it is just files |
 | CTA | install + example / star + spec / waitlist / read the Finding | Pre-npm: star + spec or read the Finding |
 
+## Handoff (2026-09-17, agent TanCoast)
+
+**Live:** https://patrickjmorris.github.io/aftergrid/ (GitHub Pages, source Actions, `.github/workflows/pages.yml`, folder `site/`, deploys on push to `main` touching `site/`). Example Finding: https://patrickjmorris.github.io/aftergrid/example-finding/ (real `aftergrid render` output of the onboarding fixture, Geist embedded, provenance popovers). Review mirrors on claude.ai: the page at https://claude.ai/artifact/T496RArFgrAjAz5hTGh3FG and the explorer at https://claude.ai/artifact/CRY5r321ttoMcfPZ5VdjLz.
+
+**Source of truth:** `site/explorations/landing-directions.html` (direction A · Skills is what ships; B–G kept). `site/index.html` and `site/explorations/aftergrid-landing.html` are built from it. Rebuild: render the explorer in headless Chrome with `localStorage['aftergrid-landing-directions-v4'] = {layout:'skills', controls:'off', …}`, `--dump-dom`, then replace the `<style>` block and the `<div class="page">` subtree in both built files, strip `.sec-ctl`, keep `<title>` and `<meta name="description">`; the artifact copy rewrites `href="example-finding/"` to the absolute Pages URL. Bead `ag-nyr.1` turns this into `scripts/build-site.mjs` plus the clipping audit.
+
+**Owner decisions, in order:** Collage chosen from six directions → skills are the launch surface, Findings secondary → harness-agnostic copy, never Claude Code only → skills.sh is the install path (`npx skills add patrickjmorris/aftergrid`, verified on this repo) → Star on GitHub stays secondary CTA → URL-bar ellipsis in frames is fine → light theme only → public Findings still in progress (NYC example, bead `ag-demo-open-data-qsl.5`).
+
+**Renderer work done alongside (all tests pass, 324):** CSS-only provenance popover on every `ref`/`derived`/`ext` token and numeric table cell; marks on the checked facts; `render.font` in `aftergrid.yaml` with the shipped Geist preset or bring-your-own files, embedded as data URIs; renderer and house style 0.2.0; `scripts/repin-renderer.mjs` and the "Renderer upgrades" and "Fonts" sections of `docs/contracts/render.md`; all fixture manifests, recorded runs and the fixture Decision record re-pinned.
+
+**Beads:** epic `ag-nyr` (children `.1` build script and CI audit, `.2` real render in the figure, `.3` link the approved NYC Finding, `.4` verify a second harness, `.5` owner copy pass, `.6` custom domain, `.7` explorer retire-or-maintain, `.8` align README/plugin/package positioning, `.9` guardrail hook per harness) and `ag-f5w` (check warns on older pin), `ag-dsa` (static woff2 Geist), `ag-r3z` (upgrade process when a Decision cites the revision).
+
 ## Decision, revised (2026-09-17): skills are the launch surface
 
 The owner judged that the nine skills carry more utility than the Finding as a headline, so the page now leads with them. New default direction **A · Skills**: hero is a faithful `/analyze` run shown stage by stage (clarify → /checked-analysis → /write-finding → /iterate-visual → /shape-narrative → /analysis-review → aftergrid check) under "Your agent can write SQL. These skills make it do analysis."; then the nine skills as cards split by who invokes them (four user-invoked, five model-invoked), each linking to its docs page; then install (Claude Code plugin from a checkout, CLI from a tarball, Codex-style `agents/openai.yaml`), stated honestly as pre-npm and pre-marketplace; then the problem collage, the Finding as "what the skills produce", Checks tied to /checked-analysis, the decision log, engine/instance, and an install CTA. The Collage direction is kept as B.
+
+## Headline candidates (2026-09-17), not yet chosen
+
+From `docs/inputs/research-notes-2026-09-17.md`. The owner wants the hero to carry Shopify's point ("you'd better make sure the story is true") with more pull than that sentence. The market fact behind every candidate: access agents made numbers cheap for everyone (Meta: 5× as many non-data users as data ones; Shopify: 90% of non-data staff monthly), and the only verification on offer is "read the SQL," which those readers cannot do. All candidates keep to the anti-pattern list below: tools and moments, no hype words. The current line, "Your agent can write SQL. These skills make it do analysis.", survives as the subhead under any of them.
+
+| # | Headline | Subhead | Note |
+|---|---|---|---|
+| 1 | **Answers got cheap. Being right didn't.** | Your agent can write SQL. These skills make it do analysis: a sharpened question, checks written before the numbers, every figure traced to its query, a decision on record. | Recommended. States the market shift in six words; nobody else in the category can say the second half. |
+| 2 | **Your agent can write SQL. Can it stand behind the number?** | Nine skills that turn a query into a Finding a non-data reader can inspect and act on. | Smallest move from the current hero; keeps its first sentence. |
+| 3 | **A wrong number, told well, wins the meeting.** | aftergrid makes the agent show where every number came from, what was checked, and who decided. | The Shopify EKG story as one line. Strongest hook, most negative; better as the problem-section header if 1 is the hero. |
+| 4 | **Anyone can pull a number now. Who checks the story?** | (as 1) | Closest to the Shopify sentence. Question headlines test worse; keep as a fallback. |
+| 5 | **The number is easy now. The decision still isn't.** | (as 1) | Leans on the Decision record; weaker on Checks. |
+
+Supporting pull-quotes, attributed, for the problem or Checks section (Meta's quoted from the original; check Shopify's against the page first):
+
+- "In analytics, a wrong number presented confidently is worse than no number at all." — Analytics at Meta, 2026
+- "People tell very powerful stories with data. So you'd better make sure the story is true." — Nell Thomas, VP Data, Shopify
+- "Accuracy you can't verify isn't useful." — Analytics at Meta, 2026
+
+One contrast worth a line in the Checks section: elsewhere a second model reads a rule in English and judges the output; here a Check is code that runs, and its result is bound to the evidence.
 
 ## Decision (2026-09-16), superseded above
 
