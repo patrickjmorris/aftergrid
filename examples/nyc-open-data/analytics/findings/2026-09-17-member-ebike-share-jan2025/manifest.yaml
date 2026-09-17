@@ -1,0 +1,757 @@
+# Draft created by `aftergrid new finding`. State draft, outcome pending: nothing here is evidence yet.
+schema_version: 0.1.0
+finding:
+  id: fnd_jtk514b8viry
+  revision: 1
+  slug: member-ebike-share-jan2025
+  title: E-bikes carried more of member riding than a year earlier
+  state: complete
+  outcome: answered
+  generated_at: 2026-09-17T18:10:50Z
+  canonical_location: patrickjmorris/aftergrid/analytics/findings/2026-09-17-member-ebike-share-jan2025
+owner:
+  name: Patrick Morris
+  contact: patrickjohnmorris@gmail.com
+reader:
+  profile: bike_product_manager
+question:
+  id: member_ebike_share_jan2025
+  raw_ask: Are Citi Bike members riding e-bikes more than they were a year ago?
+  state: resolved
+  decision: Whether e-bike use among member rides is growing, flat or moving with something else, and so whether to put it in front of the team as a question rather than an answer and whether a fee change is worth investigating properly. Owned by the bike share product manager this Finding is written for (Reader profile bike_product_manager).
+  metric:
+    id: ebike_ride
+    version: 1
+  population: "Citi Bike rides in the New York City monthly archives taken under a membership - member_ride v1, member_casual = 'member'. These are rides, not riders: the files carry no rider identity and no repeat-rider link, so one member taking two hundred rides is two hundred member rides. Jersey City files are not in this build, and rides with unusable timestamps were dropped by the build rather than counted."
+  window:
+    start: 2025-01-01
+    end: 2025-01-31
+    timezone: America/New_York
+  primary_comparison: The share of member rides taken on an e-bike over the whole of January 2025 (1 to 31 January inclusive) against the whole of January 2024 (the baseline period), with the number of member rides on e-bikes and the total number of member rides stated for both months. The Instance records no date for any Citi Bike fee change, so no day inside either month is treated as before or after one.
+  falsifier:
+    kind: check
+    check_id: falsifier_count_and_share_agree
+    expected_outcome: pass
+    statement: "The Answer names one direction for member e-bike riding between January 2024 and January 2025. It is wrong if the two ways of reading 'more' disagree: if the number of member rides on e-bikes and the share of member rides that were on e-bikes did not move the same way."
+snapshot:
+  id: snap_member_ebike_share_jan2025
+  inputs:
+    - id: citibike_daily
+      kind: extract
+      path: inputs/citibike_daily.csv
+      content_hash:
+        algorithm: sha256
+        value: 0671aac5fe2c23d979958e4054af5db426065c8d511636a0f95c1542cbcedc6a
+      captured_at: 2026-09-17T18:14:34Z
+      description: Whole-table extract of citibike_daily from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from citibike_daily order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - citibike_daily
+        consistency: single_transaction
+    - id: weather_daily
+      kind: extract
+      path: inputs/weather_daily.csv
+      content_hash:
+        algorithm: sha256
+        value: 2ef4e03d68e653f5d4c1f0085f166013d9b369fbff6be59190c4c1a5276f83ca
+      captured_at: 2026-09-17T18:14:34Z
+      description: Whole-table extract of weather_daily from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from weather_daily order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - weather_daily
+        consistency: single_transaction
+    - id: build_provenance
+      kind: extract
+      path: inputs/build_provenance.csv
+      content_hash:
+        algorithm: sha256
+        value: e459eaba4c5b9a77d5bc3de34cef2629a6572550c1e6afec0cbb69a17ded10c9
+      captured_at: 2026-09-17T18:14:34Z
+      description: Whole-table extract of build_provenance from duckdb_file demo.duckdb
+      source:
+        adapter: duckdb
+        method: select * from build_provenance order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
+        tables:
+          - build_provenance
+        consistency: single_transaction
+  guarantees:
+    - artifact_replay
+    - analysis_rerun
+definitions:
+  - id: member_ride
+    version: 1
+    kind: metric
+    lifecycle: proposed
+    path: definitions/member_ride.md
+    content_hash:
+      algorithm: sha256
+      value: e2dd98e0901fb0ea30ccb817bef2be1a1a3fab920f7cd57276ae236e29cb28f2
+    role: supporting
+  - id: ebike_ride
+    version: 1
+    kind: metric
+    lifecycle: proposed
+    path: definitions/ebike_ride.md
+    content_hash:
+      algorithm: sha256
+      value: 86bdfcfb53fe3a388bc37359941289d3e274cddec634962a643cd247ec646a75
+    role: supporting
+  - id: comparable_weather_day
+    version: 1
+    kind: diagnostic
+    lifecycle: proposed
+    path: definitions/comparable_weather_day.md
+    content_hash:
+      algorithm: sha256
+      value: 417977038dca0c54f4cd707758a3a6133a60153a5b4906c64ccf308ccf093de8
+    role: supporting
+queries:
+  - id: member_ebike_by_period
+    path: queries/member_ebike_by_period.sql
+    content_hash:
+      algorithm: sha256
+      value: 614f88f121c871162bf3a72f5f0296d4517202503843faed4ba54fff3db586bc
+    dialect: duckdb
+    purpose: Pre-registered comparison - member rides, member rides on e-bikes and the e-bike share of member rides, baseline month against after month
+  - id: rides_by_period_member_type
+    path: queries/rides_by_period_member_type.sql
+    content_hash:
+      algorithm: sha256
+      value: c72e352f06cdca0952d76e62faed6b2385fca28a6408c0356b90125778a934cf
+    dialect: duckdb
+    purpose: The same comparison for members and for casual riders side by side, so the member share is read against the casual one
+  - id: member_ebike_daily
+    path: queries/member_ebike_daily.sql
+    content_hash:
+      algorithm: sha256
+      value: 67d0ce44a3e33d7b231cc04649cc9eb8cec53c98067a276823f162bfeef1d401
+    dialect: duckdb
+    purpose: Daily series of member rides and the e-bike share of them across both months
+  - id: weather_pairs
+    path: queries/weather_pairs.sql
+    content_hash:
+      algorithm: sha256
+      value: c281bd962ea707672dbeb86f280895c6dfce71bc7714574cc9886df0256a302b
+    dialect: duckdb
+    purpose: comparable_weather_day v1 classes counted over the aligned day pairs
+  - id: weather_by_period
+    path: queries/weather_by_period.sql
+    content_hash:
+      algorithm: sha256
+      value: c23958ed37d2c81b5808d7071552302d1f02c92969dc66dab030ad815e7a7a21
+    dialect: duckdb
+    purpose: Weather in each month, including snow, which the v1 rule does not test
+  - id: source_provenance
+    path: queries/source_provenance.sql
+    content_hash:
+      algorithm: sha256
+      value: 14680c6127c3302f181aaf399ee3316bed1adccf244f78352d2740a0e2f44777
+    dialect: duckdb
+    purpose: What the two Citi Bike months were built from, including that the archives were streamed and never hashed
+executions:
+  - id: ex_member_ebike_by_period
+    query_id: member_ebike_by_period
+    sql_hash:
+      algorithm: sha256
+      value: 614f88f121c871162bf3a72f5f0296d4517202503843faed4ba54fff3db586bc
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ citibike_daily ]
+    definition_refs: [ { id: member_ride, version: 1 }, { id: ebike_ride, version: 1 } ]
+    result_id: member_ebike_by_period
+    result_hash:
+      algorithm: sha256
+      value: 60cc6a94ba4a7e1fd2331ae6aed5117fd18c8ae0c99a3556677c7862014d0bdd
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+  - id: ex_rides_by_period_member_type
+    query_id: rides_by_period_member_type
+    sql_hash:
+      algorithm: sha256
+      value: c72e352f06cdca0952d76e62faed6b2385fca28a6408c0356b90125778a934cf
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ citibike_daily ]
+    definition_refs: [ { id: ebike_ride, version: 1 } ]
+    result_id: rides_by_period_member_type
+    result_hash:
+      algorithm: sha256
+      value: 5c98fed71af87a4af8416d7ec1dd8223a70c1332ea22d9cdc4f3cde46db97606
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+  - id: ex_member_ebike_daily
+    query_id: member_ebike_daily
+    sql_hash:
+      algorithm: sha256
+      value: 67d0ce44a3e33d7b231cc04649cc9eb8cec53c98067a276823f162bfeef1d401
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ citibike_daily ]
+    definition_refs: [ { id: member_ride, version: 1 }, { id: ebike_ride, version: 1 } ]
+    result_id: member_ebike_daily
+    result_hash:
+      algorithm: sha256
+      value: db60bb0db4b4803e3ffecef6fa134a53b52628b86e6780657ebfa0da0f5dca16
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+  - id: ex_weather_pairs
+    query_id: weather_pairs
+    sql_hash:
+      algorithm: sha256
+      value: c281bd962ea707672dbeb86f280895c6dfce71bc7714574cc9886df0256a302b
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ weather_daily ]
+    definition_refs: [ { id: comparable_weather_day, version: 1 } ]
+    result_id: weather_pairs
+    result_hash:
+      algorithm: sha256
+      value: 2ae5b42fa089f1b54a42c52e516d8680a6d46210da28da386a155e1aaa382210
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+  - id: ex_weather_by_period
+    query_id: weather_by_period
+    sql_hash:
+      algorithm: sha256
+      value: c23958ed37d2c81b5808d7071552302d1f02c92969dc66dab030ad815e7a7a21
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ weather_daily ]
+    definition_refs: []
+    result_id: weather_by_period
+    result_hash:
+      algorithm: sha256
+      value: 7bb3b1a882f8fd9560b317c66cac57c46107033bcb809c363f55779a4f082eed
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+  - id: ex_source_provenance
+    query_id: source_provenance
+    sql_hash:
+      algorithm: sha256
+      value: 14680c6127c3302f181aaf399ee3316bed1adccf244f78352d2740a0e2f44777
+    parameters:
+      analytical_timezone: America/New_York
+      base_month: '2024-01'
+      after_month: '2025-01'
+    input_ids: [ build_provenance ]
+    definition_refs: []
+    result_id: source_provenance
+    result_hash:
+      algorithm: sha256
+      value: f7fc3be10b5b5f79d07d41d1818a73a3dea52b89f78dc63af1b665f544f534c4
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T18:20:54Z
+results:
+  - id: member_ebike_by_period
+    execution_id: ex_member_ebike_by_period
+    path: results/member_ebike_by_period.json
+    row_key: period
+    columns:
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: first_day, type: date, unit: date }
+      - { name: last_day, type: date, unit: date }
+      - { name: days, type: integer, unit: days, display: { kind: integer } }
+      - { name: member_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: member_ride, version: 1 } }
+      - { name: member_ebike_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: ebike_ride, version: 1 } }
+      - { name: member_classic_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: member_ride, version: 1 } }
+      - { name: member_ebike_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: ebike_ride, version: 1 } }
+      - { name: member_rides_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: member_ride, version: 1 } }
+      - { name: member_ebike_rides_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: ebike_ride, version: 1 } }
+    row_count: 2
+    content_hash:
+      algorithm: sha256
+      value: 60cc6a94ba4a7e1fd2331ae6aed5117fd18c8ae0c99a3556677c7862014d0bdd
+  - id: rides_by_period_member_type
+    execution_id: ex_rides_by_period_member_type
+    path: results/rides_by_period_member_type.json
+    row_key: period_member_type
+    columns:
+      - { name: period_member_type, type: text, unit: text }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: member_casual, type: text, unit: text }
+      - { name: member_type_label, type: text, unit: text }
+      - { name: all_rides, type: integer, unit: count, display: { kind: integer } }
+      - { name: ebike_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: ebike_ride, version: 1 } }
+      - { name: ebike_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: ebike_ride, version: 1 } }
+    row_count: 4
+    content_hash:
+      algorithm: sha256
+      value: 5c98fed71af87a4af8416d7ec1dd8223a70c1332ea22d9cdc4f3cde46db97606
+  - id: member_ebike_daily
+    execution_id: ex_member_ebike_daily
+    path: results/member_ebike_daily.json
+    row_key: ride_date
+    columns:
+      - { name: ride_date, type: date, unit: date }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: day_of_month, type: integer, unit: days, display: { kind: integer } }
+      - { name: day_name, type: text, unit: text }
+      - { name: member_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: member_ride, version: 1 } }
+      - { name: member_ebike_rides, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: ebike_ride, version: 1 } }
+      - { name: member_ebike_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: ebike_ride, version: 1 } }
+    row_count: 62
+    content_hash:
+      algorithm: sha256
+      value: db60bb0db4b4803e3ffecef6fa134a53b52628b86e6780657ebfa0da0f5dca16
+  - id: weather_pairs
+    execution_id: ex_weather_pairs
+    path: results/weather_pairs.json
+    row_key: weather_class
+    columns:
+      - { name: weather_class, type: text, unit: text }
+      - { name: class_label, type: text, unit: text }
+      - { name: day_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: all_day_pairs, type: integer, unit: days, display: { kind: integer } }
+    row_count: 3
+    content_hash:
+      algorithm: sha256
+      value: 2ae5b42fa089f1b54a42c52e516d8680a6d46210da28da386a155e1aaa382210
+  - id: weather_by_period
+    execution_id: ex_weather_by_period
+    path: results/weather_by_period.json
+    row_key: period
+    columns:
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: days_observed, type: integer, unit: days, display: { kind: integer } }
+      - { name: mean_tmax_c, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+      - { name: freezing_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: wet_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: snow_days, type: integer, unit: days, display: { kind: integer } }
+      - { name: total_prcp_mm, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+      - { name: total_snow_mm, type: decimal, unit: unknown, display: { kind: decimal, decimals: 1 } }
+    row_count: 2
+    content_hash:
+      algorithm: sha256
+      value: 7bb3b1a882f8fd9560b317c66cac57c46107033bcb809c363f55779a4f082eed
+  - id: source_provenance
+    execution_id: ex_source_provenance
+    path: results/source_provenance.json
+    row_key: period
+    columns:
+      - { name: period, type: text, unit: text }
+      - { name: source, type: text, unit: text }
+      - { name: url, type: text, unit: text }
+      - { name: bytes, type: integer, unit: unknown, display: { kind: integer } }
+      - { name: fetch_mode, type: text, unit: text }
+      - { name: sha256, type: text, unit: text, nullable: true }
+      - { name: http_last_modified, type: text, unit: text }
+      - { name: fetched_at, type: text, unit: text }
+    row_count: 2
+    content_hash:
+      algorithm: sha256
+      value: f7fc3be10b5b5f79d07d41d1818a73a3dea52b89f78dc63af1b665f544f534c4
+derived:
+  - id: member_ebike_rides_pct_change
+    operation: percent_change
+    operands: [ ref:member_ebike_by_period.after.member_ebike_rides, ref:member_ebike_by_period.baseline.member_ebike_rides ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the number of member rides taken on an e-bike between the two Januaries.
+  - id: member_rides_pct_change
+    operation: percent_change
+    operands: [ ref:member_ebike_by_period.after.member_rides, ref:member_ebike_by_period.baseline.member_rides ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the total number of member rides - the number the share sits on top of.
+  - id: member_classic_rides_pct_change
+    operation: percent_change
+    operands: [ ref:member_ebike_by_period.after.member_classic_rides, ref:member_ebike_by_period.baseline.member_classic_rides ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the number of member rides taken on a classic bike.
+  - id: member_ebike_share_change
+    operation: difference
+    operands: [ ref:member_ebike_by_period.after.member_ebike_share, ref:member_ebike_by_period.baseline.member_ebike_share ]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the share of member rides taken on an e-bike.
+  - id: casual_ebike_share_change
+    operation: difference
+    operands: [ ref:rides_by_period_member_type.after_casual.ebike_share, ref:rides_by_period_member_type.baseline_casual.ebike_share ]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the share of casual rides taken on an e-bike.
+  - id: casual_rides_pct_change
+    operation: percent_change
+    operands: [ ref:rides_by_period_member_type.after_casual.all_rides, ref:rides_by_period_member_type.baseline_casual.all_rides ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the total number of casual rides.
+  - id: mean_tmax_change_c
+    operation: difference
+    operands: [ ref:weather_by_period.after.mean_tmax_c, ref:weather_by_period.baseline.mean_tmax_c ]
+    unit: unknown
+    display: { kind: decimal, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the mean daily maximum temperature, in degrees Celsius.
+  - id: wet_days_change
+    operation: difference
+    operands: [ ref:weather_by_period.after.wet_days, ref:weather_by_period.baseline.wet_days ]
+    unit: days
+    display: { kind: integer }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the number of days with a millimetre or more of precipitation.
+external_sources: []
+claims:
+  - id: c1
+    type: descriptive
+    numeric: true
+    answer_bearing: true
+    sentence: "Members rode e-bikes more in {{literal:January 2025}} than in {{literal:January 2024}}, both in rides and as a share of their riding: {{ref:member_ebike_by_period.after.member_ebike_rides}} e-bike rides against {{ref:member_ebike_by_period.baseline.member_ebike_rides}}, and {{ref:member_ebike_by_period.after.member_ebike_share}} of member rides against {{ref:member_ebike_by_period.baseline.member_ebike_share}}."
+    evidence: [ ref:member_ebike_by_period.baseline.member_ebike_rides, ref:member_ebike_by_period.after.member_ebike_rides, ref:member_ebike_by_period.baseline.member_ebike_share, ref:member_ebike_by_period.after.member_ebike_share, derived:member_ebike_rides_pct_change, derived:member_ebike_share_change ]
+    chart_ids: [ member_ebike_share_chart ]
+    table_ids: [ member_ebike_by_period_table ]
+    population: "Every Citi Bike ride taken under a membership in the New York City monthly archives, on ride dates 2024-01-01 to 2024-01-31 and 2025-01-01 to 2025-01-31. These are rides, not riders: the files carry no rider identity."
+    comparison: { kind: baseline_period, description: "The whole of January 2025 against the whole of January 2024, month against the same month a year earlier.", pre_registered: true }
+    window: { start: "2025-01-01", end: "2025-01-31", timezone: America/New_York }
+    exclusions:
+      - Jersey City rides are in separate files that this build does not fetch, so they are absent rather than zero.
+      - Rides whose start or end time does not read, or whose end comes before its start, were dropped by the build rather than counted.
+      - A ride belongs to the month its start time falls in, so a ride that crossed midnight on the last day of a month is counted in the month it started.
+    limitations:
+      - One month either side is not a trend.
+      - The word "members" here counts rides taken under a membership, never people. One member taking two hundred rides and two hundred members taking one each look identical.
+      - The two definitions used, member_ride v1 and ebike_ride v1, are proposals their owner has not approved.
+      - No fee schedule, fee amount or fee change date for Citi Bike e-bikes is in any source this Instance reads, so this Finding names none.
+      - The two Januaries were not alike on weather.
+      - What was kept is the daily summary table, not the Citi Bike trip files themselves, and Citi Bike can republish a month.
+    material_caveat: "These are rides, not riders: the files carry no rider identity, so one member riding far more often and many more members riding look exactly the same here. And this describes two Januaries rather than explaining them - the two months were not alike on weather, {{literal:January 2025}} being colder and much drier, and nothing here separates that from a fee change, from more e-bikes in the system, or from a year of change in how people ride. The weather test behind that was written before any weather number was read from the data kept here, but it was not a blind test: another Finding in this Instance covering the same two months had already reported the weather as not alike, so the likely outcome was known when the bar was set. This Instance records no date for any Citi Bike fee change, so this Finding names none."
+    recheck:
+      mode: not_automatically_evaluable
+      reason: The Instance holds four months of Citi Bike data and nothing after February 2025, so the same comparison cannot be run again on newer data from here.
+      owner: Patrick Morris
+      review_hint: Rebuild the data with January 2026 in it and rerun the same Checks unchanged.
+  - id: c2
+    type: descriptive
+    numeric: true
+    sentence: "The bigger share is not a shrinking total: members took {{ref:member_ebike_by_period.after.member_rides}} rides in all, up from {{ref:member_ebike_by_period.baseline.member_rides}}, while their rides on classic bikes went from {{ref:member_ebike_by_period.baseline.member_classic_rides}} to {{ref:member_ebike_by_period.after.member_classic_rides}}."
+    evidence: [ ref:member_ebike_by_period.baseline.member_rides, ref:member_ebike_by_period.after.member_rides, ref:member_ebike_by_period.baseline.member_classic_rides, ref:member_ebike_by_period.after.member_classic_rides, derived:member_rides_pct_change, derived:member_classic_rides_pct_change, derived:member_ebike_rides_pct_change ]
+    chart_ids: [ member_rides_total_chart ]
+    table_ids: [ member_rides_split_table ]
+    population: The same member rides as above, split by whether the bike was electric or classic.
+    comparison: { kind: baseline_period, description: "The whole of January 2025 against the whole of January 2024.", pre_registered: true }
+    window: { start: "2025-01-01", end: "2025-01-31", timezone: America/New_York }
+    exclusions:
+      - Jersey City rides are not in this build.
+    limitations:
+      - A count of rides is not a count of riders, so more member rides is not the same as more members.
+      - Both months are whole calendar months, but their weekend days do not fall in the same places, and this Finding does not adjust for that.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c3
+    type: descriptive
+    numeric: true
+    sentence: "Casual riders moved the same way, so this is not something happening only to members: e-bikes were {{ref:rides_by_period_member_type.after_casual.ebike_share}} of casual rides against {{ref:rides_by_period_member_type.baseline_casual.ebike_share}} a year earlier, on a casual ride total that changed by {{derived:casual_rides_pct_change}}."
+    evidence: [ ref:rides_by_period_member_type.baseline_casual.ebike_share, ref:rides_by_period_member_type.after_casual.ebike_share, ref:rides_by_period_member_type.baseline_member.ebike_share, ref:rides_by_period_member_type.after_member.ebike_share, derived:casual_ebike_share_change, derived:casual_rides_pct_change ]
+    table_ids: [ rides_by_member_type_table ]
+    population: Every Citi Bike ride in the New York City monthly archives in the two months, split by whether it was taken under a membership.
+    comparison: { kind: baseline_period, description: "Each kind of rider in January 2025 against the same kind of rider in January 2024.", pre_registered: true }
+    window: { start: "2025-01-01", end: "2025-01-31", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - Casual covers both a single ride and a day pass, and these files do not separate them.
+      - The casual share sits on far fewer rides than the member share, so it moves more easily.
+      - Two groups moving together does not say what moved them.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c4
+    type: descriptive
+    numeric: true
+    sentence: "The two Januaries were not alike on weather: {{ref:weather_pairs.comparable.day_pairs}} of {{ref:weather_pairs.comparable.all_day_pairs}} matched-up days were alike, and {{literal:January 2025}} was colder and much drier."
+    evidence: [ ref:weather_pairs.comparable.day_pairs, ref:weather_pairs.not_comparable.day_pairs, ref:weather_pairs.comparable.all_day_pairs, ref:weather_by_period.baseline.mean_tmax_c, ref:weather_by_period.after.mean_tmax_c, ref:weather_by_period.baseline.wet_days, ref:weather_by_period.after.wet_days, ref:weather_by_period.baseline.total_snow_mm, ref:weather_by_period.after.total_snow_mm, derived:mean_tmax_change_c, derived:wet_days_change ]
+    table_ids: [ weather_pairs_table, weather_by_period_table ]
+    population: Pairs of days matched up by day of the month, with a maximum temperature and a precipitation reading at the Central Park weather station.
+    comparison: { kind: baseline_period, description: "Day by day through January 2025 against the same day number in January 2024, at one weather station.", pre_registered: true }
+    window: { start: "2025-01-01", end: "2025-01-31", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - The rule used here looks at the daily high temperature and at whether the day was wet or dry. It does not look at snow, and January 2025 had more snow by depth than January 2024.
+      - Days are matched by their number in the month, not by the day of the week.
+      - One weather station stands in for the whole city.
+      - Two months being alike on weather would not make this comparison a cause, and their not being alike does not by itself explain the difference in riding.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: A description of the weather in two fixed months does not change when new data arrives.
+      owner: Patrick Morris
+  - id: c5
+    type: descriptive
+    numeric: true
+    sentence: "Both months come from Citi Bike archive files republished on the same day, {{ref:source_provenance.2025-01.http_last_modified}}, and read as a stream rather than kept, so each file is identified by its size and that date rather than by a fingerprint of its contents."
+    evidence: [ ref:source_provenance.2024-01.http_last_modified, ref:source_provenance.2025-01.http_last_modified, ref:source_provenance.2024-01.bytes, ref:source_provenance.2025-01.bytes ]
+    table_ids: [ source_provenance_table ]
+    population: The two Citi Bike monthly archive files this Finding's ride numbers were built from.
+    comparison: { kind: none, description: "A record of what was read, not a comparison.", pre_registered: false }
+    window: { start: "2025-01-01", end: "2025-01-31", timezone: America/New_York }
+    exclusions: []
+    limitations:
+      - Citi Bike can republish a month after the fact, and a rebuild could then disagree with these numbers.
+      - A streamed file has no fingerprint, so a rebuild cannot prove it read the same bytes - only a file of the same size with the same publication date.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: What was read is a fact about this build, not something a later run re-tests.
+      owner: Patrick Morris
+charts:
+  - id: member_ebike_share_chart
+    claim_id: c1
+    spec_path: charts/member_ebike_share.vl.json
+    result_id: member_ebike_by_period
+    title: "E-bikes were {{ref:member_ebike_by_period.after.member_ebike_share}} of member rides in {{literal:January 2025}}, against {{ref:member_ebike_by_period.baseline.member_ebike_share}} a year earlier"
+    description: "Two horizontal bars, one per month. January 2024: {{ref:member_ebike_by_period.baseline.member_ebike_share}} of member rides were on an e-bike. January 2025: {{ref:member_ebike_by_period.after.member_ebike_share}}. The later bar is longer by {{derived:member_ebike_share_change}}."
+  - id: member_rides_total_chart
+    claim_id: c2
+    spec_path: charts/member_rides_total.vl.json
+    result_id: member_ebike_by_period
+    title: "Members took {{ref:member_ebike_by_period.after.member_rides}} rides in {{literal:January 2025}}, up from {{ref:member_ebike_by_period.baseline.member_rides}} a year earlier, so the bigger e-bike share sits on a bigger total"
+    description: "Two horizontal bars, one per month, showing all member rides. January 2024: {{ref:member_ebike_by_period.baseline.member_rides}} rides. January 2025: {{ref:member_ebike_by_period.after.member_rides}}. The later bar is the longer of the two, so the total did not shrink."
+tables:
+  - id: member_ebike_by_period_table
+    claim_id: c1
+    result_id: member_ebike_by_period
+    title: E-bikes took a bigger share of member riding than they did a year earlier
+    columns:
+      - { name: period_label, label: Month }
+      - { name: member_rides, label: Member rides }
+      - { name: member_ebike_rides, label: On an e-bike }
+      - { name: member_ebike_share, label: Share of member rides on an e-bike }
+    row_keys: [ baseline, after ]
+  - id: member_rides_split_table
+    claim_id: c2
+    result_id: member_ebike_by_period
+    title: Member riding grew, and only the e-bike side of it grew
+    columns:
+      - { name: period_label, label: Month }
+      - { name: member_rides, label: Member rides }
+      - { name: member_ebike_rides, label: On an e-bike }
+      - { name: member_classic_rides, label: On a classic bike }
+    row_keys: [ baseline, after ]
+  - id: rides_by_member_type_table
+    claim_id: c3
+    result_id: rides_by_period_member_type
+    title: Casual riders also took a bigger share of their rides on e-bikes, from a share that was already higher
+    columns:
+      - { name: member_type_label, label: Rider }
+      - { name: period_label, label: Month }
+      - { name: all_rides, label: Rides }
+      - { name: ebike_rides, label: On an e-bike }
+      - { name: ebike_share, label: Share of their rides on an e-bike }
+    row_keys: [ baseline_member, after_member, baseline_casual, after_casual ]
+  - id: weather_pairs_table
+    claim_id: c4
+    result_id: weather_pairs
+    title: Most matched-up days in the two Januaries were not alike on weather
+    columns:
+      - { name: class_label, label: Matched-up days }
+      - { name: day_pairs, label: Days }
+      - { name: all_day_pairs, label: Out of }
+    row_keys: [ comparable, not_comparable, unknown ]
+  - id: weather_by_period_table
+    claim_id: c4
+    result_id: weather_by_period
+    title: The later January was colder and much drier than the earlier one
+    columns:
+      - { name: period_label, label: Month }
+      - { name: mean_tmax_c, label: Average daily high (Celsius) }
+      - { name: freezing_days, label: Days at or below freezing }
+      - { name: wet_days, label: Days with rain or more }
+      - { name: snow_days, label: Days with snow }
+      - { name: total_snow_mm, label: Snow over the month (mm) }
+    row_keys: [ baseline, after ]
+  - id: source_provenance_table
+    claim_id: c5
+    result_id: source_provenance
+    title: Both months were read from files published on the same day, and neither file was fingerprinted
+    columns:
+      - { name: period, label: Month }
+      - { name: url, label: File }
+      - { name: bytes, label: Size in bytes }
+      - { name: fetch_mode, label: How it was read }
+      - { name: http_last_modified, label: Published }
+    row_keys: [ "2024-01", "2025-01" ]
+checks:
+  - id: inv_grain_unique_and_valid
+    kind: invariant
+    path: checks/inv_grain_unique_and_valid.sql
+    content_hash:
+      algorithm: sha256
+      value: a0e6eb45b144bb15e1b20251436484e994ef09ea47cfd338f9697bed16729268
+    description: Inside both months citibike_daily has one row per ride date, member type and bike type, carries only the two member types, and has no missing or negative ride count or duration, so nothing is double counted.
+    required: true
+    outcome: pass
+    execution_id: ex_member_ebike_by_period
+    executed_at: 2026-09-17T18:20:54Z
+  - id: inv_no_third_bike_type
+    kind: invariant
+    path: checks/inv_no_third_bike_type.sql
+    content_hash:
+      algorithm: sha256
+      value: e3439ac585ddf73c1cb9a894d5d37731db0aa0956190283e2043028da685c772
+    description: Across both months the only bike types present are classic_bike and electric_bike, so the e-bike share of member rides is a two-way split. ebike_ride v1 requires this to be checked rather than assumed, because Citi Bike has used a third value in earlier files.
+    required: true
+    outcome: pass
+    execution_id: ex_member_ebike_by_period
+    executed_at: 2026-09-17T18:20:54Z
+  - id: inv_definition_sql_matches_analysis
+    kind: invariant
+    path: checks/inv_definition_sql_matches_analysis.sql
+    content_hash:
+      algorithm: sha256
+      value: af17a69b6dd91697782c02ad7787e391955d3693c55703ac04b0cfbac226987f
+    description: The member ride and member e-bike ride totals the analysis computes equal the totals the member_ride v1 and ebike_ride v1 SQL return as written, and the two definitions agree with each other where they overlap. Both definitions are proposed, so this shows the analysis follows their text; it is not a reconciliation against an approved definition, because none exists.
+    required: true
+    outcome: pass
+    execution_id: ex_member_ebike_by_period
+    executed_at: 2026-09-17T18:20:54Z
+  - id: min_data_every_day_present
+    kind: minimum_data
+    path: checks/min_data_every_day_present.sql
+    content_hash:
+      algorithm: sha256
+      value: e0598819425d306546e11d9b7ebe8fcfc6f8533dd787a238943ed0ed88ea92c9
+    description: Both months are whole - every calendar day of both Januaries carries member rides on both bike types, so neither month's share rests on a day missing from the file.
+    required: false
+    outcome: pass
+    execution_id: ex_member_ebike_by_period
+    executed_at: 2026-09-17T18:20:54Z
+  - id: min_data_weather_observed
+    kind: minimum_data
+    path: checks/min_data_weather_observed.sql
+    content_hash:
+      algorithm: sha256
+      value: e253fe17a7753ca215dc924f51591732b0d45dd1253b57a760a68f9b1f0cd7e7
+    description: Every day of both months has a maximum temperature and a precipitation observation at one station, so no aligned day pair is unknown for want of data.
+    required: false
+    outcome: pass
+    execution_id: ex_weather_pairs
+    executed_at: 2026-09-17T18:20:54Z
+  - id: check_weather_comparable
+    kind: invariant
+    path: checks/check_weather_comparable.sql
+    content_hash:
+      algorithm: sha256
+      value: 36bfff40184a910858a6a776210ca16fd94780023b422ea5c84861cc92716b7e
+    description: More than half of the aligned day pairs are alike on weather by comparable_weather_day v1. The bar was set before any weather number was read from these inputs. It is required false and kind invariant on purpose - a weather mismatch is a fact about how alike the two months were and must not turn a descriptive count comparison into insufficient_data, and a passing weather Check would not make the comparison causal.
+    required: false
+    outcome: fail
+    execution_id: ex_weather_pairs
+    executed_at: 2026-09-17T18:20:54Z
+  - id: falsifier_count_and_share_agree
+    kind: falsifier
+    path: checks/falsifier_count_and_share_agree.sql
+    content_hash:
+      algorithm: sha256
+      value: 710ae712341e73072bfb895bea7e90b837cb54599cd4e3ec14e1cb8e2a2bd0ca
+    description: The number of member rides on e-bikes and the share of member rides that were on e-bikes moved the same way between the two months. Not evaluable when a month is missing a day or when either measure is exactly equal across the two months.
+    required: false
+    outcome: pass
+    expected_outcome: pass
+    execution_id: ex_member_ebike_by_period
+    executed_at: 2026-09-17T18:20:54Z
+reviews: [ { kind: method, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: a01e66a60d655fa1b52aee5073f835b8a838997bbfc034f69d91903cbf126e87 }, blocking: [ "All four percent_change entries in manifest.derived (member_ebike_rides_pct_change, member_rides_pct_change, member_classic_rides_pct_change, casual_rides_pct_change) list their operands baseline-then-after, which the engine evaluates as (first minus second) divided by second, so every rendered percent change carries the opposite sign to the movement its own result records.", "c1's Evidence paragraph in memo.md reads 'Rides on e-bikes rose by -20.6%', presenting a fall to the Reader in the sentence that asserts a rise, while member_ebike_by_period records member_ebike_rides going 1,055,584 to 1,329,923.", "c2's Evidence paragraph in memo.md shows member riding as a whole changing by -12.6% and classic rides by 5.3% against -20.6% for e-bikes, then concludes 'e-bikes grew faster than member riding as a whole, on a total that grew' - the conclusion contradicts all three numbers printed beside it, which is the exact composition argument c2 exists to make.", "c3's Claim sentence states the casual ride total 'changed by 3.1%' when rides_by_period_member_type records casual all_rides going 208,028 to 201,767, so the direction shown for the casual denominator is inverted in an answer-supporting sentence." ], non_blocking: [ "c2 lists only the Jersey City exclusion and c3 lists none, although the build-level exclusions carried on c1 (Jersey City absent, unusable timestamps dropped, a ride belonging to the month it started in) apply to those Claims' populations too.", "weather_pairs.sql, weather_by_period.sql and the two weather Checks apply no station_id filter, although c4's population and comparable_weather_day v1 both name station USW00094728; the retained extract happens to hold one station only, and min_data_weather_observed computes a station count but leaves it out of its pass condition.", "The memo's 'How we checked' bullet and the check_weather_comparable description both describe the bar as set before any weather number was read, without the disclosure analysis.yaml probe p_weather_result_known_in_advance says must accompany it - that the likely outcome was already known from a neighbouring Finding, so it is not a blind pre-registration.", "c3's Evidence paragraph asserts 'the gap between the two kinds of rider stayed' with no bound value behind it, when the two shares in rides_by_period_member_type narrow between the periods.", "manifest.derived declares unit percent for the four percent_change values while analysis.yaml requested_derived declares unit ratio for the same ids, and mean_tmax_change_c plus the weather_by_period temperature, precipitation and snow columns carry unit unknown while the prose and comparable_weather_day v1 state degrees Celsius and millimetres.", "c5's sentence presents a single Last-Modified timestamp as the shared publication moment for both archive files, while source_provenance records two timestamps about forty minutes apart on the same day.", "member_ebike_daily, the only day-level series and the one result that would show how the two months' day-to-day spread compares, is executed, pinned and listed in export_policy but cited by no Claim, chart or table." ] }, { kind: question, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: a01e66a60d655fa1b52aee5073f835b8a838997bbfc034f69d91903cbf126e87 }, blocking: [], non_blocking: [ "The memo's 'How we checked' bullet describes the weather bar as 'set before any weather number was read', dropping the manifest's narrower 'from these inputs' and omitting what analysis.yaml probe p_weather_result_known_in_advance records - that the same two months' weather result was already known from findings/2026-09-17-crz-trips-after-pricing - so the only version the Reader sees describes it as the blind pre-registration the Analysis itself says must not be claimed.", "Assumption a_fee_date_not_needed_by_this_question in analysis.yaml justifies the empty needs_input partly by what outcome the field would make available, reasoning from the desired outcome back to the field, though the substantive reason beside it - a descriptive comparison does not need the fee date - stands on its own.", "question.decision in manifest.yaml names two decisions and finding.outcome 'answered' speaks only to the first, since the fee-change half is resolved only as unanswerable-here with what_would_be_needed named.", "The raw ask 'are members riding e-bikes more than a year ago' reads as people over a year and the Finding answers rides over one January against another, a narrowing disclosed in the material caveat beside the Answer, in question.population and in c1.limitations but not in the one-word 'Yes.' that opens memo.md." ] }, { kind: reader, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: a01e66a60d655fa1b52aee5073f835b8a838997bbfc034f69d91903cbf126e87 }, profile: bike_product_manager, blocking: [], non_blocking: [ "c3 opens 'Casual riders moved the same way' while the casual ride total fell 3.0% and the member total rose 14.5%, and only the bound number carries that difference - no sentence says casual riding fell.", "The 'Decision it informs' phrase 'a dated record of when e-bike fees changed' presumes a fee change happened, which sits awkwardly against the caveat saying no fee change date exists in any source read here.", "The Answer gives direction but no size, so a reader who stops after the Answer and caveat has to go one section further to learn the change was 62.8% to 69.2%.", "The 'Decision it informs' option 'treat e-bike demand among members as growing' slides from rides to demand, one step away from the rides-not-riders line the caveat makes.", "The memo says the unapproved definitions may not headline a published number but never says plainly whether these figures can be repeated in a meeting, which is the thing this profile most needs to know." ] }, { kind: method, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: fa002688a4ebce559db5a475b2365da506efeefbfd642bf1cd0b8010760dbb4b }, blocking: [], non_blocking: [ manifest.derived declares unit percent for the four percent_change ids while analysis.yaml requested_derived declares unit ratio for the same ids., "mean_tmax_change_c and the weather_by_period temperature, precipitation and snow columns carry unit unknown while the prose and comparable_weather_day v1 state degrees Celsius and millimetres.", "weather_pairs.sql, weather_by_period.sql and the two weather Checks apply no station_id filter although c4's population and comparable_weather_day v1 name station USW00094728, and min_data_weather_observed computes a station count it leaves out of its pass condition; the retained extract holds only that station, so no number is affected.", "c2 lists only the Jersey City exclusion and c3 lists none, although the build-level exclusions carried on c1 apply to their populations too.", "memo.md c2's limits sentence says the two months do not have the same number of weekend days, when both Januaries contain eight weekend days and only their placement differs, which is what the manifest's own c2 limitation says.", "c3's Evidence paragraph asserts 'the gap between the two kinds of rider stayed' with no bound value, while the two share changes printed beside it (4.8 pp casual against 6.3 pp member) narrow the gap from 13.4 to 11.9 percentage points.", "No Check covers day-level completeness of the casual rows c3 rests on, since min_data_every_day_present is scoped to member rides and inv_grain_unique_and_valid asserts grain uniqueness and 62 distinct dates rather than a casual row per day.", "c4's Claim sentence headlines the comparable_weather_day v1 pair count, which the definition and assumption a_weather_is_a_check_not_an_explanation both say never headlines a Claim, and the c4 subsection labels it a proposed diagnostic only in 'How we checked'.", "c5's sentence renders one file's Last-Modified timestamp as the shared publication moment, while source_provenance records 15:01:20 and 15:41:08 GMT for the two files.", "member_ebike_daily is executed, pinned and listed in export_policy but cited by no Claim, chart or table.", "render/finding.html reproduces the three stale reviews verbatim, including the superseded -20.6% and 3.1% figures, each labelled as being for an earlier version of the content." ] }, { kind: question, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: fa002688a4ebce559db5a475b2365da506efeefbfd642bf1cd0b8010760dbb4b }, blocking: [], non_blocking: [ "The check_weather_comparable description in manifest.yaml still says the bar 'was set before any weather number was read from these inputs' with no not-blind disclosure, and that sentence is what renders into the Reader-visible 'Checks that did not pass' line, while the material caveat and the 'How we checked' bullet now both carry the disclosure.", "question.decision names two decisions and finding.outcome 'answered' speaks only to the growth half, since the fee-change half is resolved only as unanswerable-here in outcome_recommendation.what_would_be_needed.", "The raw ask 'are members riding e-bikes more than a year ago' reads as people over a year and the Finding answers rides over one January against another, disclosed in the material caveat, question.population and c1.limitations but not in the one-word 'Yes.' that opens the Answer.", "Assumption a_fee_date_not_needed_by_this_question in analysis.yaml justifies the empty needs_input partly by what outcome the field would make available, though the substantive reason beside it - a descriptive comparison does not need the fee date - stands on its own." ] }, { kind: reader, reviewer: agent:claude-opus-5, date: 2026-09-17, content_digest: { algorithm: sha256, value: fa002688a4ebce559db5a475b2365da506efeefbfd642bf1cd0b8010760dbb4b }, profile: bike_product_manager, blocking: [], non_blocking: [ "c3 still opens 'Casual riders moved the same way' when casual rides fell 3.0% while member rides rose 14.5%, and the fall appears only as the signed number -3.0% and in the table, never in words - the round-1 note still stands, though the corrected sign now weakens it.", "The 'Decision it informs' phrase 'a dated record of when e-bike fees changed' still presumes a fee change happened, even though the caveat and 'What would change our mind' both say none is recorded here.", The Answer still gives direction with no size; the first numbers a Reader meets are in c1's heading., The 'Decision it informs' option 'treat e-bike demand among members as growing' still slides from rides to demand., The memo still never says plainly whether these figures can be repeated in a meeting; the nearest is 'none of them may headline a published number' and 'It is a draft' buried in How we checked., "The visible recorded-reviews block quotes the stale Method review in analyst language ('denominator', 'manifest.derived', 'percent_change entries') and reports a blocking sign error that has since been fixed, which reads alarming even though it is labelled stale.", "c3's sentence 'the gap between the two kinds of rider stayed' has no token behind it and the gap in fact narrowed, from 13.5 points to 11.8 points.", "'6.3 pp' and '4.8 pp' are used in prose and in the chart caption without ever saying what pp means." ] } ]
+attestations: []
+export_policy:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+  allowed_fields:
+    - member_ebike_by_period.period
+    - member_ebike_by_period.period_label
+    - member_ebike_by_period.days
+    - member_ebike_by_period.member_rides
+    - member_ebike_by_period.member_ebike_rides
+    - member_ebike_by_period.member_classic_rides
+    - member_ebike_by_period.member_ebike_share
+    - rides_by_period_member_type.period_member_type
+    - rides_by_period_member_type.period_label
+    - rides_by_period_member_type.member_type_label
+    - rides_by_period_member_type.all_rides
+    - rides_by_period_member_type.ebike_rides
+    - rides_by_period_member_type.ebike_share
+    - member_ebike_daily.ride_date
+    - member_ebike_daily.period_label
+    - member_ebike_daily.day_of_month
+    - member_ebike_daily.member_rides
+    - weather_pairs.weather_class
+    - weather_pairs.class_label
+    - weather_pairs.day_pairs
+    - weather_pairs.all_day_pairs
+    - weather_by_period.period
+    - weather_by_period.period_label
+    - weather_by_period.mean_tmax_c
+    - weather_by_period.freezing_days
+    - weather_by_period.wet_days
+    - weather_by_period.snow_days
+    - weather_by_period.total_snow_mm
+    - source_provenance.period
+    - source_provenance.url
+    - source_provenance.bytes
+    - source_provenance.fetch_mode
+    - source_provenance.http_last_modified
+  delivery: html_file
+coverage:
+  data_from: 2024-01-01
+  data_to: 2025-02-28
+  description: >-
+    The Citi Bike ride numbers come from a kept copy of the daily ride-count table, which holds January 2024, December 2024, January 2025 and February 2025 and nothing else. The weather comes from a kept copy of the daily readings at the Central Park station, which stop on 2025-02-05. This Finding reads only the two Januaries out of that; the months in between are not in the data at all, so nothing here shows what happened between them. Jersey City rides, and any month after February 2025, are not covered.
+renderer:
+  version: 0.0.0
+  house_style_version: 0.2.0
+content_digest:
+  algorithm: sha256
+  value: fa002688a4ebce559db5a475b2365da506efeefbfd642bf1cd0b8010760dbb4b

@@ -1,0 +1,37 @@
+{
+  "result_id": "source_provenance",
+  "execution_id": "ex_source_provenance",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "source",
+    "url",
+    "bytes",
+    "fetch_mode",
+    "sha256",
+    "http_last_modified",
+    "fetched_at"
+  ],
+  "rows": [
+    {
+      "period": "2024-01",
+      "source": "citibike",
+      "url": "https://s3.amazonaws.com/tripdata/202401-citibike-tripdata.zip",
+      "bytes": 369035302,
+      "fetch_mode": "streamed",
+      "sha256": null,
+      "http_last_modified": "Thu, 03 Jul 2025 15:01:20 GMT",
+      "fetched_at": "2026-09-17 17:13:50"
+    },
+    {
+      "period": "2025-01",
+      "source": "citibike",
+      "url": "https://s3.amazonaws.com/tripdata/202501-citibike-tripdata.zip",
+      "bytes": 414213312,
+      "fetch_mode": "streamed",
+      "sha256": null,
+      "http_last_modified": "Thu, 03 Jul 2025 15:41:08 GMT",
+      "fetched_at": "2026-09-17 17:16:42"
+    }
+  ]
+}
