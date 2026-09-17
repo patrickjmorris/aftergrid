@@ -3,7 +3,7 @@ id: crz_trip
 version: 1
 kind: metric
 lifecycle: proposed
-grain: pickup date × service × pickup zone × dropoff zone — the grain of trips_daily
+grain: pickup date × service × in_crz — the grain of crz_daily, derived from trips_daily by scripts/derive-question-tables.mjs
 population: yellow taxi and high-volume for-hire trips whose pickup zone or dropoff zone is one of the 38 taxi zones in crz_zones
 denominator: all yellow and high-volume for-hire trips in the same window, zone or no zone
 window: stated per Analysis as a half-open range of pickup dates; pickup_date is the date the TLC file carries, which is local New York time
@@ -31,20 +31,47 @@ Trips the TLC publishes with a null pickup or dropoff zone, and the ids 264/265 
 `crz_zones`, so they never enter the numerator. They stay in the denominator, because a trip with an unknown end
 is still a trip that happened. An Analysis that reports a share must say so.
 
+## Where it is computed
+
+**From `crz_daily`, not from `trips_daily` directly.** `crz_daily` is a bounded table the Operator derives
+inside this Instance's own DuckDB file with
+[`../../scripts/derive-question-tables.mjs`](../../scripts/derive-question-tables.mjs): one row per pickup date
+× service × `in_crz`, where `in_crz` is exactly the rule above — pickup zone **or** dropoff zone in `crz_zones`
+— evaluated once, at the build, instead of in every Analysis. `trips_daily` at this Instance's window is
+5,390,695 rows against an admission cap of 5,000,000, so `aftergrid capture` refuses it whole and the contract's
+answer is a bounded per-Question table beside it (`docs/contracts/adapters.md`, "Large sources: the windowed
+Instance pattern"). `crz_daily` is 484 rows and is admissible.
+
+Three consequences a Finding using this definition has to carry:
+
+- **The derivation is evidence, not a shortcut.** The script is in this repository and writes a
+  `build_provenance` row (`source` `derived:crz_daily`, `fetch_mode` `derived`) naming what it read and when.
+- **A Snapshot over `crz_daily` retains the derived table, not the TLC files.** A rerun reproduces the analysis
+  over `crz_daily`. Say that, rather than implying the raw trip records were retained.
+- **The window still lives in the SQL.** `crz_daily` holds every date `trips_daily` holds; it is a smaller
+  grain, not a smaller period. The `$from`/`$to` below are what decide which days are in.
+
+The denominator is in the same table: the rows where `in_crz` is false are the trips that touched neither end of
+the zone, so `sum(trips) filter (where in_crz) / sum(trips)` over a window is the share, from one scan.
+
+This is still **version 1**. The rule — a trip that starts or ends in the zone, counted once — has not changed;
+only the table it is read from has. The definition is `proposed` and carries no `approval` block, so no
+attestation is pinned to a previous content hash (`docs/contracts/instance-layout.md`), and there is nothing a
+version bump would protect.
+
 ## SQL (duckdb)
 
 ```sql
 -- Parameters: $from (first pickup date, inclusive), $to (first pickup date after the window, exclusive).
--- Tables: trips_daily, crz_zones.
-select t.pickup_date,
-       t.service,
-       sum(t.trips) as crz_trips
-from trips_daily t
-where t.service in ('yellow', 'hvfhs')
-  and t.pickup_date >= $from::DATE
-  and t.pickup_date < $to::DATE
-  and (t.pu_location_id in (select location_id from crz_zones)
-       or t.do_location_id in (select location_id from crz_zones))
+-- Table: crz_daily, derived from trips_daily and crz_zones by scripts/derive-question-tables.mjs.
+select pickup_date,
+       service,
+       sum(trips) as crz_trips
+from crz_daily
+where in_crz
+  and service in ('yellow', 'hvfhs')
+  and pickup_date >= $from::DATE
+  and pickup_date < $to::DATE
 group by 1, 2
 order by 1, 2
 ```

@@ -18,7 +18,7 @@ something that has been approved, reviewed or published, because nothing has.
 | `findings/` | Empty. |
 | `decisions/`, `decisions.md` | Empty, and the generated index of an empty Decision log. |
 | `provisional/` | Empty, with the scaffold's README. |
-| `demo.duckdb` | **Not committed.** Gitignored; rebuilt from public sources by the build script. |
+| `demo.duckdb` | **Not committed.** Gitignored; rebuilt from public sources by the build script, then `crz_daily` derived into it by [`../scripts/derive-question-tables.mjs`](../scripts/derive-question-tables.mjs). |
 
 ## The data this Instance reads
 
@@ -43,6 +43,36 @@ holding `build_meta.months = 2024-01,2024-12,2025-01,2025-02`: 5,390,695 rows in
 `trips_sample`, 98 days in `weather_daily`, 484 rows in `citibike_daily`, 9,024 in `citibike_stations`, 265
 taxi zones and 38 zone rows.
 
+### Then derive the bounded per-Question table
+
+One more step, and it is not optional for the headline Question: `trips_daily` is over the admission cap (below),
+so the table a Finding can actually capture is derived from it, **outside aftergrid**, by a second script of the
+Operator's:
+
+```bash
+node examples/nyc-open-data/scripts/derive-question-tables.mjs \
+  --out examples/nyc-open-data/analytics/demo.duckdb                      # 0.3 s
+```
+
+It writes **`crz_daily`** — one row per pickup date × service × `in_crz`, with `trips`, `fare_sum`, `tip_sum` and
+`distance_sum` summed from `trips_daily` in the same `DECIMAL(18,4)` — where `in_crz` is the `crz_trip` rule:
+pickup zone **or** dropoff zone in `crz_zones`. At this window that is **484 rows** (121 days × 2 services × 2
+values of `in_crz`) with content hash `4378907104719937971008`. It also writes one `build_provenance` row
+(`source` `derived:crz_daily`, `fetch_mode` `derived`, `bytes` and `sha256` NULL because nothing was fetched and
+there is no file to hash, `url` naming what was read) and one `build_meta` key `derived:crz_daily` holding the
+derivation time.
+
+It is idempotent: a rerun drops and rebuilds the table and replaces those two rows, and the derived table's
+content hash does not move. `--verify` prints every table's row count and content hash under the Instance's own
+limits, and the seven non-volatile tables hash identically before and after a derivation — the derivation adds a
+table, it does not touch the data. No `crz_share_daily` is written: `crz_daily` carries both sides of the share,
+so `sum(trips) filter (where in_crz) / sum(trips)` over the window the Analysis states belongs in the analysis
+SQL, not in a stored column.
+
+The derived table is **not a window**. It holds every date `trips_daily` holds; the analytical window stays in
+the analysis SQL, which is what keeps an edge day a decision of the SQL rather than of how wide the table
+happened to be. A Finding that captures it retains the derived table, not the TLC files, and must say so.
+
 ### Provenance, and the dates the numbers rest on
 
 Every number in `golden/` was computed on **2026-09-17** from files fetched the same day. The TLC restates
@@ -65,15 +95,17 @@ January 2024, all of December 2024 and January 2025, and 1–5 February 2025. Th
 that coverage. And **a streamed file has no hash**, because the build never holds its bytes; its size, `ETag`
 and `Last-Modified` are what identify it.
 
-### `trips_daily` is over the admission cap at this window
+### `trips_daily` is over the admission cap at this window; `crz_daily` is what a Finding captures
 
-`aftergrid capture --catalog` against this Instance on 2026-09-17:
+`aftergrid capture <finding-dir> --catalog --instance examples/nyc-open-data/analytics` against this Instance on
+2026-09-17, after the derivation above (the run reads the catalog and writes nothing at all):
 
 ```
-build_meta                 9 scan rows  admissible (estimate_under_cap)
-build_provenance          15 scan rows  admissible (estimate_under_cap)
+build_meta                10 scan rows  admissible (estimate_under_cap)
+build_provenance          16 scan rows  admissible (estimate_under_cap)
 citibike_daily           484 scan rows  admissible (estimate_under_cap)
 citibike_stations      9,024 scan rows  admissible (estimate_under_cap)
+crz_daily                484 scan rows  admissible (estimate_under_cap)
 crz_zones                 38 scan rows  admissible (estimate_under_cap)
 taxi_zones               265 scan rows  admissible (estimate_under_cap)
 trips_daily        5,390,695 scan rows  NOT admissible: exceeds the cap of 5,000,000
@@ -81,16 +113,21 @@ trips_sample          93,739 scan rows  admissible (estimate_under_cap)
 weather_daily             98 scan rows  admissible (estimate_under_cap)
 ```
 
+`build_meta` and `build_provenance` are one row larger than they were before the derivation, and `crz_daily` is
+the new line. Everything except `trips_daily` is admissible; the headline Question's plan is therefore
+`--tables crz_daily,crz_zones,weather_daily,build_provenance`.
+
 One month of `trips_daily` is about 1.3 million rows and is comfortably admissible; **four months are not.** The
 default `estimate_cap` is 5,000,000 and `capture` copies whole tables, so the whole-table read of `trips_daily`
 is refused with `admission` before a byte is written. This is the designed behaviour
 (`docs/contracts/setup.md`, `docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern"), not a
 defect, and the cap has deliberately **not** been raised here to make the number go away.
 
-The Finding bead therefore has a decision to make, and it is recorded here rather than discovered later: capture
-a narrower database (one month either side is ~2.6 million rows), or have `build-data.mjs` write a bounded
-per-Question table beside `trips_daily` and capture that. The analytical window still lives in the analysis SQL
-either way.
+That decision has now been taken, and it is the one the contract names: a bounded per-Question table, built
+outside aftergrid and captured whole. `derive-question-tables.mjs` writes `crz_daily` beside `trips_daily`
+rather than a narrower database, so the demo keeps four months of source data, keeps the refusal visible, and
+still has something a Finding can retain. It is a separate script from `build-data.mjs` on purpose: deriving a
+Question's table takes no network and a fraction of a second, and must not mean refetching 4 GB.
 
 ## Reader profiles
 
@@ -113,7 +150,7 @@ approval is recorded against the definition's own content hash. Nobody has appro
 
 | Definition | Kind | What it pins down |
 | --- | --- | --- |
-| `crz_trip` | metric | A trip **into** the zone is one whose pickup **or** dropoff zone is in `crz_zones`. Pickups-only is a different metric; a trip with both ends inside is counted once; it is not "trips that paid the fee". |
+| `crz_trip` | metric | A trip **into** the zone is one whose pickup **or** dropoff zone is in `crz_zones`. Pickups-only is a different metric; a trip with both ends inside is counted once; it is not "trips that paid the fee". Computed from `crz_daily`, where that rule is the `in_crz` column. |
 | `taxi_trip` | metric | Yellow medallion only. Green taxis are not in this build at all; `fare_sum` is the metered fare, not what the passenger paid. |
 | `fhv_trip` | metric | **High-volume** for-hire only. The TLC's separate non-high-volume `fhv_tripdata` is not fetched, so the id is wider than the population, and the file says so. |
 | `comparable_weather_day` | diagnostic | TMAX within ±5 °C and the same wet/dry class (under 1 mm / 1 mm or more), on aligned days. Units from `weather_daily`: °C and mm. A missing observation is `unknown`, never a match or a mismatch. Version 1 does **not** test snow. |
@@ -131,6 +168,10 @@ crz_trip                  62 rows   31ms      taxi_trip        31 rows    6ms
 ebike_ride                62 rows    2ms      tip_rate          3 rows   21ms
 fhv_trip                  31 rows   19ms      weekday_share     2 rows   21ms
 ```
+
+`crz_trip` was re-run the same day after its SQL moved to `crz_daily`, under the same limits and over the same
+January window: **62 rows, 3 ms** — the same 62 rows (31 days × 2 services) and the same 9,277,575 trips, off a
+484-row table instead of a 5.4-million-row one.
 
 ## Golden Questions, and the numbers behind them
 
@@ -251,4 +292,5 @@ loads all five goldens, but it reports five `not_run` cases and says so itself: 
   reports the whole run as `incomplete` because of it. **No approval has been recorded here and none will ever
   be synthesised**: a `publication_approval` attestation in this Instance can only come from a real APPROVED
   review by `patrickjmorris` on a real pull request at a real commit.
-- **`trips_daily` cannot currently be captured** at this window. See above.
+- **`trips_daily` cannot be captured** at this window, and is not meant to be: `crz_daily` is the table a
+  Finding on the headline Question captures, and it exists only after the derive step. See above.
