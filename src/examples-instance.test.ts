@@ -163,7 +163,8 @@ test("nothing under analytics/ claims an approval, a review or a Finding that do
       // onto entries is a claim that someone reviewed or attested, which nothing here may make.
       assert.doesNotMatch(line, /^\s*attestations:\s*$/, `${rel}:${i + 1} opens an attestations block`);
       assert.doesNotMatch(line, /^\s*reviews:\s*$/, `${rel}:${i + 1} opens a reviews block`);
-      assert.doesNotMatch(line, /^\s*(attestations|reviews):\s*\[\s*\{/, `${rel}:${i + 1} lists an inline review or attestation`);
+      // Agent reviews (reviewer `agent:…`) are what /analyze records and are not a human's word; attestations are.
+      assert.doesNotMatch(line, /^\s*attestations:\s*\[\s*\{/, `${rel}:${i + 1} lists an inline attestation`);
     }
   }
   // Findings here are real run output, committed as produced, halts included. Each carries no review and no
@@ -173,7 +174,7 @@ test("nothing under analytics/ claims an approval, a review or a Finding that do
   for (const f of readdirSync(findings).filter((f) => f !== ".gitkeep")) {
     const dir = join(findings, f);
     const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
-    assert.deepEqual(manifest.reviews ?? [], [], `${f} carries a review nobody recorded`);
+    for (const r of manifest.reviews ?? []) assert.match(String(r.reviewer), /^agent:/, `${f} carries a review by ${r.reviewer}, which reads as a human review nobody gave`);
     assert.deepEqual(manifest.attestations ?? [], [], `${f} carries an attestation nobody recorded`);
     assert.equal(manifest.finding.state, "draft", `${f} is not a draft`);
     if (manifest.finding.outcome === "pending") {
