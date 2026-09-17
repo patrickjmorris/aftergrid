@@ -1,13 +1,14 @@
-# Draft created by `aftergrid new finding`. State draft, outcome pending: nothing here is evidence yet.
+# Revision 2, opened 2026-09-17 on the Operator's reframe decision. Revision 1 (one Question about one direction,
+# falsifier recorded fail, halted before the memo) is archived under revisions/1/ and committed in git.
 schema_version: 0.1.0
 finding:
   id: fnd_l1lnb6r5tcdr
-  revision: 1
+  revision: 2
   slug: crz-trips-after-pricing
-  title: Crz trips after pricing
-  state: draft
-  outcome: pending
-  generated_at: 2026-09-17T15:06:18Z
+  title: Weekday and weekend trips into the Congestion Relief Zone, January 2025 against January 2024
+  state: complete
+  outcome: inconclusive
+  generated_at: 2026-09-17T17:38:12Z
   canonical_location: patrickjmorris/aftergrid/analytics/findings/2026-09-17-crz-trips-after-pricing
 owner:
   name: Patrick Morris
@@ -27,12 +28,12 @@ question:
     start: 2025-01-01
     end: 2025-01-31
     timezone: America/New_York
-  primary_comparison: Total trips into the zone over the whole of January 2025 (the after period, 1 to 31 January inclusive) against the whole of January 2024 (the baseline period), yellow taxi and high-volume for-hire together. The Instance records no start date for the charge, so the after period is the calendar month and no date inside it is treated as the start.
+  primary_comparison: Two comparisons, kept apart. First, average trips into the zone per weekday (Monday to Friday) in January 2025 (the after period, 1 to 31 January inclusive) against January 2024 (the baseline period). Second, the same for weekend days (Saturday and Sunday). For each, the zone's share of all yellow taxi and high-volume for-hire trips on those days is stated beside the count. Public holidays count as weekdays when they fall on one (weekday_share v1, proposed). The Instance records no start date for the charge, so the after period is the calendar month and no date inside it is treated as the start.
   falsifier:
     kind: check
-    check_id: falsifier_direction_holds_by_day_type
+    check_id: falsifier_direction_holds_in_matched_weather_pairs
     expected_outcome: pass
-    statement: The Answer names the direction in which trips into the zone moved between January 2024 and January 2025. It is wrong if that direction is only a calendar effect, that is, if average trips into the zone per weekday or per weekend day did not move the same way as the monthly total.
+    statement: The Answer names the direction in which average trips into the zone per weekday moved between January 2024 and January 2025, and separately the direction per weekend day. A direction is wrong if it does not hold among days that were alike, that is, among pairs of days matched on the day of the week (3 to 31 January 2024 against 1 to 29 January 2025), leaving out any pair where either day is a public holiday, and keeping only pairs with comparable weather (comparable_weather_day v1, maximum temperature within 5 degrees Celsius and both days dry or both wet). The test is run only if at least 5 such weekday pairs exist, and it tests weekend days only if at least 3 such weekend pairs exist.
 snapshot:
   id: snap_crz_trips_after_pricing
   inputs:
@@ -42,7 +43,7 @@ snapshot:
       content_hash:
         algorithm: sha256
         value: 941faf983ccf8a45a1417fe7b730fb534a007e5aefce1b4dcbeefede78cddac2
-      captured_at: 2026-09-17T15:09:29Z
+      captured_at: 2026-09-17T17:24:57Z
       description: Whole-table extract of crz_daily from duckdb_file demo.duckdb
       source:
         adapter: duckdb
@@ -56,7 +57,7 @@ snapshot:
       content_hash:
         algorithm: sha256
         value: 2ef4e03d68e653f5d4c1f0085f166013d9b369fbff6be59190c4c1a5276f83ca
-      captured_at: 2026-09-17T15:09:29Z
+      captured_at: 2026-09-17T17:24:57Z
       description: Whole-table extract of weather_daily from duckdb_file demo.duckdb
       source:
         adapter: duckdb
@@ -64,27 +65,13 @@ snapshot:
         tables:
           - weather_daily
         consistency: single_transaction
-    - id: trips_sample
-      kind: extract
-      path: inputs/trips_sample.csv
-      content_hash:
-        algorithm: sha256
-        value: b3d8a327aa2282aaa7784ed5d465f955566b4e32aee60636fa06b6d610017cb0
-      captured_at: 2026-09-17T15:09:29Z
-      description: Whole-table extract of trips_sample from duckdb_file demo.duckdb
-      source:
-        adapter: duckdb
-        method: select * from trips_sample order by all inside one read transaction, written as CSV (NULL empty, empty string quoted)
-        tables:
-          - trips_sample
-        consistency: single_transaction
     - id: build_provenance
       kind: extract
       path: inputs/build_provenance.csv
       content_hash:
         algorithm: sha256
-        value: 6a0fe32fb2265252eafe47335634229dbbd256202e8e42e0e9620d32ae3733ad
-      captured_at: 2026-09-17T15:09:29Z
+        value: e459eaba4c5b9a77d5bc3de34cef2629a6572550c1e6afec0cbb69a17ded10c9
+      captured_at: 2026-09-17T17:24:57Z
       description: Whole-table extract of build_provenance from duckdb_file demo.duckdb
       source:
         adapter: duckdb
@@ -112,7 +99,7 @@ definitions:
     path: definitions/weekday_share.md
     content_hash:
       algorithm: sha256
-      value: d9766637116aec91ab387d84c2fb822bd7c5afe20c7841fcd77283ada39c1313
+      value: ece94f95f85b9c4b1c8a6727e3eb6094e507891e69b7f570935545539c7d31a0
     role: supporting
   - id: comparable_weather_day
     version: 1
@@ -124,49 +111,91 @@ definitions:
       value: 417977038dca0c54f4cd707758a3a6133a60153a5b4906c64ccf308ccf093de8
     role: supporting
 queries:
+  - id: crz_by_day_type
+    path: queries/crz_by_day_type.sql
+    content_hash:
+      algorithm: sha256
+      value: 9e0d1d09bfcad7933923191dc0fdc51aecc0a157963737ba235c19f19082da2b
+    dialect: duckdb
+    purpose: The revision 2 comparison - trips into the zone, all trips and the zone's share, on weekdays and on weekend days, baseline month against after month
+  - id: crz_by_day_type_service
+    path: queries/crz_by_day_type_service.sql
+    content_hash:
+      algorithm: sha256
+      value: ab9e37734d001ee730697260941ca0cfff2b735e6667b4cb609224a8b1502476
+    dialect: duckdb
+    purpose: The same day-type comparison split by service
   - id: crz_trips_by_period
     path: queries/crz_trips_by_period.sql
     content_hash:
       algorithm: sha256
       value: a095839564aebdd1580cc614026d29d13c1f4c100cb319eb98d70125b935d9ca
     dialect: duckdb
-    purpose: Pre-registered comparison - trips into the zone, all trips and the share, baseline month against after month
-  - id: crz_trips_by_period_service
-    path: queries/crz_trips_by_period_service.sql
+    purpose: Context - whole-month trips into the zone, all trips and the share; revision 1's query, unchanged
+  - id: weather_matched_pairs
+    path: queries/weather_matched_pairs.sql
     content_hash:
       algorithm: sha256
-      value: 26753382f485de2952ed60bf07c03c072c107d8d52d4ff9d887bd0b4191f2ae9
+      value: 261a8b25ecefbd860ee8c17d492a48a091fa18593e87ec931b66c60a8aa5e4b4
     dialect: duckdb
-    purpose: The same comparison split by service
-  - id: crz_trips_by_day_type
-    path: queries/crz_trips_by_day_type.sql
+    purpose: What the falsifier reads - day-of-week-matched pairs by day type, how many are holiday pairs, how many have comparable weather (comparable_weather_day v1), and trips into the zone over the comparable non-holiday pairs
+  - id: matched_pair_days
+    path: queries/matched_pair_days.sql
     content_hash:
       algorithm: sha256
-      value: 755fb34bf30255bf45129e7773a1e6f1ced8609d21a6a1b917d7ba4d88bde24d
+      value: 34051c55998f4ba9c42c51a287290c2619e10be7f1b47622b0e3e7e8b62047b2
     dialect: duckdb
-    purpose: Trips into the zone per weekday and per weekend day in each month
-  - id: crz_trips_daily
-    path: queries/crz_trips_daily.sql
-    content_hash:
-      algorithm: sha256
-      value: df7c28656ee590c73ab373dc0eb761f3db1d2d0e74dcc73452f3403107a882ef
-    dialect: duckdb
-    purpose: Daily series of trips into the zone in both months
-  - id: weather_pairs
-    path: queries/weather_pairs.sql
-    content_hash:
-      algorithm: sha256
-      value: 1d46c1ad4d9f41cfe683ec270ce02fde024e09c004d1a60499b1deafb391278b
-    dialect: duckdb
-    purpose: comparable_weather_day v1 classes counted over the aligned day pairs
+    purpose: The 29 matched day pairs one by one, with the weather class and trips into the zone on each day
   - id: weather_by_period
     path: queries/weather_by_period.sql
     content_hash:
       algorithm: sha256
       value: 11e275ba043978f19613887bb06d6ccc04a11b8147807361e3bd435024f8d2d9
     dialect: duckdb
-    purpose: Weather in each month, including snow, which the v1 rule does not test
+    purpose: Weather in each month, including snow, which the v1 rule does not test; revision 1's query, unchanged
 executions:
+  - id: ex_crz_by_day_type
+    query_id: crz_by_day_type
+    sql_hash:
+      algorithm: sha256
+      value: 9e0d1d09bfcad7933923191dc0fdc51aecc0a157963737ba235c19f19082da2b
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 } ]
+    result_id: crz_by_day_type
+    result_hash:
+      algorithm: sha256
+      value: fb0b6804399af4b44e787a79a0c71bf4fe097115d51d55742b3ebceaa99328e4
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T17:30:06Z
+  - id: ex_crz_by_day_type_service
+    query_id: crz_by_day_type_service
+    sql_hash:
+      algorithm: sha256
+      value: ab9e37734d001ee730697260941ca0cfff2b735e6667b4cb609224a8b1502476
+    parameters:
+      analytical_timezone: America/New_York
+      base_from: '2024-01-01'
+      base_to: '2024-02-01'
+      after_from: '2025-01-01'
+      after_to: '2025-02-01'
+    input_ids: [ crz_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 } ]
+    result_id: crz_by_day_type_service
+    result_hash:
+      algorithm: sha256
+      value: 4a1e723d73f08fcbddd87335c769ef7b810e6d06225eb64b60d2ed26ae5e0ab0
+    adapter: duckdb
+    engine_version: aftergrid 0.0.0
+    mode: retained_rerun
+    executed_at: 2026-09-17T17:30:06Z
   - id: ex_crz_trips_by_period
     query_id: crz_trips_by_period
     sql_hash:
@@ -187,91 +216,55 @@ executions:
     adapter: duckdb
     engine_version: aftergrid 0.0.0
     mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
-  - id: ex_crz_trips_by_period_service
-    query_id: crz_trips_by_period_service
+    executed_at: 2026-09-17T17:30:06Z
+  - id: ex_weather_matched_pairs
+    query_id: weather_matched_pairs
     sql_hash:
       algorithm: sha256
-      value: 26753382f485de2952ed60bf07c03c072c107d8d52d4ff9d887bd0b4191f2ae9
+      value: 261a8b25ecefbd860ee8c17d492a48a091fa18593e87ec931b66c60a8aa5e4b4
     parameters:
       analytical_timezone: America/New_York
       base_from: '2024-01-01'
       base_to: '2024-02-01'
       after_from: '2025-01-01'
       after_to: '2025-02-01'
-    input_ids: [ crz_daily ]
-    definition_refs: [ { id: crz_trip, version: 1 } ]
-    result_id: crz_trips_by_period_service
+      pair_base_from: '2024-01-03'
+      pair_after_from: '2025-01-01'
+      pair_days: '29'
+    input_ids: [ crz_daily, weather_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 }, { id: comparable_weather_day, version: 1 } ]
+    result_id: weather_matched_pairs
     result_hash:
       algorithm: sha256
-      value: 4425f1684a845280d045e4c6e9154c981570296958be4c97cc3c23af0a525316
+      value: b6483e151079e65222cabadb8d1703b431d5488022f086b8205b0b3f2ed1e0a3
     adapter: duckdb
     engine_version: aftergrid 0.0.0
     mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
-  - id: ex_crz_trips_by_day_type
-    query_id: crz_trips_by_day_type
+    executed_at: 2026-09-17T17:30:06Z
+  - id: ex_matched_pair_days
+    query_id: matched_pair_days
     sql_hash:
       algorithm: sha256
-      value: 755fb34bf30255bf45129e7773a1e6f1ced8609d21a6a1b917d7ba4d88bde24d
+      value: 34051c55998f4ba9c42c51a287290c2619e10be7f1b47622b0e3e7e8b62047b2
     parameters:
       analytical_timezone: America/New_York
       base_from: '2024-01-01'
       base_to: '2024-02-01'
       after_from: '2025-01-01'
       after_to: '2025-02-01'
-    input_ids: [ crz_daily ]
-    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 } ]
-    result_id: crz_trips_by_day_type
+      pair_base_from: '2024-01-03'
+      pair_after_from: '2025-01-01'
+      pair_days: '29'
+    input_ids: [ crz_daily, weather_daily ]
+    definition_refs: [ { id: crz_trip, version: 1 }, { id: weekday_share, version: 1 }, { id: comparable_weather_day, version: 1 } ]
+    result_id: matched_pair_days
     result_hash:
       algorithm: sha256
-      value: 6d682fbe9d1c90b5f675f59c97db1b89cc809f013c2eb892117d9af6ddb7d427
+      value: 911467023bc1ccf58f95369cc033be64181102138e49e5662ae0c2423a1347b3
     adapter: duckdb
     engine_version: aftergrid 0.0.0
     mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
-  - id: ex_crz_trips_daily
-    query_id: crz_trips_daily
-    sql_hash:
-      algorithm: sha256
-      value: df7c28656ee590c73ab373dc0eb761f3db1d2d0e74dcc73452f3403107a882ef
-    parameters:
-      analytical_timezone: America/New_York
-      base_from: '2024-01-01'
-      base_to: '2024-02-01'
-      after_from: '2025-01-01'
-      after_to: '2025-02-01'
-    input_ids: [ crz_daily ]
-    definition_refs: [ { id: crz_trip, version: 1 } ]
-    result_id: crz_trips_daily
-    result_hash:
-      algorithm: sha256
-      value: 30400f0cc8f6e33636bb98eabfff463cacf374819c15104e48980be709db2e69
-    adapter: duckdb
-    engine_version: aftergrid 0.0.0
-    mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
-  - id: ex_weather_pairs
-    query_id: weather_pairs
-    sql_hash:
-      algorithm: sha256
-      value: 1d46c1ad4d9f41cfe683ec270ce02fde024e09c004d1a60499b1deafb391278b
-    parameters:
-      analytical_timezone: America/New_York
-      base_from: '2024-01-01'
-      base_to: '2024-02-01'
-      after_from: '2025-01-01'
-      after_to: '2025-02-01'
-    input_ids: [ weather_daily ]
-    definition_refs: [ { id: comparable_weather_day, version: 1 } ]
-    result_id: weather_pairs
-    result_hash:
-      algorithm: sha256
-      value: 8240b2106265f2cd14401b07fe4cf5b0339bba902cbc3acb5205e5df2ad0b734
-    adapter: duckdb
-    engine_version: aftergrid 0.0.0
-    mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
+    executed_at: 2026-09-17T17:30:06Z
   - id: ex_weather_by_period
     query_id: weather_by_period
     sql_hash:
@@ -292,8 +285,49 @@ executions:
     adapter: duckdb
     engine_version: aftergrid 0.0.0
     mode: retained_rerun
-    executed_at: 2026-09-17T15:20:36Z
+    executed_at: 2026-09-17T17:30:06Z
 results:
+  - id: crz_by_day_type
+    execution_id: ex_crz_by_day_type
+    path: results/crz_by_day_type.json
+    row_key: period_day_type
+    columns:
+      - { name: period_day_type, type: text, unit: text }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: day_type, type: text, unit: text }
+      - { name: day_type_label, type: text, unit: text }
+      - { name: days, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: weekday_share, version: 1 } }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
+      - { name: crz_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: crz_trips_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips_per_day, type: decimal, unit: count, display: { kind: integer } }
+    row_count: 4
+    content_hash:
+      algorithm: sha256
+      value: fb0b6804399af4b44e787a79a0c71bf4fe097115d51d55742b3ebceaa99328e4
+  - id: crz_by_day_type_service
+    execution_id: ex_crz_by_day_type_service
+    path: results/crz_by_day_type_service.json
+    row_key: period_day_type_service
+    columns:
+      - { name: period_day_type_service, type: text, unit: text }
+      - { name: period, type: text, unit: text }
+      - { name: period_label, type: text, unit: text }
+      - { name: day_type, type: text, unit: text }
+      - { name: day_type_label, type: text, unit: text }
+      - { name: service, type: text, unit: text }
+      - { name: service_label, type: text, unit: text }
+      - { name: days, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: weekday_share, version: 1 } }
+      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
+      - { name: crz_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: crz_trips_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+    row_count: 8
+    content_hash:
+      algorithm: sha256
+      value: 4a1e723d73f08fcbddd87335c769ef7b810e6d06225eb64b60d2ed26ae5e0ab0
   - id: crz_trips_by_period
     execution_id: ex_crz_trips_by_period
     path: results/crz_trips_by_period.json
@@ -315,69 +349,48 @@ results:
     content_hash:
       algorithm: sha256
       value: 3edf41644c7112e8ff60329bd60c7117268dd97c378d21a70ef90b31123cfa91
-  - id: crz_trips_by_period_service
-    execution_id: ex_crz_trips_by_period_service
-    path: results/crz_trips_by_period_service.json
-    row_key: period_service
+  - id: weather_matched_pairs
+    execution_id: ex_weather_matched_pairs
+    path: results/weather_matched_pairs.json
+    row_key: day_type
     columns:
-      - { name: period_service, type: text, unit: text }
-      - { name: period, type: text, unit: text }
-      - { name: period_label, type: text, unit: text }
-      - { name: service, type: text, unit: text }
-      - { name: service_label, type: text, unit: text }
-      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
-      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
-      - { name: crz_share, type: decimal, unit: ratio, display: { kind: percent, decimals: 1 }, definition_ref: { id: crz_trip, version: 1 } }
-    row_count: 4
-    content_hash:
-      algorithm: sha256
-      value: 4425f1684a845280d045e4c6e9154c981570296958be4c97cc3c23af0a525316
-  - id: crz_trips_by_day_type
-    execution_id: ex_crz_trips_by_day_type
-    path: results/crz_trips_by_day_type.json
-    row_key: period_day_type
-    columns:
-      - { name: period_day_type, type: text, unit: text }
-      - { name: period, type: text, unit: text }
-      - { name: period_label, type: text, unit: text }
       - { name: day_type, type: text, unit: text }
       - { name: day_type_label, type: text, unit: text }
-      - { name: days, type: integer, unit: days, display: { kind: integer } }
-      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
-      - { name: crz_trips_per_day, type: decimal, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
-    row_count: 4
+      - { name: matched_pairs, type: integer, unit: days, display: { kind: integer } }
+      - { name: holiday_pairs, type: integer, unit: days, display: { kind: integer } }
+      - { name: comparable_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: not_comparable_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: unknown_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: base_crz_trips, type: integer, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: after_crz_trips, type: integer, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: base_crz_trips_per_day, type: decimal, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: after_crz_trips_per_day, type: decimal, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+    row_count: 2
     content_hash:
       algorithm: sha256
-      value: 6d682fbe9d1c90b5f675f59c97db1b89cc809f013c2eb892117d9af6ddb7d427
-  - id: crz_trips_daily
-    execution_id: ex_crz_trips_daily
-    path: results/crz_trips_daily.json
-    row_key: pickup_date
+      value: b6483e151079e65222cabadb8d1703b431d5488022f086b8205b0b3f2ed1e0a3
+  - id: matched_pair_days
+    execution_id: ex_matched_pair_days
+    path: results/matched_pair_days.json
+    row_key: pair_id
     columns:
-      - { name: pickup_date, type: date, unit: date }
-      - { name: period, type: text, unit: text }
-      - { name: period_label, type: text, unit: text }
-      - { name: day_of_month, type: integer, unit: days, display: { kind: integer } }
+      - { name: pair_id, type: text, unit: text }
+      - { name: baseline_day, type: date, unit: date }
+      - { name: after_day, type: date, unit: date }
       - { name: day_name, type: text, unit: text }
-      - { name: crz_trips, type: integer, unit: count, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
-      - { name: all_trips, type: integer, unit: count, display: { kind: integer } }
-    row_count: 62
+      - { name: day_type, type: text, unit: text }
+      - { name: holiday_pair, type: boolean, unit: text }
+      - { name: baseline_tmax_c, type: decimal, unit: unknown, nullable: true, display: { kind: decimal, decimals: 1 } }
+      - { name: after_tmax_c, type: decimal, unit: unknown, nullable: true, display: { kind: decimal, decimals: 1 } }
+      - { name: baseline_prcp_class, type: text, unit: text }
+      - { name: after_prcp_class, type: text, unit: text }
+      - { name: weather_class, type: text, unit: text, definition_ref: { id: comparable_weather_day, version: 1 } }
+      - { name: baseline_crz_trips, type: integer, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+      - { name: after_crz_trips, type: integer, unit: count, nullable: true, display: { kind: integer }, definition_ref: { id: crz_trip, version: 1 } }
+    row_count: 29
     content_hash:
       algorithm: sha256
-      value: 30400f0cc8f6e33636bb98eabfff463cacf374819c15104e48980be709db2e69
-  - id: weather_pairs
-    execution_id: ex_weather_pairs
-    path: results/weather_pairs.json
-    row_key: weather_class
-    columns:
-      - { name: weather_class, type: text, unit: text }
-      - { name: class_label, type: text, unit: text }
-      - { name: day_pairs, type: integer, unit: days, display: { kind: integer }, definition_ref: { id: comparable_weather_day, version: 1 } }
-      - { name: all_day_pairs, type: integer, unit: days, display: { kind: integer } }
-    row_count: 3
-    content_hash:
-      algorithm: sha256
-      value: 8240b2106265f2cd14401b07fe4cf5b0339bba902cbc3acb5205e5df2ad0b734
+      value: 911467023bc1ccf58f95369cc033be64181102138e49e5662ae0c2423a1347b3
   - id: weather_by_period
     execution_id: ex_weather_by_period
     path: results/weather_by_period.json
@@ -396,12 +409,483 @@ results:
     content_hash:
       algorithm: sha256
       value: 619d30585294d2a735be89b66d50e903d2f25a03c9ce332c1b21badf2690b136
-derived: []
+derived:
+  - id: weekday_per_day_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type.after_weekday.crz_trips_per_day", "ref:crz_by_day_type.baseline_weekday.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in average trips into the zone per weekday from January 2024 to January 2025
+  - id: weekend_per_day_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type.after_weekend.crz_trips_per_day", "ref:crz_by_day_type.baseline_weekend.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in average trips into the zone per weekend day
+  - id: weekday_all_trips_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type.after_weekday.all_trips_per_day", "ref:crz_by_day_type.baseline_weekday.all_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in all yellow and high-volume for-hire trips per weekday
+  - id: weekend_all_trips_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type.after_weekend.all_trips_per_day", "ref:crz_by_day_type.baseline_weekend.all_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in all yellow and high-volume for-hire trips per weekend day
+  - id: weekday_share_change
+    operation: difference
+    operands: [ "ref:crz_by_day_type.after_weekday.crz_share", "ref:crz_by_day_type.baseline_weekday.crz_share" ]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the zone's share of all trips on weekdays
+  - id: weekend_share_change
+    operation: difference
+    operands: [ "ref:crz_by_day_type.after_weekend.crz_share", "ref:crz_by_day_type.baseline_weekend.crz_share" ]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in the zone's share of all trips on weekend days
+  - id: matched_weekday_pct_change
+    operation: percent_change
+    operands: [ "ref:weather_matched_pairs.weekday.after_crz_trips", "ref:weather_matched_pairs.weekday.base_crz_trips" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Change in trips into the zone over the comparable non-holiday matched weekday pairs
+  - id: yellow_weekday_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type_service.after_weekday_yellow.crz_trips_per_day", "ref:crz_by_day_type_service.baseline_weekday_yellow.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+  - id: yellow_weekend_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type_service.after_weekend_yellow.crz_trips_per_day", "ref:crz_by_day_type_service.baseline_weekend_yellow.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+  - id: hvfhs_weekday_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type_service.after_weekday_hvfhs.crz_trips_per_day", "ref:crz_by_day_type_service.baseline_weekday_hvfhs.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+  - id: hvfhs_weekend_pct_change
+    operation: percent_change
+    operands: [ "ref:crz_by_day_type_service.after_weekend_hvfhs.crz_trips_per_day", "ref:crz_by_day_type_service.baseline_weekend_hvfhs.crz_trips_per_day" ]
+    unit: percent
+    display: { kind: percent, decimals: 1 }
+    on_zero_denominator: not_available
+    on_null: not_available
+  - id: comparable_pairs_all
+    operation: sum
+    operands: [ "ref:weather_matched_pairs.weekday.comparable_pairs", "ref:weather_matched_pairs.weekend.comparable_pairs" ]
+    unit: days
+    display: { kind: integer }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Matched non-holiday pairs with comparable weather over both day types
+  - id: not_comparable_pairs_all
+    operation: sum
+    operands: [ "ref:weather_matched_pairs.weekday.not_comparable_pairs", "ref:weather_matched_pairs.weekend.not_comparable_pairs" ]
+    unit: days
+    display: { kind: integer }
+    on_zero_denominator: not_available
+    on_null: not_available
+    description: Matched non-holiday pairs without comparable weather over both day types
 external_sources: []
-claims: []
-charts: []
-tables: []
+claims:
+  - id: c1
+    type: descriptive
+    numeric: true
+    answer_bearing: true
+    sentence: "This Analysis cannot say which way weekday trips into the zone moved: across the whole month the average weekday had {{derived:weekday_per_day_pct_change}} more trips into the zone than the same month a year earlier, but over the {{ref:weather_matched_pairs.weekday.comparable_pairs}} pairs of weekdays that were alike, trips into the zone changed by {{derived:matched_weekday_pct_change}}."
+    evidence:
+      - ref:crz_by_day_type.baseline_weekday.crz_trips_per_day
+      - ref:crz_by_day_type.after_weekday.crz_trips_per_day
+      - derived:weekday_per_day_pct_change
+      - ref:crz_by_day_type.baseline_weekday.days
+      - ref:crz_by_day_type.after_weekday.days
+      - ref:weather_matched_pairs.weekday.comparable_pairs
+      - ref:weather_matched_pairs.weekday.matched_pairs
+      - ref:weather_matched_pairs.weekday.holiday_pairs
+      - ref:weather_matched_pairs.weekday.not_comparable_pairs
+      - ref:weather_matched_pairs.weekday.base_crz_trips_per_day
+      - ref:weather_matched_pairs.weekday.after_crz_trips_per_day
+      - derived:matched_weekday_pct_change
+    chart_ids:
+      - trips_per_day_by_day_type_chart
+    table_ids:
+      - alike_weekday_pairs_table
+    population: Yellow taxi and app-based for-hire (high-volume, such as Uber and Lyft) trips that started or ended in one of the {{literal:38}} taxi zones of the Congestion Relief Zone, counted once each on the day they started, on Mondays to Fridays. This uses the definitions crz_trip v1 and weekday_share v1, both proposed and not approved.
+    comparison:
+      kind: baseline_period
+      description: Average trips into the zone per weekday in January 2025 against January 2024 and the same over matched day pairs with comparable weather
+      pre_registered: false
+    window:
+      start: 2025-01-01
+      end: 2025-01-31
+      timezone: America/New_York
+    exclusions:
+      - Green taxis and other for-hire vehicles are not in the data at all.
+      - Private cars, buses, the subway and bikes are not in the data.
+      - Trips with an unknown zone at both ends never count as into the zone; they stay in all trips.
+      - The pairs of days that were alike leave out 2024-01-01, 2024-01-02, 2025-01-30 and 2025-01-31, which have no partner on the same day of the week, and any pair with a public holiday on either side.
+    limitations:
+      - Looking at weekdays and weekend days apart was chosen after an earlier run had shown the monthly totals, so this is a follow-up look and not a comparison planned before the data was seen.
+      - Five pairs of days is the fewest the test allowed. Three of them fell and two rose.
+      - Two of the five pairs set 2025-01-02 and 2025-01-03, the two days straight after New Year's Day, against 2024-01-04 and 2024-01-05, which were further from the holiday. This was noticed after the result and was not tested.
+      - One month either side is not a trend.
+      - The Instance records no start date for the charge, so no day inside the month is treated as before it.
+      - crz_trip v1, weekday_share v1 and comparable_weather_day v1 are proposed and not approved.
+      - Public holidays count as weekdays in the whole-month averages.
+      - comparable_weather_day v1 does not look at snow.
+      - The holiday dates and the minimum numbers of pairs are the analyst's choices and rest on no document in the Instance.
+      - Trip records carry no rider identity, so this is about trips and not about people.
+      - The data kept with this Finding is the daily table crz_daily, derived from the TLC trip files, and not the trip files themselves.
+      - The TLC restates published months, and the app-based for-hire files were read without a file hash.
+    material_caveat: "The test written down before any new query was run asked whether each direction still holds among days that were alike (same day of the week, no public holiday, comparable weather). It recorded fail for weekdays and could not be run for weekend days. Whichever way trips moved, a difference between {{literal:January 2024}} and {{literal:January 2025}} is not the effect of the charge: nothing here separates the charge from weather, from a year of change in how people travel, or from growth in taxi and app-based trips across the city."
+    recheck:
+      mode: not_automatically_evaluable
+      reason: The pre-registered falsifier failed on this data and later months are not in the Instance.
+      owner: Patrick Morris
+      review_hint: Rebuild with later months and the same months a year earlier, and rerun the same Checks unchanged.
+  - id: c2
+    type: descriptive
+    numeric: true
+    sentence: "The average weekend day had fewer trips into the zone than the same month a year earlier, a change of {{derived:weekend_per_day_pct_change}}, and that direction could not be tested: only {{ref:weather_matched_pairs.weekend.comparable_pairs}} of the {{ref:weather_matched_pairs.weekend.matched_pairs}} matched weekend pairs had comparable weather."
+    evidence:
+      - ref:crz_by_day_type.baseline_weekend.crz_trips_per_day
+      - ref:crz_by_day_type.after_weekend.crz_trips_per_day
+      - derived:weekend_per_day_pct_change
+      - ref:crz_by_day_type.baseline_weekend.days
+      - ref:crz_by_day_type.after_weekend.days
+      - ref:weather_matched_pairs.weekend.comparable_pairs
+      - ref:weather_matched_pairs.weekend.matched_pairs
+    table_ids:
+      - trips_per_day_table
+    population: The same trips into the zone, on Saturdays and Sundays (crz_trip v1 and weekday_share v1, both proposed and not approved).
+    comparison:
+      kind: baseline_period
+      description: Average trips into the zone per weekend day in January 2025 against January 2024
+      pre_registered: false
+    window:
+      start: 2025-01-01
+      end: 2025-01-31
+      timezone: America/New_York
+    exclusions:
+      - Green taxis and other for-hire vehicles are not in the data at all.
+      - Private cars, buses, the subway and bikes are not in the data.
+    limitations:
+      - A month has few weekend days, so one unusual Saturday moves the average.
+      - The direction was not tested. The test needed three weekend pairs that were alike and found fewer.
+      - Looking at weekdays and weekend days apart was chosen after an earlier run had shown the monthly totals.
+      - crz_trip v1, weekday_share v1 and comparable_weather_day v1 are proposed and not approved.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c3
+    type: descriptive
+    numeric: true
+    sentence: "Trips into the zone were a smaller share of all taxi and app-based trips on both kinds of day: {{ref:crz_by_day_type.after_weekday.crz_share}} out of all weekday trips, from {{ref:crz_by_day_type.baseline_weekday.crz_share}} a year earlier, and {{ref:crz_by_day_type.after_weekend.crz_share}} out of all weekend trips, from {{ref:crz_by_day_type.baseline_weekend.crz_share}}."
+    evidence:
+      - ref:crz_by_day_type.baseline_weekday.crz_share
+      - ref:crz_by_day_type.after_weekday.crz_share
+      - derived:weekday_share_change
+      - ref:crz_by_day_type.baseline_weekend.crz_share
+      - ref:crz_by_day_type.after_weekend.crz_share
+      - derived:weekend_share_change
+      - derived:weekday_all_trips_pct_change
+      - derived:weekend_all_trips_pct_change
+    table_ids:
+      - share_of_all_trips_table
+    population: All yellow taxi and app-based for-hire trips in the daily table, on each kind of day, with the trips that started or ended in the zone as the part (crz_trip v1, proposed and not approved).
+    comparison:
+      kind: baseline_period
+      description: The zone's share of all yellow and high-volume for-hire trips on weekdays and on weekend days in January 2025 against January 2024
+      pre_registered: false
+    window:
+      start: 2025-01-01
+      end: 2025-01-31
+      timezone: America/New_York
+    exclusions:
+      - Trips with an unknown zone stay in all trips and never count as into the zone.
+    limitations:
+      - All trips means yellow taxi plus app-based for-hire only, and most of them are app-based.
+      - A falling share is not a fall in trips across the city.
+      - The share was not part of the test written in advance.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c4
+    type: descriptive
+    numeric: true
+    sentence: "The two services did not move together: yellow taxi trips into the zone per day changed by {{derived:yellow_weekday_pct_change}} on weekdays and {{derived:yellow_weekend_pct_change}} on weekend days, and app-based for-hire trips by {{derived:hvfhs_weekday_pct_change}} and {{derived:hvfhs_weekend_pct_change}}."
+    evidence:
+      - derived:yellow_weekday_pct_change
+      - derived:yellow_weekend_pct_change
+      - derived:hvfhs_weekday_pct_change
+      - derived:hvfhs_weekend_pct_change
+      - ref:crz_by_day_type_service.baseline_weekday_yellow.crz_trips_per_day
+      - ref:crz_by_day_type_service.after_weekday_yellow.crz_trips_per_day
+      - ref:crz_by_day_type_service.baseline_weekend_yellow.crz_trips_per_day
+      - ref:crz_by_day_type_service.after_weekend_yellow.crz_trips_per_day
+      - ref:crz_by_day_type_service.baseline_weekday_hvfhs.crz_trips_per_day
+      - ref:crz_by_day_type_service.after_weekday_hvfhs.crz_trips_per_day
+      - ref:crz_by_day_type_service.baseline_weekend_hvfhs.crz_trips_per_day
+      - ref:crz_by_day_type_service.after_weekend_hvfhs.crz_trips_per_day
+    table_ids:
+      - trips_per_day_by_service_table
+    population: The same trips into the zone, yellow taxi and app-based for-hire apart, on each kind of day (crz_trip v1, proposed and not approved).
+    comparison:
+      kind: baseline_period
+      description: Each service on each day type in January 2025 against itself in January 2024
+      pre_registered: false
+    window:
+      start: 2025-01-01
+      end: 2025-01-31
+      timezone: America/New_York
+    exclusions: []
+    limitations:
+      - App-based for-hire here means high-volume services only; black car, livery and limousine trips are not included.
+      - The app-based for-hire source files were read without a file hash.
+      - The split by service was not part of the test written in advance, and an earlier run had already shown each service's monthly direction.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c5
+    type: descriptive
+    numeric: true
+    sentence: "The two months were not alike on weather: only {{derived:comparable_pairs_all}} matched pairs of days had comparable weather and {{derived:not_comparable_pairs_all}} did not, and {{literal:January 2025}} was colder and much drier."
+    evidence:
+      - derived:comparable_pairs_all
+      - derived:not_comparable_pairs_all
+      - ref:weather_matched_pairs.weekday.holiday_pairs
+      - ref:weather_matched_pairs.weekday.matched_pairs
+      - ref:weather_matched_pairs.weekend.matched_pairs
+      - ref:weather_by_period.baseline.mean_tmax_c
+      - ref:weather_by_period.after.mean_tmax_c
+      - ref:weather_by_period.baseline.wet_days
+      - ref:weather_by_period.after.wet_days
+      - ref:weather_by_period.baseline.total_snow_mm
+      - ref:weather_by_period.after.total_snow_mm
+    table_ids:
+      - weather_by_month_table
+      - matched_pair_days_table
+    population: Pairs of days matched on the day of the week, with a maximum temperature and a rain or snow reading at the Central Park weather station, leaving out pairs with a public holiday on either side.
+    comparison:
+      kind: baseline_period
+      description: Each day of 1 to 29 January 2025 against the same day of the week in 3 to 31 January 2024 at Central Park
+      pre_registered: false
+    window:
+      start: 2025-01-01
+      end: 2025-01-31
+      timezone: America/New_York
+    exclusions:
+      - Pairs with a public holiday on either side.
+    limitations:
+      - comparable_weather_day v1 is a proposed rule and does not look at snow.
+      - A weather match would not make the comparison a measure of the charge, and a mismatch does not explain the difference.
+      - An earlier run paired the same dates rather than the same days of the week, and counted differently.
+    recheck:
+      mode: not_automatically_evaluable
+      reason: A description of two fixed months does not change with new data.
+      owner: Patrick Morris
+charts:
+  - id: trips_per_day_by_day_type_chart
+    claim_id: c1
+    spec_path: charts/trips_per_day_by_day_type.vl.json
+    result_id: crz_by_day_type
+    title: "The {{derived:weekday_per_day_pct_change}} whole-month weekday rise did not hold among alike days"
+    description: "Four horizontal bars of average trips into the zone per day over the whole month, with the January 2025 weekday bar picked out. Weekdays: {{ref:crz_by_day_type.baseline_weekday.crz_trips_per_day}} in {{literal:January 2024}} and {{ref:crz_by_day_type.after_weekday.crz_trips_per_day}} in {{literal:January 2025}}. Weekend days: {{ref:crz_by_day_type.baseline_weekend.crz_trips_per_day}} in {{literal:January 2024}} and {{ref:crz_by_day_type.after_weekend.crz_trips_per_day}} in {{literal:January 2025}}. The weekday rise is {{derived:weekday_per_day_pct_change}}. The chart shows whole months only; the pairs of days that were alike, where the rise did not hold, are in the table below it."
+tables:
+  - id: alike_weekday_pairs_table
+    claim_id: c1
+    result_id: weather_matched_pairs
+    title: Among the few pairs of days that were alike, trips into the zone were lower, not higher
+    columns:
+      - name: day_type_label
+        label: Kind of day
+      - name: matched_pairs
+        label: Pairs matched on day of the week
+      - name: holiday_pairs
+        label: Left out for a public holiday
+      - name: not_comparable_pairs
+        label: Weather not comparable
+      - name: comparable_pairs
+        label: Pairs that were alike
+      - name: base_crz_trips_per_day
+        label: Trips into the zone per day, January 2024 days
+      - name: after_crz_trips_per_day
+        label: Trips into the zone per day, January 2025 days
+    row_keys:
+      - weekday
+      - weekend
+  - id: trips_per_day_table
+    claim_id: c2
+    result_id: crz_by_day_type
+    title: The average weekend day had fewer trips into the zone, the average weekday more
+    columns:
+      - name: day_type_label
+        label: Kind of day
+      - name: period_label
+        label: Month
+      - name: days
+        label: Days
+      - name: crz_trips
+        label: Trips into the zone
+      - name: crz_trips_per_day
+        label: Trips into the zone per day
+    row_keys:
+      - baseline_weekend
+      - after_weekend
+      - baseline_weekday
+      - after_weekday
+  - id: share_of_all_trips_table
+    claim_id: c3
+    result_id: crz_by_day_type
+    title: Trips into the zone were a smaller part of all taxi and app-based trips on both kinds of day
+    columns:
+      - name: day_type_label
+        label: Kind of day
+      - name: period_label
+        label: Month
+      - name: crz_trips_per_day
+        label: Trips into the zone per day
+      - name: all_trips_per_day
+        label: All trips per day
+      - name: crz_share
+        label: Trips into the zone out of all trips
+    row_keys:
+      - baseline_weekday
+      - after_weekday
+      - baseline_weekend
+      - after_weekend
+  - id: trips_per_day_by_service_table
+    claim_id: c4
+    result_id: crz_by_day_type_service
+    title: Yellow taxi trips into the zone rose on both kinds of day while app-based trips fell at weekends
+    columns:
+      - name: service_label
+        label: Service
+      - name: day_type_label
+        label: Kind of day
+      - name: period_label
+        label: Month
+      - name: crz_trips_per_day
+        label: Trips into the zone per day
+    row_keys:
+      - baseline_weekday_yellow
+      - after_weekday_yellow
+      - baseline_weekend_yellow
+      - after_weekend_yellow
+      - baseline_weekday_hvfhs
+      - after_weekday_hvfhs
+      - baseline_weekend_hvfhs
+      - after_weekend_hvfhs
+  - id: weather_by_month_table
+    claim_id: c5
+    result_id: weather_by_period
+    title: January 2025 was colder and had far fewer wet days than January 2024
+    columns:
+      - name: period_label
+        label: Month
+      - name: mean_tmax_c
+        label: Average daily high (degrees Celsius)
+      - name: freezing_days
+        label: Days that stayed at or below freezing
+      - name: wet_days
+        label: Wet days
+      - name: snow_days
+        label: Days with snow
+      - name: total_snow_mm
+        label: Snowfall (millimetres)
+    row_keys:
+      - baseline
+      - after
+  - id: matched_pair_days_table
+    claim_id: c5
+    result_id: matched_pair_days
+    title: Most matched pairs of days differed on weather
+    columns:
+      - name: baseline_day
+        label: January 2024 day
+      - name: after_day
+        label: January 2025 day
+      - name: day_name
+        label: Day of the week
+      - name: holiday_pair
+        label: Public holiday on either side
+      - name: baseline_tmax_c
+        label: High in 2024 (degrees Celsius)
+      - name: after_tmax_c
+        label: High in 2025 (degrees Celsius)
+      - name: baseline_prcp_class
+        label: Wet or dry in 2024
+      - name: after_prcp_class
+        label: Wet or dry in 2025
+      - name: weather_class
+        label: Weather comparable
+      - name: baseline_crz_trips
+        label: Trips into the zone, 2024 day
+      - name: after_crz_trips
+        label: Trips into the zone, 2025 day
+    row_keys: [ pair_01, pair_02, pair_03, pair_04, pair_05, pair_06, pair_07, pair_08, pair_09, pair_10, pair_11, pair_12, pair_13, pair_14, pair_15, pair_16, pair_17, pair_18, pair_19, pair_20, pair_21, pair_22, pair_23, pair_24, pair_25, pair_26, pair_27, pair_28, pair_29 ]
 checks:
+  - id: falsifier_direction_holds_in_matched_weather_pairs
+    kind: falsifier
+    path: checks/falsifier_direction_holds_in_matched_weather_pairs.sql
+    content_hash:
+      algorithm: sha256
+      value: c59cce4a40b5656f57d92db66e61f197b873edcce12a14c749283cd0089834f5
+    description: The direction of the change in average trips into the zone per weekday, and separately per weekend day, also holds among day pairs matched on the day of the week, with no public holiday on either side and comparable weather (comparable_weather_day v1). Not evaluable with fewer than 5 such weekday pairs, when a month is missing a day, or when a tested average did not move; weekend days are tested only with at least 3 such pairs.
+    required: false
+    outcome: fail
+    execution_id: ex_weather_matched_pairs
+    expected_outcome: pass
+    executed_at: 2026-09-17T17:30:06Z
+  - id: inv_day_type_split_matches_definition
+    kind: invariant
+    path: checks/inv_day_type_split_matches_definition.sql
+    content_hash:
+      algorithm: sha256
+      value: 06d4786df04dc02d5820a2d2bbbdc111ae42b13cba4240990db59f19f1b94240
+    description: In both months weekday trips plus weekend trips equal all trips and weekday days plus weekend days equal the days in the month, and the weekday trips the analysis computes equal what the weekday_share v1 SQL returns as written. weekday_share v1 is proposed, so this shows the analysis follows the definition's text; it is not a reconciliation against an approved definition, because none exists.
+    required: true
+    outcome: pass
+    execution_id: ex_crz_by_day_type
+    executed_at: 2026-09-17T17:30:06Z
+  - id: inv_matched_pairs_aligned
+    kind: invariant
+    path: checks/inv_matched_pairs_aligned.sql
+    content_hash:
+      algorithm: sha256
+      value: 1ffc07b13ad4b49e097a25b68ee97870986a9018d1795a0ace6d40cec1d9f476
+    description: The matched day pairs are 29 pairs, each a January 2024 day against a January 2025 day of the same day of the week, no day used twice, and every day has trips into the zone.
+    required: true
+    outcome: pass
+    execution_id: ex_weather_matched_pairs
+    executed_at: 2026-09-17T17:30:06Z
   - id: inv_grain_unique_and_valid
     kind: invariant
     path: checks/inv_grain_unique_and_valid.sql
@@ -412,7 +896,7 @@ checks:
     required: true
     outcome: pass
     execution_id: ex_crz_trips_by_period
-    executed_at: 2026-09-17T15:20:36Z
+    executed_at: 2026-09-17T17:30:06Z
   - id: inv_definition_sql_matches_analysis
     kind: invariant
     path: checks/inv_definition_sql_matches_analysis.sql
@@ -423,7 +907,7 @@ checks:
     required: true
     outcome: pass
     execution_id: ex_crz_trips_by_period
-    executed_at: 2026-09-17T15:20:36Z
+    executed_at: 2026-09-17T17:30:06Z
   - id: min_data_every_day_present
     kind: minimum_data
     path: checks/min_data_every_day_present.sql
@@ -434,44 +918,72 @@ checks:
     required: false
     outcome: pass
     execution_id: ex_crz_trips_by_period
-    executed_at: 2026-09-17T15:20:36Z
+    executed_at: 2026-09-17T17:30:06Z
   - id: min_data_weather_observed
     kind: minimum_data
     path: checks/min_data_weather_observed.sql
     content_hash:
       algorithm: sha256
       value: 9de196bb7434870eee347eed2cdb217b317f072bc93993a3d3ad30f70568991c
-    description: Every day of both months has a maximum temperature and a precipitation observation from one station, so no aligned day pair is unknown for lack of data.
+    description: Every day of both months has a maximum temperature and a precipitation observation from one station, so no matched day pair is unknown for lack of data.
     required: false
     outcome: pass
-    execution_id: ex_weather_pairs
-    executed_at: 2026-09-17T15:20:36Z
-  - id: falsifier_direction_holds_by_day_type
-    kind: falsifier
-    path: checks/falsifier_direction_holds_by_day_type.sql
-    content_hash:
-      algorithm: sha256
-      value: 271d684cc9c1b007b246ff3dd0d54924f599141e77a4795fc7a19112c02b70eb
-    description: The direction of the change in the monthly total of trips into the zone is also the direction of the change in average trips per weekday and per weekend day. Not evaluable when a month is missing a day or the totals are equal.
-    required: true
-    outcome: fail
-    execution_id: ex_crz_trips_by_day_type
-    expected_outcome: pass
-    executed_at: 2026-09-17T15:20:36Z
-reviews: []
+    execution_id: ex_weather_by_period
+    executed_at: 2026-09-17T17:30:06Z
+reviews: [ { kind: method, reviewer: agent:claude-fable-5-1, date: 2026-09-17, content_digest: { algorithm: sha256, value: 78901dfbade546873ffa3ea81b0596f386b376e0a1a14f99002cae3ee0e3e87d }, blocking: [], non_blocking: [ "c2, c3 and c4 (and the whole-month half of c1) give no day-to-day spread for any per-day average, so the weekend change over 8 days, the app-based weekday change in c4 and the roughly one-point share shifts in c3 are written as changes with nothing but c2's verbal caveat to judge them against noise.", "c5's sentence headlines a pair count from comparable_weather_day v1 and c1's matched figure is gated by it, while that definition's own text says the diagnostic never headlines a Claim; it is labelled proposed and not presented as approved, and c5 is not answer-bearing.", "The 5-weekday-pair and 3-weekend-pair gates live inside falsifier_direction_holds_in_matched_weather_pairs rather than in a minimum_data Check, so the single recorded outcome fail cannot itself show that the weekend leg was never run; only the memo and the Check's detail string separate the two.", "c5's population and exclusions describe only the matched non-holiday pairs, but its 'colder and much drier' half rests on weather_by_period over all 31 days of each month with no holiday exclusion, and that difference in population is not stated on the Claim." ] }, { kind: question, reviewer: agent:claude-fable-5-1, date: 2026-09-17, content_digest: { algorithm: sha256, value: 78901dfbade546873ffa3ea81b0596f386b376e0a1a14f99002cae3ee0e3e87d }, blocking: [], non_blocking: [ "The revision 2 falsifier falsifier_direction_holds_in_matched_weather_pairs is a second falsifier written after revision 1's failed, which the brief would normally block, but it is Operator-directed, recorded as reframe probe p_reframe_day_types, disclosed in How we checked bullet 5, and it also failed with outcome inconclusive, so no Reader is misled.", "Assumption a_falsifier_result_not_seen rests on the agent's own statement that results/crz_trips_daily.json and revision 1's weather_pairs result were not opened, and its wording that no single-day trip count had been computed by anyone sits awkwardly beside revision 1 having produced that per-day result, so the claim that the falsifier's result was unseen is ordered by the timeline but is not verifiable.", "I compared the pre-registered content_hash in analysis.yaml#/checks_preregistered with manifest checks[].content_hash for the falsifier and they are equal (c59cce4a…834f5), as are required and expected_outcome, but I could not recompute the SQL file hash or statement_hash myself and rely on check's analysis_contract comparison for those.", "raw_ask asks about trips after congestion pricing started, but the memo says that the Instance records no start date only in What would change our mind and never says beside the Answer that the whole calendar month is treated as the after period, even though two of the five deciding weekday pairs are 2 and 3 January 2025.", "The whole-month total in crz_trips_by_period, which is what raw_ask and revision 1 asked about, ran as context only and its value appears nowhere in memo.md, so a Reader reporting upward cannot see how the month as a whole compared without opening results/." ] }, { kind: reader, reviewer: agent:claude-fable-5-1, date: 2026-09-17, content_digest: { algorithm: sha256, value: 78901dfbade546873ffa3ea81b0596f386b376e0a1a14f99002cae3ee0e3e87d }, profile: city_transport_analyst, blocking: [], non_blocking: [ "Answer: the sentence is a single run of about ninety words carrying four numbers and the test result, which is hard to take in on a phone even though the non-answer comes first.", "Answer and caveat: neither says that only yellow taxi and app-based for-hire trips are counted, so until the 'Who is counted' paragraph in c1 a programme lead could take 'trips into the zone' to mean all vehicles entering.", "Chart trips_per_day_by_day_type_chart (c1): the image does not state its unit (average trips into the zone per day); only the figure description, table and prose do.", "Chart trips_per_day_by_day_type_chart (c1): it picks out the January 2025 weekday bar, the whole-month rise the Finding says did not hold, and shows nothing of the alike days its title is about, so the picture alone points the opposite way from its title.", "Table trips_per_day_table (c2): the caption 'The average weekend day had fewer trips into the zone, the average weekday more' states both directions flatly, with no 'over the whole month' and no note that the directions did not hold among alike weekdays or could not be tested for weekend days, so it reads against the Answer if repeated upward.", "Table alike_weekday_pairs_table (c1): the caption says trips were lower among alike pairs and the table includes a weekend row resting on 1 pair, which a Reader could take as confirming the weekend fall that c2 says could not be tested.", "c4: the subsection and its table caption ('Yellow taxi trips into the zone rose on both kinds of day…') give 18.3% and 16.4% rises without repeating that one month is not a trend or that the months were not alike on weather; only the Answer caveat and c5 cover it.", "c3: the share changes render as '-0.9 pp' and '-1.4 pp', and 'pp' is never explained for a non-data Reader, though the shares in the heading make the meaning recoverable.", "Every Claim's 'When' line in the render shows only 2025-01-01 to 2025-01-31, although each Claim compares against January 2024.", "Draft banner against How we checked: the banner says 'SQL was not rerun' while the How we checked bullet says 'a rerun reproduced every result exactly', which reads as a contradiction to a Reader who cannot tell a render from a rerun.", "Draft banner and How we checked: the page says recorded reviews 'are listed below', but no list of reviews appears and nothing says that none were recorded.", "How we checked: the prose bullets lean on tool words this Reader does not use (Operator, Instance, Snapshot, artifact_replay, validity condition, pinned in analysis.yaml, reconciliation) and on long Check ids, none needed to understand the Answer but heavy for a ten-minute read.", "How we checked, Falsifier item: the rendered text opens 'The Answer names the direction…' while the Answer says it cannot name one, which may confuse a Reader who does not know this is the wording fixed before the run.", "c1: the profile asks the memo to say that trips carry no rider identity, so nothing can be said about people changing behaviour, and this appears only inside c1's expandable limits, not in the prose.", "'How this was calculated' expanders (all Claims): they list token ids such as ref:crz_by_day_type.baseline_weekday.crz_trips_per_day = 276,803, not plain-word steps, although the per-value popovers do give a plain-word calculation.", "Footer: 'Data covered: 2024-01-01 to 2025-02-28' could suggest more than the two Januaries were compared; only the 'Covers' item in How we checked says that just January 2024 and January 2025 were read." ] } ]
 attestations: []
 export_policy:
   recipient_scope: named_readers
   granularity: aggregate_only
-  allowed_fields: []
+  allowed_fields:
+    - crz_by_day_type.period_day_type
+    - crz_by_day_type.period_label
+    - crz_by_day_type.day_type_label
+    - crz_by_day_type.days
+    - crz_by_day_type.crz_trips
+    - crz_by_day_type.all_trips_per_day
+    - crz_by_day_type.crz_share
+    - crz_by_day_type.crz_trips_per_day
+    - crz_by_day_type_service.period_label
+    - crz_by_day_type_service.day_type_label
+    - crz_by_day_type_service.service_label
+    - crz_by_day_type_service.crz_trips_per_day
+    - crz_trips_by_period.period_label
+    - crz_trips_by_period.crz_trips
+    - weather_matched_pairs.day_type_label
+    - weather_matched_pairs.matched_pairs
+    - weather_matched_pairs.holiday_pairs
+    - weather_matched_pairs.comparable_pairs
+    - weather_matched_pairs.not_comparable_pairs
+    - weather_matched_pairs.base_crz_trips
+    - weather_matched_pairs.after_crz_trips
+    - weather_matched_pairs.base_crz_trips_per_day
+    - weather_matched_pairs.after_crz_trips_per_day
+    - matched_pair_days.baseline_day
+    - matched_pair_days.after_day
+    - matched_pair_days.day_name
+    - matched_pair_days.holiday_pair
+    - matched_pair_days.baseline_tmax_c
+    - matched_pair_days.after_tmax_c
+    - matched_pair_days.baseline_prcp_class
+    - matched_pair_days.after_prcp_class
+    - matched_pair_days.weather_class
+    - matched_pair_days.baseline_crz_trips
+    - matched_pair_days.after_crz_trips
+    - weather_by_period.period_label
+    - weather_by_period.mean_tmax_c
+    - weather_by_period.freezing_days
+    - weather_by_period.wet_days
+    - weather_by_period.snow_days
+    - weather_by_period.total_snow_mm
   delivery: html_file
 coverage:
-  data_from: 1970-01-01
-  data_to: 1970-01-01
-  description: Not determined yet. No data has been read.
+  data_from: 2024-01-01
+  data_to: 2025-02-28
+  description: "The retained daily table crz_daily holds yellow taxi and high-volume for-hire trips for January 2024, December 2024, January 2025 and February 2025, and the retained weather table holds Central Park readings for January 2024 and from December 2024 to 2025-02-05. This Finding reads only January 2024 and January 2025 from both. It leaves out green taxis, other for-hire vehicles, private cars, buses, the subway and bikes, every month between February and November 2024, and anything after January 2025. What was retained is the derived daily table, not the TLC trip files."
 renderer:
   version: 0.0.0
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 2807146fe522ea50dd7d88aa8d6bce4043bbbe84f326b1e5aa2fa77eea838be1
+  value: 78901dfbade546873ffa3ea81b0596f386b376e0a1a14f99002cae3ee0e3e87d

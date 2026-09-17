@@ -1,0 +1,72 @@
+{
+  "result_id": "crz_by_day_type",
+  "execution_id": "ex_crz_by_day_type",
+  "row_key": "period_day_type",
+  "columns": [
+    "period_day_type",
+    "period",
+    "period_label",
+    "day_type",
+    "day_type_label",
+    "days",
+    "crz_trips",
+    "all_trips",
+    "crz_share",
+    "crz_trips_per_day",
+    "all_trips_per_day"
+  ],
+  "rows": [
+    {
+      "period_day_type": "baseline_weekday",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_type": "weekday",
+      "day_type_label": "Weekdays",
+      "days": 23,
+      "crz_trips": 6366477,
+      "all_trips": 16222263,
+      "crz_share": "0.392453",
+      "crz_trips_per_day": "276803.3",
+      "all_trips_per_day": "705315.8"
+    },
+    {
+      "period_day_type": "after_weekday",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_type": "weekday",
+      "day_type_label": "Weekdays",
+      "days": 23,
+      "crz_trips": 6704414,
+      "all_trips": 17489666,
+      "crz_share": "0.383336",
+      "crz_trips_per_day": "291496.3",
+      "all_trips_per_day": "760420.3"
+    },
+    {
+      "period_day_type": "baseline_weekend",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_type": "weekend",
+      "day_type_label": "Weekend days",
+      "days": 8,
+      "crz_trips": 2670705,
+      "all_trips": 6406273,
+      "crz_share": "0.416889",
+      "crz_trips_per_day": "333838.1",
+      "all_trips_per_day": "800784.1"
+    },
+    {
+      "period_day_type": "after_weekend",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_type": "weekend",
+      "day_type_label": "Weekend days",
+      "days": 8,
+      "crz_trips": 2573161,
+      "all_trips": 6391204,
+      "crz_share": "0.402610",
+      "crz_trips_per_day": "321645.1",
+      "all_trips_per_day": "798900.5"
+    }
+  ]
+}
