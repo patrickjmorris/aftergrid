@@ -78,13 +78,21 @@ The run is useful if it answers: did the skills go deeper than the baseline in a
 - Trusted approver for the publication attestation: the Operator alone, or a second human?
 - Does a second, internal Finding on the same Question get scoped now or after the podcaster one lands?
 
-## Next session: start here
+## Next session: start here (updated 2026-09-17)
 
-1. Land `ag-3cp` (record mode), `ag-olp` (recorded-path skills), `ag-3ce` (probe kinds). Small; do them first.
-2. Scaffold the Spot Sports Instance by hand in `spot_sports/analytics/` per `docs/contracts/instance-layout.md`: `podcaster` Reader profile, public export policy, no definitions.
-3. Run the three baselines in a plain Claude Code session with the Operator's existing data tools. Save verbatim.
-4. `/grill-question` on the verbatim ask. Expect the Reader, the decision and the ranking-source wording to be the hard parts.
-5. `/analyze` on the recorded path. Keep `analysis.yaml#/probes` honest.
-6. Reader session with a podcaster, then write observations into `docs/design/reader-session-a2f.md`.
+State as of 2026-09-17: the three gating beads landed (`ag-3cp` record command and `docs/contracts/record.md`, `ag-olp` recorded-path skills, `ag-3ce` probe kinds with `at`), and `examples/nyc-open-data` holds two Findings produced by `/analyze` in a real Claude Code session on the adapter path, which is the reference run for what a completed chain looks like. Nothing in the Spot Sports Instance exists yet.
 
-Context: `docs/inputs/research-notes-2026-09-16.md`, ADR 0010, and the review conclusion of 2026-09-16 that the skills cover the start and end of an analysis and not the middle.
+Epic `ag-video-podcast-finding-e6e`, children in dependency order:
+
+1. `.1` scaffold the Spot Sports Instance by hand: `podcaster` Reader, public export policy, no adapter. Ready now.
+2. `.2` three self-serve baselines, verbatim, best of three. `.3` `/grill-question` on the verbatim ask. Both unblock after `.1`.
+3. `.4` `/analyze` on the recorded path, probes kept as they happen, run-log of adapter assumptions.
+4. `.5` reader session with a podcaster, both artifacts, plus the share question. `.6` the first real public publication path.
+5. `.7` retro on the middle of the analysis; it opens the follow-up beads and unblocks `ag-tier3-depth-eval-bv2`, `ag-diagnosing-metric-change-8c2`, `ag-analyze-reanchor-1wo`, `ag-instance-tables-catalog-4ie`.
+6. `.8` deferred internal second Finding; owner decides after `.5`.
+
+Beside the epic: `ag-harness-codex-eln` and `ag-harness-devin-vw6` (parity, after `.4`), `ag-positioning-go-deeper-8gu` (copy; coordinate with whoever holds `site/`).
+
+Prior beads this run serves rather than duplicates: `ag-manual-real-finding-db2` and `ag-first-real-finding-rdo`. The next agent decides whether the video-podcast Finding closes them or they stay for a second real Finding.
+
+Owner questions each bead names are asked at the step that needs them, not up front. Context: `docs/inputs/research-notes-2026-09-16.md`, ADR 0010, the reader-session protocol, and the 2026-09-16 review conclusion that the skills cover the start and the end of an analysis and not the middle.
