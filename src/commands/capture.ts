@@ -30,8 +30,8 @@ import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
-import { openInstanceAdapter } from "../analysis/source.ts";
-import { AdapterError, type RetainedInput, type TableAdmission } from "../adapters/contract.ts";
+import { ESTIMATE_CAP_REMEDY, openInstanceAdapter } from "../analysis/source.ts";
+import { AdapterError, type Adapter, type RetainedInput, type TableAdmission } from "../adapters/contract.ts";
 // @ts-ignore: shared digest envelope, the one used by the fixture build and by `check`.
 import { digestOf } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment.
@@ -58,10 +58,18 @@ const BOUND_CLAIM = /\b(bounded|bounding|prefiltered|pre-filtered|filtered (?:to
  * (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern"). It is a remedy and not a flag on
  * purpose: the bounded table is the Operator's artifact, built by the Operator's script beside the Instance, so
  * the narrowing is a visible, provenanced step rather than something capture did silently inside the digest.
+ *
+ * Where the bounded table goes is the one part that differs per backend, so it is read off the adapter rather
+ * than assumed: a Postgres Instance has no DuckDB file to write into, and telling its Operator to build one
+ * would be a remedy they cannot follow.
  */
-const LARGE_SOURCE_REMEDY =
-  "build a bounded table for this Question in the Instance's own DuckDB file (a daily/zone aggregate or a windowed extract), "
-  + "outside aftergrid, with a provenance table naming source, bytes, hash and build time; then capture that table. "
+const largeSourceRemedy = (adapter: Adapter["name"]): string =>
+  (adapter === "postgres"
+    ? "build a bounded table for this Question as a table in the schema this Instance reads, built by your own job "
+      + "(a daily/zone aggregate or a windowed extract), outside aftergrid, "
+    : "build a bounded table for this Question in the Instance's own DuckDB file (a daily/zone aggregate or a windowed extract), "
+      + "outside aftergrid, ")
+  + "with a provenance table naming source, bytes, hash and build time; then capture that table. "
   + "The analytical window still lives in SQL. See docs/contracts/adapters.md, \"Large sources: the windowed Instance pattern\", "
   + "and `aftergrid capture <finding-dir> --catalog` to see each table's scan rows and whether it is admissible before copying anything.";
 
@@ -120,7 +128,9 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
   try {
     opened = openInstanceAdapter(instance);
   } catch (e) {
-    err(categoryOf(e), "aftergrid.yaml#/connection", (e as Error).message, "fix the Instance connection; nothing was read and nothing was written");
+    // The error's own location, so a bad `estimate_cap` points at the line that holds it rather than at the block.
+    err(categoryOf(e), String((e as any).location || "aftergrid.yaml#/connection"), (e as Error).message,
+      /estimate_cap/.test(String((e as any).location ?? "")) ? ESTIMATE_CAP_REMEDY : "fix the Instance connection; nothing was read and nothing was written");
     return report;
   }
   const { adapter, description } = opened;
@@ -133,12 +143,24 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
       // Per-table admission alongside the columns: `capture` copies whole tables, so whether a table can be
       // captured at all is a planner question, and this is where it is answered before anything is copied.
       const wanted = (opts.tables ?? []).filter(Boolean);
+      // A `--tables` name the catalog does not hold is `unresolved_reference` here exactly as it is in a real
+      // capture, where the adapter refuses it: `--catalog` exists to check a plan against the source, and a plan
+      // naming a table that is not there is the thing it is for. Listing the other tables and saying nothing
+      // would answer a question that was not asked. Nothing is read or written either way.
+      const unknown = wanted.filter((w) => !tables.some((t) => t.name === w));
+      if (unknown.length) {
+        err("unresolved_reference", unknown[0]!,
+          `--tables names ${unknown.join(", ")}, which ${unknown.length === 1 ? "is not a table" : "are not tables"} in the source catalog`,
+          `the catalog holds ${tables.length ? tables.map((t) => t.name).join(", ") : "no tables at all"}; name one of those, or drop --tables to see every table. Nothing was read and nothing was written`);
+        return report;
+      }
+      // `--tables` narrows the whole report, the column lines included: the plan's tables are what was asked about.
       const named = wanted.length ? tables.filter((t) => wanted.includes(t.name)) : tables;
       let admissions: TableAdmission[] = [];
       try { admissions = adapter.tableAdmissions ? await adapter.tableAdmissions(named.map((t) => t.name)) : []; }
       catch (e) { report.info.push(`per-table admission is unavailable here (${(e as Error).message}); the columns below are still what the catalog reports`); }
       const byTable = new Map(admissions.map((a) => [a.table, a]));
-      for (const t of tables) {
+      for (const t of named) {
         report.info.push(`table ${t.name}: ${t.columns.map((c) => `${c.name} ${c.sql_type}`).join(", ")}`);
         const a = byTable.get(t.name);
         if (!a) continue;
@@ -146,7 +168,7 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
         const bytes = a.bytes === undefined ? "bytes not stated by this source" : `${a.bytes} bytes at the source`;
         if (a.admission.decision === "rejected") {
           report.info.push(`admission ${t.name}: ${scan}, ${bytes} — NOT admissible: ${a.admission.reason}`);
-          report.warnings.push({ category: "admission", location: t.name, message: `a whole-table capture of ${t.name} would scan ${scan.split(" ")[0]} rows, over the admission limit; ${a.admission.reason}`, remedy: LARGE_SOURCE_REMEDY });
+          report.warnings.push({ category: "admission", location: t.name, message: `a whole-table capture of ${t.name} would scan ${scan.split(" ")[0]} rows, over the admission limit; ${a.admission.reason}`, remedy: largeSourceRemedy(adapter.name) });
         } else {
           report.info.push(`admission ${t.name}: ${scan}, ${bytes} — admissible (${a.admission.basis})`);
         }
@@ -204,7 +226,7 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
     // offering to clean up extracts that do not exist.
     err(category, (e as any).location || dir, (e as Error).message,
       category === "admission"
-        ? `${LARGE_SOURCE_REMEDY} manifest.yaml was not changed and no extract was written: admission is decided for every named table before the first byte is read.`
+        ? `${largeSourceRemedy(adapter.name)} manifest.yaml was not changed and no extract was written: admission is decided for every named table before the first byte is read.`
         : "manifest.yaml was not changed; extracts already written under inputs/ are unreferenced and safe to delete");
   } finally {
     await adapter.close().catch(() => undefined);

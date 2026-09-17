@@ -99,10 +99,12 @@ so an edge row is kept or dropped by the SQL rather than by how wide the extract
 
 Because the read is the whole table, a table the planner puts over the Instance's admission limit is refused with
 `admission` before anything is read or written; do not look for a narrower flag, because there is none — build a
-bounded table for this Question (a daily/zone aggregate or a windowed extract) with the Operator's own script
-into the Instance's DuckDB file, with a provenance table beside it, and capture that instead, the analytical
-window still living in the SQL (`docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern";
-`aftergrid capture <finding-dir> --catalog` reports each table's scan rows, bytes and admissibility first).
+bounded table for this Question (a daily/zone aggregate or a windowed extract) with the Operator's own script,
+into the Instance's DuckDB file on a DuckDB Instance or as a table in the schema this Instance reads on a
+Postgres one, with a provenance table beside it, and capture that instead, the analytical window still living in
+the SQL (`docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern"). The refusal names the
+right place for the Instance you are on. `aftergrid capture <finding-dir> --catalog` reports each table's scan
+rows, its bytes where the source states them, and its admissibility first.
 
 `--description` replaces the adapter's default ("Whole-table extract of …") and lands inside the content digest,
 where every later reader takes it for provenance. Say what was captured and when. A description calling the

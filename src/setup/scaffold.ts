@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 // @ts-ignore: shared path containment and error type.
 import { safePath } from "../../scripts/fixture-safety.mjs";
 import { renderDecisionIndex } from "../commands/decide.ts";
+import { DEFAULT_ESTIMATE_CAP_ROWS } from "../adapters/admission.ts";
 
 export type ScaffoldStatus = "created" | "kept" | "kept_differs" | "would_create" | "would_keep" | "would_keep_differs";
 export type ScaffoldOutcome = { rel: string; path: string; status: ScaffoldStatus };
@@ -54,6 +55,10 @@ function connectionLines(connection: ConnectionSpec): string[] {
       `    path: ${yamlString(connection.duckdbPath)}`,
       "    # DuckDB has no roles: the safety here is that the engine opens the file READ_ONLY on every statement.",
       "    read_only: true",
+      "    # The largest planned scan any read may make. It bounds `capture` as well as `execute`, because a",
+      "    # whole-table copy is a scan of the whole table; a table over it is refused with `admission` before",
+      "    # anything is read or written (docs/contracts/adapters.md, \"Large sources: the windowed Instance pattern\").",
+      `    estimate_cap: ${DEFAULT_ESTIMATE_CAP_ROWS}`,
     );
   } else if (connection.adapter === "none") {
     lines.push(
@@ -79,7 +84,9 @@ function connectionLines(connection: ConnectionSpec): string[] {
       "    # to this file, to a report or to a log: it is read from the environment at runtime.",
       `    url_env: ${yamlString(connection.urlEnv)}`,
       "    statement_timeout_ms: 30000",
-      "    estimate_cap: 1000000",
+      "    # The same cap, meaning the same thing, as the duckdb block: the largest planned scan any read may",
+      "    # make, `capture` included. One default for both backends, so the same source is admissible on either.",
+      `    estimate_cap: ${DEFAULT_ESTIMATE_CAP_ROWS}`,
     );
   }
   return lines;

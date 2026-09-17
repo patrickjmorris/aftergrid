@@ -1,17 +1,34 @@
 // Seam-2 contract tests, DuckDB. The same behaviours are meant to run on Postgres (ag-postgres-adapter-dna).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, statSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, cpSync, rmSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DuckDbAdapter, openRetained } from "./duckdb.ts";
 import { AdapterError } from "./contract.ts";
 import { serializeResult } from "./serialize.ts";
+import { newFinding } from "../commands/new-finding.ts";
 
 const WAREHOUSE = fileURLToPath(new URL("../../fixtures/instance/data/", import.meta.url));
 function scratchWarehouse(): string { const d = mkdtempSync(join(tmpdir(), "ag-wh-")); cpSync(WAREHOUSE, d, { recursive: true }); return d; }
 const adapter = (path: string, extra = {}) => new DuckDbAdapter({ source: { kind: "csv_dir", path }, ...extra });
+
+/**
+ * A capture destination exactly as `aftergrid new finding` leaves it — `inputs/` already created and empty, a
+ * manifest.yaml already written. Every real destination is one of these, so "nothing was written" is observable
+ * as an empty `inputs/` and a byte-identical manifest, never as an absent directory: the command made that
+ * directory long before capture ran (src/commands/new-finding.ts).
+ */
+function findingDir(slug: string): { dir: string; manifest: Buffer } {
+  const root = mkdtempSync(join(tmpdir(), "ag-fdir-"));
+  writeFileSync(join(root, "aftergrid.yaml"), "schema_version: 0.1.0\ninstance_root: .\n");
+  const created = newFinding({ slug, ask: "Anything.", instanceDir: root, date: "2026-07-20" });
+  assert.deepEqual(created.errors, [], JSON.stringify(created.errors));
+  const dir = join(root, "findings", `2026-07-20-${slug}`);
+  assert.ok(existsSync(join(dir, "inputs")), "`new finding` creates inputs/ before capture ever runs");
+  return { dir, manifest: readFileSync(join(dir, "manifest.yaml")) };
+}
 
 test("capability matrix is honest: role probe unsupported, limits partial, units never inferred", async () => {
   const a = adapter(scratchWarehouse());
@@ -178,7 +195,7 @@ test("close during a first open leaves no connection behind, and overlapping cal
 // to cross the 5,000,000-row default: what is under test is the rule, not DuckDB's ability to read a large file.
 test("capture is refused for a table over the admission cap, before anything is read or written", async () => {
   const a = adapter(scratchWarehouse(), { estimate_cap_rows: 4 });
-  const dest = mkdtempSync(join(tmpdir(), "ag-cap-big-"));
+  const { dir: dest, manifest } = findingDir("cap-big");
   const over = await a.estimate("select * from users", {});
   assert.equal(over.status, "estimated");
   const scan = over.status === "estimated" ? over.scan_rows : 0;
@@ -191,11 +208,13 @@ test("capture is refused for a table over the admission cap, before anything is 
     && new RegExp(`whole-table scan of ${scan} rows`).test(e.message) && /admission limit of 4 rows/.test(e.message)
     && /no window, predicate or row-bound flag/.test(e.message)
     && /nothing was read and nothing was written/.test(e.message));
-  assert.equal(existsSync(join(dest, "inputs")), false, "a refused capture does not even create inputs/");
+  assert.deepEqual(readdirSync(join(dest, "inputs")), [], "a refused capture leaves inputs/ as `new finding` left it: empty");
+  assert.deepEqual(readFileSync(join(dest, "manifest.yaml")), manifest, "and the manifest byte-identical");
 
   // A multi-table capture is all-or-nothing: the small table is not written because the large one is refused.
   await assert.rejects(a.capture(["platforms", "users"], dest), (e: any) => e.category === "admission" && e.location === "users");
-  assert.equal(existsSync(join(dest, "inputs")), false, "no table is captured when any named table is over the cap");
+  assert.deepEqual(readdirSync(join(dest, "inputs")), [], "no table is captured when any named table is over the cap");
+  assert.deepEqual(readFileSync(join(dest, "manifest.yaml")), manifest);
 
   // The same table, under a cap that admits it, captures normally: the refusal is the cap, not the table.
   const ok = adapter(scratchWarehouse(), { estimate_cap_rows: 1e9 });
@@ -204,6 +223,36 @@ test("capture is refused for a table over the admission cap, before anything is 
   assert.ok(existsSync(join(dest, captured[0]!.path)));
   await ok.close();
   await a.close();
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// Regressions from the 2026-09-17 review of ag-demo-open-data-qsl.3.
+// ---------------------------------------------------------------------------------------------------------
+
+// The docs said "under the cap" while `admit()` compares with `<=`. One of the two was wrong about the boundary,
+// and the boundary is the whole rule: this pins which.
+test("a planned scan of exactly the cap is admitted: the cap is at-or-under, not under", async () => {
+  const probe = adapter(scratchWarehouse(), { estimate_cap_rows: 1e9 });
+  const est = await probe.estimate("select * from users", {});
+  assert.equal(est.status, "estimated");
+  const scan = est.status === "estimated" ? est.scan_rows : 0;
+  await probe.close();
+
+  const exact = adapter(scratchWarehouse(), { estimate_cap_rows: scan });
+  const { dir, manifest } = findingDir("cap-exact");
+  const [row] = await exact.tableAdmissions(["users"]);
+  assert.equal(row!.admission.decision, "admitted", `a scan of exactly ${scan} rows against a cap of ${scan} is admitted`);
+  const captured = await exact.capture(["users"], dir);
+  assert.equal(captured.length, 1);
+  await exact.close();
+
+  const under = adapter(scratchWarehouse(), { estimate_cap_rows: scan - 1 });
+  const { dir: dir2, manifest: manifest2 } = findingDir("cap-one-under");
+  await assert.rejects(under.capture(["users"], dir2), (e: any) => e.category === "admission", "one row over the cap is refused");
+  assert.deepEqual(readdirSync(join(dir2, "inputs")), []);
+  assert.deepEqual(readFileSync(join(dir2, "manifest.yaml")), manifest2);
+  await under.close();
+  assert.deepEqual(readFileSync(join(dir, "manifest.yaml")), manifest, "the adapter never writes the manifest either way");
 });
 
 test("tableAdmissions reports scan rows, source bytes and admissibility without reading or writing anything", async () => {

@@ -10,7 +10,7 @@
 // shape, never evidence that a model produces it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,9 +55,10 @@ const READERS_MD = `# Readers\n\n## product_owner\n\nNon-technical product owner
  * A throwaway Instance whose source is a copy of the synthetic warehouse, inside the Instance root.
  * `estimateCap` writes `connection.duckdb.estimate_cap`, the same input the postgres block takes: it is how a
  * source too large to capture whole is exercised here without building one (docs/contracts/adapters.md,
- * "Large sources: the windowed Instance pattern").
+ * "Large sources: the windowed Instance pattern"). It is written into the YAML verbatim, so a test can hand it a
+ * value that is not a number of rows and see what the Instance does with it.
  */
-function scratchInstance(tables = ["users", "events"], estimateCap?: number): string {
+function scratchInstance(tables = ["users", "events"], estimateCap?: number | string): string {
   const root = join(mkdtempSync(join(tmpdir(), "ag-analysis-")), "analytics");
   mkdirSync(join(root, "data"), { recursive: true });
   for (const t of tables) cpSync(join(WAREHOUSE, `${t}.csv`), join(root, "data", `${t}.csv`));
@@ -235,6 +236,103 @@ test("capture --catalog reports per-table scan rows, bytes and admissibility wit
 
   assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "--catalog still writes nothing");
   assert.equal(existsSync(join(dir, "inputs", "users.csv")), false);
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// Regressions from the 2026-09-17 review of ag-demo-open-data-qsl.3. Each names the defect it keeps fixed and
+// fails on the code as it stood at 07dd15f.
+// ---------------------------------------------------------------------------------------------------------
+
+/** A Finding in a throwaway Instance, plus the manifest bytes a refusal must leave untouched. */
+function findingIn(instanceRoot: string, slug: string): { dir: string; manifest: string } {
+  const created = newFinding({ slug, ask: "Anything.", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  assert.deepEqual(created.errors, [], JSON.stringify(created.errors));
+  const dir = join(instanceRoot, "findings", `2026-07-20-${slug}`);
+  return { dir, manifest: readFileSync(join(dir, "manifest.yaml"), "utf8") };
+}
+
+// `estimate_cap` was validated nowhere, and `Number()` has an answer for everything: `abc` became a cap of NaN,
+// which no scan estimate can ever be under, so every table in the Instance was refused with `admission` and the
+// refusal blamed the source. `true` became 1 and `-1` became a cap nothing can meet. All three are the same bug:
+// a configuration mistake reported as a property of the data.
+test("an estimate_cap that is not a number of rows is refused where it is written, not coerced into a cap that refuses every table", async () => {
+  for (const raw of ["abc", "true", "-1", "0", '"0"', '"12.5"']) {
+    const instanceRoot = scratchInstance(["users", "platforms"], raw);
+    const { dir, manifest } = findingIn(instanceRoot, "bad-cap");
+
+    const report = await capture({ dir, tables: ["users"] });
+    const problem = report.errors.find((e) => e.category === "invalid_artifact");
+    assert.ok(problem, `estimate_cap: ${raw} -> ${JSON.stringify(report.errors)}`);
+    assert.equal(problem!.location, "aftergrid.yaml#/connection/duckdb/estimate_cap", raw);
+    assert.match(problem!.message, /is not a number of rows/, raw);
+    assert.match(problem!.remedy ?? "", /whole number of rows greater than zero/, raw);
+    assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), manifest, raw);
+    assert.deepEqual(readdirSync(join(dir, "inputs")), [], raw);
+
+    // The catalog read opens the same source, so it refuses in the same words rather than printing a catalog
+    // whose admission column would be nonsense.
+    const cat = await capture({ dir, catalog: true });
+    assert.ok(cat.errors.some((e) => e.category === "invalid_artifact"), `--catalog, estimate_cap: ${raw} -> ${JSON.stringify(cat.errors)}`);
+  }
+
+  // A cap that IS a number of rows is still taken, exactly as before.
+  const ok = scratchInstance(["users", "platforms"], 4);
+  const { dir } = findingIn(ok, "good-cap");
+  assert.ok((await capture({ dir, tables: ["users"] })).errors.some((e) => e.category === "admission"),
+    "a valid low cap still refuses an over-cap table on admission, not on validation");
+});
+
+// The postgres branch tested `estimate_cap` for truthiness while the duckdb branch tested it against
+// undefined/null, so a declared `0` was silently dropped on postgres and the adapter's 5,000,000 default stood in
+// for the cap the Instance wrote down. The two branches now read the same field the same way.
+test("a postgres estimate_cap of 0 is refused, not dropped: zero is a value an Operator wrote down", async () => {
+  for (const raw of ["0", '"0"']) {
+    const root = join(mkdtempSync(join(tmpdir(), "ag-pgcap-")), "analytics");
+    mkdirSync(root, { recursive: true });
+    // The env var is deliberately never set: before the fix the zero was dropped and the run got as far as
+    // opening a connection, failing with missing_credential instead of naming the line that is wrong.
+    writeFileSync(join(root, "aftergrid.yaml"),
+      "schema_version: 0.1.0\ninstance_root: analytics\nconnection:\n  adapter: postgres\n  postgres:\n"
+      + `    url_env: AG_TEST_PG_URL_THAT_IS_NEVER_SET\n    statement_timeout_ms: 30000\n    estimate_cap: ${raw}\n`);
+    writeFileSync(join(root, "readers.md"), READERS_MD);
+    const { dir, manifest } = findingIn(root, "pg-zero-cap");
+
+    const report = await capture({ dir, tables: ["users"] });
+    const problem = report.errors.find((e) => e.category === "invalid_artifact");
+    assert.ok(problem, `${raw} -> ${JSON.stringify(report.errors)}`);
+    assert.equal(problem!.location, "aftergrid.yaml#/connection/postgres/estimate_cap", raw);
+    assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), manifest);
+  }
+});
+
+// `--tables` narrowed the admission lines and left the column lines listing every table, and a name the catalog
+// does not hold was dropped without a word — from the one command whose job is checking a plan against the source.
+test("capture --catalog narrows the columns to --tables too, and refuses a name the catalog does not hold", async () => {
+  const instanceRoot = scratchInstance(["users", "platforms"]);
+  const { dir, manifest } = findingIn(instanceRoot, "catalog-narrow");
+
+  const narrowed = await capture({ dir, catalog: true, tables: ["platforms"] });
+  assert.deepEqual(narrowed.errors, [], JSON.stringify(narrowed.errors));
+  assert.ok(narrowed.info.some((i) => i.startsWith("table platforms: ")), JSON.stringify(narrowed.info));
+  assert.ok(!narrowed.info.some((i) => i.startsWith("table users: ")), `--tables must narrow the column lines too: ${JSON.stringify(narrowed.info)}`);
+  assert.ok(narrowed.info.some((i) => i.startsWith("admission platforms: ")));
+  assert.ok(!narrowed.info.some((i) => i.startsWith("admission users: ")));
+
+  // An unknown name is `unresolved_reference`, the same category a real capture gives it, naming the table.
+  const unknown = await capture({ dir, catalog: true, tables: ["platforms", "not_a_table"] });
+  const problem = unknown.errors.find((e) => e.category === "unresolved_reference");
+  assert.ok(problem, JSON.stringify(unknown.errors));
+  assert.equal(problem!.location, "not_a_table");
+  assert.match(problem!.message, /not_a_table/);
+  assert.match(problem!.remedy ?? "", /platforms/, "the remedy names what the catalog does hold");
+  assert.ok(!unknown.info.some((i) => i.startsWith("table ")), "a plan naming a table that is not there is not answered with the other tables");
+
+  const real = await capture({ dir, tables: ["not_a_table"] });
+  assert.ok(real.errors.some((e) => e.category === "unresolved_reference"),
+    `--catalog mirrors capture, and capture says: ${JSON.stringify(real.errors)}`);
+
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), manifest, "none of this writes anything");
+  assert.deepEqual(readdirSync(join(dir, "inputs")), []);
 });
 
 test("execute refuses a Finding with no retained inputs and names capture, rather than reaching for the live source", async () => {

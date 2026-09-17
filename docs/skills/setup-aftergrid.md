@@ -37,7 +37,10 @@ Each of these is a separate step in the report, reported `completed`, `incomplet
   "role probing unsupported" is the correct answer, not a gap. With no adapter the step is **skipped** and the
   report says what the recorded path gives (`artifact_replay`, verified hashes, `aftergrid record`) and what it
   costs (`capture` and `execute` refuse, `check --mode rerun` is `rerun_unavailable`, Revisit and unattended
-  intake are unavailable). A skipped connection does not make the setup incomplete.
+  intake are unavailable). A skipped connection does not make the setup incomplete. A source whose tables are
+  larger than the Instance's admission cap still connects and still passes setup: `capture` refuses those tables
+  with `admission` before reading a byte, and the report says so and names the windowed-Instance pattern
+  ([`docs/contracts/adapters.md`](../contracts/adapters.md), "Large sources") rather than a narrower capture.
 - **hook** — the guard is installed **and** its self-test just blocked a write and allowed a read. Installed
   without a passing self-test is reported as exactly that.
 - **publication_preflight** — whether the policy could ever produce a verified approval. Without a GitHub token

@@ -9,6 +9,7 @@ import { join, relative } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { setup } from "./commands/setup.ts";
 import { connectionBlock } from "./setup/scaffold.ts";
+import { DEFAULT_ESTIMATE_CAP_ROWS } from "./adapters/admission.ts";
 import { newFinding } from "./commands/new-finding.ts";
 import { capture } from "./commands/capture.ts";
 import { execute } from "./commands/execute.ts";
@@ -571,4 +572,19 @@ test("what an adapterless Instance costs is stated per command, in the report an
   assert.match(text, /set `connection\.adapter` in .*aftergrid\.yaml/);
   assert.match(text, /prints the block for you to paste in; it does not edit it/);
   assert.match(yaml, /PRINTS the block for you to paste in/);
+});
+
+// ag-demo-open-data-qsl.3 review: the default cap lived as a literal in each adapter, the scaffold wrote
+// `estimate_cap: 1000000` for postgres and nothing at all for duckdb, and docs/contracts/setup.md said the
+// default was 5,000,000 for either. Four places, three answers.
+test("the scaffolded connection block declares the same estimate_cap on either backend, and it is the adapters' own default", () => {
+  assert.equal(DEFAULT_ESTIMATE_CAP_ROWS, 5_000_000, "the number docs/contracts/setup.md and instance-layout.md quote");
+  const duckdb = connectionBlock({ adapter: "duckdb", duckdbPath: "data" });
+  const postgres = connectionBlock({ adapter: "postgres", urlEnv: "AFTERGRID_PG_URL" });
+  for (const [name, block] of [["duckdb", duckdb], ["postgres", postgres]] as const) {
+    assert.ok(block.includes(`estimate_cap: ${DEFAULT_ESTIMATE_CAP_ROWS}`),
+      `the ${name} block must declare the cap it runs under:\n${block}`);
+  }
+  // The recorded path has no source and therefore no cap to declare.
+  assert.ok(!connectionBlock({ adapter: "none" }).includes("estimate_cap"));
 });

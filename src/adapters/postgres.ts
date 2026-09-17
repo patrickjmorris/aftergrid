@@ -17,7 +17,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { AdapterError } from "./contract.ts";
 import type { Adapter, Admission, CapabilityMatrix, CatalogTable, ColumnMeta, Estimate, ExecuteResult, PrivilegeProbe, ResourceLimits, RetainedInput, RetainedRuntime, RetainedSession, SqlParams, TableAdmission } from "./contract.ts";
-import { admit, captureRefusal } from "./admission.ts";
+import { admit, captureRefusal, DEFAULT_ESTIMATE_CAP_ROWS } from "./admission.ts";
 // @ts-ignore: shared path containment, SQL string quoting and the shared error type.
 import { ContractError, safePath, sqlString } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: shared limits, the identifier rule and the lossless CSV writer (one CSV policy for every adapter).
@@ -382,7 +382,7 @@ export class PostgresAdapter implements Adapter {
     }
     this.opts = opts;
     this.limits = normalizeLimits({ ...DEFAULT_LIMITS, ...(opts.limits ?? {}) });
-    this.cap = opts.estimate_cap_rows ?? 5_000_000;
+    this.cap = opts.estimate_cap_rows ?? DEFAULT_ESTIMATE_CAP_ROWS;
     this.schema = opts.schema ?? "public";
     ident(this.schema);
   }
@@ -498,13 +498,24 @@ export class PostgresAdapter implements Adapter {
     return this.serialize(() => translate(() => this.captureNow(tables, destDir, opts)));
   }
 
+  /** The whole-table read capture performs, as the planner will be asked to plan it. */
+  private wholeTableRead(table: string): { text: string; values: (string | number | boolean | null)[] } {
+    const text = `select * from ${ident(this.schema)}.${ident(table)}`;
+    return bindNamed(text, guard(text), {});
+  }
+
   /**
-   * The planner's view of `select * from <schema>.<table>` — the read capture performs — plus `pg_table_size`,
-   * which is the heap and its TOAST on disk (indexes excluded: capture copies rows, not indexes).
+   * The planner's view of the whole-table read, plus `pg_table_size`, which is the heap and its TOAST on disk
+   * (indexes excluded: capture copies rows, not indexes).
+   *
+   * This runs for `tableAdmissions` only, and never inside the capture transaction: the size probe is a second
+   * statement whose failure — no privilege on the function, a relation that vanished — would abort that
+   * transaction and turn every later read into an opaque `25P02`. `capture` admits through `admitForCapture`,
+   * which plans and nothing else.
    */
   private async admissionOf(s: Session, table: string, timeout: number): Promise<TableAdmission> {
-    const text = `select * from ${ident(this.schema)}.${ident(table)}`;
-    const estimate = await estimateOn(s, bindNamed(text, guard(text), {}).text, [], timeout);
+    const bound = this.wholeTableRead(table);
+    const estimate = await estimateOn(s, bound.text, bound.values, timeout);
     let bytes: number | undefined;
     try {
       const { rows } = await s.typed("select pg_table_size(($1 || '.' || $2)::regclass) as bytes", [this.schema, table], timeout, `sizing ${table}`);
@@ -514,11 +525,50 @@ export class PostgresAdapter implements Adapter {
     return { table, estimate, ...(bytes === undefined ? {} : { bytes }), admission: admit(estimate, this.cap, this.limits) };
   }
 
+  /**
+   * Admission for one table inside the capture transaction. It differs from `admissionOf` in the one way that
+   * matters there: a planner failure is a **hard failure**, never an admission.
+   *
+   * `estimateOn` turns any `EXPLAIN` error into `{status:"unknown"}`, and `admit` admits an unknown estimate on
+   * enforced limits. Inside a transaction that is wrong twice over: the failed `EXPLAIN` has already put the
+   * session in `25P02`, so "admitted" means `inputs/` is created and the capture read then fails with `current
+   * transaction is aborted, commands ignored until end of transaction block` — an opaque `sql_error` in place of
+   * the `cancelled` a lock wait gave before capture consulted admission at all. So the planner's own error is
+   * allowed to propagate with its own category (`cancelled` for a statement timeout or a lock wait, `resource_limit`,
+   * `sql_policy` for a privilege failure), naming the table, and nothing is created or written.
+   */
+  private async admitForCapture(s: Session, table: string, timeout: number): Promise<void> {
+    const bound = this.wholeTableRead(table);
+    // Deliberately not wrapped: mapError already carries the server's category and this `what` into the message.
+    const r = await s.raw("EXPLAIN (FORMAT JSON) " + bound.text, bound.values, timeout, `capturing ${table} (planning the whole-table read)`);
+    const json = r.rows?.[0]?.[0];
+    let estimate: Estimate;
+    try {
+      estimate = json === undefined || json === null ? { status: "unknown", reason: "EXPLAIN returned no plan" } : planNumbers(String(json));
+    } catch (e) {
+      estimate = { status: "unknown", reason: String((e as Error).message ?? e).split("\n")[0]! };
+    }
+    if (estimate.status !== "estimated") {
+      // The planner answered, but not with a number, so there is no estimate to admit against the cap. Capture
+      // states that rather than reading the whole table on the strength of the session's limits.
+      throw new AdapterError("sql_error",
+        `capture of ${table} is refused: the planner returned no row estimate for a whole-table read (${estimate.reason}), so this capture cannot be admitted against this Instance's limit of ${this.cap} rows; nothing was read and nothing was written`,
+        table);
+    }
+    const admission = admit(estimate, this.cap, this.limits);
+    if (admission.decision === "rejected") throw new AdapterError("admission", captureRefusal(table, estimate.scan_rows, this.cap), table);
+  }
+
   async tableAdmissions(tables: string[]): Promise<TableAdmission[]> {
     return this.serialize(() => translate(async () => {
       const s = await this.open();
       const out: TableAdmission[] = [];
-      for (const table of tables) out.push(await this.admissionOf(s, table, this.limits.statement_timeout_ms));
+      for (const table of tables) {
+        // A table that is not in the catalog is `unresolved_reference`, as it is on DuckDB — not a row reporting
+        // it admitted on an unknown estimate, which is what `EXPLAIN` on a missing relation used to produce.
+        await this.columnsOf(s, table, this.limits.statement_timeout_ms);
+        out.push(await this.admissionOf(s, table, this.limits.statement_timeout_ms));
+      }
       return out;
     }));
   }
@@ -578,10 +628,9 @@ export class PostgresAdapter implements Adapter {
       // so the cap that bounds `execute` bounds it too, and a refusal rolls back having written nothing. It runs
       // INSIDE the transaction on purpose — `EXPLAIN` takes an ACCESS SHARE lock, and doing it outside would let a
       // lock wait on the last table move the snapshot past a commit the earlier extracts were meant to precede.
-      for (const table of tables) {
-        const { estimate, admission } = await this.admissionOf(s, table, timeout);
-        if (admission.decision === "rejected") throw new AdapterError("admission", captureRefusal(table, estimate.status === "estimated" ? estimate.scan_rows : NaN, this.cap), table);
-      }
+      // Planning only, and a planner failure is a hard failure: see `admitForCapture`. No `pg_table_size` probe
+      // runs here — a size the capture never reports is not worth a statement that can abort this transaction.
+      for (const table of tables) await this.admitForCapture(s, table, timeout);
       mkdirSync(join(destDir, "inputs"), { recursive: true });
       for (const table of tables) {
         const columns = schemas.get(table)!;

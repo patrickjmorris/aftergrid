@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
 import { AdapterError } from "./contract.ts";
-import { admit, captureRefusal } from "./admission.ts";
+import { admit, captureRefusal, DEFAULT_ESTIMATE_CAP_ROWS } from "./admission.ts";
 import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe, RetainedInput, RetainedSession, ResourceLimits, SqlParams, CatalogTable, TableAdmission } from "./contract.ts";
 // @ts-ignore: shared path containment and SQL string quoting.
 import { safePath, sqlString, ContractError } from "../../scripts/fixture-safety.mjs";
@@ -90,7 +90,7 @@ export class DuckDbAdapter implements Adapter {
   constructor(opts: DuckDbOptions) {
     this.opts = opts;
     this.limits = { ...DEFAULT_LIMITS, ...(opts.limits ?? {}) };
-    this.cap = opts.estimate_cap_rows ?? 5_000_000;
+    this.cap = opts.estimate_cap_rows ?? DEFAULT_ESTIMATE_CAP_ROWS;
   }
   capabilities(): CapabilityMatrix {
     return {

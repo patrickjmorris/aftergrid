@@ -37,7 +37,7 @@ Interface: `src/adapters/contract.ts`. Capabilities are declared from evidence (
 | open_retained | Loads hash-verified extracts into a fresh sandbox; only the listed inputs are visible; a missing or corrupt extract is an explicit error and never falls back to a live source. |
 | privilege_probe | Whether the connected role can write or run DDL, or `unsupported` with the reason. |
 | cost_estimate | A non-executing planner estimate in backend units, or `unknown` with a reason. `scan_rows` is the largest planned scan; `rows` is the planned output. `unit` names the planner model the numbers came from (`estimated_rows` for DuckDB, `planner_cost` for Postgres, which also carries the planner's abstract `cost`), never an accuracy claim. |
-| statement_guard | Admission: a read is admitted when `scan_rows` is under the cap, or, when the estimate is unknown, only because enforced resource limits apply; a row LIMIT never bounds admission. DDL, DML, multi-statement input and external file access are refused. |
+| statement_guard | Admission: a read is admitted when `scan_rows` is at or under the cap (the comparison is `<=`, so a scan of exactly the cap is admitted), or, when the estimate is unknown, only because enforced resource limits apply; a row LIMIT never bounds admission. DDL, DML, multi-statement input and external file access are refused. |
 | resource_limits | What the engine actually enforces, named honestly. |
 | cancellation | A statement past its timeout is interrupted; the connection remains usable; the source is unchanged. |
 | catalog | Tables and columns with backend types. Business units never come from here. Also, per table, the planned scan rows of `select * from <table>`, the source's own bytes where the backend states them, and whether a whole-table capture would be admitted. |
@@ -58,8 +58,8 @@ The cap counts **rows, not bytes**, and it is the only thing admission looks at.
 it is still admitted — one month of TLC yellow-taxi trips is about 3.5 million rows over nineteen columns, which
 passes the default cap and lands as a CSV of several hundred megabytes inside the Finding directory, hashed and
 committed. That is a decision to make deliberately, not one to discover after `capture` returns: `--catalog`
-prints the source's bytes next to the scan rows so both are seen first, and the pattern below applies to a table
-that is too *large* whether or not it is over the *cap*.
+prints the source's bytes, where the source states them, next to the scan rows so both are seen first, and the
+pattern below applies to a table that is too *large* whether or not it is over the *cap*.
 
 **Why `capture` stays whole-table.** `capture` copies whole tables by contract: no window, predicate or row-bound
 flag exists anywhere in the command, the adapter contract or the CLI, because a bound applied here would be a
@@ -68,17 +68,32 @@ dropped. The analytical window belongs in the analysis SQL, which converts to th
 so an edge row is kept or dropped by the SQL rather than by how wide the extract happened to be.
 
 Those two facts meet in one place: because the read *is* the whole table, the cap that bounds `execute` bounds
-`capture` too. Every named table is admitted before a directory is made or a byte is read, and a table over the
-cap is refused with `admission`, naming the observed scan estimate and the limit. **Nothing is written on a
-refusal** — no extract, no `manifest.yaml` edit, no digest — and that holds for a multi-table capture where only
-the last table is too large.
+`capture` too. Every named table is admitted before a byte is read, and a table over the cap is refused with
+`admission`, naming the observed scan estimate and the limit. **Nothing is written on a refusal** — no extract,
+no `manifest.yaml` edit, no digest — and that holds for a multi-table capture where only the last table is too
+large. (`new finding` already created `inputs/`, so the observable fact is that it is still empty and the
+manifest still hashes to what it did before, not that the directory is absent.)
+
+Admission is a planner question, and on the capture path a planner that does not answer is a **failure**, never
+an admission. Postgres plans inside the capture transaction — `EXPLAIN` takes an `ACCESS SHARE` lock, and
+planning outside it would let a lock wait on the last table move the snapshot past a commit the earlier extracts
+were meant to precede — so an `EXPLAIN` that is cancelled, blocked out by a lock or refused for want of a
+privilege reports exactly that, with the category the read itself would have reported (`cancelled`,
+`resource_limit`, `sql_policy`) and the table in the message. It is not swallowed into an unknown estimate and
+admitted on the strength of the session's limits, which would create `inputs/` and then fail the read with
+`current transaction is aborted`. The source-size probe (`pg_table_size`) stays out of that transaction for the
+same reason: it belongs to `--catalog`, which reports bytes, and capture does not.
 
 **The bounded-table pattern.** When the source table is over the cap, build the table the Question actually needs
-— a daily or per-zone aggregate, or a windowed extract — **outside aftergrid**, in the Instance's own DuckDB file,
-and capture *that* table:
+— a daily or per-zone aggregate, or a windowed extract — **outside aftergrid**, and capture *that* table. Where
+the bounded table lives depends on the backend, and the refusal says which: on a DuckDB Instance it goes in the
+Instance's own DuckDB file; on a Postgres Instance it is a table in the schema this Instance reads, built by the
+Operator's own job, with a provenance table beside it. Either way it is the Operator's artifact, not something
+aftergrid built:
 
 1. The Operator's build script reads the raw source (the TLC Parquet files, the warehouse, whatever it is) and
-   writes one or more bounded tables into the Instance's DuckDB file. This script is **the Operator's, and it
+   writes one or more bounded tables into the Instance's DuckDB file — or, on a Postgres Instance, into the
+   schema the Instance reads, from the Operator's own job. This script is **the Operator's, and it
    lives with the Instance** — `examples/nyc-open-data/scripts/build-data.mjs`, not in the Engine. aftergrid has
    no ingest command and is not asking for one: the Engine holds verbs, the Instance holds the team's nouns.
 2. Beside the bounded tables the script writes a **provenance table** — one row per source file or extraction —
@@ -111,7 +126,7 @@ planner's guess.
 | Capability | Status | Evidence |
 | --- | --- | --- |
 | execute | supported | typed cells, UTC timestamps, decimal strings |
-| capture | supported | stable hashes across two captures; `order by all`; a table the planner puts over the cap is refused with `admission` before the `inputs/` directory exists, and a multi-table capture whose last table is over the cap writes none of them |
+| capture | supported | stable hashes across two captures; `order by all`; a table the planner puts over the cap is refused with `admission` before any extract is written — `inputs/` is left exactly as `new finding` made it, empty, and the manifest byte-identical — and a multi-table capture whose last table is over the cap writes none of them |
 | open_retained | supported | rerun unchanged after live mutation; corrupt → `hash_mismatch`; missing → `missing_file`; undeclared table invisible |
 | privilege_probe | **unsupported** | DuckDB has no roles. Safety is `access_mode: READ_ONLY` for `.duckdb` files (engine-enforced, tested) or read-only materialisation of CSV sources with external access disabled afterwards. |
 | cost_estimate | supported | `EXPLAIN (FORMAT JSON)`; `unknown` when the planner reports no cardinality |
@@ -129,7 +144,7 @@ Implementation `src/adapters/postgres.ts`. Evidence: `src/adapters/postgres.test
 | Capability | Status | Evidence |
 | --- | --- | --- |
 | execute | supported | typed cells (int as a number when safe, `numeric` as its exact text, UTC `timestamptz`, dates and booleans, null distinct from zero); `$name` mapped to `$1..$n` in first-use order, bound only where the statement declares it |
-| capture | supported | identical hashes across two captures; one `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY` transaction, asserted across two tables with a commit landing between them; null / empty string / comma / quote / CR-LF / decimal round trip losslessly; a `json` column (no ordering operator) is captured by ordering on its text rendering; a column name a rerun could not restore is refused at capture, naming the column; a table over the cap is refused with `admission` as the transaction's first statements, before `inputs/` exists, and a two-table capture whose second table is over the cap writes neither |
+| capture | supported | identical hashes across two captures; one `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY` transaction, asserted across two tables with a commit landing between them; null / empty string / comma / quote / CR-LF / decimal round trip losslessly; a `json` column (no ordering operator) is captured by ordering on its text rendering; a column name a rerun could not restore is refused at capture, naming the column; a table over the cap is refused with `admission` as the transaction's first statements, before any extract is written (`inputs/` left empty and the manifest byte-identical), and a two-table capture whose second table is over the cap writes neither; a planner failure there — a lock wait, a cancellation — is the planner's own category (`cancelled`, `resource_limit`) naming the table, never an admission on an unknown estimate |
 | open_retained | **partial** | extracts restored into a disposable Postgres (`initdb` → `pg_ctl` → `CREATE TABLE` from the recorded types → `COPY … FROM` → read-only role); rerun unchanged after the live source was mutated; corrupt → `hash_mismatch`; missing → `missing_file`; undeclared table invisible; a recorded type the fresh instance does not have (enum, domain, composite) restored as text and named in the admission; **no local runtime → `runtime_unavailable`**, never the live source |
 | privilege_probe | supported | `has_table_privilege` for INSERT/UPDATE/DELETE/TRUNCATE over tables, views and materialised views, `has_schema_privilege`/`has_database_privilege` for CREATE, `pg_roles` for superuser/createdb; a writable role reports `can_write: true`, a read-only role `false`, and a role holding INSERT on a view over a table it can only read reports `true` |
 | cost_estimate | supported | `EXPLAIN (FORMAT JSON)` without `ANALYZE`; `unit: planner_cost`; `unknown` with the planner's reason when planning fails |

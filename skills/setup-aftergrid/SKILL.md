@@ -130,9 +130,11 @@ Say which data path this Instance is on, in the report's own words:
 - **An adapter.** The extra it bought — `capture`, `execute`, `check --mode rerun` and Revisit — plus whatever
   the connection step reported about the source itself. If the source holds tables larger than the admission cap,
   say so now: `capture` will refuse them with `admission` before reading a byte, and the answer is the
-  windowed-Instance pattern — the Operator's own script builds a bounded table plus a provenance table into the
-  Instance's DuckDB file and aftergrid captures those (`docs/contracts/adapters.md`, "Large sources"). Run
-  `aftergrid capture <finding-dir> --catalog` to see each table's scan rows and whether it is admissible.
+  windowed-Instance pattern — the Operator's own script builds a bounded table plus a provenance table (into the
+  Instance's DuckDB file on a DuckDB Instance, or as a table in the schema this Instance reads on a Postgres one)
+  and aftergrid captures those (`docs/contracts/adapters.md`, "Large sources"). Run
+  `aftergrid capture <finding-dir> --catalog` to see each table's scan rows, its bytes where the source states
+  them, and whether it is admissible.
 
 Two more things to say, and to keep saying:
 

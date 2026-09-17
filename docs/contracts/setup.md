@@ -148,15 +148,22 @@ policy the engine enforces on every statement. **An unsupported probe is never r
 policy, and never as a passed probe.** It is not an error and not a warning.
 
 **A source larger than the admission cap is a setup outcome, not a setup failure.** Either backend block takes an
-optional `estimate_cap` (default 5,000,000): the largest planned scan any read may make. It bounds `capture` as
-well as `execute`, because a whole-table copy is a scan of the whole table, so an Instance pointed at a source
-with tens of millions of rows per table will connect, report its capability matrix and pass setup, and then have
-`capture` refuse that table with `admission` before reading a byte. That is the designed behaviour, and the
-answer is the windowed-Instance pattern in `docs/contracts/adapters.md`: the Operator's own build script writes a
-bounded table (a daily or per-zone aggregate, a windowed extract) plus a provenance table into the Instance's own
-DuckDB file, and aftergrid captures those — the analytical window still living in the analysis SQL. Run
-`aftergrid capture <finding-dir> --catalog` after setup to see each table's scan rows, bytes and admissibility
-before any Finding tries to copy one.
+optional `estimate_cap`: the largest planned scan any read may make. One default for both backends — 5,000,000
+(`DEFAULT_ESTIMATE_CAP_ROWS` in `src/adapters/admission.ts`), which is also the value the scaffolded
+`aftergrid.yaml` writes into the duckdb block and the postgres block alike, so the same source is admissible on
+either. It bounds `capture` as well as `execute`, because a whole-table copy is a scan of the whole table, so an
+Instance pointed at a source with tens of millions of rows per table will connect, report its capability matrix
+and pass setup, and then have `capture` refuse that table with `admission` before reading a byte. That is the
+designed behaviour, and the answer is the windowed-Instance pattern in `docs/contracts/adapters.md`: the
+Operator's own build script writes a bounded table (a daily or per-zone aggregate, a windowed extract) plus a
+provenance table — into the Instance's own DuckDB file on a DuckDB Instance, or into the schema the Instance
+reads on a Postgres one — and aftergrid captures those, the analytical window still living in the analysis SQL.
+Run `aftergrid capture <finding-dir> --catalog` after setup to see each table's scan rows, its bytes where the
+source states them, and its admissibility before any Finding tries to copy one.
+
+A value `estimate_cap` cannot mean — `0`, `-1`, `abc`, `true` — is refused with `invalid_artifact` at
+`aftergrid.yaml#/connection/<backend>/estimate_cap` the moment a command opens the source, rather than coerced
+into a cap that refuses every table.
 
 **Postgres.** `PostgresAdapter.probePrivileges()` runs against the configured role.
 

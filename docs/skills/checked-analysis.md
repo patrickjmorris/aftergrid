@@ -65,6 +65,15 @@ analytical timezone explicitly, so nothing depends on how wide the extract is. A
 extract was bounded or filtered is refused, because provenance inside the content digest may not describe a read
 that did not happen.
 
+**What if a table is too big to copy whole?** Because the read *is* the whole table, a table the planner puts
+over the Instance's admission limit is refused with `admission` before anything is read or written, and there is
+no narrower flag to reach for: build the bounded table for this Question yourself — into the Instance's DuckDB
+file, or as a table in the schema a Postgres Instance reads — with a provenance table beside it, and capture
+that, the analytical window still living in the SQL
+([`docs/contracts/adapters.md`](../contracts/adapters.md), "Large sources: the windowed Instance pattern").
+`aftergrid capture <finding-dir> --catalog` reports each table's scan rows, its bytes where the source states
+them, and its admissibility before anything is copied.
+
 **What happens when a Check fails?** It depends on which Check, and the distinction is deliberate. A failing
 `minimum_data` Check is a business result: the Finding's outcome becomes `insufficient_data` and the memo says
 what is missing. A failing `required` invariant or reconciliation Check means the Analysis does not establish

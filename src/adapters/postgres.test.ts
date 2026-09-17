@@ -4,13 +4,15 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PostgresAdapter, bindNamed, findBinary, guard, openRetained, provisionDisposablePostgres, workMem, type DisposablePostgres } from "./postgres.ts";
 import { openRetained as openRetainedDuckdb } from "./duckdb.ts";
 import { retainedOpenerFor } from "../commands/check.ts";
+import { capture } from "../commands/capture.ts";
+import { newFinding } from "../commands/new-finding.ts";
 import { AdapterError } from "./contract.ts";
 import { serializeResult } from "./serialize.ts";
 
@@ -79,6 +81,22 @@ after(async () => {
 });
 
 const reader = (extra = {}) => track(new PostgresAdapter({ connection_string_env: "AG_TEST_PG_READER", ...extra }));
+
+/**
+ * A capture destination exactly as `aftergrid new finding` leaves it — `inputs/` already created and empty, a
+ * manifest.yaml already written. "Nothing was written" is therefore observable as an empty `inputs/` and a
+ * byte-identical manifest, not as an absent directory: the command made that directory long before capture ran.
+ * `instanceYaml` makes the enclosing directory a real Instance, which is what the `capture` command opens.
+ */
+function findingDir(slug: string, instanceYaml = "schema_version: 0.1.0\ninstance_root: .\n"): { dir: string; root: string; manifest: Buffer } {
+  const root = scratch("ag-pgfdir-");
+  writeFileSync(join(root, "aftergrid.yaml"), instanceYaml);
+  const created = newFinding({ slug, ask: "Anything.", instanceDir: root, date: "2026-07-20" });
+  assert.deepEqual(created.errors, [], JSON.stringify(created.errors));
+  const dir = join(root, "findings", `2026-07-20-${slug}`);
+  assert.ok(existsSync(join(dir, "inputs")), "`new finding` creates inputs/ before capture ever runs");
+  return { dir, root, manifest: readFileSync(join(dir, "manifest.yaml")) };
+}
 
 /** Engine-side setup for a test's own fixtures, as the instance superuser. */
 async function onSource(url: string, ...statements: string[]) {
@@ -546,12 +564,14 @@ test("a Postgres-captured snapshot reruns on Postgres, not through DuckDB's type
 });
 
 // The same rule as DuckDB (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern"): a
-// whole-table capture is a scan of the whole table, so the admission cap bounds `capture` too, and the refusal
-// arrives from the planner before the capture transaction opens.
-test("capture is refused for a table over the admission cap, before the transaction opens; tableAdmissions reports it first", { skip: SKIP }, async () => {
+// whole-table capture is a scan of the whole table, so the admission cap bounds `capture` too. Postgres plans
+// INSIDE the capture transaction, as its first statements: `EXPLAIN` takes an ACCESS SHARE lock, and planning
+// outside would let a lock wait on the last table move the snapshot past a commit the earlier extracts were meant
+// to precede.
+test("capture is refused for a table over the admission cap, inside the transaction, as its first statements; tableAdmissions reports it first", { skip: SKIP }, async () => {
   await warehouse();
   const a = reader({ estimate_cap_rows: 10 });
-  const dest = scratch("ag-pg-cap-big-");
+  const { dir: dest, manifest } = findingDir("pg-cap-big");
 
   const [users, platforms] = await a.tableAdmissions(["users", "platforms"]);
   assert.equal(users!.estimate.status, "estimated");
@@ -564,13 +584,112 @@ test("capture is refused for a table over the admission cap, before the transact
     e.category === "admission" && e.location === "users"
     && /whole-table scan of \d+ rows/.test(e.message) && /admission limit of 10 rows/.test(e.message)
     && /nothing was read and nothing was written/.test(e.message));
-  assert.equal(existsSync(join(dest, "inputs")), false, "a refused capture does not even create inputs/");
+  assert.deepEqual(readdirSync(join(dest, "inputs")), [], "a refused capture leaves inputs/ as `new finding` left it: empty");
+  assert.deepEqual(readFileSync(join(dest, "manifest.yaml")), manifest, "and the manifest byte-identical");
   // All-or-nothing across tables: the small one is not written because the large one is refused.
   await assert.rejects(a.capture(["platforms", "users"], dest), (e: any) => e.category === "admission" && e.location === "users");
-  assert.equal(existsSync(join(dest, "inputs")), false);
+  assert.deepEqual(readdirSync(join(dest, "inputs")), []);
+  assert.deepEqual(readFileSync(join(dest, "manifest.yaml")), manifest);
 
   // The session is not left in an aborted transaction by the refusal.
   const ok = await a.execute("select count(*) as n from platforms", {});
   assert.ok(Number(ok.rows[0]!.n) >= 0);
   await a.close();
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// Regressions from the 2026-09-17 review of ag-demo-open-data-qsl.3. Each names the defect it keeps fixed and
+// fails on the code as it stood at 07dd15f.
+// ---------------------------------------------------------------------------------------------------------
+
+// `estimateOn` turns every EXPLAIN failure into `{status:"unknown"}` and `admit()` admits an unknown estimate on
+// enforced limits. Inside the capture transaction that swallowed the planner's real answer twice over: the failed
+// EXPLAIN had already put the session in 25P02, so "admitted" meant inputs/ was created and the capture read then
+// died with `current transaction is aborted` — an opaque sql_error where the same lock, before capture consulted
+// admission at all, produced a clean `cancelled` naming the table.
+test("a planner failure inside the capture transaction keeps the planner's own category, and admits nothing", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  const admin = src.instance.url("warehouse");
+  await onSource(admin, "create table locked_out (id int not null)", "insert into locked_out values (1), (2)",
+    "grant select on locked_out to wh_reader");
+  // The cap is far above anything here: what is under test is the planner failing, not a table over the limit.
+  const a = reader({ estimate_cap_rows: 1e12, limits: { statement_timeout_ms: 800 } });
+  const { dir: dest, manifest } = findingDir("pg-locked-out");
+  const writer = await pgClient(admin);
+  try {
+    // ACCESS EXCLUSIVE blocks even the ACCESS SHARE that EXPLAIN takes, so planning waits until the timeout.
+    await writer.query("begin");
+    await writer.query("lock table locked_out in access exclusive mode");
+    await assert.rejects(a.capture(["locked_out"], dest), (e: any) =>
+      e instanceof AdapterError
+      && e.category === "cancelled"
+      && /locked_out/.test(e.message)
+      && /statement_timeout/.test(e.message)
+      && !/current transaction is aborted/.test(e.message));
+  } finally { await writer.query("rollback").catch(() => undefined); await writer.end(); }
+
+  assert.deepEqual(readdirSync(join(dest, "inputs")), [], "a planner failure creates no inputs/ content and writes nothing");
+  assert.deepEqual(readFileSync(join(dest, "manifest.yaml")), manifest);
+  // The transaction was rolled back, so the session answers the next statement.
+  assert.ok(Number((await a.execute("select count(*) as n from locked_out", {})).rows[0]!.n) >= 0);
+  // And with the lock gone the very same capture succeeds: the refusal was the lock, not the table.
+  const inputs = await a.capture(["locked_out"], dest);
+  assert.equal(inputs.length, 1);
+  assert.ok(existsSync(join(dest, inputs[0]!.path)));
+  await a.close();
+});
+
+// The `pg_table_size` probe belonged to `--catalog`, which reports bytes; capture does not. Running it inside the
+// capture transaction meant any failure of that second statement — no EXECUTE on the function, for instance —
+// aborted the transaction while the swallowing `catch` reported only "bytes unstated", and the capture read then
+// failed with 25P02.
+test("the source-size probe does not run inside the capture transaction", { skip: SKIP }, async () => {
+  const src = await warehouse();
+  const admin = src.instance.url("warehouse");
+  await onSource(admin, "create table sized (id int not null)", "insert into sized values (1)",
+    "grant select on sized to wh_reader");
+  const a = reader({ estimate_cap_rows: 1e12 });
+  const { dir: dest } = findingDir("pg-size-probe");
+  try {
+    await onSource(admin, "revoke execute on function pg_table_size(regclass) from public");
+    const inputs = await a.capture(["sized"], dest);
+    assert.equal(inputs.length, 1, "capture does not need pg_table_size, so losing it cannot break a capture");
+    assert.equal(readFileSync(join(dest, inputs[0]!.path), "utf8"), "id\n1\n");
+    // The same missing privilege is still only a missing byte count on the path that does report bytes.
+    const [row] = await a.tableAdmissions(["sized"]);
+    assert.equal(row!.bytes, undefined, "bytes stay unstated rather than guessed");
+    assert.equal(row!.admission.decision, "admitted");
+  } finally { await onSource(admin, "grant execute on function pg_table_size(regclass) to public"); }
+  await a.close();
+});
+
+// DuckDB throws `unresolved_reference` for a table that is not in the catalog. Postgres reported it as ADMITTED
+// with an unknown estimate, because EXPLAIN on a missing relation failed and the failure became `{unknown}`.
+test("tableAdmissions refuses a table that is not in the catalog, as DuckDB does", { skip: SKIP }, async () => {
+  await warehouse();
+  const a = reader();
+  await assert.rejects(a.tableAdmissions(["not_a_table"]), (e: any) =>
+    e instanceof AdapterError && e.category === "unresolved_reference" && /not_a_table/.test(e.message));
+  // A real table beside it still reports normally.
+  const [platforms] = await a.tableAdmissions(["platforms"]);
+  assert.equal(platforms!.table, "platforms");
+  await a.close();
+});
+
+// The over-cap remedy told every Operator to build the bounded table "in the Instance's own DuckDB file". A
+// Postgres Instance has no DuckDB file, so that was a remedy its Operator could not follow.
+test("the over-cap remedy names where a Postgres Instance's bounded table actually goes", { skip: SKIP }, async () => {
+  await warehouse();
+  const yaml = "schema_version: 0.1.0\ninstance_root: .\nconnection:\n  adapter: postgres\n  postgres:\n"
+    + "    url_env: AG_TEST_PG_READER\n    statement_timeout_ms: 30000\n    estimate_cap: 10\n";
+  const { dir, manifest } = findingDir("pg-remedy", yaml);
+  const report = await capture({ dir, tables: ["users"] });
+  const problem = report.errors.find((e) => e.category === "admission");
+  assert.ok(problem, JSON.stringify(report.errors));
+  assert.match(problem!.remedy ?? "", /as a table in the schema this Instance reads, built by your own job/);
+  assert.match(problem!.remedy ?? "", /provenance table naming source, bytes, hash and build time/);
+  assert.doesNotMatch(problem!.remedy ?? "", /the Instance's own DuckDB file/,
+    "a Postgres Instance has no DuckDB file to build a bounded table in");
+  assert.deepEqual(readFileSync(join(dir, "manifest.yaml")), manifest);
+  assert.deepEqual(readdirSync(join(dir, "inputs")), []);
 });

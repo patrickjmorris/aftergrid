@@ -1,8 +1,17 @@
-// The one admission rule shared by adapters: a read is admitted when the largest planned scan is under the cap,
-// or, when the estimate is unknown, only because enforced resource limits apply. A row LIMIT never bounds
+// The one admission rule shared by adapters: a read is admitted when the largest planned scan is at or under the
+// cap, or, when the estimate is unknown, only because enforced resource limits apply. A row LIMIT never bounds
 // admission (spec: Adapters). Both adapters call this; `capture` calls it per table, because a whole-table copy
 // is a scan of the whole table (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern").
 import type { Admission, Estimate, ResourceLimits } from "./contract.ts";
+
+/**
+ * The admission cap an adapter uses when the Instance declares none (`connection.<backend>.estimate_cap`). One
+ * constant, because the rule is one rule: both backends bound the largest planned scan the same way, and a
+ * default that differed per backend would make the same source admissible on one and refused on the other.
+ * `aftergrid setup` writes this number into the scaffolded `aftergrid.yaml` for either backend
+ * (docs/contracts/setup.md, docs/contracts/instance-layout.md).
+ */
+export const DEFAULT_ESTIMATE_CAP_ROWS = 5_000_000;
 
 /**
  * The one wording for a capture refused by admission, shared by every adapter. `capture` copies whole tables by
