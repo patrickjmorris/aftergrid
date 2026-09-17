@@ -64,15 +64,12 @@ open owner gate for the milestone, and every skill's recorded runs say plainly t
 are discovered from the paths it lists. There is no marketplace entry: the plugin is installed from a local
 checkout or a local tarball while the repository is private.
 
-**With skills.sh.** The installed `mattpocock-skills@1.2.3` bundle carries no `skills.json` and no index file of
-any kind: its `package.json` has a `skills` array of directory paths, its `.claude-plugin/plugin.json` has the
-same array, and `npx skills@latest add mattpocock/skills --skill=<name>` addresses a skill by its directory name.
-So aftergrid invents no index either: it mirrors the one mattpocock-skills has, a `skills` array in
-`package.json` holding the same directory paths as the plugin manifest, and `aftergrid plugin validate` fails if
-the two disagree. What a skills.sh install needs from this repository is a directory under
-`skills/` whose `SKILL.md` frontmatter carries `name` and `description` — which is what the table above already
-requires, and what `aftergrid plugin validate` enforces. The skills.sh installer itself has not been run against
-this repository; that is a maintainer step, not something verified here.
+**With skills.sh.** `npx skills add patrickjmorris/aftergrid` installs all nine skills; `--skill <name>` picks one
+and `-a <agent>` names the harness (`claude-code`, `cursor`, `codex`, and the rest skills.sh supports). The
+installer discovers skills from `skills/<name>/SKILL.md` by their frontmatter `name` and `description`, so no
+index file and no registration are needed. Verified 2026-09-17 on this repository: all nine copied into
+`.claude/skills/` for Claude Code, and a single skill into Cursor. The `skills` array in `package.json` mirrors
+the plugin manifest and `aftergrid plugin validate` fails if the two disagree.
 
 **For Codex-style agents.** `agents/openai.yaml` sits beside each `SKILL.md` with the display name, the short
 description and the invocation policy (spec story 48).

@@ -33,6 +33,15 @@ pnpm run validate:fixtures
 pnpm run smoke:pack       # pack, audit the tarball, install it clean and run the whole CLI from it
 ```
 
+## Install the skills into your agent
+
+```bash
+npx skills add patrickjmorris/aftergrid            # all nine skills, into the agent skills.sh detects or you name with -a
+npx skills add patrickjmorris/aftergrid --skill analyze -a cursor
+```
+
+The skills are plain `SKILL.md` files; skills.sh discovers them from `skills/` with no registration. Verified on this repository 2026-09-17 (`skills/README.md`).
+
 ## Install from a local tarball
 
 ```bash
