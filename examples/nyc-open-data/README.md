@@ -5,7 +5,8 @@ yourself — before pointing aftergrid at data you cannot share. Everything here
 definitions, the golden Questions, and eventually the Findings and the pull request that approved one.
 
 **Status: the data build and the Instance are done; no Finding exists.** This directory holds the layout, the
-data terms, `scripts/build-data.mjs`, which runs, and `analytics/`, which is a filled-in Instance — connection,
+data terms, `scripts/build-data.mjs` and `scripts/derive-question-tables.mjs`, which both run, and
+`analytics/`, which is a filled-in Instance — connection,
 Reader profiles, definitions and golden Questions. Nothing in it is approved. The Findings arrive in a later
 bead, and every step below says which. Nothing in this file describes something you can run unless it says you
 can.
@@ -47,6 +48,14 @@ later bead; do not expect them to run today.
    a bounded `demo.duckdb` with a provenance table. — **this works today.** Start with one month
    (`--from 2025-01 --to 2025-01`, about 90 seconds and 45 MB) before building the whole window; options,
    tables, units, the sampling rule and the measured numbers are in [`scripts/README.md`](scripts/README.md).
+
+   Then **derive the per-Question table**: `node examples/nyc-open-data/scripts/derive-question-tables.mjs`
+   writes `crz_daily` into that same database in a fraction of a second, with no network — one row per pickup
+   date × service × in-zone flag, plus a `build_provenance` row recording the derivation. — **this works
+   today.** It is a separate step because `trips_daily` at the demo's four-month window is 5,390,695 rows
+   against an admission cap of 5,000,000, so `aftergrid capture` refuses it whole; the bounded table beside it
+   is what a Finding captures (`docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern").
+   [`analytics/README.md`](analytics/README.md) has the row counts, the hashes and the catalog output.
 2. **Set up the Instance.** — **this is done, and committed.**
    [`analytics/`](analytics/README.md) holds `aftergrid.yaml` (DuckDB adapter, `path: demo.duckdb`, **inside**
    the Instance root — `safePath` refuses a `..`, so the build's `--out` has to name that directory), two Reader
