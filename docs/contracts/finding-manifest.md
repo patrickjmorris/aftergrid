@@ -42,12 +42,12 @@ Two Check kinds decide the outcome, and neither decides evidence validity. They 
 snapshot.inputs[]  --hash-->  executions[]  --result_hash-->  results[]  --ref-->  claims[].evidence
 definitions[]      --version+hash-->  executions[].definition_refs, results[].columns[].definition_ref
 external_sources[] --ext-->  claims[].evidence / derived[].operands
-derived[]          --operands-->  results / ext / other derived (acyclic)
+derived[]          --operands-->  results / ext / other derived (acyclic; { after, baseline } on difference/ratio/percent_change)
 claims[]           --chart_ids/table_ids-->  charts[] / tables[]  --result_id-->  results[]
 checks[]           --path+hash-->  checks/*.sql ; question.falsifier.check_id --> checks[]
 ```
 
-`check` walks this graph. Every data-bearing displayed value must end at a `results[]` cell, a `derived[]` value or an `external_sources[]` entry. A `claims[].numeric: true` Claim needs at least one evidence reference and at least one chart or table.
+`check` walks this graph. Every data-bearing displayed value must end at a `results[]` cell, a `derived[]` value or an `external_sources[]` entry. A `derived[]` entry whose value has a direction — `difference`, `ratio`, `percent_change` — names its operand pair `{ after, baseline }`, because the sign is otherwise an operand order nothing can check (`docs/contracts/reference-grammar.md`, "Operand direction"). A `claims[].numeric: true` Claim needs at least one evidence reference and at least one chart or table.
 
 ## Who ran it: adapter, or harness
 

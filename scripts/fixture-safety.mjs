@@ -49,10 +49,52 @@ export function validateStructure(m, dir, instance) {
     for (const ref of ex.definition_refs) if (!m.definitions.some(d => d.id === ref.id && d.version === ref.version)) fail('definition_version', ex.id, 'execution definition is not pinned');
   }
   for (const ck of m.checks) if (ck.execution_id && !m.executions.some(e => e.id === ck.execution_id)) fail('unresolved_reference', ck.id, 'Check execution does not exist');
-  for (const d of m.derived) {
+  for (const [i, d] of m.derived.entries()) {
+    const operands = operandList(d.operation, d.operands, `manifest.yaml#/derived/${i}`);
     const binary = ['difference','ratio','percent_of','percent_change'].includes(d.operation);
-    if (binary && d.operands.length !== 2) fail('derived_arity', d.id, d.operation + ' requires exactly two operands');
+    if (binary && operands.length !== 2) fail('derived_arity', d.id, d.operation + ' requires exactly two operands');
   }
+}
+
+/**
+ * Operations whose value has a direction: which operand is the measured value and which is the reference
+ * decides the SIGN, and both orders are valid arithmetic, so no arithmetic check can tell a flipped pair from
+ * an intended one. These three therefore accept NAMED operands, `{ after, baseline }`, and the named form makes
+ * the direction a declared fact. A real run wrote four `percent_change` values baseline-then-after and rendered
+ * every one with the opposite sign ("rose by −20.6%"); `check` could not see it and only the method reviewer
+ * could (examples/nyc-open-data/docs/run-log.md, Citi Bike run 1). `percent_of` is not here: "a as a percent of
+ * b" names its own order, and `sum`, `min` and `max` are order-free.
+ */
+export const DIRECTIONAL_OPERATIONS = ['difference', 'ratio', 'percent_change'];
+
+/**
+ * The operands of a derived value as a positional list, whichever form declared them, or `derived_arity` when
+ * the shape is not one this contract defines. The named pair always yields `[after, baseline]`, so
+ * `after - baseline`, `after / baseline` and `100 * (after - baseline) / baseline` are exactly the arithmetic
+ * the positional form computes: the names add the declaration, never a different sum.
+ */
+export function operandList(operation, operands, location = operation) {
+  if (Array.isArray(operands)) return operands;
+  if (!operands || typeof operands !== 'object') fail('derived_arity', location, 'operands is a positional list, or the named pair { after, baseline }');
+  if (!DIRECTIONAL_OPERATIONS.includes(operation)) {
+    fail('derived_arity', location, `named operands declare a direction and ${operation} has none; only ${DIRECTIONAL_OPERATIONS.join(', ')} take { after, baseline }`);
+  }
+  const declared = Object.keys(operands);
+  if (declared.length !== 2 || !operands.after || !operands.baseline) {
+    fail('derived_arity', location, `named operands are exactly { after, baseline }; this entry declares { ${declared.join(', ') || 'nothing'} }`);
+  }
+  return [operands.after, operands.baseline];
+}
+
+/**
+ * The operand references of a derived entry, for traversal that must not judge the shape: `validateStructure`
+ * and `calculate` raise the shape problem once, at the location that can be acted on, and a resolver or an
+ * export walk reporting it a second time would say the same thing twice.
+ */
+export function operandRefs(d) {
+  if (Array.isArray(d?.operands)) return d.operands;
+  if (!d?.operands || typeof d.operands !== 'object') return [];
+  return ['after', 'baseline'].map((k) => d.operands[k]).filter((ref) => ref !== undefined && ref !== null);
 }
 
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
@@ -73,14 +115,21 @@ const reduce = ({n, d}) => {
   while (b) [a,b] = [b,a % b];
   return { n: n / a, d: d / a };
 };
+/**
+ * The value of one derived entry, exactly, as `{ n, d }`, or null when an operand is null or a denominator is
+ * zero. `operands` is a positional list of resolved records, or the named pair `{ after, baseline }` the
+ * directional operations accept; `after - baseline` is the same arithmetic as the positional `[a, b]`, so the
+ * two forms agree on the value and differ only in whether the direction was declared.
+ */
 export function calculate(operation, operands, unit) {
+  const list = operandList(operation, operands, operation);
   const same = ['sum','difference','min','max'].includes(operation);
-  if (same && operands.some(o => o.unit !== unit)) fail('unit_mismatch', operation, 'operand and output units must agree');
+  if (same && list.some(o => o.unit !== unit)) fail('unit_mismatch', operation, 'operand and output units must agree');
   if (!same && unit !== (operation === 'ratio' ? 'ratio' : 'percent')) fail('unit_mismatch', operation, 'ratio/percent output unit does not match the operation');
   const binary = ['difference','ratio','percent_of','percent_change'].includes(operation);
-  if ((binary && operands.length !== 2) || !operands.length) fail('derived_arity', operation, 'incorrect number of operands');
-  if (operands.some(o => o.value === null)) return null;
-  const values = operands.map(o => o.exact ?? decimal(o.value));
+  if ((binary && list.length !== 2) || !list.length) fail('derived_arity', operation, 'incorrect number of operands');
+  if (list.some(o => o.value === null)) return null;
+  const values = list.map(o => o.exact ?? decimal(o.value));
   let [a, b] = values;
   let v;
   if (operation === 'sum') v = values.reduce((a,b) => reduce({n:a.n*b.d+b.n*a.d,d:a.d*b.d}), {n:0n,d:1n});

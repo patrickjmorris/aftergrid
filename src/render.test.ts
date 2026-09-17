@@ -42,7 +42,10 @@ test("both exemplars render: factual values agree across prose, tables and chart
   const tip = /<span class="ref" tabindex="0" aria-describedby="(tip-\d+)">34\.8%<span class="tip" id="\1" role="tooltip">([\s\S]*?)<\/span><\/span><\/span>/.exec(html);
   assert.ok(tip, "34.8% has a popover");
   for (const needle of ["results/retention_by_arm.json", "row <code>checklist</code>", "queries/retention_by_arm.sql", "inputs/users.csv", "retained_7d</code> version 2", "recorded, not verified here", "{{ref:retention_by_arm.checklist.retained_7d_rate}}"]) assert.ok(tip![2]!.includes(needle), needle);
-  assert.ok(/<span class="ref"[^>]*>6\.3 pp<span class="tip"[^>]*>[\s\S]*?The difference of 34\.8%[\s\S]*?and 28\.5%/.test(html), "derived value explains its calculation");
+  // The exemplar's lift declares NAMED operands, so the popover says which value is the measured one and
+  // which the reference. That, not the arithmetic, is what a reader cannot otherwise check: both operand
+  // orders are valid and one of them renders the opposite sign (ag-derived-named-operands-kbk).
+  assert.ok(/<span class="ref"[^>]*>6\.3 pp<span class="tip"[^>]*>[\s\S]*?The difference of after 34\.8%[\s\S]*?against baseline 28\.5%/.test(html), "derived value explains its calculation and names which operand is which");
   assert.ok(/<span class="ref"[^>]*>3 pp<span class="tip"[^>]*>[\s\S]*?not a measurement/.test(html), "external target is labelled as not a measurement");
   for (const svg of html.match(/<svg[\s\S]*?<\/svg>/g) ?? []) assert.ok(!svg.includes('class="ref"'), "no popover markup inside chart SVG");
   assert.ok(/<td class="num"><span class="ref"/.test(html), "numeric table cells carry popovers");

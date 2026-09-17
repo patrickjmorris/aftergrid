@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
-import { safePath, calculate, formatValue, escapeHtml, fail } from './fixture-safety.mjs';
+import { safePath, calculate, formatValue, escapeHtml, fail, operandRefs } from './fixture-safety.mjs';
 
 function render(dir) {
   const verified = spawnSync(process.execPath, [fileURLToPath(new URL('./fixture-tool.mjs', import.meta.url)), 'validate', dir], { encoding: 'utf8', timeout: 15000, maxBuffer: 4 * 1024 * 1024 });
@@ -31,8 +31,8 @@ function render(dir) {
       if (seen.has(m[1])) fail('derived_cycle', ref, 'cyclic derived value');
       const d = manifest.derived.find(d => d.id === m[1]);
       if (!d) fail('unresolved_reference', ref, 'unknown derived value');
-      const ops = d.operands.map(o => resolveRef(o, new Set([...seen, m[1]])));
-      const exact = calculate(d.operation, ops, d.unit);
+      const ops = operandRefs(d).map(o => resolveRef(o, new Set([...seen, m[1]])));
+      const exact = calculate(d.operation, Array.isArray(d.operands) ? ops : { after: ops[0], baseline: ops[1] }, d.unit);
       return { value: exact === null ? null : 'derived', exact, unit: d.unit, display: d.display };
     }
     if ((m = /^ext:([a-z][a-z0-9_]{0,63})$/.exec(ref))) {

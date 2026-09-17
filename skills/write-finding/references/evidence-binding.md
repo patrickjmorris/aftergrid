@@ -40,17 +40,34 @@ fine; a *measured* count of days is a token. Spelling a measured quantity in wor
 
 ## Derived values
 
-Prefer SQL. A `derived` entry exists for arithmetic the query did not do, and the operand order is
-positional.
+Prefer SQL. A `derived` entry exists for arithmetic the query did not do.
 
 | `operation` | Value | Operands |
 | --- | --- | --- |
-| `difference` | a − b | 2, identical units |
-| `sum` | a + b + … | 1 or more, identical units |
-| `min` / `max` | smallest / largest | 1 or more, identical units |
-| `ratio` | a / b | 2, any units, yields `ratio` |
-| `percent_of` | 100 × a / b | 2, any units, yields `percent` |
-| `percent_change` | 100 × (a − b) / b | 2, any units, yields `percent` |
+| `difference` | after − baseline | **named**: `{ after, baseline }`, identical units |
+| `ratio` | after / baseline | **named**: `{ after, baseline }`, any units, yields `ratio` |
+| `percent_change` | 100 × (after − baseline) / baseline | **named**: `{ after, baseline }`, any units, yields `percent` |
+| `sum` | a + b + … | positional, 1 or more, identical units |
+| `min` / `max` | smallest / largest | positional, 1 or more, identical units |
+| `percent_of` | 100 × a / b | positional, 2, any units, yields `percent` |
+
+```yaml
+- id: member_ebike_change
+  operation: percent_change
+  operands: { after: ref:rides_by_period.jan2025.member_ebike, baseline: ref:rides_by_period.jan2024.member_ebike }
+  unit: percent
+  display: { kind: percent, decimals: 1 }
+  on_zero_denominator: not_available
+  on_null: not_available
+```
+
+The three named operations take their SIGN from which operand is which, and both orders are valid arithmetic,
+so `check` cannot tell a flipped pair from an intended one. A real run wrote four percent changes
+baseline-then-after and rendered every one with the opposite sign — "rose by −20.6%" — and only the method
+reviewer could see it. `after` is the measured value the Claim is about; `baseline` is the earlier period, the
+control arm or the reference group it is compared with. A positional pair on one of the three still resolves
+and is reported as the warning `direction_unstated`. Named operands on `sum`, `min`, `max` or `percent_of`
+are refused (`derived_arity`): those operations have no direction to declare.
 
 Every entry declares `unit`, `on_zero_denominator: not_available` and `on_null: not_available`. A derived
 value may reference another derived value; a cycle is `derived_cycle`. Arithmetic runs on the saved decimal

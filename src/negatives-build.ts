@@ -247,6 +247,10 @@ export const CASES: NegativeCase[] = [
     expect: "pass",
     category: "none",
     location_pattern: "",
+    // Both of this exemplar's derived values subtract what has accumulated from a policy minimum. Neither
+    // operand is an "after" or a "baseline", so the pair is not named and `direction_unstated` is reported:
+    // the direction really is undeclared, and the honest repair is a reframe, not a relabelling.
+    also_warnings: ["direction_unstated"],
     defect: "None. A complete Finding whose honest outcome is a non-answer (insufficient_data), with a minimum-data Check recorded as fail.",
     description: "A non-answer is an analytical outcome, not an engine failure: check must report no error and evidence valid even though a Check recorded fail.",
     render: { must_contain: ["We cannot tell yet", "this failure is the result of the Finding, not an error"] },
@@ -323,6 +327,11 @@ export const CASES: NegativeCase[] = [
     expect: "pass",
     category: "none",
     location_pattern: "",
+    // `web_control_rate` divides a count of returners by a count of signups: a part over a whole, where
+    // neither operand is an "after" or a "baseline". So the pair is left positional and `direction_unstated`
+    // is reported and declared here. The warning is right — which operand is the denominator decides the
+    // value, and nothing in the entry says so — and naming this pair after/baseline would be a false label.
+    also_warnings: ["direction_unstated"],
     defect: "None. The web control arm has no signups, so a derived ratio divides by zero and a rate cell is null.",
     description: 'A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.',
     render: { must_contain: ["the share of that group who came back is <span class=\"ref\"", ">not available<", "</span> on the web"], must_not_contain: [PRIVATE_MARKER] },
@@ -692,6 +701,49 @@ export const CASES: NegativeCase[] = [
       }),
   },
   {
+    // ag-derived-named-operands-kbk. The positive control: a percent change whose operands are NAMED, so the
+    // sign of the rendered number is a declared fact rather than an operand order a reader has to trust. The
+    // flipped pair is valid arithmetic and renders a different number, which is why `must_not_contain` names it.
+    name: "derived-named-percent-change",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "pass",
+    category: "none",
+    location_pattern: "",
+    defect: "None. A percent_change declared with named operands { after, baseline }.",
+    description: "The named form states which operand is the measured value and which is the reference, so `check` reports no direction_unstated warning and the rendered sign is the one the manifest declares.",
+    render: { must_contain: ["22.1%"], must_not_contain: ["-18.1%", PRIVATE_MARKER] },
+    mutate: (m, files) => {
+      m.derived.push({
+        id: "rate_percent_change", operation: "percent_change",
+        operands: { after: "ref:retention_by_arm.checklist.retained_7d_rate", baseline: "ref:retention_by_arm.control.retained_7d_rate" },
+        unit: "percent", display: { kind: "percent", decimals: 1 }, on_zero_denominator: "not_available", on_null: "not_available",
+        description: "The checklist arm's return rate against the control arm's, as a percent change. The operands are named, so which is the measured value and which is the reference is declared.",
+      });
+      m.claims.find((c: any) => c.id === "c1").evidence.push("derived:rate_percent_change");
+      editMemo(files, (memo) =>
+        memo + "- Stated as a percent change against the old onboarding rather than in percentage points, the checklist arm's return rate is higher by {{derived:rate_percent_change}}. The operands of that value are named, so the sign is the one the manifest declares.\n");
+    },
+  },
+  {
+    // The other half of the same contract: only an operation whose sign depends on operand order has a
+    // direction to declare, so a named pair on `sum` is a claim about arithmetic that does not exist.
+    name: "derived-named-wrong-operation",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "error",
+    category: "derived_arity",
+    location_pattern: "^manifest\\.yaml#/derived/\\d+$",
+    defect: "A sum declares named operands { after, baseline }.",
+    description: "Named operands are defined for difference, ratio and percent_change, the three operations whose value has a direction. On sum, min, max or percent_of they declare a direction the operation does not have, and are refused.",
+    mutate: (m) =>
+      void m.derived.push({
+        id: "named_sum", operation: "sum",
+        operands: { after: "ref:retention_by_arm.checklist.signups", baseline: "ref:retention_by_arm.control.signups" },
+        unit: "users", display: { kind: "integer" }, on_zero_denominator: "not_available", on_null: "not_available",
+      }),
+  },
+  {
     name: "derived-unit-mismatch",
     base: "numeric",
     layer: "engine_category",
@@ -700,10 +752,12 @@ export const CASES: NegativeCase[] = [
     location_pattern: "^difference$",
     defect: "A difference is taken between a ratio and a user count.",
     description: "difference and sum need identical units on every operand and on the output; units come from evidence, never from a SQL type.",
+    // The operands are NAMED, so the entry's only defect is the unit mismatch: a positional pair here would
+    // also raise `direction_unstated`, and a negative that fails for two reasons proves neither.
     mutate: (m) =>
       void m.derived.push({
         id: "rate_minus_signups", operation: "difference",
-        operands: ["ref:retention_by_arm.checklist.retained_7d_rate", "ref:retention_by_arm.checklist.signups"],
+        operands: { after: "ref:retention_by_arm.checklist.retained_7d_rate", baseline: "ref:retention_by_arm.checklist.signups" },
         unit: "ratio", display: { kind: "percentage_points", decimals: 1 }, on_zero_denominator: "not_available", on_null: "not_available",
       }),
   },
@@ -759,6 +813,7 @@ export const CASES: NegativeCase[] = [
     base: "recorded",
     layer: "engine_category",
     expect: "error",
+    also_warnings: ["direction_unstated"],   // the recorded exemplar's two positional differences; see control-non-answer
     category: "unevidenced_outcome",
     location_pattern: "^checks/unique_subscriptions$",
     defect: "A required Check is reported pass by the harness and names no evidence file; the artifact the pass rested on is gone from the manifest and from the directory.",
@@ -774,6 +829,7 @@ export const CASES: NegativeCase[] = [
     base: "recorded",
     layer: "engine_category",
     expect: "error",
+    also_warnings: ["direction_unstated"],   // the recorded exemplar's two positional differences; see control-non-answer
     category: "hash_mismatch",
     location_pattern: "^manifest\\.yaml#/executions/0$",
     defect: "The harness-recorded execution pins a result_hash that is not the hash of the result set it names.",

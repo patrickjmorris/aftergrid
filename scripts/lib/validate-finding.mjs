@@ -3,7 +3,7 @@
 // Extracted from fixture-tool.mjs after the 2026-09-15 code review; behaviour and categories unchanged.
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { safePath, validateStructure, validateResult, calculate, ContractError } from "../fixture-safety.mjs";
+import { safePath, validateStructure, validateResult, calculate, operandRefs, DIRECTIONAL_OPERATIONS, ContractError } from "../fixture-safety.mjs";
 import { classifyReviews, supersededMessage } from "./review-currency.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,9 +83,11 @@ function resolveValueRefWith(err, manifest, ref, loc, results, seen = new Set())
     if (seen.has(id)) { err("derived_cycle", loc, `derived '${id}' depends on itself`, "remove the cycle"); return null; }
     const d = manifest.derived.find((x) => x.id === id);
     if (!d) { err("unresolved_reference", loc, `derived '${id}' not in manifest`, "declare it under derived"); return null; }
-    const ops = d.operands.map((o) => resolveValueRefWith(err, manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
+    const ops = operandRefs(d).map((o) => resolveValueRefWith(err, manifest, o, loc + " (derived " + id + ")", results, new Set([...seen, id])));
     if (ops.some((o) => o === null)) return null;
-    const exact = calculate(d.operation, ops, d.unit);
+    // The declared shape is carried through, not flattened: a named pair is computed as `after` against
+    // `baseline`, which is what makes the sign of the value a fact the Engine stands behind.
+    const exact = calculate(d.operation, Array.isArray(d.operands) ? ops : { after: ops[0], baseline: ops[1] }, d.unit);
     return { value: exact === null ? null : "derived", exact, unit: d.unit, display: d.display, provisional: ops.some((o) => o.provisional) };
   }
   const e = manifest.external_sources.find((x) => x.id === m[5]);
@@ -101,7 +103,7 @@ function checkExportWith(err, manifest, ref, loc, seen = new Set()) {
     const id = ref.slice(8);
     if (seen.has(id)) return; // The value resolver separately reports cycles.
     const d = manifest.derived.find(d => d.id === id);
-    for (const operand of d?.operands ?? []) checkExportWith(err, manifest, operand, loc, new Set([...seen,id]));
+    for (const operand of operandRefs(d)) checkExportWith(err, manifest, operand, loc, new Set([...seen,id]));
   }
 }
 
@@ -136,7 +138,9 @@ export function validateFinding(dir, { instanceRoot, repoRoot } = {}) {
     if (report.errors.some((e) => e.category === category && e.location === location && e.message === message)) return;
     report.errors.push({ category, location, message, remedy });
   };
-  const warn = (category, location, message) => report.warnings.push({ category, location, message });
+  // A warning carries a remedy only when there is one to carry: an absent key says nothing, where a present
+  // `remedy: undefined` would claim the warning came with advice.
+  const warn = (category, location, message, remedy) => report.warnings.push(remedy ? { category, location, message, remedy } : { category, location, message });
   const resolveValueRef = (manifest, ref, loc, results, seen) => resolveValueRefWith(err, manifest, ref, loc, results, seen);
   const checkExport = (manifest, ref, loc, seen) => checkExportWith(err, manifest, ref, loc, seen);
   const finish = (manifest, summary) => ({ finding: manifest?.finding?.id ? `${manifest.finding.id} r${manifest.finding.revision}` : null, state: manifest?.finding?.state, outcome: manifest?.finding?.outcome, ...(summary || {}), errors: report.errors, warnings: report.warnings, info: report.info });
@@ -353,7 +357,19 @@ function validateMemo(manifest, results) {
   }
   const answerBearing = manifest.claims.filter((c) => c.answer_bearing);
   if (manifest.finding.state === "complete" && answerBearing.length === 0) err("template", "manifest.yaml#/claims", "no answer_bearing Claim", "mark the Claim the Answer rests on");
-  for (const [n, d] of manifest.derived.entries()) resolveValueRef(manifest, "derived:" + d.id, `manifest.yaml#/derived/${n}`, results);
+  for (const [n, d] of manifest.derived.entries()) {
+    // A direction nobody declared. `difference`, `ratio` and `percent_change` take their sign from which
+    // operand is which, and both orders are valid arithmetic, so a flipped pair renders a real number with the
+    // wrong sign and no check can see it — the Citi Bike run rendered four of them as "rose by −20.6%"
+    // (examples/nyc-open-data/docs/run-log.md). A warning, not an error: the positional form is still defined
+    // and the value is still exact; what is missing is the declaration that makes the sign checkable.
+    if (DIRECTIONAL_OPERATIONS.includes(d.operation) && Array.isArray(d.operands)) {
+      warn("direction_unstated", `manifest.yaml#/derived/${n}`,
+        `${d.id} computes ${d.operation} from a positional operand pair, so which operand is the measured value and which is the reference is not declared and the sign of the rendered number cannot be checked`,
+        "name the pair: `operands: { after: <ref>, baseline: <ref> }`. difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline, so the direction becomes a declared fact rather than an operand order a reader has to trust");
+    }
+    resolveValueRef(manifest, "derived:" + d.id, `manifest.yaml#/derived/${n}`, results);
+  }
   for (const [n, ch] of manifest.charts.entries()) {
     if (!cids.has(ch.claim_id)) err("unresolved_reference", `manifest.yaml#/charts/${n}`, `claim ${ch.claim_id}`, "");
     const res = manifest.results.find((r) => r.id === ch.result_id);

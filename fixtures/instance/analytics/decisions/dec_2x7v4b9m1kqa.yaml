@@ -1,5 +1,7 @@
 # Fixture Decision record, written the way `aftergrid decide` writes one. Fictional owner; synthetic Finding.
-# Re-recorded against the digest produced by the renderer re-pin of 2026-09-16 (fixture maintenance; a real Instance bumps the revision instead).
+# Re-recorded against the digest produced by naming the exemplar's derived operands on 2026-09-17
+# (ag-derived-named-operands-kbk; fixture maintenance, as with the renderer re-pin of 2026-09-16 before it.
+# A real Instance bumps the revision instead and never edits a Decision record to fit).
 schema_version: 0.1.0
 id: dec_2x7v4b9m1kqa
 owner: Dana Okafor
@@ -7,7 +9,7 @@ decided_on: "2026-07-22"
 finding:
   id: fnd_7k2m9q4w1xzb
   revision: 1
-  content_digest: { algorithm: sha256, value: "3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16" }
+  content_digest: { algorithm: sha256, value: "4575733c88853c14db32d6d2ca267c915ce061de68bec1fe2618109ca41ef14d" }
 rests_on_claims: [c1]
 action:
   kind: action

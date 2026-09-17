@@ -9,6 +9,8 @@ category: none
 location_pattern: ""
 defect: None. A complete Finding whose honest outcome is a non-answer (insufficient_data), with a minimum-data Check recorded as fail.
 description: "A non-answer is an analytical outcome, not an engine failure: check must report no error and evidence valid even though a Check recorded fail."
+also_warnings:
+  - direction_unstated
 render:
   must_contain:
     - We cannot tell yet

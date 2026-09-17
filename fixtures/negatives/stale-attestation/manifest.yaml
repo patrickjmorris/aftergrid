@@ -238,8 +238,8 @@ derived:
   - id: lift
     operation: difference
     operands:
-      - ref:retention_by_arm.checklist.retained_7d_rate
-      - ref:retention_by_arm.control.retained_7d_rate
+      after: ref:retention_by_arm.checklist.retained_7d_rate
+      baseline: ref:retention_by_arm.control.retained_7d_rate
     unit: ratio
     display:
       kind: percentage_points
@@ -250,8 +250,8 @@ derived:
   - id: mobile_lift
     operation: difference
     operands:
-      - ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate
-      - ref:retention_by_platform_arm.mobile_control.retained_7d_rate
+      after: ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate
+      baseline: ref:retention_by_platform_arm.mobile_control.retained_7d_rate
     unit: ratio
     display:
       kind: percentage_points
@@ -261,8 +261,8 @@ derived:
   - id: web_lift
     operation: difference
     operands:
-      - ref:retention_by_platform_arm.web_checklist.retained_7d_rate
-      - ref:retention_by_platform_arm.web_control.retained_7d_rate
+      after: ref:retention_by_platform_arm.web_checklist.retained_7d_rate
+      baseline: ref:retention_by_platform_arm.web_control.retained_7d_rate
     unit: ratio
     display:
       kind: percentage_points
@@ -479,7 +479,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: 59b8a3d1c48ee38f70c516c71da692652960f6e4cf8c28a876c47ce837f87553
+      value: 41e3f675421d9de642152bc09cd3030f20bea8a58670516093224b99ffd6f005
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.

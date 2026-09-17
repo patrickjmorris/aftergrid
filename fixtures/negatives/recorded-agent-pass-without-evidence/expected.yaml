@@ -9,3 +9,5 @@ category: unevidenced_outcome
 location_pattern: ^checks/unique_subscriptions$
 defect: A required Check is reported pass by the harness and names no evidence file; the artifact the pass rested on is gone from the manifest and from the directory.
 description: On the recorded path a Check outcome is somebody's word. `pass` is the one outcome that asserts something held, so it may only be recorded with the tool output it rests on, copied in and pinned by hash; a pass with nothing behind it is refused rather than counted.
+also_warnings:
+  - direction_unstated
