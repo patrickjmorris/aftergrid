@@ -97,7 +97,11 @@ aftergrid built:
    lives with the Instance** — `examples/nyc-open-data/scripts/build-data.mjs`, not in the Engine. aftergrid has
    no ingest command and is not asking for one: the Engine holds verbs, the Instance holds the team's nouns.
 2. Beside the bounded tables the script writes a **provenance table** — one row per source file or extraction —
-   naming the source (URL or path), its bytes, its content hash, and the build time. This is what makes the
+   naming the source (URL or path), its bytes, its content hash where the script held the bytes to hash, and the
+   build time. A source too large to hold — one the script streamed through and never kept — has **no content
+   hash, and the provenance row says so with a NULL** rather than filling it with a hash of something else: what
+   identifies it is the URL, the size the server stated, its `ETag` or `Last-Modified`, and the fetch time. A
+   provenance table that cannot tell those two cases apart is worse than one that admits the gap. This is what makes the
    bounded table evidence rather than a number somebody produced: the narrowing happened in the open, in a script
    under version control, and the Finding can cite what it read.
 3. `aftergrid capture <finding-dir> --tables <bounded_table>,<provenance_table>` then retains both, whole, with
@@ -106,7 +110,8 @@ aftergrid built:
    SQL still states the window it means, and the Claims still say which population and window they describe.
 
 A worked instance of all four steps — bounded daily tables, a deterministic sample, and a `build_provenance`
-table carrying source, URL, period, bytes, sha256 and fetch time — is specified in
+table carrying source, URL, period, bytes, fetch mode, fetch time, and a sha256 for every file the build actually
+held (NULL, by construction, for the streamed ones) — is specified in
 `examples/nyc-open-data/scripts/README.md`.
 
 The Finding's Snapshot then covers the bounded table and its provenance, and says so honestly: a rerun reproduces

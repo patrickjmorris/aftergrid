@@ -19,7 +19,7 @@ node examples/nyc-open-data/scripts/build-data.mjs --verify
 
 | Option | Meaning |
 | --- | --- |
-| `--from YYYY-MM` | First month. Default `2024-01`. |
+| `--from YYYY-MM` | First month. Default `2024-01`. **`2021-01` is the earliest supported month** and anything earlier is refused: the Citi Bike reader needs `started_at` / `ended_at` / `member_casual` / `rideable_type`, the column shape the archives carry from 2021 onward, and the older archives use `starttime` / `stoptime` / `usertype`. (2021-01 is the stated floor, not a measured changeover; the exact file where the columns change has not been re-checked here.) |
 | `--to YYYY-MM` | Last month. Default: **probed**. The build sends HEAD requests for `yellow_tripdata_YYYY-MM.parquet` walking forward from `--from` and stops at the first month the CDN does not serve. On 2026-09-17 that gave `2024-01..2026-05`, 29 months. |
 | `--sources a,b,c` | Any of `yellow`, `hvfhs`, `ghcn`, `citibike`. Default: all four. An unknown name is refused, not ignored. |
 | `--out PATH` | Output database. Default `examples/nyc-open-data/demo.duckdb`. |
@@ -47,7 +47,24 @@ DuckDB, which spills to `--raw-dir/duckdb-spill` if it needs to.
 | `taxi_zones` | taxi zone | `location_id`, `borough`, `zone`, `service_zone` — the TLC lookup, unchanged |
 | `crz_zones` | taxi zone | the Congestion Relief Zone; see below |
 | `build_provenance` | one row per fetched source file | see below |
-| `build_meta` | one row per build parameter | `builder_version`, `from`, `to`, `sources`, `sample_rate`, `weather_coverage`, `built_at`, `duckdb_version` |
+| `build_meta` | one row per build parameter | `builder_version`, `from`, `to`, `to_source`, `sources`, `months_built:<source>`, `months_skipped`, `sample_rate`, `weather_coverage`, `built_at`, `duckdb_version` |
+
+### Which months are actually in here
+
+A window is what was asked for; `months_built:<source>` is what arrived. Each per-month source (`yellow`,
+`hvfhs`, `citibike`) gets a `build_meta` row listing the months it actually contributed, and `months_skipped`
+holds a JSON array of `{source, month, reason}` for every month that was not built. `to_source` says whether
+`--to` was given (`explicit`) or probed from the CDN (`probed`). A Finding that reads a per-month total can check
+against these rather than assume the window it asked for is the window it got.
+
+The build behaves accordingly, rather than logging a line and exiting 0:
+
+- It prints a per-source count (`citibike: 2 of 3 months built`) and lists every skip at the end of the run.
+- **It exits 1** when a month inside an *explicit* `--to` window was skipped. A probed window ends where the
+  publisher ends, so a missing month at its edge is not a shortfall and does not change the status.
+- **It refuses to replace an existing `--out` when every requested month of a source was skipped.** An empty
+  database is smaller, newer and wrong; the previous file is left exactly as it was and the build says so.
+  Build to a different `--out` if a partial database is what you want.
 
 ### Units, and what the columns are not
 
@@ -88,12 +105,21 @@ Two rules, one per source, because the files are not the same size:
 A streamed file is **never hashed**, because the build never holds its bytes. `build_provenance.sha256` is NULL
 for those rows and `fetch_mode` says `streamed`; the URL, HTTP `Content-Length`, `ETag`, `Last-Modified` and
 fetch time are what identifies them. `provenanceRow()` refuses a streamed row that carries a sha256 and a
-downloaded row that does not, so the distinction cannot rot into a comfortable lie.
+downloaded row that does not, so the distinction cannot rot into a comfortable lie — and it refuses a streamed
+row carrying none of `bytes`, `ETag` or `Last-Modified` either, because such a row identifies nothing at all: it
+would say only that some URL was read at some time.
+
+Each Citi Bike month's staging tables are dropped and recreated rather than emptied with `delete`. DuckDB's
+deletes are tombstones — the row groups stay — and over six one-month cycles the process grew 135 MB to 808 MB,
+monotonically, on data that is the same size every cycle.
 
 Downloaded files are kept in `--raw-dir` with a small `<file>.fetch.json` sidecar recording what the server said
-when the bytes landed. A rerun reads the sidecar instead of asking again — one less request against a CDN that
-rate-limits, and the honest answer, because `fetched_at` then names when *those bytes* were fetched rather than
-when the build ran. Delete the file or the whole `--raw-dir` to force a fresh fetch.
+when the bytes landed. A rerun **re-hashes the kept file** and, if it still matches the sidecar, reads the
+sidecar instead of asking again — one less request against a CDN that rate-limits, and the honest answer, because
+`fetched_at` then names when *those bytes* were fetched rather than when the build ran. The re-hash is the point:
+the sidecar's sha256 is published in `build_provenance` as a claim about bytes this build read, and a file edited
+in place or half-copied keeps its length and its sidecar. A mismatch is logged and the file is re-fetched.
+Delete the file or the whole `--raw-dir` to force a fresh fetch.
 
 ### The weather file stops before the trip data does
 
@@ -145,8 +171,10 @@ grouped by dropoff zone across zones with at least 500 trips (measured 2026-09-1
 
 - every zone in the list has **≥ 94.1%** of dropoffs carrying the fee;
 - the highest share for any zone *not* in the list is Newark Airport at **88.8%**;
-- the excluded Manhattan boundary zones sit at 51-61% — Central Park 58.2%, Lincoln Square East 57.5%,
-  Lenox Hill East 51.0%, Upper East Side South 52.8% — which is what a zone just north of 60th St looks like.
+- the excluded Manhattan boundary zones that were measured are Central Park 58.2%, Lincoln Square East 57.5%,
+  Upper East Side South 52.8%, Lenox Hill East 51.0%, Upper West Side South 42.2%, Upper East Side North 38.9%
+  and Upper West Side North 34.5% — which is what a zone north of 60th St looks like, and all far under the
+  list's 94.1% floor. The remaining excluded zones were not measured, so no band is claimed over them.
 
 That gap between 94.1% and 88.8% is the list's edge, and it is evidence, not the definition: the fee is charged
 for *touching* the zone, so a zone outside it collects the fee on trips that crossed. The definition is the map.
@@ -161,11 +189,18 @@ Governor's/Ellis/Liberty Island (103/104/105) are outside the road cordon.
 recorded in `build_meta`). The rule is a hash of the trip's own fields, not a random draw and not a row number:
 
 ```
-md5_number_lower(pickup_datetime | dropoff_datetime | PULocationID | DOLocationID | fare) % 1000 = 0
+md5_number_lower(pickup_datetime | dropoff_datetime | PULocationID | DOLocationID | fare::DECIMAL(18,4)) % 1000 = 0
 ```
 
 Fields are rendered to text, joined with `|`, and a NULL is rendered `\N` so it never collides with an empty
 string. MD5 is used rather than DuckDB's own `hash()` so the sample does not move when the engine version does.
+
+**The `::DECIMAL(18,4)` on the fare is version 2 of this key** (`builder_version` `build-data.mjs/2.0.0`).
+Version 1 hashed the fare as a `DOUBLE` rendered to text, which made membership depend on how DuckDB prints a
+double — shortest round-trip formatting, an engine decision, so a fare computed as `0.1 + 0.2` and one stored as
+`0.3` were two different trips to it. A v2 build of the same bytes therefore puts a slightly different set of
+trips in `trips_sample`: the rate is the same, the membership is not, and `trips_sample` hashes do not compare
+across the two. Nothing else about the schema or the other tables changed.
 Two consequences the rule is chosen for: the same trip is in or out regardless of what order the file is read
 in or how the scan is partitioned, and a coarser rate is a strict subset of a finer one.
 
@@ -179,11 +214,21 @@ Two runs against the same fetched bytes produce identical table hashes — that 
 
 ```
 $ node examples/nyc-open-data/scripts/build-data.mjs --verify --out examples/nyc-open-data/demo-2024-01.duckdb
-(read under the Instance's own limits: 256MB, 2 threads)
+(read under the Instance's own limits: 256MB, 2 threads, 10000 ms a statement)
   trips_daily               1310050 rows                 12070728758449131695883908    592ms
   trips_sample                22488 rows                   206518096206617798993235     26ms
   ...
 ```
+
+**Those two hashes were measured under `builder_version` 1** and the row counts and `trips_daily` hash still
+stand, but the `trips_sample` hash is a version-1 sample key (see [Sampling](#sampling)) and has not been
+recomputed under version 2. Treat any `trips_sample` hash in this file as "builder_version 1; recompute after
+v2" rather than as a v2 reference.
+
+One column of the table below deserves the same caution for a different reason: `trips_sample` keeps the
+source's own `DOUBLE` money columns, so its *content hash* — not its membership — is rendered by DuckDB's double
+formatting and is only comparable across builds on the same engine version. Every summed column in the other
+tables is `DECIMAL(18,4)` and has no such dependency.
 
 The hash is order-independent: a sum, over rows, of the MD5 of the row rendered as text. Row *order* inside a
 table is not promised and does not need to be. Two things that legitimately differ between two builds and are
@@ -192,14 +237,19 @@ are printed and marked `volatile`), and the **size of the `.duckdb` file itself*
 leaves a variable number of free blocks, so the same seven data tables came out as 32.2 MiB and 42.5 MiB in two
 builds with byte-identical contents. Compare hashes, not file sizes.
 
-`--verify` opens the database `READ_ONLY` under the Engine's own limits — 256 MB, 2 threads
-(`scripts/lib/sql-runner.mjs` `DEFAULT_LIMITS`) — so "an Instance can query this" is checked rather than assumed.
+`--verify` opens the database `READ_ONLY` under the Engine's own limits — 256 MB, 2 threads, 10 s a statement —
+so "an Instance can query this" is checked rather than assumed. Those limits are `DEFAULT_LIMITS`, **imported**
+from `scripts/lib/sql-runner.mjs` and not copied, and all three are applied: each verify query runs through the
+Engine's own `runBounded`, so a table that cannot be scanned inside the statement timeout is cancelled and named
+rather than hashed at whatever speed the builder's machine happens to manage.
 
 ### Measured
 
 Two one-month windows, all four sources, each built twice, on 2026-09-17: macOS on Apple silicon, Node 26.0.0,
 DuckDB 1.5.5, over a residential connection. Every non-volatile table hashed identically across the two builds
-of each window.
+of each window. **Measured under `builder_version` 1**: the `trips_sample` row counts are v1 sample-key counts
+and a v2 build of the same bytes will land near, but not exactly on, them. Everything else in the table — the
+trips read, the other row counts, the times and sizes — is unaffected by the key change.
 
 | | 2024-01 | 2025-01 |
 | --- | --- | --- |
@@ -254,15 +304,22 @@ Two more edges worth knowing before you trust a rerun:
   still serving a 12 KB one, which is exactly what happened once during development and dropped a whole month
   from a build. Only then is the month skipped, with a line saying so. Finished downloads in `--raw-dir` survive
   either way, so the next attempt resumes rather than starting over.
+  A skipped month is recorded in `build_meta` and changes the exit status — see
+  [Which months are actually in here](#which-months-are-actually-in-here).
 - **The services do not publish the same months.** The `--to` probe walks yellow, because yellow is the
   reference for the demo's Question. HVFHS can be a month ahead: on 2026-09-17 `fhvhv_tripdata_2026-06` was
-  served and `yellow_tripdata_2026-06` was not. Within the window, a source missing a month is skipped with a
-  line in the log, and the other sources still build.
+  served and `yellow_tripdata_2026-06` was not. Within the window, a source missing a month is skipped, recorded,
+  and the other sources still build.
 - **A failed build changes nothing.** The database is written to `<out>.building` and renamed over `<out>` only
   once it is complete; a build that dies part-way deletes its own temporary file and leaves any previous
-  `demo.duckdb` untouched.
+  `demo.duckdb` untouched. The old file is never unlinked first — `rename` replaces it in one step, so `<out>` is
+  either the previous build or the new one and never briefly absent.
 
-The offline half of all of this — month parsing, the sampling rule, the CRZ validation, the provenance row shape
-and `--verify` — is tested in `src/examples-build.test.ts`. Those tests make no network calls.
+The offline half of all of this is tested in `src/examples-build.test.ts`, and those tests make no network calls:
+month parsing and the supported floor, the sampling rule and the v2 key, the CRZ validation, the provenance row
+shape, the cached-download re-hash, `--verify` — and whole windows of `build()` itself. `build()` takes its
+network and its database opener as an argument, so the tests walk a three-month window with fake sources: months
+served and months missing, the skip records, the exit flag, the per-month staging tables, a build that dies
+half-way leaving the previous database byte-identical, and the refusal to replace it with an all-skipped one.
 
 Sources, terms and attribution: [`../NOTICE.md`](../NOTICE.md).

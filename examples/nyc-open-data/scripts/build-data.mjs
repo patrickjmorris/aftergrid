@@ -14,7 +14,17 @@
 // content hash is a sum over rows and does not depend on it.
 //
 // Idempotence: the build writes a fresh temporary database and renames it over `--out` only once it is complete.
-// A failed build leaves any previous `demo.duckdb` untouched.
+// The rename replaces the old file in one step — the old database is never unlinked first, so `--out` is either
+// the previous build or this one and never briefly absent. A failed build leaves any previous file untouched.
+//
+// A skipped month is not a success: every month a source does not serve is recorded in `build_meta`
+// (`months_built:<source>` and `months_skipped`), summarised in the log, and — when the window was stated with
+// an explicit `--to` — exits 1. A build in which *every* requested month of a source was skipped refuses to
+// replace an existing `--out` at all, rather than putting an empty database where a good one was.
+//
+// Hashes rendered from DOUBLE: `trips_sample` keeps the source's own DOUBLE money columns, so its *content hash*
+// (not its membership) is rendered by DuckDB's double formatting and is only comparable across builds on the
+// same engine. The sample *key* is money-cast to DECIMAL(18,4) and does not have that dependency.
 import { createWriteStream, createReadStream, mkdirSync, rmSync, existsSync, statSync, renameSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
@@ -22,8 +32,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createInflateRaw } from "node:zlib";
+// The Engine's own SQL limits, imported rather than copied so the two cannot drift apart.
+import { DEFAULT_LIMITS, runBounded } from "../../../scripts/lib/sql-runner.mjs";
 
-export const BUILDER_VERSION = "build-data.mjs/1.0.0";
+// 2.0.0: the sample key casts money to DECIMAL(18,4) (see `buildTlcMonth`), so `trips_sample` membership differs
+// from a 1.x build of the same bytes. Everything else about the schema is unchanged.
+export const BUILDER_VERSION = "build-data.mjs/2.0.0";
 const USER_AGENT = `aftergrid-nyc-open-data-demo (${BUILDER_VERSION}; https://github.com/aftergrid)`;
 
 /** One trip in SAMPLE_RATE lands in `trips_sample`. See scripts/README.md for how this number was chosen. */
@@ -32,6 +46,18 @@ export const SAMPLE_RATE = 1000;
 export const DEFAULT_FROM = "2024-01";
 export const GHCN_STATION = "USW00094728"; // New York City, Central Park
 export const SOURCES = ["yellow", "hvfhs", "ghcn", "citibike"];
+/** The per-month sources — the ones a window can be missing a month of. GHCN and the zone lookup are not per-month. */
+export const MONTHLY_SOURCES = Object.freeze(["yellow", "hvfhs", "citibike"]);
+
+/**
+ * The earliest month this builder reads. The Citi Bike reader requires `started_at`, `ended_at`, `member_casual`
+ * and `rideable_type` (see `buildCitibikeEntry`) — the column shape the archives carry from 2021 onward. The
+ * 2020-and-earlier archives use the legacy `starttime` / `stoptime` / `usertype` names, and `read_csv` would fail
+ * on them with a column error rather than say what was actually wrong. An earlier month is refused here, by name.
+ * The exact changeover file inside 2021 has not been re-verified against the archives by this build; 2021-01 is
+ * the stated floor, not a measured boundary.
+ */
+export const MIN_MONTH = "2021-01";
 
 const TLC_BASE = "https://d37ci6vzurychx.cloudfront.net/trip-data/";
 const ZONE_LOOKUP_URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv";
@@ -42,9 +68,11 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_OUT = join(SCRIPT_DIR, "..", "demo.duckdb");
 const DEFAULT_RAW = join(SCRIPT_DIR, "..", "data", "raw");
 
-// The DuckDB limits the Engine reads this file under (scripts/lib/sql-runner.mjs DEFAULT_LIMITS). `--verify`
-// opens the built database under exactly these, so "the Instance can query it" is checked and not assumed.
-export const INSTANCE_LIMITS = Object.freeze({ statement_timeout_ms: 10000, memory_limit: "256MB", threads: 2 });
+// The DuckDB limits the Engine reads this file under. This is the Engine's own DEFAULT_LIMITS object, imported
+// and not copied — a copy drifts silently, and `--verify` claiming "the Instance's own limits" would then be a
+// claim about a number nobody else uses. `--verify` opens the built database under exactly these, timeout
+// included, so "the Instance can query it" is checked and not assumed.
+export const INSTANCE_LIMITS = DEFAULT_LIMITS;
 // Building is not querying: reduction of a 20M-row month needs more room than an Instance query does.
 const BUILD_LIMITS = Object.freeze({ memory_limit: "2GB", threads: "4" });
 
@@ -63,8 +91,11 @@ const BUILD_LIMITS = Object.freeze({ memory_limit: "2GB", threads: "4" });
 //   2. Fee check (2026-09-16, yellow_tripdata_2025-03.parquet). The 2025 TLC files carry `cbd_congestion_fee`,
 //      charged on trips that touch the zone. Grouped by dropoff zone over zones with >= 500 trips, every id in
 //      this list has >= 94.1% of dropoffs carrying the fee; the highest share outside it is Newark Airport at
-//      88.8%, and the excluded Manhattan boundary zones sit at 51-61% (Central Park 58.2%, Lincoln Square East
-//      57.5%, Lenox Hill East 51.0%, UES South 52.8%). The gap between 94.1% and 88.8% is the list's edge.
+//      88.8%. The excluded Manhattan boundary zones that were measured are Central Park 58.2%, Lincoln Square
+//      East 57.5%, Upper East Side South 52.8%, Lenox Hill East 51.0%, Upper West Side South 42.2%, Upper East
+//      Side North 38.9% and Upper West Side North 34.5% — every one far under the list's 94.1% floor. (The other
+//      excluded zones were not measured, so no band is claimed over them.) The gap between 94.1% and 88.8% is
+//      the list's edge.
 //
 // The fee check is evidence, not the definition: the fee is charged for touching the zone, so a zone outside it
 // can carry the fee on a trip that crossed. The definition is the map.
@@ -92,9 +123,22 @@ export function nextMonth(key) {
   return month === 12 ? monthKey(year + 1, 1) : monthKey(year, month + 1);
 }
 
+/**
+ * Refuse a month this builder cannot honestly read. Stated as a floor rather than discovered as a column error
+ * halfway through a long build. See MIN_MONTH for what the floor is about.
+ */
+export function assertSupportedMonth(key, what = "month") {
+  if (String(key) < MIN_MONTH) {
+    throw new Error(`${what} ${key} is before ${MIN_MONTH}, the first month this builder supports: the Citi Bike ` +
+      `archives before it use the legacy starttime/stoptime/usertype columns this reader does not know. ` +
+      `Build from ${MIN_MONTH} onward.`);
+  }
+}
+
 /** Inclusive list of months from `from` to `to`. Refuses a backwards range rather than returning nothing. */
 export function monthRange(from, to) {
   parseMonth(from, "--from"); parseMonth(to, "--to");
+  assertSupportedMonth(from, "--from"); assertSupportedMonth(to, "--to");
   if (to < from) throw new Error(`--to ${to} is before --from ${from}`);
   const out = [];
   for (let key = from; key <= to; key = nextMonth(key)) out.push(key);
@@ -114,8 +158,8 @@ export function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const value = () => { const v = argv[++i]; if (v === undefined) throw new Error(`${arg} needs a value`); return v; };
-    if (arg === "--from") { const v = value(); parseMonth(v, "--from"); args.from = v; }
-    else if (arg === "--to") { const v = value(); parseMonth(v, "--to"); args.to = v; }
+    if (arg === "--from") { const v = value(); parseMonth(v, "--from"); assertSupportedMonth(v, "--from"); args.from = v; }
+    else if (arg === "--to") { const v = value(); parseMonth(v, "--to"); assertSupportedMonth(v, "--to"); args.to = v; }
     else if (arg === "--out") args.out = value();
     else if (arg === "--raw-dir") args.rawDir = value();
     else if (arg === "--sources") {
@@ -137,7 +181,7 @@ export function parseArgs(argv) {
 
 const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [options]
 
-  --from YYYY-MM       first month to build (default ${DEFAULT_FROM})
+  --from YYYY-MM       first month to build (default ${DEFAULT_FROM}; ${MIN_MONTH} is the earliest supported)
   --to YYYY-MM         last month; default is the latest month the TLC CDN serves, found by HEAD requests
                        walking forward from --from and stopping at the first missing month
   --sources a,b,c      any of ${SOURCES.join(",")} (default: all)
@@ -146,6 +190,10 @@ const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [option
   --sample-rate N      one trip in N enters trips_sample (default ${SAMPLE_RATE})
   --keep-raw           keep the streamed Citi Bike CSVs instead of deleting each after it is aggregated
   --verify             do not build: print each table's row count and content hash from --out and exit
+
+Exit status: 1 when a month inside an explicit --to window was skipped, so a shortened build is not mistaken
+for a complete one. A build in which every requested month of a source was skipped refuses to replace an
+existing --out at all.
 `;
 
 // ---------------------------------------------------------------------------------------------------------
@@ -194,13 +242,19 @@ export const TABLES = Object.freeze([
 
 /**
  * One `build_provenance` row. Streamed sources are never hashed — we never hold their bytes — so a sha256 on a
- * streamed row would be a claim the build cannot make, and is refused here rather than filled with a lie.
+ * streamed row would be a claim the build cannot make, and is refused here rather than filled with a lie. What a
+ * streamed row must carry instead is *something* that identifies the bytes: the size, the ETag or the
+ * Last-Modified. A streamed row with none of the three identifies nothing at all — it would say only that a URL
+ * was read at some time — so it is refused too, for the same reason the sha256 is.
  */
 export function provenanceRow({ source, url, period, bytes, sha256 = null, fetchMode, etag = null, lastModified = null, fetchedAt }) {
   if (!["tlc_yellow", "tlc_hvfhs", "tlc_zones", "ghcn", "citibike"].includes(source)) throw new Error(`unknown provenance source ${source}`);
   if (!["downloaded", "streamed"].includes(fetchMode)) throw new Error(`fetch_mode must be downloaded or streamed, got ${fetchMode}`);
   if (fetchMode === "streamed" && sha256 !== null) throw new Error(`${url} is streamed, so it has no sha256 of its own bytes`);
   if (fetchMode === "downloaded" && !/^[0-9a-f]{64}$/.test(String(sha256))) throw new Error(`${url} was downloaded, so it needs a sha256`);
+  if (fetchMode === "streamed" && (bytes === null || bytes === undefined) && etag === null && lastModified === null) {
+    throw new Error(`${url} is streamed and carries no bytes, etag or last-modified: nothing in the row identifies what was read`);
+  }
   return { source, url, period, bytes: bytes === null ? null : Number(bytes), sha256, fetch_mode: fetchMode, http_etag: etag, http_last_modified: lastModified, fetched_at: fetchedAt, builder_version: BUILDER_VERSION };
 }
 
@@ -255,7 +309,7 @@ export class NotPublished extends Error {
 }
 
 // A small object on the same host that certainly exists, used to tell "absent" apart from "throttled".
-const CONTROL_URL = { "d37ci6vzurychx.cloudfront.net": ZONE_LOOKUP_URL, "s3.amazonaws.com": CITIBIKE_BASE };
+export const CONTROL_URL = Object.freeze({ "d37ci6vzurychx.cloudfront.net": ZONE_LOOKUP_URL, "s3.amazonaws.com": CITIBIKE_BASE });
 
 /**
  * CloudFront answers **403, not 404**, for an object that is not there — the TLC bucket grants no ListBucket —
@@ -265,9 +319,16 @@ const CONTROL_URL = { "d37ci6vzurychx.cloudfront.net": ZONE_LOOKUP_URL, "s3.amaz
  * host that certainly exists. Control served -> this month is genuinely not published. Control refused too ->
  * the build is being throttled, and it says so rather than quietly dropping a month.
  */
-async function confirmNotPublished(url, status) {
+export async function confirmNotPublished(url, status) {
   const control = CONTROL_URL[new URL(url).host];
   if (!control) throw new Error(`${url} -> ${status}`);
+  // The control object refusing *is* the throttling signal, and there is nothing behind it to check it against:
+  // saying "and <control> is refused too" here would name the same URL twice. Say what it means instead.
+  if (control === url) {
+    throw new Error(`${url} -> ${status}. This is the control object for ${new URL(url).host} — it certainly exists, ` +
+      `so a refusal means the host is rate-limiting this build rather than missing the file. ` +
+      `Wait a few minutes and run again — finished downloads in --raw-dir are kept and not re-fetched.`);
+  }
   let served = false;
   try { served = (await fetchWithRetry(control, { method: "HEAD" })).ok; } catch { served = false; }
   if (!served) {
@@ -298,18 +359,53 @@ async function sha256File(path) {
   return hash.digest("hex");
 }
 
+/** Where the record of a download's fetch lives, beside the bytes it describes. */
+const sidecarPath = (dest) => `${dest}.fetch.json`;
+
+/**
+ * Record what the server said about bytes that have just landed, and return their provenance row. The row is
+ * built first: an unsound row throws here, before a sidecar claiming it is written for the next run to trust.
+ */
+export function recordDownload(dest, saved) {
+  const row = provenanceRow(saved);
+  writeFileSync(sidecarPath(dest), JSON.stringify(saved, null, 2) + "\n");
+  return row;
+}
+
+/**
+ * The provenance row for an already-downloaded file, or null when the cache cannot be trusted.
+ *
+ * The sidecar's sha256 is a claim about the bytes on disk, and `build_provenance` publishes it as if the build
+ * had read them. So the bytes are re-hashed here rather than the claim being taken on the url and size alone: a
+ * file edited in place, truncated and rewritten, or corrupted by a half-finished copy keeps its length and its
+ * sidecar, and would otherwise be published under a hash it no longer has. Hashing is cheap next to the fetch
+ * it avoids (16-64 MB, tens of milliseconds); a mismatch is logged and the file is re-fetched.
+ */
+export async function readCachedDownload(dest, url, log = () => {}) {
+  const sidecar = sidecarPath(dest);
+  if (!existsSync(dest) || !existsSync(sidecar)) return null;
+  let saved;
+  try { saved = JSON.parse(readFileSync(sidecar, "utf8")); }
+  catch { log(`    ${dest}: its .fetch.json is unreadable — re-fetching`); return null; }
+  if (saved.url !== url || saved.bytes !== statSync(dest).size) return null;
+  const actual = await sha256File(dest);
+  if (actual !== saved.sha256) {
+    log(`    ${dest}: cached bytes hash ${actual}, the sidecar recorded ${saved.sha256} — the cached file changed under us, re-fetching`);
+    return null;
+  }
+  return provenanceRow(saved);
+}
+
 /**
  * Download a whole file once and keep it, with a sidecar recording what the server said at the moment the
- * bytes landed. A rerun reads the sidecar instead of asking again: that is both one less request against a
- * rate-limited CDN and the honest answer, because `fetched_at` then names when these bytes were fetched rather
- * than when this build ran. Delete the file (or the whole --raw-dir) to force a fresh fetch.
+ * bytes landed. A rerun re-hashes the kept file and reads the sidecar instead of asking again: that is both one
+ * less request against a rate-limited CDN and the honest answer, because `fetched_at` then names when these
+ * bytes were fetched rather than when this build ran. Delete the file (or the whole --raw-dir) to force a fresh
+ * fetch.
  */
-async function download(url, dest, { source, period }) {
-  const sidecar = `${dest}.fetch.json`;
-  if (existsSync(dest) && existsSync(sidecar)) {
-    const saved = JSON.parse(readFileSync(sidecar, "utf8"));
-    if (saved.url === url && saved.bytes === statSync(dest).size) return { path: dest, cached: true, row: provenanceRow(saved) };
-  }
+async function download(url, dest, { source, period }, log = () => {}) {
+  const cached = await readCachedDownload(dest, url, log);
+  if (cached) return { path: dest, cached: true, row: cached };
   const res = await fetchWithRetry(url);
   if (!res.ok) await confirmNotPublished(url, res.status); // always throws: NotPublished, or a throttling error
   const partial = `${dest}.part`;
@@ -319,9 +415,7 @@ async function download(url, dest, { source, period }) {
     source, url, period, bytes: statSync(dest).size, sha256: await sha256File(dest), fetchMode: "downloaded",
     etag: res.headers.get("etag"), lastModified: res.headers.get("last-modified"), fetchedAt: utcStamp(),
   };
-  const row = provenanceRow(saved); // built before the sidecar is written, so an unsound row is never cached
-  writeFileSync(sidecar, JSON.stringify(saved, null, 2) + "\n");
-  return { path: dest, cached: false, row };
+  return { path: dest, cached: false, row: recordDownload(dest, saved) };
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -408,19 +502,26 @@ async function insertRows(connection, table, columns, rows, chunk = 500) {
 // ---------------------------------------------------------------------------------------------------------
 // Verify
 // ---------------------------------------------------------------------------------------------------------
-/** Row count and content hash per table, read under the Instance's own limits so the result proves queryability. */
+/**
+ * Row count and content hash per table, read under the Instance's own limits so the result proves queryability.
+ * All three limits, not two: each query runs through the Engine's own `runBounded`, so a table that cannot be
+ * hashed inside `statement_timeout_ms` is cancelled and named here rather than hashed at whatever speed a
+ * builder's machine happens to manage. A table the Instance cannot scan in time is not a table it can query.
+ */
 export async function verifyDatabase(path) {
   if (!existsSync(path)) throw new Error(`no database at ${path}`);
   const handle = await openDuckDb(path, {
     access_mode: "READ_ONLY", memory_limit: INSTANCE_LIMITS.memory_limit, threads: String(INSTANCE_LIMITS.threads),
   });
+  const bounded = async (sql, what) =>
+    await (await runBounded(handle.connection, sql, INSTANCE_LIMITS.statement_timeout_ms, what)).getRowObjectsJson();
   try {
-    const present = new Set((await rowsOf(handle.connection, "select table_name from information_schema.tables where table_schema='main'")).map((r) => r.table_name));
+    const present = new Set((await bounded("select table_name from information_schema.tables where table_schema='main'", "listing tables")).map((r) => r.table_name));
     const out = [];
     for (const table of TABLES) {
       if (!present.has(table.name)) { out.push({ table: table.name, rows: null, content_hash: null, volatile: !!table.volatile, missing: true }); continue; }
       const started = Date.now();
-      const row = await oneOf(handle.connection, tableHashSql(table.name, table.columns));
+      const row = (await bounded(tableHashSql(table.name, table.columns), `hashing ${table.name}`))[0];
       out.push({ table: table.name, rows: Number(row.rows), content_hash: String(row.content_hash), volatile: !!table.volatile, ms: Date.now() - started });
     }
     return out;
@@ -479,10 +580,21 @@ create table build_provenance (
 // Per service: the parquet columns this build reads, and nothing else. `fare` is each service's own base fare
 // field — yellow's metered `fare_amount` and the HVFHS `base_passenger_fare` are different quantities and
 // scripts/README.md says so; they are summed per service and never added together.
-const TLC_SERVICES = {
+export const TLC_SERVICES = {
   yellow: { file: (m) => `yellow_tripdata_${m}.parquet`, pickup: "tpep_pickup_datetime", dropoff: "tpep_dropoff_datetime", fare: "fare_amount", tip: "tip_amount", tolls: "tolls_amount", distance: "trip_distance", passengers: "passenger_count", payment: "payment_type", provenance: "tlc_yellow" },
   hvfhs: { file: (m) => `fhvhv_tripdata_${m}.parquet`, pickup: "pickup_datetime", dropoff: "dropoff_datetime", fare: "base_passenger_fare", tip: "tips", tolls: "tolls", distance: "trip_miles", passengers: null, payment: null, provenance: "tlc_hvfhs" },
 };
+
+/**
+ * The expressions the sample decision is taken over. The key is rendered to text before it is hashed, so a
+ * DOUBLE in it would make membership depend on how DuckDB prints a double — shortest round-trip formatting, an
+ * engine decision and not a property of the trip, so `0.1 + 0.2` and `0.3` are two different trips to it. The
+ * fare is cast to the same exact decimal the sums use, and the rendering is then fixed by the type. This is what
+ * BUILDER_VERSION 2.x names: a 1.x build of the same bytes put a slightly different set of trips in the sample.
+ */
+export function sampleKeySql(spec) {
+  return [ident(spec.pickup), ident(spec.dropoff), ident("PULocationID"), ident("DOLocationID"), `${ident(spec.fare)}::${MONEY}`];
+}
 
 /** Columns a parquet file actually has: the pre-2025 files carry no `cbd_congestion_fee`. Reads the footer only. */
 async function parquetColumns(connection, source) {
@@ -507,7 +619,7 @@ async function buildTlcMonth(connection, service, month, source, sampleRate, log
   const { start, end } = monthBounds(month);
   const cbd = optional(columns, "cbd_congestion_fee");
   const congestion = optional(columns, "congestion_surcharge");
-  const sampleKey = [ident(spec.pickup), ident(spec.dropoff), ident("PULocationID"), ident("DOLocationID"), ident(spec.fare)];
+  const sampleKey = sampleKeySql(spec);
   const sample = `{
       pickup_datetime: ${ident(spec.pickup)}, dropoff_datetime: ${ident(spec.dropoff)},
       trip_distance: ${optional(columns, spec.distance)}, fare_amount: ${ident(spec.fare)},
@@ -550,6 +662,25 @@ async function buildTlcMonth(connection, service, month, source, sampleRate, log
 // ---------------------------------------------------------------------------------------------------------
 const CITIBIKE_CSV = (path) => `read_csv(${sqlString(path)}, header=true, all_varchar=true, ignore_errors=false)`;
 
+// The two month-scoped staging tables, and the only way they are emptied.
+//
+// `delete from` is not that way. DuckDB's deletes are tombstones: the row groups stay, and a month's rows are
+// still paying for themselves while the next month's are appended beside them. Measured over six one-month
+// cycles the process grew 135 MB -> 808 MB with `delete`, monotonically, on data that is the same size every
+// cycle. Dropping the table releases its row groups; recreating it costs one DDL statement a month.
+export const CITIBIKE_STAGING = Object.freeze([
+  ["stg_cb_daily", "ride_date DATE, member_casual VARCHAR, rideable_type VARCHAR, rides BIGINT, duration_seconds_sum BIGINT"],
+  ["stg_cb_stations", "station_id VARCHAR, station_name VARCHAR, latitude DOUBLE, longitude DOUBLE, is_start BOOLEAN, seen_on DATE"],
+]);
+
+/** Empty the Citi Bike staging tables by replacing them — called once per month, before that month's inserts. */
+export async function recreateCitibikeStaging(connection) {
+  for (const [name, columns] of CITIBIKE_STAGING) {
+    await connection.run(`drop table if exists ${ident(name)}`);
+    await connection.run(`create temp table ${ident(name)} (${columns})`);
+  }
+}
+
 async function buildCitibikeEntry(connection, month, path) {
   const { start, end } = monthBounds(month);
   const inWindow = `s >= TIMESTAMP ${sqlString(start)} and s < TIMESTAMP ${sqlString(end)}`;
@@ -589,8 +720,6 @@ async function finishCitibikeMonth(connection, month) {
            count(*) filter (where is_start)::BIGINT, count(*) filter (where not is_start)::BIGINT,
            min(seen_on), max(seen_on)
     from stg_cb_stations group by station_id`);
-  await connection.run("delete from stg_cb_daily");
-  await connection.run("delete from stg_cb_stations");
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -613,7 +742,15 @@ async function probeLatestMonth(from, log) {
   return latest;
 }
 
-export async function build(args, log = console.log) {
+/**
+ * Everything this build reaches the network (or the disk it opens a database on) through. `build` takes these as
+ * an argument so the offline tests can walk a whole window — skipped months, refusals, the staging tables — with
+ * no fetch at all. Nothing else in the file is injectable, and nothing here is a mock in production use.
+ */
+export const BUILD_DEPS = Object.freeze({ download, head, confirmNotPublished, zipDirectory, extractZipEntry, probeLatestMonth, openDatabase: openDuckDb });
+
+export async function build(args, log = console.log, injected = {}) {
+  const { download, head, confirmNotPublished, zipDirectory, extractZipEntry, probeLatestMonth, openDatabase } = { ...BUILD_DEPS, ...injected };
   const started = Date.now();
   const to = args.to ?? await probeLatestMonth(args.from, log);
   const months = monthRange(args.from, to);
@@ -625,7 +762,14 @@ export async function build(args, log = console.log) {
   const temporary = `${args.out}.building`;
   for (const stale of [temporary, `${temporary}.wal`]) rmSync(stale, { force: true });
 
-  const handle = await openDuckDb(temporary, { ...BUILD_LIMITS, temp_directory: join(args.rawDir, "duckdb-spill") });
+  // What was actually built, per source, and every month that was not. A month the publisher does not serve is a
+  // fact about the window, not a line of log output that scrolls away: it is carried to build_meta and to the
+  // exit status.
+  const monthsBuilt = new Map(MONTHLY_SOURCES.filter((s) => args.sources.includes(s)).map((s) => [s, []]));
+  const skipped = [];
+  const skip = (source, month, reason) => { skipped.push({ source, month, reason }); log(`    ${month}: ${reason} — skipped`); };
+
+  const handle = await openDatabase(temporary, { ...BUILD_LIMITS, temp_directory: join(args.rawDir, "duckdb-spill") });
   const connection = handle.connection;
   const provenance = [];
   let weatherCoverage = "not built";
@@ -638,7 +782,7 @@ export async function build(args, log = console.log) {
     // Taxi zones: 12 KB, downloaded and hashed. crz_zones is validated against it.
     log("  taxi zones");
     const zonePath = join(args.rawDir, "taxi_zone_lookup.csv");
-    provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" })).row);
+    provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" }, log)).row);
     await connection.run(`insert into taxi_zones select "LocationID"::INTEGER, "Borough", "Zone", "service_zone" from read_csv(${sqlString(zonePath)}, header=true)`);
     const zoneRows = await rowsOf(connection, "select location_id, borough, zone from taxi_zones");
     const crz = deriveCrzZones(zoneRows.map((r) => ({ location_id: r.location_id, borough: r.borough, zone: r.zone })));
@@ -655,8 +799,8 @@ export async function build(args, log = console.log) {
         if (service === "yellow") {
           const local = join(args.rawDir, TLC_SERVICES.yellow.file(month));
           let file;
-          try { file = await download(url, local, { source: "tlc_yellow", period: month }); }
-          catch (error) { if (error instanceof NotPublished) { log(`    ${month}: not published — skipped`); continue; } throw error; }
+          try { file = await download(url, local, { source: "tlc_yellow", period: month }, log); }
+          catch (error) { if (error instanceof NotPublished) { skip(service, month, "not published"); continue; } throw error; }
           provenance.push(file.row);
           source = local;
         } else {
@@ -664,11 +808,12 @@ export async function build(args, log = console.log) {
           if (!meta.ok) {
             try { await confirmNotPublished(url, meta.status); }
             catch (error) { if (!(error instanceof NotPublished)) throw error; }
-            log(`    ${month}: not published — skipped`); continue;
+            skip(service, month, "not published"); continue;
           }
           provenance.push(provenanceRow({ source: "tlc_hvfhs", url, period: month, bytes: meta.bytes, fetchMode: "streamed", etag: meta.etag, lastModified: meta.lastModified, fetchedAt: utcStamp() }));
         }
         await buildTlcMonth(connection, service, month, source, args.sampleRate, log);
+        monthsBuilt.get(service).push(month);
       }
     }
 
@@ -677,7 +822,7 @@ export async function build(args, log = console.log) {
       log("  GHCN-Daily");
       const path = join(args.rawDir, `${GHCN_STATION}.csv`);
       // One file carries the station's whole history, so its period is not the build window.
-      provenance.push((await download(GHCN_URL, path, { source: "ghcn", period: "station history" })).row);
+      provenance.push((await download(GHCN_URL, path, { source: "ghcn", period: "station history" }, log)).row);
       const first = months[0].replace("-", "") + "01";
       const afterLast = nextMonth(months[months.length - 1]).replace("-", "") + "01";
       // Q_FLAG is set when a value failed one of GHCN's quality checks; those values are dropped, not carried.
@@ -710,18 +855,18 @@ export async function build(args, log = console.log) {
     // Citi Bike: streamed out of the remote monthly zip, one member CSV at a time.
     if (args.sources.includes("citibike")) {
       log("  Citi Bike");
-      await connection.run("create temp table stg_cb_daily (ride_date DATE, member_casual VARCHAR, rideable_type VARCHAR, rides BIGINT, duration_seconds_sum BIGINT)");
-      await connection.run("create temp table stg_cb_stations (station_id VARCHAR, station_name VARCHAR, latitude DOUBLE, longitude DOUBLE, is_start BOOLEAN, seen_on DATE)");
       const scratch = join(args.rawDir, "citibike");
       mkdirSync(scratch, { recursive: true });
       for (const month of months) {
         const url = `${CITIBIKE_BASE}${month.replace("-", "")}-citibike-tripdata.zip`;
         let directory;
         try { directory = await zipDirectory(url); }
-        catch (error) { if (error instanceof NotPublished) { log(`    ${month}: not published — skipped`); continue; } throw error; }
+        catch (error) { if (error instanceof NotPublished) { skip("citibike", month, "not published"); continue; } throw error; }
         const members = directory.entries.filter((e) => /\.csv$/i.test(e.name) && !e.name.startsWith("__MACOSX/") && !/\/\._/.test(e.name));
-        if (!members.length) { log(`    ${month}: the archive holds no CSV member — skipped`); continue; }
+        if (!members.length) { skip("citibike", month, "the archive holds no CSV member"); continue; }
         provenance.push(provenanceRow({ source: "citibike", url, period: month, bytes: directory.bytes, fetchMode: "streamed", etag: directory.etag, lastModified: directory.lastModified, fetchedAt: utcStamp() }));
+        // Fresh staging tables per month: see CITIBIKE_STAGING for why they are replaced and not emptied.
+        await recreateCitibikeStaging(connection);
         let total = 0, unusable = 0, outside = 0;
         for (const member of members) {
           const dest = join(scratch, member.name.replace(/[/\\]/g, "_"));
@@ -732,18 +877,37 @@ export async function build(args, log = console.log) {
           } finally { if (!args.keepRaw) rmSync(dest, { force: true }); }
         }
         await finishCitibikeMonth(connection, month);
+        monthsBuilt.get("citibike").push(month);
         log(`    ${month}: ${members.length} CSV${members.length === 1 ? "" : "s"}, ${total.toLocaleString("en-US")} rides read (${unusable.toLocaleString("en-US")} unusable timestamps, ${outside.toLocaleString("en-US")} outside the month, both dropped)`);
       }
-      await connection.run("drop table stg_cb_daily");
-      await connection.run("drop table stg_cb_stations");
+      for (const [name] of CITIBIKE_STAGING) await connection.run(`drop table if exists ${ident(name)}`);
       if (!args.keepRaw) rmSync(scratch, { recursive: true, force: true });
+    }
+
+    // What the window asked for against what it got, in the log and in the database.
+    for (const [source, built] of monthsBuilt) log(`  ${source}: ${built.length} of ${months.length} month${months.length === 1 ? "" : "s"} built`);
+    if (skipped.length) {
+      log(`  ${skipped.length} month${skipped.length === 1 ? "" : "s"} skipped:`);
+      for (const s of skipped) log(`    ${s.source} ${s.month}: ${s.reason}`);
+    }
+
+    // An all-skipped source is an empty table, and an empty table quietly replacing a good one is the worst
+    // outcome available here: the file is newer, smaller, and wrong. Refuse, and leave what is already there.
+    const starved = [...monthsBuilt].filter(([, built]) => built.length === 0).map(([source]) => source);
+    if (starved.length && existsSync(args.out)) {
+      throw new Error(`every requested month of ${starved.join(", ")} was skipped, so this build carries no ` +
+        `${starved.join("/")} data at all. ${args.out} already exists and is left exactly as it was; the new ` +
+        `database has been discarded. Re-run when those months are published, or build to a different --out.`);
     }
 
     await insertRows(connection, "build_provenance", PROVENANCE_COLUMNS, provenance);
     await insertRows(connection, "build_meta", ["key", "value"], [
       { key: "builder_version", value: BUILDER_VERSION },
       { key: "from", value: args.from }, { key: "to", value: to },
+      { key: "to_source", value: args.to === null ? "probed" : "explicit" },
       { key: "sources", value: args.sources.join(",") },
+      ...[...monthsBuilt].map(([source, built]) => ({ key: `months_built:${source}`, value: built.join(",") })),
+      { key: "months_skipped", value: JSON.stringify(skipped) },
       { key: "sample_rate", value: String(args.sampleRate) },
       { key: "weather_coverage", value: weatherCoverage },
       { key: "built_at", value: new Date().toISOString() },
@@ -757,12 +921,18 @@ export async function build(args, log = console.log) {
     if (!complete) for (const partial of [temporary, `${temporary}.wal`]) rmSync(partial, { force: true });
   }
 
-  for (const stale of [args.out, `${args.out}.wal`]) rmSync(stale, { force: true });
+  // The old database is not removed first: rename replaces it in one step, so a reader either gets the previous
+  // build or this one. Only the old write-ahead log — which belongs to the file being replaced — is removed.
+  rmSync(`${args.out}.wal`, { force: true });
   renameSync(temporary, args.out);
   rmSync(`${temporary}.wal`, { force: true });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   log(`  wrote ${args.out} (${(statSync(args.out).size / 1e6).toFixed(1)} MB) in ${seconds}s`);
-  return { out: args.out, months, to, seconds: Number(seconds), provenance };
+  // A skipped month inside a window the caller stated is a shortfall against what was asked for, and the exit
+  // status says so. A probed window ends where the publisher ends, so a skip at its edge is not a shortfall.
+  const incomplete = args.to !== null && skipped.length > 0;
+  if (incomplete) log(`  the window was given explicitly and ${skipped.length} month${skipped.length === 1 ? " inside it was" : "s inside it were"} skipped: exit status 1`);
+  return { out: args.out, months, to, seconds: Number(seconds), provenance, monthsBuilt: Object.fromEntries(monthsBuilt), skipped, incomplete };
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -772,14 +942,15 @@ async function main(argv) {
   if (args.verify) {
     const results = await verifyDatabase(args.out);
     process.stdout.write(`${args.out}\n`);
-    process.stdout.write(`(read under the Instance's own limits: ${INSTANCE_LIMITS.memory_limit}, ${INSTANCE_LIMITS.threads} threads)\n`);
+    process.stdout.write(`(read under the Instance's own limits: ${INSTANCE_LIMITS.memory_limit}, ${INSTANCE_LIMITS.threads} threads, ${INSTANCE_LIMITS.statement_timeout_ms} ms a statement)\n`);
     for (const r of results) {
       if (r.missing) { process.stdout.write(`  ${r.table.padEnd(20)} MISSING\n`); continue; }
       process.stdout.write(`  ${r.table.padEnd(20)} ${String(r.rows).padStart(12)} rows  ${r.content_hash.padStart(41)}  ${String(r.ms).padStart(5)}ms${r.volatile ? "  (volatile: records the fetch, not the data)" : ""}\n`);
     }
     return;
   }
-  await build(args);
+  // A shortened build is not a successful one: the shortfall is in the log, in build_meta, and in the status.
+  if ((await build(args)).incomplete) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
