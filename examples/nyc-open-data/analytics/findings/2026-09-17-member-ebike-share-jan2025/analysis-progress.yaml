@@ -1,0 +1,5 @@
+stage: check
+status: done
+reason: "a re-review run found nothing to redo: method, question and reader are all recorded against the current content digest fa002688 (manifest reviews 3, 4, 5). The three stale_review warnings name reviews 0, 1 and 2, the superseded round-1 reviews bound to a01e66a6; they stay in the manifest as history and are stale permanently. aftergrid check reports no errors; no content was edited and no review was re-pinned."
+stale_definitions: []
+updated: "2026-09-17T21:20:00Z"

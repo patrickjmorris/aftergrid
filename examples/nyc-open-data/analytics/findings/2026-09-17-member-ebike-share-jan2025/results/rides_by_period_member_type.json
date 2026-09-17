@@ -1,0 +1,57 @@
+{
+  "result_id": "rides_by_period_member_type",
+  "execution_id": "ex_rides_by_period_member_type",
+  "row_key": "period_member_type",
+  "columns": [
+    "period_member_type",
+    "period",
+    "period_label",
+    "member_casual",
+    "member_type_label",
+    "all_rides",
+    "ebike_rides",
+    "ebike_share"
+  ],
+  "rows": [
+    {
+      "period_member_type": "baseline_casual",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "member_casual": "casual",
+      "member_type_label": "Casual riders",
+      "all_rides": 208028,
+      "ebike_rides": 158660,
+      "ebike_share": "0.762686"
+    },
+    {
+      "period_member_type": "after_casual",
+      "period": "after",
+      "period_label": "January 2025",
+      "member_casual": "casual",
+      "member_type_label": "Casual riders",
+      "all_rides": 201767,
+      "ebike_rides": 163492,
+      "ebike_share": "0.810301"
+    },
+    {
+      "period_member_type": "baseline_member",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "member_casual": "member",
+      "member_type_label": "Members",
+      "all_rides": 1679647,
+      "ebike_rides": 1055584,
+      "ebike_share": "0.628456"
+    },
+    {
+      "period_member_type": "after_member",
+      "period": "after",
+      "period_label": "January 2025",
+      "member_casual": "member",
+      "member_type_label": "Members",
+      "all_rides": 1922501,
+      "ebike_rides": 1329923,
+      "ebike_share": "0.691767"
+    }
+  ]
+}

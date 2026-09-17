@@ -1,0 +1,46 @@
+{
+  "result_id": "member_ebike_by_period",
+  "execution_id": "ex_member_ebike_by_period",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "period_label",
+    "first_day",
+    "last_day",
+    "days",
+    "member_rides",
+    "member_ebike_rides",
+    "member_classic_rides",
+    "member_ebike_share",
+    "member_rides_per_day",
+    "member_ebike_rides_per_day"
+  ],
+  "rows": [
+    {
+      "period": "baseline",
+      "period_label": "January 2024",
+      "first_day": "2024-01-01",
+      "last_day": "2024-01-31",
+      "days": 31,
+      "member_rides": 1679647,
+      "member_ebike_rides": 1055584,
+      "member_classic_rides": 624063,
+      "member_ebike_share": "0.628456",
+      "member_rides_per_day": "54182.2",
+      "member_ebike_rides_per_day": "34051.1"
+    },
+    {
+      "period": "after",
+      "period_label": "January 2025",
+      "first_day": "2025-01-01",
+      "last_day": "2025-01-31",
+      "days": 31,
+      "member_rides": 1922501,
+      "member_ebike_rides": 1329923,
+      "member_classic_rides": 592578,
+      "member_ebike_share": "0.691767",
+      "member_rides_per_day": "62016.2",
+      "member_ebike_rides_per_day": "42900.7"
+    }
+  ]
+}

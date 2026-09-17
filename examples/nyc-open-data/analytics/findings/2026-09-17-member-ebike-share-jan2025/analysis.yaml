@@ -1,0 +1,313 @@
+schema_version: 0.1.0
+stage: analysed
+clarified_at: "2026-09-17T18:13:09Z"
+reader_profile: bike_product_manager
+assumptions:
+  - id: a_operator_answers_from_instance
+    statement: The Operator asked that clarification answers be taken from README.md, readers.md and the definitions rather than from an interview, and recorded here. No round of questions was put to a person.
+    basis: operator_answer
+    settled_by: Operator run context for this /analyze invocation, 2026-09-17
+    affects: [decision, metric, population, window, primary_comparison, falsifier]
+  - id: a_decision_from_reader_profile
+    statement: The decision is whether e-bike use among member rides is growing, flat or moving with something else, whether a fee change is worth investigating properly, and what to put in front of the team as a question rather than an answer. Taken from the decisions list of the bike_product_manager profile, which is a composite and not a person and has never sat for a Reader session.
+    basis: instance_document
+    settled_by: readers.md, bike_product_manager
+    affects: [decision]
+  - id: a_metric_is_proposed_ebike_ride
+    statement: "'Riding e-bikes' means ebike_ride v1: a Citi Bike ride whose rideable_type is 'electric_bike'. 'Members' means member_ride v1: a ride whose member_casual is 'member'. Both definitions are proposed and carry no approval block. The Operator, who owns them, directed that they be used as written and that their status be stated. Both are pinned with role supporting and neither may headline a published decision metric until approved."
+    basis: operator_answer
+    settled_by: Operator run context; definitions/ebike_ride.md; definitions/member_ride.md
+    affects: [metric, population, publication]
+  - id: a_share_denominator_is_member_rides
+    statement: The share the Answer leads on is the share of member rides that were on an e-bike - e-bike member rides divided by all member rides in the same month, electric and classic together. ebike_ride v1 names three different shares that a Reader will confuse, so the member type the share sits inside is stated everywhere the number appears, and the total number of member rides is shown beside it.
+    basis: instance_document
+    settled_by: definitions/ebike_ride.md (denominator, and its warning about three shares)
+    affects: [metric, primary_comparison, falsifier]
+  - id: a_window_whole_months
+    statement: The after period is the whole of January 2025 and the baseline is the whole of January 2024, as half-open ride-date ranges. January is compared with January so that a winter month is not read against a summer one.
+    basis: operator_answer
+    settled_by: Operator run context
+    affects: [window, primary_comparison]
+  - id: a_timezone_is_file_local
+    statement: The analytical timezone is America/New_York. ride_date in citibike_daily is already the local start date the Citi Bike file carries and the build converts nothing, so the SQL applies no timezone conversion and the parameter is recorded without being used in a date expression.
+    basis: instance_document
+    settled_by: definitions/member_ride.md (window); definitions/ebike_ride.md (window)
+    affects: [window]
+  - id: a_no_fee_change_date_in_instance
+    statement: No fee schedule, fee amount or fee change date for Citi Bike e-bikes is in any source this Instance reads, and none is in README.md or the definitions. The Analysis therefore asserts no fee change and no date for one, states fees as a plausible explanation it cannot test, and does not treat any day inside either month as before or after a change. This is why the Question is a descriptive comparison and not an evaluation of a fee change.
+    basis: instance_document
+    settled_by: definitions/ebike_ride.md; Operator run context
+    affects: [primary_comparison, claims, publication]
+  - id: a_fee_date_not_needed_by_this_question
+    statement: "The Operator asked that a missing fee change date be recorded as needs_input only if the Question needs it, and in the same instruction scoped the Question to the descriptive January 2025 against January 2024 comparison. A descriptive comparison does not need the date, so needs_input is empty and the gap is carried as this assumption, as a Claim limitation and in outcome_recommendation.what_would_be_needed instead. Recording it as needs_input would have made an outcome of answered unavailable to a Question that can be answered as posed."
+    basis: operator_answer
+    settled_by: Operator run context for this /analyze invocation, 2026-09-17
+    affects: [needs_input, outcome]
+  - id: a_no_materiality_threshold
+    statement: Nothing in the Instance records how large a change in e-bike share is large enough to act on. The Analysis reports the size of the change and does not label it large or small; the falsifier tests direction only.
+    basis: instance_document
+    settled_by: readers.md lists the decision but no threshold
+    affects: [falsifier, claims]
+  - id: a_weather_is_a_check_not_an_explanation
+    statement: Weather is carried as a Check using comparable_weather_day v1, a proposed diagnostic, at the Operator's direction. It answers whether the two Januaries were alike enough on weather for the comparison to mean anything. It never headlines a Claim, a passing weather Check does not make the comparison causal, and version 1 tests maximum temperature and a wet/dry class only - it does not test snow.
+    basis: operator_answer
+    settled_by: Operator run context; definitions/comparable_weather_day.md
+    affects: [claims]
+  - id: a_falsifier_written_before_any_number
+    statement: The falsifier was written and hashed at the clarify stage, after reading the source catalog (table and column names, and the planner's scan-row estimates) and before any ride count, e-bike count, share or comparison had been computed, and before any analysis query existed. Its SQL hash, required flag, expected outcome and statement hash are pinned in checks_preregistered below.
+    basis: catalog_probe
+    affects: [falsifier]
+pre_registered_comparison:
+  statement: The share of member rides taken on an e-bike (ebike_ride v1 within member_ride v1) over ride dates 2025-01-01 to 2025-01-31 against the same share for 2024-01-01 to 2024-01-31, with the count of member e-bike rides and the count of all member rides stated for both months. Secondary, also fixed before any number was seen - the same comparison for casual rides, the daily series of member e-bike share across both months, and the comparable_weather_day v1 count over the 31 aligned day pairs.
+  registered_before_cuts: true
+  registered_at: "2026-09-17T18:13:09Z"
+  source: analysis.yaml, written at the clarify stage before any analysis query existed
+checks_preregistered:
+  - check_id: falsifier_count_and_share_agree
+    content_hash:
+      algorithm: sha256
+      value: 710ae712341e73072bfb895bea7e90b837cb54599cd4e3ec14e1cb8e2a2bd0ca
+    at: "2026-09-17T18:12:36Z"
+    required: false
+    expected_outcome: pass
+    statement_hash:
+      algorithm: sha256
+      value: e12f86e7ef0dc38d374b8abab0d3ccdd9ce9f3aec205cbcea1ef2979d737bcfa
+    note: Written at the clarify stage, before any analysis query existed and before any ride, e-bike or share total had been computed. A falsifier is never an evidence-validity condition, so required is false.
+  - check_id: inv_grain_unique_and_valid
+    content_hash:
+      algorithm: sha256
+      value: a0e6eb45b144bb15e1b20251436484e994ef09ea47cfd338f9697bed16729268
+    at: "2026-09-17T18:17:17Z"
+    required: true
+  - check_id: inv_no_third_bike_type
+    content_hash:
+      algorithm: sha256
+      value: e3439ac585ddf73c1cb9a894d5d37731db0aa0956190283e2043028da685c772
+    at: "2026-09-17T18:17:17Z"
+    required: true
+  - check_id: inv_definition_sql_matches_analysis
+    content_hash:
+      algorithm: sha256
+      value: af17a69b6dd91697782c02ad7787e391955d3693c55703ac04b0cfbac226987f
+    at: "2026-09-17T18:17:17Z"
+    required: true
+  - check_id: min_data_every_day_present
+    content_hash:
+      algorithm: sha256
+      value: e0598819425d306546e11d9b7ebe8fcfc6f8533dd787a238943ed0ed88ea92c9
+    at: "2026-09-17T18:17:17Z"
+    required: false
+  - check_id: min_data_weather_observed
+    content_hash:
+      algorithm: sha256
+      value: e253fe17a7753ca215dc924f51591732b0d45dd1253b57a760a68f9b1f0cd7e7
+    at: "2026-09-17T18:17:17Z"
+    required: false
+  - check_id: check_weather_comparable
+    content_hash:
+      algorithm: sha256
+      value: 36bfff40184a910858a6a776210ca16fd94780023b422ea5c84861cc92716b7e
+    at: "2026-09-17T18:17:17Z"
+    required: false
+    note: The bar - more than half of the aligned day pairs alike on weather - was fixed in the SQL before any weather number was read from these retained inputs. See probe p_weather_result_known_in_advance for what was already known about these two months from another Finding in this Instance.
+probes:
+  - id: p_catalog
+    at: "2026-09-17T18:11:43Z"
+    kind: exploratory
+    question: Which tables and columns exist, and which can be captured under the admission cap?
+    observed: aftergrid capture --catalog listed 10 tables and wrote nothing. citibike_daily has ride_date, member_casual, rideable_type, rides and duration_seconds_sum, 484 scan rows. weather_daily has observation_date, station_id, tmax_c, tmin_c, prcp_mm and snow_mm, 98 scan rows. build_provenance has source, url, period, bytes, sha256, fetch_mode and the HTTP headers. trips_daily is 5,390,695 scan rows, over the cap of 5,000,000, and is not admissible. No count, total or share was computed.
+    changed_plan: The plan reads citibike_daily for every ride number, weather_daily for the weather Check, and build_provenance for what the two Citi Bike months were built from. citibike_stations, crz_daily, taxi_zones, crz_zones, trips_sample and trips_daily are not captured, because no Claim reads them.
+  - id: p_python_unavailable
+    at: "2026-09-17T18:17:17Z"
+    kind: dead_end
+    question: Can the retained CSVs be read with python3 for a structural look before the Checks are written?
+    observed: The harness refused the python3 command in this session, so nothing was read that way. The time here is the clock read when the Check files were hashed, straight after; the refusal itself was not separately timed. Node's standard library was used instead for the structural probe below.
+    changed_plan: Structural probes were taken with node reading the CSVs as text. Every number that reaches the Finding runs through aftergrid execute, not through either of these.
+  - id: p_coverage
+    at: "2026-09-17T18:17:17Z"
+    kind: exploratory
+    question: Are both Januaries whole in citibike_daily and weather_daily, is there a third bike type, and are there missing or negative values?
+    observed: citibike_daily holds 124 rows over 31 distinct days for each of 2024-01, 2024-12 and 2025-01 and 112 rows over 28 days for 2025-02, which is 31 days by two member types by two bike types. member_casual takes only 'member' and 'casual'; rideable_type takes only 'classic_bike' and 'electric_bike', with no docked_bike in any of the four months. No blank or negative ride count and no blank duration anywhere. weather_daily has 31 observed days in each January with no missing maximum temperature, precipitation or snow, at one station. Row, day and distinct-value counts only; no ride total, e-bike total or share was computed. The time here is the clock read when the Check files were hashed, straight after this look; the look itself was not separately timed.
+    changed_plan: Both whole-month windows are available and the e-bike share is a two-way split over these months. The Checks were written next, before any analysis query existed - including inv_no_third_bike_type, which turns this look into something the Finding asserts rather than something the analyst remembers.
+  - id: p_weather_result_known_in_advance
+    at: "2026-09-17T18:17:17Z"
+    kind: exploratory
+    question: Was anything about these two Januaries already known before the weather Check's bar was set?
+    observed: "Yes, and it is recorded here rather than left out. Another Finding in this Instance, findings/2026-09-17-crz-trips-after-pricing, compares the same two Januaries and its analysis.yaml states that fewer than half of the aligned day pairs had comparable weather and that January 2025 was colder and much drier. That file was read while reading the Instance at the start of this run, so the weather Check's bar of more than half comparable was set in the knowledge that it would probably fail. The bar is still the natural one and it is set in the direction that makes the Finding harder rather than easier, but it is not a blind pre-registration and must not be described as one."
+    changed_plan: The weather Check was written and pre-registered anyway, with required false, and this probe records what was known. Nothing was known about any Citi Bike ride, e-bike or share number - that neighbouring Finding is about yellow taxi and for-hire trips and reads no Citi Bike table - so the falsifier's pre-registration is unaffected.
+  - id: p_statement_hash_shape
+    at: "2026-09-17T18:19:30Z"
+    kind: dead_end
+    question: Does the pre-registration validate as first written?
+    observed: The first aftergrid execute ran every query and Check and then reported analysis_contract at checks_preregistered/0/statement_hash - the falsifier's statement hash had been written as a bare string where the schema wants an object with algorithm and value. The time here was read when the repair was made, straight after the report. Only the shape of that one field changed; the hash value, the SQL, the required flag and the expected outcome are the ones written at 2026-09-17T18:12:36Z.
+    changed_plan: statement_hash was rewritten as an object with the same value. No Check, threshold, requirement or expected outcome changed.
+  - id: p_read_results
+    at: "2026-09-17T18:21:45Z"
+    kind: exploratory
+    question: What did the pinned results and Checks show?
+    observed: "Three required invariants passed, including the one that says there is no third bike type. Both minimum_data Checks passed - both months whole, weather observed on all 62 days. The falsifier recorded pass - member rides on e-bikes went 1,055,584 to 1,329,923 and the e-bike share of member rides went 62.85% to 69.18%, both up, so the two ways of reading 'more' agree. check_weather_comparable recorded fail - 10 of 31 aligned day pairs alike on weather, 21 not, none unknown - which is a business result the memo explains, not an engine failure. January 2025 was colder (mean maximum 2.55 against 5.53 degrees Celsius) and much drier (4 wet days against 15, 15.5 mm against 134.1 mm) with more snow by depth (77 mm against 58 mm)."
+    changed_plan: The recommendation is answered, with the weather mismatch carried as the material caveat beside the Answer rather than in a footnote. No Check, threshold or requirement was altered after any result was seen.
+  - id: p_derived_operand_order
+    at: "2026-09-17T19:40:00Z"
+    kind: dead_end
+    question: Do the four percent_change derived values compute the change the Finding's prose claims they do?
+    observed: "No, as method review found. percent_change is 100 x (a - b) / b, so its operands read after-then-baseline; all four entries - member_ebike_rides_pct_change, member_rides_pct_change, member_classic_rides_pct_change and casual_rides_pct_change - were written baseline-then-after in both requested_derived here and manifest.derived, so every rendered percent change carried the opposite sign to the movement its own result records. aftergrid check reported no error at any point, because both operand orders are valid arithmetic on the same two pinned values; this was method review's catch, not the engine's. The two difference entries and the two share-change entries were already after-then-baseline and were not touched."
+    changed_plan: "The operand order on those four entries was swapped to after-then-baseline in requested_derived and in manifest.derived, on the operator's decision of 2026-09-17. No query, Check, result, threshold, expected outcome or falsifier changed, and no number in any results file changed - a derived value is computed from the pinned results at check and render time, so the repair needed no re-execution. The three reviews recorded before it bind the previous content digest and were run again against the repaired one."
+execution_order:
+  - { kind: probe, id: p_catalog }
+  - { kind: probe, id: p_python_unavailable }
+  - { kind: probe, id: p_coverage }
+  - { kind: probe, id: p_weather_result_known_in_advance }
+  - { kind: check, id: falsifier_count_and_share_agree, note: "written first - at the clarify stage, before any other Check and before any query existed" }
+  - { kind: check, id: inv_grain_unique_and_valid }
+  - { kind: check, id: inv_no_third_bike_type }
+  - { kind: check, id: inv_definition_sql_matches_analysis }
+  - { kind: check, id: min_data_every_day_present }
+  - { kind: check, id: min_data_weather_observed }
+  - { kind: check, id: check_weather_comparable }
+  - { kind: query, id: member_ebike_by_period, note: the pre-registered comparison }
+  - { kind: query, id: rides_by_period_member_type }
+  - { kind: query, id: member_ebike_daily }
+  - { kind: query, id: weather_pairs }
+  - { kind: query, id: weather_by_period }
+  - { kind: query, id: source_provenance }
+  - { kind: probe, id: p_statement_hash_shape, post_hoc: true, note: "after the first execute, which had already written the results" }
+  - { kind: probe, id: p_read_results, post_hoc: true }
+  - { kind: probe, id: p_derived_operand_order, post_hoc: true, note: "after the first review round, which found it" }
+requested_derived:
+  - id: member_ebike_rides_pct_change
+    operation: percent_change
+    operands: ["ref:member_ebike_by_period.after.member_ebike_rides", "ref:member_ebike_by_period.baseline.member_ebike_rides"]
+    unit: ratio
+    display: { kind: percent, decimals: 1 }
+    description: Change in the number of member rides taken on an e-bike between the two Januaries
+  - id: member_rides_pct_change
+    operation: percent_change
+    operands: ["ref:member_ebike_by_period.after.member_rides", "ref:member_ebike_by_period.baseline.member_rides"]
+    unit: ratio
+    display: { kind: percent, decimals: 1 }
+    description: Change in the total number of member rides - the number the share sits on top of
+  - id: member_classic_rides_pct_change
+    operation: percent_change
+    operands: ["ref:member_ebike_by_period.after.member_classic_rides", "ref:member_ebike_by_period.baseline.member_classic_rides"]
+    unit: ratio
+    display: { kind: percent, decimals: 1 }
+    description: Change in the number of member rides taken on a classic bike
+  - id: member_ebike_share_change
+    operation: difference
+    operands: ["ref:member_ebike_by_period.after.member_ebike_share", "ref:member_ebike_by_period.baseline.member_ebike_share"]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    description: Change in the share of member rides taken on an e-bike
+  - id: casual_ebike_share_change
+    operation: difference
+    operands: ["ref:rides_by_period_member_type.after_casual.ebike_share", "ref:rides_by_period_member_type.baseline_casual.ebike_share"]
+    unit: ratio
+    display: { kind: percentage_points, decimals: 1 }
+    description: Change in the share of casual rides taken on an e-bike
+  - id: casual_rides_pct_change
+    operation: percent_change
+    operands: ["ref:rides_by_period_member_type.after_casual.all_rides", "ref:rides_by_period_member_type.baseline_casual.all_rides"]
+    unit: ratio
+    display: { kind: percent, decimals: 1 }
+    description: Change in the total number of casual rides
+  - id: mean_tmax_change_c
+    operation: difference
+    operands: ["ref:weather_by_period.after.mean_tmax_c", "ref:weather_by_period.baseline.mean_tmax_c"]
+    unit: unknown
+    display: { kind: decimal, decimals: 1 }
+    description: Change in the mean daily maximum temperature in degrees Celsius
+  - id: wet_days_change
+    operation: difference
+    operands: ["ref:weather_by_period.after.wet_days", "ref:weather_by_period.baseline.wet_days"]
+    unit: days
+    display: { kind: integer }
+    description: Change in the number of days with 1 mm or more of precipitation
+candidate_claims:
+  - id: c1
+    sentence_draft: Yes - members took more rides on e-bikes in January 2025 than in January 2024, and e-bikes were a bigger part of member riding. Members took 1,329,923 rides on e-bikes, up from 1,055,584, and e-bikes were 69.2% of all member rides, up from 62.9%.
+    type: descriptive
+    numeric: true
+    answer_bearing: true
+    evidence: ["ref:member_ebike_by_period.baseline.member_ebike_rides", "ref:member_ebike_by_period.after.member_ebike_rides", "ref:member_ebike_by_period.baseline.member_ebike_share", "ref:member_ebike_by_period.after.member_ebike_share", "derived:member_ebike_rides_pct_change", "derived:member_ebike_share_change"]
+    definition_refs: [{ id: member_ride, version: 1 }, { id: ebike_ride, version: 1 }]
+    comparison: { kind: baseline_period, description: The whole of January 2025 against the whole of January 2024, pre_registered: true }
+    population: Citi Bike rides taken under a membership in the New York City monthly archives (member_ride v1, proposed), split by bike type (ebike_ride v1, proposed)
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: [Jersey City rides are not in this build, Rides with a timestamp that does not parse or an end before its start were dropped by the build, A ride belongs to the month its start time falls in]
+    limitations: [One month either side is not a trend, These are rides and not riders - the files carry no rider identity so the same person riding more often and more people riding look identical, member_ride v1 and ebike_ride v1 are proposed and not approved, No fee schedule, amount or change date for Citi Bike e-bikes is in any source this Instance reads, The two Januaries were not alike on weather, The retained input is the derived citibike_daily table and not the Citi Bike trip files, The Citi Bike archives were streamed and never hashed, and the publisher can restate them]
+    material_caveat: This is a description of two Januaries, not an explanation of them. The two months were not alike on weather - only 10 of the 31 aligned day pairs were alike, and January 2025 was colder and much drier, which favours cycling - and nothing here separates that from a fee change, from more e-bikes in the system, or from a year of change in how people ride. This Instance records no date for any Citi Bike fee change, so this Finding asserts none.
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: The Instance holds four months and nothing after February 2025, so the same comparison cannot be run again on newer data from here.
+      owner: Patrick Morris
+      review_hint: Rebuild with January 2026 and rerun the same Checks unchanged.
+  - id: c2
+    sentence_draft: The bigger e-bike share is not a shrinking total. Member rides overall rose 14.5%, so e-bikes grew faster than member riding as a whole rather than growing because everything else fell - member rides on classic bikes fell 5.0%.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:member_ebike_by_period.baseline.member_rides", "ref:member_ebike_by_period.after.member_rides", "ref:member_ebike_by_period.baseline.member_classic_rides", "ref:member_ebike_by_period.after.member_classic_rides", "derived:member_rides_pct_change", "derived:member_classic_rides_pct_change", "derived:member_ebike_rides_pct_change"]
+    definition_refs: [{ id: member_ride, version: 1 }, { id: ebike_ride, version: 1 }]
+    comparison: { kind: baseline_period, description: The whole of January 2025 against the whole of January 2024, pre_registered: true }
+    population: Citi Bike rides taken under a membership in the New York City monthly archives (member_ride v1, proposed)
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: [Jersey City rides are not in this build]
+    limitations: [A count of rides is not a count of riders, A rise in member rides is not a rise in members - the data cannot tell the two apart]
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c3
+    sentence_draft: Casual riders moved the same way, so this is not something happening only to members. The e-bike share of casual rides rose from 76.3% to 81.0%, and casual riders were already more likely to take an e-bike than members were - on a casual ride total that fell 3.0%.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:rides_by_period_member_type.baseline_casual.ebike_share", "ref:rides_by_period_member_type.after_casual.ebike_share", "ref:rides_by_period_member_type.baseline_member.ebike_share", "ref:rides_by_period_member_type.after_member.ebike_share", "derived:casual_ebike_share_change", "derived:casual_rides_pct_change"]
+    definition_refs: [{ id: ebike_ride, version: 1 }, { id: member_ride, version: 1 }]
+    comparison: { kind: baseline_period, description: Each member type in January 2025 against itself in January 2024, pre_registered: true }
+    population: All Citi Bike rides in the New York City monthly archives, split by whether the ride was taken under a membership
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: []
+    limitations: [Casual covers both a single ride and a day pass and the data does not separate them, The casual share sits on a much smaller number of rides than the member share, Two groups moving together does not say what moved them]
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: Later months are not in the Instance.
+      owner: Patrick Morris
+  - id: c4
+    sentence_draft: The two Januaries were not alike on weather. Only 10 of the 31 aligned day pairs were alike by the rule this Analysis pre-registered, and January 2025 was colder - a mean daily maximum of 2.6 against 5.5 degrees Celsius - and much drier, with 4 days of rain or more against 15.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:weather_pairs.comparable.day_pairs", "ref:weather_pairs.not_comparable.day_pairs", "ref:weather_pairs.comparable.all_day_pairs", "ref:weather_by_period.baseline.mean_tmax_c", "ref:weather_by_period.after.mean_tmax_c", "ref:weather_by_period.baseline.wet_days", "ref:weather_by_period.after.wet_days", "ref:weather_by_period.baseline.total_snow_mm", "ref:weather_by_period.after.total_snow_mm", "derived:mean_tmax_change_c", "derived:wet_days_change"]
+    definition_refs: [{ id: comparable_weather_day, version: 1 }]
+    comparison: { kind: baseline_period, description: Day n of January 2025 against day n of January 2024 at Central Park, pre_registered: true }
+    population: Aligned day pairs with a maximum temperature and a precipitation observation at station USW00094728
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: []
+    limitations: [comparable_weather_day v1 is a proposed diagnostic and does not test snow, and January 2025 had more snow by depth than January 2024, Pairs are aligned by day of the month and not by day of the week, A weather match would not make the comparison causal and a mismatch does not by itself explain the difference in riding, One weather station stands for the whole city]
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: A diagnostic about two fixed months does not change with new data.
+      owner: Patrick Morris
+  - id: c5
+    sentence_draft: Both months come from Citi Bike archive files republished on the same day and read as a stream rather than kept, so each file is identified by its size and that date rather than by a fingerprint of its contents.
+    type: descriptive
+    numeric: true
+    evidence: ["ref:source_provenance.2024-01.http_last_modified", "ref:source_provenance.2025-01.http_last_modified", "ref:source_provenance.2024-01.bytes", "ref:source_provenance.2025-01.bytes"]
+    comparison: { kind: none, description: A record of what was read rather than a comparison, pre_registered: false }
+    population: The two Citi Bike monthly archive files this Finding's ride numbers were built from
+    window: { start: 2025-01-01, end: 2025-01-31, timezone: America/New_York }
+    exclusions: []
+    limitations: [Citi Bike can republish a month after the fact and a rebuild could then disagree with these numbers, A streamed file has no hash so a rebuild cannot prove it read the same bytes]
+    recheck_draft:
+      mode: not_automatically_evaluable
+      reason: What was read is a fact about this build rather than something a later run re-tests.
+      owner: Patrick Morris
+outcome_recommendation:
+  outcome: answered
+  reason: The pre-registered comparison was computed on both months and the falsifier written before any number was seen recorded pass - the count of member e-bike rides and the e-bike share of member rides both rose, so the two ways of reading "more" agree and the Answer has one direction. Every required invariant passed, both months are whole and weather was observed on all 62 days. The Answer is descriptive and says nothing about cause; the weather Check recorded fail, and that sits beside the Answer as its material caveat rather than changing the outcome, because a weather mismatch does not make the ride counts wrong or insufficient.
+  what_would_be_needed:
+    - A sourced, dated document in this Instance recording when Citi Bike e-bike fees changed and by how much, if the Reader's question about whether a fee change is worth investigating is to be answered rather than left open. Nothing in the three sources this Instance reads carries one, so this Finding asserts no fee change and no date.
+    - More months in the build, so one month either side stops being the whole comparison and a January-to-January change can be read against the months between.
+    - Approval of member_ride v1 and ebike_ride v1 by their owner before either can headline a published decision metric.
+    - Something that separates weather from behaviour - a model, or enough Januaries to see how much of the change tracks the weather - if the Reader wants more than a description.
+needs_input: []

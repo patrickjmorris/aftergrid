@@ -1,0 +1,637 @@
+{
+  "result_id": "member_ebike_daily",
+  "execution_id": "ex_member_ebike_daily",
+  "row_key": "ride_date",
+  "columns": [
+    "ride_date",
+    "period",
+    "period_label",
+    "day_of_month",
+    "day_name",
+    "member_rides",
+    "member_ebike_rides",
+    "member_ebike_share"
+  ],
+  "rows": [
+    {
+      "ride_date": "2024-01-01",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 1,
+      "day_name": "Monday",
+      "member_rides": 36000,
+      "member_ebike_rides": 22934,
+      "member_ebike_share": "0.637056"
+    },
+    {
+      "ride_date": "2024-01-02",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 2,
+      "day_name": "Tuesday",
+      "member_rides": 59456,
+      "member_ebike_rides": 36007,
+      "member_ebike_share": "0.605608"
+    },
+    {
+      "ride_date": "2024-01-03",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 3,
+      "day_name": "Wednesday",
+      "member_rides": 67757,
+      "member_ebike_rides": 42097,
+      "member_ebike_share": "0.621294"
+    },
+    {
+      "ride_date": "2024-01-04",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 4,
+      "day_name": "Thursday",
+      "member_rides": 68583,
+      "member_ebike_rides": 43536,
+      "member_ebike_share": "0.634793"
+    },
+    {
+      "ride_date": "2024-01-05",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 5,
+      "day_name": "Friday",
+      "member_rides": 63326,
+      "member_ebike_rides": 40918,
+      "member_ebike_share": "0.646149"
+    },
+    {
+      "ride_date": "2024-01-06",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 6,
+      "day_name": "Saturday",
+      "member_rides": 37146,
+      "member_ebike_rides": 23528,
+      "member_ebike_share": "0.633393"
+    },
+    {
+      "ride_date": "2024-01-07",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 7,
+      "day_name": "Sunday",
+      "member_rides": 31355,
+      "member_ebike_rides": 19920,
+      "member_ebike_share": "0.635305"
+    },
+    {
+      "ride_date": "2024-01-08",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 8,
+      "day_name": "Monday",
+      "member_rides": 70221,
+      "member_ebike_rides": 43166,
+      "member_ebike_share": "0.614716"
+    },
+    {
+      "ride_date": "2024-01-09",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 9,
+      "day_name": "Tuesday",
+      "member_rides": 39465,
+      "member_ebike_rides": 25031,
+      "member_ebike_share": "0.634258"
+    },
+    {
+      "ride_date": "2024-01-10",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 10,
+      "day_name": "Wednesday",
+      "member_rides": 73849,
+      "member_ebike_rides": 45322,
+      "member_ebike_share": "0.613712"
+    },
+    {
+      "ride_date": "2024-01-11",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 11,
+      "day_name": "Thursday",
+      "member_rides": 79823,
+      "member_ebike_rides": 49590,
+      "member_ebike_share": "0.621250"
+    },
+    {
+      "ride_date": "2024-01-12",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 12,
+      "day_name": "Friday",
+      "member_rides": 75280,
+      "member_ebike_rides": 47793,
+      "member_ebike_share": "0.634870"
+    },
+    {
+      "ride_date": "2024-01-13",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 13,
+      "day_name": "Saturday",
+      "member_rides": 53148,
+      "member_ebike_rides": 32616,
+      "member_ebike_share": "0.613683"
+    },
+    {
+      "ride_date": "2024-01-14",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 14,
+      "day_name": "Sunday",
+      "member_rides": 41898,
+      "member_ebike_rides": 25512,
+      "member_ebike_share": "0.608907"
+    },
+    {
+      "ride_date": "2024-01-15",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 15,
+      "day_name": "Monday",
+      "member_rides": 40997,
+      "member_ebike_rides": 24632,
+      "member_ebike_share": "0.600824"
+    },
+    {
+      "ride_date": "2024-01-16",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 16,
+      "day_name": "Tuesday",
+      "member_rides": 25608,
+      "member_ebike_rides": 16836,
+      "member_ebike_share": "0.657451"
+    },
+    {
+      "ride_date": "2024-01-17",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 17,
+      "day_name": "Wednesday",
+      "member_rides": 40086,
+      "member_ebike_rides": 26061,
+      "member_ebike_share": "0.650127"
+    },
+    {
+      "ride_date": "2024-01-18",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 18,
+      "day_name": "Thursday",
+      "member_rides": 51510,
+      "member_ebike_rides": 33391,
+      "member_ebike_share": "0.648243"
+    },
+    {
+      "ride_date": "2024-01-19",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 19,
+      "day_name": "Friday",
+      "member_rides": 40689,
+      "member_ebike_rides": 27211,
+      "member_ebike_share": "0.668756"
+    },
+    {
+      "ride_date": "2024-01-20",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 20,
+      "day_name": "Saturday",
+      "member_rides": 33482,
+      "member_ebike_rides": 21802,
+      "member_ebike_share": "0.651156"
+    },
+    {
+      "ride_date": "2024-01-21",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 21,
+      "day_name": "Sunday",
+      "member_rides": 32594,
+      "member_ebike_rides": 20458,
+      "member_ebike_share": "0.627662"
+    },
+    {
+      "ride_date": "2024-01-22",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 22,
+      "day_name": "Monday",
+      "member_rides": 56265,
+      "member_ebike_rides": 35073,
+      "member_ebike_share": "0.623354"
+    },
+    {
+      "ride_date": "2024-01-23",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 23,
+      "day_name": "Tuesday",
+      "member_rides": 65082,
+      "member_ebike_rides": 41098,
+      "member_ebike_share": "0.631480"
+    },
+    {
+      "ride_date": "2024-01-24",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 24,
+      "day_name": "Wednesday",
+      "member_rides": 60543,
+      "member_ebike_rides": 38989,
+      "member_ebike_share": "0.643989"
+    },
+    {
+      "ride_date": "2024-01-25",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 25,
+      "day_name": "Thursday",
+      "member_rides": 67087,
+      "member_ebike_rides": 43429,
+      "member_ebike_share": "0.647353"
+    },
+    {
+      "ride_date": "2024-01-26",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 26,
+      "day_name": "Friday",
+      "member_rides": 63996,
+      "member_ebike_rides": 41516,
+      "member_ebike_share": "0.648728"
+    },
+    {
+      "ride_date": "2024-01-27",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 27,
+      "day_name": "Saturday",
+      "member_rides": 65827,
+      "member_ebike_rides": 40920,
+      "member_ebike_share": "0.621629"
+    },
+    {
+      "ride_date": "2024-01-28",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 28,
+      "day_name": "Sunday",
+      "member_rides": 26307,
+      "member_ebike_rides": 17231,
+      "member_ebike_share": "0.654997"
+    },
+    {
+      "ride_date": "2024-01-29",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 29,
+      "day_name": "Monday",
+      "member_rides": 64906,
+      "member_ebike_rides": 38893,
+      "member_ebike_share": "0.599220"
+    },
+    {
+      "ride_date": "2024-01-30",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 30,
+      "day_name": "Tuesday",
+      "member_rides": 71720,
+      "member_ebike_rides": 43869,
+      "member_ebike_share": "0.611670"
+    },
+    {
+      "ride_date": "2024-01-31",
+      "period": "baseline",
+      "period_label": "January 2024",
+      "day_of_month": 31,
+      "day_name": "Wednesday",
+      "member_rides": 75641,
+      "member_ebike_rides": 46205,
+      "member_ebike_share": "0.610846"
+    },
+    {
+      "ride_date": "2025-01-01",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 1,
+      "day_name": "Wednesday",
+      "member_rides": 40527,
+      "member_ebike_rides": 28410,
+      "member_ebike_share": "0.701014"
+    },
+    {
+      "ride_date": "2025-01-02",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 2,
+      "day_name": "Thursday",
+      "member_rides": 63325,
+      "member_ebike_rides": 42641,
+      "member_ebike_share": "0.673368"
+    },
+    {
+      "ride_date": "2025-01-03",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 3,
+      "day_name": "Friday",
+      "member_rides": 66333,
+      "member_ebike_rides": 45836,
+      "member_ebike_share": "0.690998"
+    },
+    {
+      "ride_date": "2025-01-04",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 4,
+      "day_name": "Saturday",
+      "member_rides": 48169,
+      "member_ebike_rides": 33246,
+      "member_ebike_share": "0.690195"
+    },
+    {
+      "ride_date": "2025-01-05",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 5,
+      "day_name": "Sunday",
+      "member_rides": 45981,
+      "member_ebike_rides": 31438,
+      "member_ebike_share": "0.683717"
+    },
+    {
+      "ride_date": "2025-01-06",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 6,
+      "day_name": "Monday",
+      "member_rides": 54467,
+      "member_ebike_rides": 36582,
+      "member_ebike_share": "0.671636"
+    },
+    {
+      "ride_date": "2025-01-07",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 7,
+      "day_name": "Tuesday",
+      "member_rides": 60788,
+      "member_ebike_rides": 41428,
+      "member_ebike_share": "0.681516"
+    },
+    {
+      "ride_date": "2025-01-08",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 8,
+      "day_name": "Wednesday",
+      "member_rides": 62103,
+      "member_ebike_rides": 43242,
+      "member_ebike_share": "0.696295"
+    },
+    {
+      "ride_date": "2025-01-09",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 9,
+      "day_name": "Thursday",
+      "member_rides": 62588,
+      "member_ebike_rides": 44100,
+      "member_ebike_share": "0.704608"
+    },
+    {
+      "ride_date": "2025-01-10",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 10,
+      "day_name": "Friday",
+      "member_rides": 73529,
+      "member_ebike_rides": 51568,
+      "member_ebike_share": "0.701329"
+    },
+    {
+      "ride_date": "2025-01-11",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 11,
+      "day_name": "Saturday",
+      "member_rides": 56742,
+      "member_ebike_rides": 39461,
+      "member_ebike_share": "0.695446"
+    },
+    {
+      "ride_date": "2025-01-12",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 12,
+      "day_name": "Sunday",
+      "member_rides": 60255,
+      "member_ebike_rides": 40784,
+      "member_ebike_share": "0.676857"
+    },
+    {
+      "ride_date": "2025-01-13",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 13,
+      "day_name": "Monday",
+      "member_rides": 79427,
+      "member_ebike_rides": 52854,
+      "member_ebike_share": "0.665441"
+    },
+    {
+      "ride_date": "2025-01-14",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 14,
+      "day_name": "Tuesday",
+      "member_rides": 76233,
+      "member_ebike_rides": 52099,
+      "member_ebike_share": "0.683418"
+    },
+    {
+      "ride_date": "2025-01-15",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 15,
+      "day_name": "Wednesday",
+      "member_rides": 74494,
+      "member_ebike_rides": 51924,
+      "member_ebike_share": "0.697023"
+    },
+    {
+      "ride_date": "2025-01-16",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 16,
+      "day_name": "Thursday",
+      "member_rides": 74273,
+      "member_ebike_rides": 51922,
+      "member_ebike_share": "0.699070"
+    },
+    {
+      "ride_date": "2025-01-17",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 17,
+      "day_name": "Friday",
+      "member_rides": 78007,
+      "member_ebike_rides": 54948,
+      "member_ebike_share": "0.704398"
+    },
+    {
+      "ride_date": "2025-01-18",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 18,
+      "day_name": "Saturday",
+      "member_rides": 53329,
+      "member_ebike_rides": 37334,
+      "member_ebike_share": "0.700069"
+    },
+    {
+      "ride_date": "2025-01-19",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 19,
+      "day_name": "Sunday",
+      "member_rides": 38059,
+      "member_ebike_rides": 25493,
+      "member_ebike_share": "0.669828"
+    },
+    {
+      "ride_date": "2025-01-20",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 20,
+      "day_name": "Monday",
+      "member_rides": 30538,
+      "member_ebike_rides": 21296,
+      "member_ebike_share": "0.697361"
+    },
+    {
+      "ride_date": "2025-01-21",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 21,
+      "day_name": "Tuesday",
+      "member_rides": 47107,
+      "member_ebike_rides": 32665,
+      "member_ebike_share": "0.693421"
+    },
+    {
+      "ride_date": "2025-01-22",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 22,
+      "day_name": "Wednesday",
+      "member_rides": 52304,
+      "member_ebike_rides": 36829,
+      "member_ebike_share": "0.704134"
+    },
+    {
+      "ride_date": "2025-01-23",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 23,
+      "day_name": "Thursday",
+      "member_rides": 60990,
+      "member_ebike_rides": 42379,
+      "member_ebike_share": "0.694852"
+    },
+    {
+      "ride_date": "2025-01-24",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 24,
+      "day_name": "Friday",
+      "member_rides": 65606,
+      "member_ebike_rides": 46409,
+      "member_ebike_share": "0.707390"
+    },
+    {
+      "ride_date": "2025-01-25",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 25,
+      "day_name": "Saturday",
+      "member_rides": 54177,
+      "member_ebike_rides": 37905,
+      "member_ebike_share": "0.699651"
+    },
+    {
+      "ride_date": "2025-01-26",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 26,
+      "day_name": "Sunday",
+      "member_rides": 58154,
+      "member_ebike_rides": 39984,
+      "member_ebike_share": "0.687554"
+    },
+    {
+      "ride_date": "2025-01-27",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 27,
+      "day_name": "Monday",
+      "member_rides": 74025,
+      "member_ebike_rides": 49897,
+      "member_ebike_share": "0.674056"
+    },
+    {
+      "ride_date": "2025-01-28",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 28,
+      "day_name": "Tuesday",
+      "member_rides": 83376,
+      "member_ebike_rides": 56583,
+      "member_ebike_share": "0.678649"
+    },
+    {
+      "ride_date": "2025-01-29",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 29,
+      "day_name": "Wednesday",
+      "member_rides": 84378,
+      "member_ebike_rides": 58856,
+      "member_ebike_share": "0.697528"
+    },
+    {
+      "ride_date": "2025-01-30",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 30,
+      "day_name": "Thursday",
+      "member_rides": 80657,
+      "member_ebike_rides": 56852,
+      "member_ebike_share": "0.704861"
+    },
+    {
+      "ride_date": "2025-01-31",
+      "period": "after",
+      "period_label": "January 2025",
+      "day_of_month": 31,
+      "day_name": "Friday",
+      "member_rides": 62560,
+      "member_ebike_rides": 44958,
+      "member_ebike_share": "0.718638"
+    }
+  ]
+}
