@@ -89,23 +89,31 @@
     },
     "checks_preregistered": {
       "type": "array",
-      "description": "Each Check as it stood when it was written, before any analysis query ran: its id, the sha256 of its SQL file at that moment, and when that was. Optional, and the only mechanical evidence a reviewer has that a Check — above all a falsifier — was not loosened, un-required or rewritten after its result was seen. When an entry is present, `check` compares its hash with the manifest's Check hash and reports `analysis_contract` when they differ. Absent, the reviewer falls back to the probe/execution_order timeline, which shows the order and not the content.",
+      "description": "Each Check as it stood when it was written, before any analysis query ran. Optional as a list; where an entry exists it is the only mechanical evidence a reviewer has that a Check — above all a falsifier — was not loosened, un-required, re-aimed or rewritten after its result was seen.\n\nWhat an entry covers, and `check` compares each against the manifest Check, reporting `analysis_contract` on a difference: (1) `content_hash`, the sha256 of the Check's SQL file at that moment; (2) `required`, the evidence-validity flag, so un-requiring a Check afterwards leaves a trace; (3) `expected_outcome`, the verdict the Check had to produce, which lives in manifest.checks and not in the SQL, so flipping it after the result is otherwise invisible; (4) `statement_hash`, the sha256 of the UTF-8 bytes of manifest.question.falsifier.statement, required on the entry for the Check the Question names as its falsifier, so the plain-language bar cannot be restated around the number that came back. A falsifier's entry must carry `expected_outcome`; the Question's falsifier must also carry `statement_hash`.\n\nWhat it does NOT cover: anything not listed above — the Check's `description`, its `execution_id`, the Question's wording outside `falsifier.statement`, and any Check with no entry here. Absent entirely, the reviewer falls back to the probe/execution_order timeline, which shows the order the files were written and not their content.\n\nThe repair for any difference is to say what changed and why, as a `reframe` probe. Re-pinning the recorded value to match the file is never the repair.",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["check_id", "content_hash", "at"],
+        "required": ["check_id", "content_hash", "at", "required"],
         "properties": {
           "check_id": { "$ref": "#/$defs/id" },
           "content_hash": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["algorithm", "value"],
-            "properties": {
-              "algorithm": { "const": "sha256" },
-              "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
-            }
+            "$ref": "#/$defs/hash",
+            "description": "The sha256 of the Check's SQL file at the moment it was written."
           },
           "at": { "$ref": "#/$defs/timestamp", "description": "When the Check file was written, read from the harness's clock. Never a time invented afterwards." },
+          "required": {
+            "type": "boolean",
+            "description": "The Check's `required` flag as it was pre-registered. A falsifier is never `required: true` (docs/contracts/checks-and-results.md), so recording `false` here is what makes a later `true` — or a later un-requiring of an invariant — visible."
+          },
+          "expected_outcome": {
+            "type": "string",
+            "enum": ["pass", "fail"],
+            "description": "The outcome the Check had to produce for the Answer to stand, as pre-registered. Required on a `kind: falsifier` Check, because this field lives in manifest.checks rather than in the SQL file and is the cheapest thing to flip after the result is known."
+          },
+          "statement_hash": {
+            "$ref": "#/$defs/hash",
+            "description": "sha256 of the UTF-8 bytes of manifest.question.falsifier.statement, as pre-registered. Required on the entry for the Check the Question names as its falsifier."
+          },
           "note": { "type": "string", "minLength": 1 }
         }
       }
@@ -373,6 +381,15 @@
   ],
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
     "relpath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\./)[A-Za-z0-9_./-]+$" },
     "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "unit": {

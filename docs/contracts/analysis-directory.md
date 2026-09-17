@@ -94,8 +94,11 @@ pre_registered_comparison:      # required for an `answered` recommendation
   { statement, registered_before_cuts, registered_at?, source? }
 probes:                         # the middle of the analysis, in the order it happened; never evidence
   - { id, at, kind: exploratory|dead_end|reframe, question, observed, sql_path?, changed_plan? }
-checks_preregistered:           # optional: each Check's SQL hash at the moment it was written
-  - { check_id, content_hash: { algorithm: sha256, value }, at, note? }
+checks_preregistered:           # optional list; an entry pins what decides the Check, not only its SQL
+  - { check_id, content_hash: { algorithm: sha256, value }, at, required,
+      expected_outcome?,          # pass|fail — REQUIRED on a kind: falsifier Check
+      statement_hash?,            # sha256 of question.falsifier.statement — REQUIRED on the Question's falsifier
+      note? }
 execution_order:                # probe -> check -> query, in the order written and run
   - { kind: probe|check|query, id, exploratory?, post_hoc?, note? }
 candidate_claims:
@@ -179,15 +182,25 @@ Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
   error), `derived:<id>` to `manifest.derived` or `requested_derived`, `ext:<id>` to `manifest.external_sources`
   or `requested_external_sources`. A result file that is not on disk yet is not resolved against here; the
   manifest validator is what reports a missing or corrupt result file.
-- **A pre-registered Check is the Check that ran.** `checks_preregistered` is optional and records, per Check,
-  the sha256 of its SQL file at the moment it was written and the time that was. Where an entry exists, its hash
-  must equal the hash the manifest pins for that Check; a difference is an `analysis_contract` error, and the
-  repair is to say what changed and why (a `reframe` probe), never to re-pin the pre-registration hash to match
-  the file. It matters most for the falsifier, because a falsifier decides the outcome
-  (`docs/contracts/checks-and-results.md`): a falsifier loosened, un-required or rewritten after its result was
-  seen is not a falsifier. Where nothing is recorded, `check` says so in its summary, and a reviewer falls back
-  to the probe and `execution_order` timeline, which shows the order the files were written and not their
-  content.
+- **A pre-registered Check is the Check that ran.** `checks_preregistered` is an optional list. Where an entry
+  exists it pins four things about that Check as it stood when it was written, and `check` compares each with
+  the manifest, reporting `analysis_contract` on a difference:
+
+  | Pinned | Read from | Why the SQL hash cannot cover it |
+  | --- | --- | --- |
+  | `content_hash` | the Check's `.sql` file | — it *is* the SQL hash |
+  | `required` | `manifest.checks[].required` | un-requiring a Check afterwards moves no file |
+  | `expected_outcome` | `manifest.checks[].expected_outcome` | the verdict a falsifier was written to produce is a manifest field; flipping it after the result moves no file. Required on a `kind: falsifier` entry |
+  | `statement_hash` | sha256 of the UTF-8 bytes of `manifest.question.falsifier.statement` | the plain-language bar lives in the Question. Required on the entry for the Check the Question names as its falsifier |
+
+  Nothing else is covered: not the Check's `description`, not its `execution_id`, not the rest of the Question,
+  and not a Check with no entry at all. It matters most for the falsifier, because a falsifier decides the
+  outcome (`docs/contracts/checks-and-results.md`): a falsifier loosened, un-required, re-aimed or rewritten
+  after its result was seen is not a falsifier, and three of those four edits never touch the SQL file. The
+  repair for any difference is to say what changed and why (a `reframe` probe), never to re-pin the
+  pre-registration to match the manifest. Where nothing is recorded, `check` says so in its summary, and a
+  reviewer falls back to the probe and `execution_order` timeline, which shows the order the files were written
+  and not their content.
 - **A causal Claim is earned, not asserted.** `type: causal` with any `causal_basis` other than
   `randomised_assignment` is refused, and the remedy is to make the Claim associational.
 - **A Claim's `definition_refs` are pinned.** Each resolves in `manifest.definitions` at the same version, so a

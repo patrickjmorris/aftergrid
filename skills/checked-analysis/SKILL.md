@@ -151,9 +151,20 @@ rewrite the SQL after seeing the result — a falsifier edited after its result 
 reports a fired falsifier as a `falsifier_failed` warning, not an error, and `render` writes the page with the
 falsifier on it. The only error is claiming `answered` over a falsifier that fired (`analytical_outcome`).
 
-Record each Check's file hash in `analysis.yaml#/checks_preregistered` as you write it (`check_id`,
-`content_hash`, `at`). It costs one line and it is the only mechanical evidence a reviewer has that the
-falsifier is the one you wrote before the numbers existed.
+Pre-register each Check in `analysis.yaml#/checks_preregistered` as you write it, before you run anything:
+`check_id`, `content_hash` (the sha256 of the `.sql` file), `at`, and `required`. On a `kind: falsifier` Check
+also record `expected_outcome`; on the Check the Question names as its falsifier also record `statement_hash`,
+the sha256 of the UTF-8 bytes of `question.falsifier.statement`. It costs four lines and it is the only
+mechanical evidence a reviewer has that the falsifier is the one you wrote before the numbers existed.
+
+Record all four, not just the hash: three of the four ways to soften a falsifier after seeing its result —
+un-requiring it, flipping `expected_outcome`, restating the bar in the Question — never touch the SQL file, so a
+hash alone would say nothing about them. `check` compares exactly these four with the manifest and reports
+`analysis_contract` on any difference. It compares nothing else: the Check's `description`, its `execution_id`,
+the rest of the Question and any Check with no entry here are not covered, and a Finding with no
+`checks_preregistered` at all is covered by nothing but the probe and `execution_order` timeline, which shows
+the order the files were written and not their content. When something did legitimately change, say so in a
+`reframe` probe; never re-pin the entry to match the manifest.
 
 Write only the Checks that apply. A reconciliation Check needs an approved definition to reconcile against; when
 there is none, that is a `needs_input` of kind `definition_approval`, not a Check invented to fill the table.

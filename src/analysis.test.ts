@@ -24,6 +24,7 @@ import { execute } from "./commands/execute.ts";
 import { check } from "./commands/check.ts";
 import { validateAnalysisFile, analysisWarnings, analysisSummary } from "./analysis/validate.ts";
 import { proposeDefinition } from "./analysis/definitions.ts";
+import { sha256 } from "./digest.ts";
 
 const REPO = fileURLToPath(new URL("../", import.meta.url));
 const WAREHOUSE = join(REPO, "fixtures/instance/data");
@@ -489,8 +490,14 @@ test("a pre-registered Check hash must match the Check the manifest pins, and it
   writeFileSync(join(dir, "analysis.yaml"), toYaml(base, { lineWidth: 0 }));
   assert.ok(analysisSummary(dir).some((l) => /no Check pre-registration hashes recorded/.test(l)), analysisSummary(dir).join("\n"));
 
+  // A full entry: the SQL hash, the required flag, the falsifier's expected verdict, and the sha256 of the
+  // Question's falsifier statement. What each one is for is asserted in src/falsifier-contract.test.ts.
   const pinned = structuredClone(base);
-  pinned.checks_preregistered = [{ check_id: falsifier.id, content_hash: { ...falsifier.content_hash }, at: "2026-07-19T09:00:00Z" }];
+  pinned.checks_preregistered = [{
+    check_id: falsifier.id, content_hash: { ...falsifier.content_hash }, at: "2026-07-19T09:00:00Z",
+    required: falsifier.required === true, expected_outcome: falsifier.expected_outcome,
+    statement_hash: { algorithm: "sha256", value: sha256(manifest.question.falsifier.statement) },
+  }];
   writeFileSync(join(dir, "analysis.yaml"), toYaml(pinned, { lineWidth: 0 }));
   assert.deepEqual(validateAnalysisFile(dir, manifest), [], JSON.stringify(validateAnalysisFile(dir, manifest)));
   assert.ok(analysisSummary(dir).some((l) => new RegExp(`1 Check\\(s\\) pre-registered.*${falsifier.id}`).test(l)), analysisSummary(dir).join("\n"));

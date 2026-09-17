@@ -23,7 +23,7 @@ import { sha256 } from "../digest.ts";
 import { checkOutcome } from "../../scripts/lib/sql-runner.mjs";
 import { assessReadiness } from "../publication/readiness.ts";
 import { createGitHubClient, tokenFromEnv, type GitHubClient } from "../publication/github.ts";
-import { validateAnalysisFile, analysisWarnings } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings, analysisSummary } from "../analysis/validate.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 export type CheckOptions = { dir: string; mode?: "artifact" | "rerun"; github?: GitHubClient | null };
@@ -269,10 +269,13 @@ export function checkArtifact(opts: CheckOptions): Report {
       if (dc.records) report.info.push(`${dc.records} Decision record(s) cite this Finding; ${dc.records - Math.min(dc.records, dc.unverified)} verified against this revision, ${dc.unverified} unverified (other revision); revisit conditions not evaluated`);
     }
   }
-  // The Analysis file, when the directory has one (docs/contracts/analysis-directory.md).
+  // The Analysis file, when the directory has one (docs/contracts/analysis-directory.md). The summary is part
+  // of the answer, not decoration: whether any Check carries a pre-registration hash at all is the first thing
+  // a reviewer of a falsifier needs, and saying nothing about it reads as saying there is nothing to say.
   if (manifest) {
     report.errors.push(...validateAnalysisFile(dir, manifest));
     report.warnings.push(...analysisWarnings(dir));   // Probes out of timeline order: said, never refused.
+    report.info.push(...analysisSummary(dir));        // Empty when the directory has no analysis.yaml.
   }
   report.evidence = report.errors.length ? "invalid" : "valid";
   report.sql_execution = "not_performed";

@@ -29,6 +29,7 @@ import { parse as parseYaml } from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import type { Problem } from "../report.ts";
+import { sha256 } from "../digest.ts";
 // @ts-ignore: shared path containment (JS module, no types).
 import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
 
@@ -41,7 +42,17 @@ export type ProbeKind = "exploratory" | "dead_end" | "reframe";
 export type Probe = { id: string; at: string; kind: ProbeKind; question: string; observed: string; sql_path?: string; changed_plan?: string };
 export type ExecutionStep = { kind: "probe" | "check" | "query"; id: string; exploratory?: boolean; post_hoc?: boolean; note?: string };
 /** A Check's SQL as it stood when it was written, before any analysis query ran. See the schema's description. */
-export type PreregisteredCheck = { check_id: string; content_hash: { algorithm: "sha256"; value: string }; at: string; note?: string };
+export type Sha256 = { algorithm: "sha256"; value: string };
+export type PreregisteredCheck = {
+  check_id: string; content_hash: Sha256; at: string;
+  /** The Check's `required` flag as pre-registered: un-requiring it afterwards is otherwise traceless. */
+  required: boolean;
+  /** The verdict a falsifier was written to produce. In manifest.checks, never in the SQL, so it is pinned here. */
+  expected_outcome?: "pass" | "fail";
+  /** sha256 of manifest.question.falsifier.statement, on the entry for the Check the Question names. */
+  statement_hash?: Sha256;
+  note?: string;
+};
 export type RequestedDerived = { id: string; operation: string; operands: string[]; unit: string; display?: Record<string, unknown>; description?: string };
 export type RequestedExternalSource = { id: string; kind: string; value: number | string; unit: string; source: Record<string, unknown> };
 export type Analysis = {
@@ -99,6 +110,9 @@ function remedyFor(e: any): string {
   const path: string = e.instancePath ?? "";
   if (missing && ["probes", "execution_order", "candidate_claims", "outcome_recommendation"].includes(missing)) {
     return "an analysis.yaml that has not reached the analysis yet declares `stage: clarified`; the four evidence sections are required only at `stage: analysed` (docs/contracts/analysis-directory.md)";
+  }
+  if (/^\/checks_preregistered\/\d+/.test(path)) {
+    return "a pre-registration pins what decides the Check: the sha256 of its SQL file (`content_hash`), its `required` flag, a falsifier's `expected_outcome`, and — for the Check the Question names as its falsifier — the sha256 of `question.falsifier.statement` as `statement_hash`. An entry pinning the SQL alone leaves the verdict, the flag and the statement free to move after the result (docs/contracts/analysis-directory.md)";
   }
   if (/^\/probes\/\d+/.test(path)) {
     if (missing === "at") return "every probe carries `at`, the time the harness's clock read when the look was taken (RFC 3339 with an offset). It is never invented after the fact: a probe whose time was not recorded says so in `observed` rather than carrying a plausible one";
@@ -212,19 +226,53 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   }
   // --- a pre-registered Check is the Check that ran ---
   // The one mechanical answer to "was this falsifier written before the number was known, and left alone
-  // afterwards?". A recorded hash that no longer matches the manifest means the file changed between
-  // pre-registration and the run; the honest repair is to say so, never to re-pin the recorded hash.
+  // afterwards?". Four things decide that, and only one of them is in the SQL file: the statement in the
+  // Question, the `expected_outcome` and `required` flags in manifest.checks, and the file's own bytes. A
+  // pre-registration that pinned the SQL alone would let the cheapest edits of all — flipping the expected
+  // verdict, or the required flag, after the result came back — leave no trace at all. Every difference is the
+  // same report and the same repair: say what changed and why, never re-pin the recorded value to match.
+  const REPIN = "the Check changed after it was pre-registered. Say so — a falsifier edited after its result was seen is not a falsifier — and record the change as a probe of kind reframe with what it changed and why. Never re-pin the pre-registration to match the manifest";
   const checkById = new Map((manifest.checks ?? []).map((c: any) => [c.id, c]));
+  const questionFalsifier = manifest.question?.falsifier?.kind === "check" ? manifest.question.falsifier : null;
   (analysis.checks_preregistered ?? []).forEach((entry, i) => {
+    const at = `${ANALYSIS_FILE}#/checks_preregistered/${i}`;
     const ck: any = checkById.get(entry.check_id);
     if (!ck) {
-      problems.push({ category: "unresolved_reference", location: `${ANALYSIS_FILE}#/checks_preregistered/${i}/check_id`, message: `Check '${entry.check_id}' is not in manifest.yaml#/checks`, remedy: "name a Check the manifest declares, or drop the entry" });
+      problems.push({ category: "unresolved_reference", location: `${at}/check_id`, message: `Check '${entry.check_id}' is not in manifest.yaml#/checks`, remedy: "name a Check the manifest declares, or drop the entry" });
       return;
     }
     if (ck.content_hash?.value !== entry.content_hash.value) {
-      err(`${ANALYSIS_FILE}#/checks_preregistered/${i}/content_hash`,
-        `Check '${entry.check_id}' was pre-registered at ${entry.at} with a different SQL file than the one the manifest pins`,
-        "the Check changed after it was pre-registered. Say so — a falsifier edited after its result was seen is not a falsifier — and record the change as a probe of kind reframe with what it changed and why. Never re-pin the pre-registration hash to match the file");
+      err(`${at}/content_hash`,
+        `Check '${entry.check_id}' was pre-registered at ${entry.at} with a different SQL file than the one the manifest pins`, REPIN);
+    }
+    if (entry.required !== (ck.required === true)) {
+      err(`${at}/required`,
+        `Check '${entry.check_id}' was pre-registered at ${entry.at} with required: ${entry.required}, and the manifest declares required: ${ck.required === true}`, REPIN);
+    }
+    // `expected_outcome` is what a falsifier means. It is not in the SQL, so the pre-registration has to carry
+    // it or the pre-registration says nothing about the verdict the Check was written to produce.
+    if (ck.kind === "falsifier" && entry.expected_outcome === undefined) {
+      err(`${at}/expected_outcome`,
+        `falsifier '${entry.check_id}' is pre-registered without its expected_outcome, so nothing here records the verdict it was written to produce`,
+        "record expected_outcome beside the content hash when the Check is written: the SQL hash alone cannot show that the expected verdict was not flipped after the result came back");
+    } else if (entry.expected_outcome !== undefined && entry.expected_outcome !== ck.expected_outcome) {
+      err(`${at}/expected_outcome`,
+        `Check '${entry.check_id}' was pre-registered at ${entry.at} expecting ${entry.expected_outcome}, and the manifest declares expected_outcome ${ck.expected_outcome ?? "(none)"}`, REPIN);
+    }
+    // The Question's falsifier statement is the plain-language bar the Answer was agreed against. It is pinned
+    // on the entry for the Check the Question names, and nowhere else: no other Check has a statement.
+    const isQuestionFalsifier = questionFalsifier?.check_id === entry.check_id;
+    if (entry.statement_hash && !isQuestionFalsifier) {
+      err(`${at}/statement_hash`,
+        `Check '${entry.check_id}' pins a falsifier statement, and manifest.yaml#/question/falsifier ${questionFalsifier ? `names '${questionFalsifier.check_id}'` : "names no Check"}`,
+        "statement_hash belongs on the entry for the Check the Question names as its falsifier; drop it here, or make this Check the Question's falsifier");
+    } else if (isQuestionFalsifier && !entry.statement_hash) {
+      err(`${at}/statement_hash`,
+        `the Question's falsifier '${entry.check_id}' is pre-registered without a statement_hash, so the plain-language bar it was agreed against is not pinned`,
+        "record statement_hash as the sha256 of manifest.yaml#/question/falsifier/statement when the Check is written; without it the statement can be restated around whatever the data showed");
+    } else if (isQuestionFalsifier && entry.statement_hash && entry.statement_hash.value !== sha256(String(questionFalsifier.statement))) {
+      err(`${at}/statement_hash`,
+        `the Question's falsifier statement changed after '${entry.check_id}' was pre-registered at ${entry.at}`, REPIN);
     }
   });
   const prereg = analysis.checks_preregistered ?? [];
@@ -377,8 +425,8 @@ export function analysisSummary(dir: string): string[] {
   // place in the timeline. Said either way, because "no hash recorded" is itself the reviewer's answer.
   const prereg = analysis.checks_preregistered ?? [];
   lines.push(prereg.length
-    ? `analysis.yaml: ${prereg.length} Check(s) pre-registered with a content hash (${prereg.map((c) => `${c?.check_id} at ${c?.at}`).join(", ")}); check compares each with the manifest`
-    : "analysis.yaml: no Check pre-registration hashes recorded; whether a Check was edited after its result can only be read from the probe and execution_order timeline");
+    ? `analysis.yaml: ${prereg.length} Check(s) pre-registered (${prereg.map((c) => `${c?.check_id} at ${c?.at}`).join(", ")}); check compares each entry's SQL hash, required flag, expected_outcome and falsifier statement hash with the manifest, and nothing else about the Check`
+    : "analysis.yaml: no Check pre-registration hashes recorded; whether a Check was edited, re-aimed or un-required after its result can only be read from the probe and execution_order timeline");
   if (!analysis.pre_registered_comparison) lines.push("analysis.yaml: no pre-registered comparison recorded; every Claim here is exploratory");
   else if (!analysis.pre_registered_comparison.registered_before_cuts) lines.push("analysis.yaml: the primary comparison was registered AFTER cuts were explored, and says so");
   for (const n of analysis.needs_input ?? []) lines.push(`analysis.yaml needs input (${n?.kind}, owner ${n?.owner}): ${n?.description}`);

@@ -140,6 +140,21 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     return report;
   }
 
+  // A falsifier is never `required: true` (docs/contracts/checks-and-results.md). `required` is an
+  // evidence-validity condition — the numbers do not stand without it — and a falsifier asks whether the ANSWER
+  // stands, which is the outcome. The two get confused in one direction only: marking the one Check written to
+  // be allowed to fail into a reason to refuse the whole Finding. `check` refuses that shape, so this command
+  // refuses it too, before any SQL runs — recording an outcome under it would pin evidence whose own shape
+  // `check` then rejects.
+  const requiredFalsifiers = (manifest.checks ?? []).filter((ck: any) => ck?.kind === "falsifier" && ck?.required === true);
+  if (requiredFalsifiers.length) {
+    for (const ck of requiredFalsifiers) {
+      err("check_shape", `checks/${ck.id}`, `falsifier Check ${ck.id} declares required: true`,
+        "falsifiers decide the outcome, not validity: set `required: false`. A falsifier that records the outcome it did not expect makes the Finding inconclusive (or needs_reframing) and is written up; it is not an evidence failure that refuses the Finding. Nothing was run and nothing was written.");
+    }
+    return report;
+  }
+
   let opener: ReturnType<typeof retainedOpenerFor>;
   let engineName: "duckdb" | "postgres";
   try {
@@ -258,7 +273,8 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     : "snapshot.guarantees is empty: this run saved no result, so there is no artifact to replay and no analysis to rerun; the guarantees are not claimed");
   report.info.push("attestations and reviews were not written; if this run changed the content, `check` will report them stale");
 
-  // Checks as facts, in the categories `check` uses.
+  // Checks as facts, in the categories `check` uses. A falsifier is never among the required ones: that shape
+  // was refused above, before anything ran.
   for (const ck of manifest.checks ?? []) {
     const outcome = outcomes[ck.id];
     if (outcome === "fail" && ck.required) {
@@ -266,13 +282,23 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
         ck.kind === "minimum_data"
           ? "a failing minimum_data Check is a business result: the Finding's outcome is insufficient_data and the memo says what is missing"
           : "the Analysis does not establish what this Check asserts; fix the analysis or state the limitation, and do not publish on it");
-    } else if (outcome === "fail") {
+    } else if (outcome === "fail" && ck.kind !== "falsifier") {
       report.warnings.push({ category: "check_failed", location: `checks/${ck.id}`, message: `Check ${ck.id} (${ck.kind}) recorded fail; it is not required, so it is a business result the memo must explain` });
     } else if (outcome === "not_run" && ck.required) {
       report.warnings.push({ category: "minimum_data", location: `checks/${ck.id}`, message: `required Check ${ck.id} declared itself not evaluable on this data (pass is NULL); it is recorded as not_run, never as a pass` });
     }
-    if (ck.expected_outcome && outcome !== ck.expected_outcome) {
-      report.warnings.push({ category: "falsifier", location: `checks/${ck.id}`, message: `falsifier ${ck.id} recorded ${outcome}, and the Question expects ${ck.expected_outcome}; an answered Finding cannot stand on this` });
+    // A falsifier that recorded the outcome it did not expect is the falsifier firing: an analytical fact and
+    // the inconclusive path, reported exactly as `check` reports it (`falsifier_failed`), never as an engine
+    // failure. `not_run` is the falsifier declining to evaluate, which is not it firing. The old `falsifier`
+    // category said the same thing under a name nothing else used and is no longer emitted anywhere.
+    if (ck.kind === "falsifier" && outcome !== "error" && outcome !== ck.expected_outcome && (outcome === "pass" || outcome === "fail")) {
+      const statement = manifest.question?.falsifier?.kind === "check" && manifest.question.falsifier.check_id === ck.id
+        ? `: ${manifest.question.falsifier.statement}` : "";
+      report.warnings.push({
+        category: "falsifier_failed", location: `checks/${ck.id}`,
+        message: `the pre-registered falsifier recorded ${outcome} and expected ${ck.expected_outcome}${statement}`,
+        remedy: "this is the analytical outcome, not an evidence failure: record finding.outcome as inconclusive (or needs_reframing where the Question itself is the problem) and write it up with the Check shown. Do not loosen, un-require, re-aim or rewrite the Check now that its result is known",
+      });
     }
   }
 

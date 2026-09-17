@@ -26,6 +26,8 @@ The list exists for one situation: where the pre-registered falsifier decides be
 
 So a list carries `expected.falsifier_dependent: true` and an `expected.falsifier_note` saying which falsifier leads to which outcome, and the `reasoning` says it too. A case that lists several outcomes for any other reason — because the reviewer was unsure, or to stop a case failing — is a case that has stopped being a reference.
 
+That is gated, not merely written down. `schema/golden-question.schema.json` requires `falsifier_dependent` and `falsifier_note` whenever `expected.outcome` is a list; `loadGoldens()` validates every golden against that schema as it reads it and refuses an invalid file by name and location rather than skipping it (a silently dropped case shows up as a smaller run, which reads like a passing one); and `assertCase()` refuses an ungated list itself, as an `infrastructure` verdict, because the broken artifact is the answer key and not the Analysis.
+
 ## Reference values
 
 `expected.values[]` are produced by `reference.queries[]`, plain SQL over the warehouse tables with named parameters, keyed by `row_key`. `src/golden.test.ts` runs them through the DuckDB adapter and asserts each value within its tolerance, so the file is checked, not trusted. Tolerances are absolute in the value's unit. Causal conclusions are only expected where the data was generated with randomised assignment; everywhere else `claim_type` is descriptive or associational.

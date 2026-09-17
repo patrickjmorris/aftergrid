@@ -14,6 +14,8 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { DuckDbAdapter } from "../adapters/duckdb.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { newFinding } from "../commands/new-finding.ts";
@@ -73,13 +75,40 @@ export type GoldenQuestion = {
   reference: { parameters?: Record<string, string | number | boolean>; queries: { id: string; row_key: string; sql: string }[] };
 };
 
+const GOLDEN_SCHEMA_PATH = join(REPO_ROOT, "schema", "golden-question.schema.json");
+let goldenValidator: (((data: unknown) => boolean) & { errors?: any[] }) | null = null;
+/** The Golden Question schema, compiled once. */
+function goldenSchema() {
+  if (!goldenValidator) {
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    addFormats(ajv);
+    goldenValidator = ajv.compile(JSON.parse(readFileSync(GOLDEN_SCHEMA_PATH, "utf8")));
+  }
+  return goldenValidator;
+}
+
+/**
+ * Every Golden Question in an Instance, validated against `schema/golden-question.schema.json` as it is read.
+ *
+ * A golden is the answer key: a file that does not meet its own schema is not a looser reference, it is not a
+ * reference at all, and running a case against one grades the Engine against something nobody reviewed. So an
+ * invalid file stops the load by name and by location rather than being skipped quietly — a silently dropped
+ * case would show up as a smaller run, which reads like a passing one.
+ */
 export function loadGoldens(instanceDir: string): GoldenQuestion[] {
   const dir = join(instanceDir, "golden");
   if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".yaml"))
-    .sort()
-    .map((f) => parseYaml(readFileSync(join(dir, f), "utf8")) as GoldenQuestion);
+  const validate = goldenSchema();
+  const out: GoldenQuestion[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".yaml")).sort()) {
+    const golden = parseYaml(readFileSync(join(dir, file), "utf8")) as GoldenQuestion;
+    if (validate(golden)) { out.push(golden); continue; }
+    const where = (validate.errors ?? [])
+      .map((e) => `${file}#${e.instancePath || "/"}: ${e.message}${e.params?.missingProperty ? ` ('${e.params.missingProperty}')` : ""}`)
+      .join("; ");
+    throw new Error(`${join(dir, file)} is not a valid Golden Question, so it is not an answer key: ${where}`);
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ the Instance's definition library */
@@ -364,12 +393,21 @@ export function assertCase(opts: AssertOptions): Assertion[] {
 
   const gotOutcome = manifest?.finding?.outcome ?? "(none)";
   // One acceptable outcome or several. Several is not a looser bar: each one is reviewed and written down, and
-  // the reasoning says why more than one is honest — normally because the case's falsifier decides between them.
+  // the reasoning says why more than one is honest — because the case's pre-registered falsifier decides between
+  // them (docs/contracts/golden-questions.md). A list that does not say so is not a reference, so it is refused
+  // here rather than accepted as a wider target: the golden is the broken artifact, not the Analysis, so the
+  // verdict is `infrastructure` and the case never scores an analytical pass on it.
   const acceptable = Array.isArray(expected.outcome) ? expected.outcome : [expected.outcome];
-  const wanted = `outcome ${acceptable.join(" or ")}${expected.falsifier_dependent ? " (which one depends on the pre-registered falsifier)" : ""}`;
-  out.push(acceptable.includes(gotOutcome)
-    ? pass("outcome", "analytical", wanted, `outcome ${gotOutcome}`)
-    : fail("outcome", "analytical", wanted, `outcome ${gotOutcome}`));
+  if (Array.isArray(expected.outcome) && expected.falsifier_dependent !== true) {
+    out.push(fail("outcome", "infrastructure",
+      "a list of acceptable outcomes carries falsifier_dependent: true and a falsifier_note saying which falsifier leads to which one",
+      `the golden lists ${acceptable.join(", ")} and declares no falsifier_dependent, so nothing says why more than one outcome is honest`));
+  } else {
+    const wanted = `outcome ${acceptable.join(" or ")}${expected.falsifier_dependent ? " (which one depends on the pre-registered falsifier)" : ""}`;
+    out.push(acceptable.includes(gotOutcome)
+      ? pass("outcome", "analytical", wanted, `outcome ${gotOutcome}`)
+      : fail("outcome", "analytical", wanted, `outcome ${gotOutcome}`));
+  }
 
   const citedDefs: string[] = (manifest?.definitions ?? []).map((d: any) => String(d.id));
   const missingDefs = expected.definition_ids.filter((d) => !citedDefs.includes(d));

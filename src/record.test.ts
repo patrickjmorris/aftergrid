@@ -635,3 +635,19 @@ test("a --sql path with whitespace in it, or a keyword in a directory name, is s
     assert.ok(!r.errors.some((e) => e.location === "--sql"), `${sql}: ${JSON.stringify(r.errors)}`);
   }
 });
+
+// ag-falsifier-outcome-cov: `record` writes down what the harness ran, and the Analysis file's summary is part
+// of what a reviewer reads next — above all whether any Check was pre-registered with a content hash at all.
+test("record reports the Analysis file's summary, including whether any Check was pre-registered", async () => {
+  const { dir } = declaredFinding();
+  writeFileSync(join(dir, "analysis.yaml"), toYaml({
+    schema_version: "0.1.0", stage: "clarified", reader_profile: "product_owner", assumptions: [],
+  }, { lineWidth: 0 }));
+  const report = await record({
+    dir, tool: "psql", execution: "ex_cancellations",
+    result: toolOutput("r.json", JSON_RESULT), params: ["change_date=2026-09-08"],
+  });
+  assert.deepEqual(report.errors, [], JSON.stringify(report.errors));
+  assert.ok(report.info.some((i) => /no Check pre-registration hashes recorded/.test(i)), JSON.stringify(report.info));
+  assert.ok(report.info.some((i) => /stage clarified/.test(i)), JSON.stringify(report.info));
+});

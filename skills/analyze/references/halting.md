@@ -15,6 +15,7 @@ stage: analysis_review          # clarify | checked_analysis | write_finding | i
                                 # shape_narrative | analysis_review | check
 status: needs_attention         # running | done | needs_input | needs_attention
 reason: "Method review: the 7-day retention rate for the promo cohort has no stated denominator (c2)."
+stale_definitions: []           # optional: definition ids whose Instance file moved after this run
 updated: "2026-09-16T14:22:05Z"
 ```
 
@@ -22,6 +23,10 @@ updated: "2026-09-16T14:22:05Z"
 - `status: running` on a file older than the current run means an earlier attempt died mid-stage. Rerun that
   stage from the top; every stage is written to be safe to rerun against its own inputs.
 - `reason` is empty only while `status` is `running` or `done`.
+- `stale_definitions` names the definitions whose Instance file was improved after the run, so `check` reports
+  `hash_mismatch` on their pins. The Finding pins the version it actually read and a new revision is the repair,
+  never a re-pin; naming the ids is what keeps that tolerance to the definitions somebody accounted for
+  (`scripts/examples-check.mjs`). The halt `reason` naming them in prose does the same job.
 - `updated` is UTC ISO-8601.
 
 Resuming means reading `stage` and `status`: `done` starts the next stage, anything else restarts `stage`.

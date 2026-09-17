@@ -150,3 +150,21 @@ The golden was updated in the same change: `crz_trips_jan2025_vs_jan2024` now ac
 `[answered, inconclusive]` with `falsifier_dependent: true`, because which one is honest is decided by the
 falsifier the Analysis pre-registers, and grading only `answered` would have scored run 2 down for writing the
 stricter falsifier. The `must_state` list is unchanged.
+
+### Amendment, 2026-09-17: the definition-pin tolerance is bounded, and this run's record now names its definition
+
+A review of the falsifier contract (bead `ag-falsifier-outcome-cov`) found that tolerance unbounded: it accepted
+a moved pin on *any* definition, including one that moved for a reason nobody wrote down. It now requires the
+record to name the definition, either in the halt `reason` or in a `stale_definitions: [<id>, …]` list. So
+`analysis-progress.yaml` in this Finding gained one field, `stale_definitions: [weekday_share]`, and nothing
+else: the `reason` prose is run 2's own words and stays verbatim.
+
+That field was added rather than the `reason` rewritten because **`analysis-progress.yaml` is a progress file,
+not evidence**. It records where a run stopped and who decides next; it is outside the content digest envelope
+(`src/digest.ts` hashes the manifest, `memo.md`, and the query, Check, chart and result files it names), so
+adding a field changes no hash, no attestation, no recorded number and nothing `check` verifies. The run output
+proper — the manifest, the six results, the five Checks and their outcomes — is untouched, as it has to be.
+
+The same review also removed `analytical_outcome` from the categories a halt can excuse. That category means a
+Finding still records `answered` over a falsifier that fired, which is the publication the contract exists to
+stop; a halt is not a place to park it. This Finding never had one: it records `pending`, not `answered`.

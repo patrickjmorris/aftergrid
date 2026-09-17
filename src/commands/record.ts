@@ -33,7 +33,7 @@ import { findInstance } from "../instance.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { serializeResult, type DeclaredColumn } from "../adapters/serialize.ts";
 import { contentDigest, sha256 } from "../digest.ts";
-import { validateAnalysisFile, analysisWarnings } from "../analysis/validate.ts";
+import { validateAnalysisFile, analysisWarnings, analysisSummary } from "../analysis/validate.ts";
 // @ts-ignore: the shared digest envelope, as `check`, `execute` and the fixture build compute it.
 import { digestOf } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment and structural rules.
@@ -317,6 +317,7 @@ export async function record(opts: RecordOptions): Promise<Report> {
   try {
     report.errors.push(...validateAnalysisFile(dir, doc.toJS()));
     report.warnings.push(...analysisWarnings(dir));   // Probes out of timeline order: said, never refused.
+    report.info.push(...analysisSummary(dir));        // Empty when the directory has no analysis.yaml.
   }
   catch (e) {
     err("invalid_artifact", "analysis.yaml", `analysis.yaml could not be read: ${(e as Error).message}`,

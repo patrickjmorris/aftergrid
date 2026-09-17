@@ -17,6 +17,13 @@
       "additionalProperties": false,
       "required": ["outcome", "definition_ids", "tables_read", "reasoning"],
       "dependentRequired": { "falsifier_dependent": ["falsifier_note"], "falsifier_note": ["falsifier_dependent"] },
+      "allOf": [
+        {
+          "description": "A list of acceptable outcomes exists for exactly one reason: the case's pre-registered falsifier decides between them. A list that does not say so is a reviewer who was unsure, or a case edited to stop failing, and it has stopped being a reference.",
+          "if": { "required": ["outcome"], "properties": { "outcome": { "type": "array" } } },
+          "then": { "required": ["falsifier_dependent", "falsifier_note"] }
+        }
+      ],
       "properties": {
         "outcome": {
           "description": "The outcome an honest Analysis reaches, or the list of outcomes that would all be honest. Use a list when the case's pre-registered falsifier decides between them, and say so with falsifier_dependent and falsifier_note.",
