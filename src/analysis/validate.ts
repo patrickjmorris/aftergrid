@@ -31,7 +31,7 @@ import addFormats from "ajv-formats";
 import type { Problem } from "../report.ts";
 import { sha256 } from "../digest.ts";
 // @ts-ignore: shared path containment (JS module, no types).
-import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
+import { safePath, ContractError, DIRECTIONAL_OPERATIONS } from "../../scripts/fixture-safety.mjs";
 
 export const ANALYSIS_FILE = "analysis.yaml";
 const SCHEMA_PATH = fileURLToPath(new URL("./analysis.schema.json", import.meta.url));
@@ -53,7 +53,13 @@ export type PreregisteredCheck = {
   statement_hash?: Sha256;
   note?: string;
 };
-export type RequestedDerived = { id: string; operation: string; operands: string[]; unit: string; display?: Record<string, unknown>; description?: string };
+/**
+ * `operands` has the two forms `manifest.derived` has: a positional list, or the named `{ after, baseline }`
+ * pair that `difference`, `ratio` and `percent_change` accept. The Analysis is where a derived value is first
+ * requested, so it is where the direction is first stated.
+ */
+export type NamedOperands = { after: string; baseline: string };
+export type RequestedDerived = { id: string; operation: string; operands: string[] | NamedOperands; unit: string; display?: Record<string, unknown>; description?: string };
 export type RequestedExternalSource = { id: string; kind: string; value: number | string; unit: string; source: Record<string, unknown> };
 export type Analysis = {
   schema_version: string;
@@ -344,7 +350,19 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
   };
 
   requestedDerived.forEach((d, i) => {
-    (d.operands ?? []).forEach((ref, j) => refProblem(`${ANALYSIS_FILE}#/requested_derived/${i}/operands/${j}`, ref));
+    const at = `${ANALYSIS_FILE}#/requested_derived/${i}/operands`;
+    if (Array.isArray(d.operands) || !d.operands) {
+      (d.operands ?? []).forEach((ref, j) => refProblem(`${at}/${j}`, ref));
+      return;
+    }
+    // The named pair declares a direction, and only the three operations whose sign depends on operand order
+    // have one to declare. The same refusal, with the same category, as `manifest.derived` (fixture-safety.mjs).
+    if (!DIRECTIONAL_OPERATIONS.includes(d.operation)) {
+      problems.push({ category: "derived_arity", location: at, message: `named operands declare a direction and '${d.operation}' has none`, remedy: `only ${DIRECTIONAL_OPERATIONS.join(", ")} take { after, baseline }; give ${d.operation} a positional list of operands` });
+      return;
+    }
+    refProblem(`${at}/after`, d.operands.after);
+    refProblem(`${at}/baseline`, d.operands.baseline);
   });
 
   const definitions = new Map((manifest.definitions ?? []).map((d: any) => [d.id, d]));
@@ -370,16 +388,30 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
 /**
  * What is worth saying about the Analysis file and is not a defect. Empty when there is no file. Never throws.
  *
- * Today that is one rule: `probes` is the account of the middle of the analysis, so it is kept in the order the
- * looks were taken. A probe timestamped before the one above it means the list is not the timeline it reads as
- * — worth reporting, and not worth refusing a Finding over, because the honest repair is to fix the times, not
- * to re-sort the list until it looks orderly.
+ * `probes` is the account of the middle of the analysis, so it is kept in the order the looks were taken. A
+ * probe timestamped before the one above it means the list is not the timeline it reads as — worth reporting,
+ * and not worth refusing a Finding over, because the honest repair is to fix the times, not to re-sort the list
+ * until it looks orderly.
+ *
+ * A requested `difference`, `ratio` or `percent_change` over a positional operand pair is the other:
+ * `direction_unstated`. The Analysis is where the derived value is first written down, so it is the first place
+ * the direction can be declared — and a positional pair written baseline-then-after here is what reached a real
+ * memo as "rose by −20.6%" (examples/nyc-open-data/docs/run-log.md, Citi Bike run 1).
  */
 export function analysisWarnings(dir: string): Problem[] {
   let analysis: Analysis | null;
   try { analysis = readAnalysis(dir); } catch { return []; }
   const probes = Array.isArray(analysis?.probes) ? analysis!.probes! : [];
   const warnings: Problem[] = [...captureBeforeClarify(dir, analysis)];
+  (Array.isArray(analysis?.requested_derived) ? analysis!.requested_derived! : []).forEach((d, i) => {
+    if (!DIRECTIONAL_OPERATIONS.includes(d?.operation) || !Array.isArray(d?.operands)) return;
+    warnings.push({
+      category: "direction_unstated",
+      location: `${ANALYSIS_FILE}#/requested_derived/${i}/operands`,
+      message: `'${d.id}' requests ${d.operation} over a positional operand pair, so which operand is the measured value and which is the reference is not declared`,
+      remedy: "name the pair: `operands: { after: <ref>, baseline: <ref> }`. difference is after − baseline, ratio is after / baseline, percent_change is 100 × (after − baseline) / baseline — the writer carries the names into manifest.derived, and the sign becomes a fact `check` stands behind",
+    });
+  });
   // An unparseable or absent `at` is the schema's error to report, so it is skipped rather than double-reported.
   const timed = probes
     .map((probe, i) => ({ probe, i, ms: Date.parse(String(probe?.at)) }))

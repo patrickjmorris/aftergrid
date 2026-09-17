@@ -950,14 +950,35 @@
               "min",
               "max"
             ],
-            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... min/max: smallest/largest operand (identical units). Operand order is positional."
+            "description": "difference: a-b. ratio: a/b. percent_of: 100*a/b. percent_change: 100*(a-b)/b. sum: a+b+... min/max: smallest/largest operand (identical units). Operand order is positional, or declared by name: difference, ratio and percent_change also accept the named pair { after, baseline } and compute after-baseline, after/baseline and 100*(after-baseline)/baseline. Their sign depends on which operand is which and both orders are valid arithmetic, so the named form is the one that makes the direction checkable; the positional form is reported as `direction_unstated`."
           },
           "operands": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "$ref": "#/$defs/value_ref"
-            }
+            "description": "A positional list, or the named pair { after, baseline }. The named form is defined for difference, ratio and percent_change only, and always means after against baseline; named operands on any other operation are refused (`derived_arity`).",
+            "oneOf": [
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/value_ref"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "after",
+                  "baseline"
+                ],
+                "properties": {
+                  "after": {
+                    "$ref": "#/$defs/value_ref"
+                  },
+                  "baseline": {
+                    "$ref": "#/$defs/value_ref"
+                  }
+                }
+              }
+            ]
           },
           "unit": {
             "$ref": "#/$defs/unit"

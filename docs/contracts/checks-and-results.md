@@ -47,7 +47,8 @@ There may be none. On the recorded path nothing is captured, and a result file a
 - The file is pretty-printed with two-space indentation and a trailing newline; `content_hash` is over the file bytes.
 - Row keys are the values of the `row_key` column, unique, and inside `^[A-Za-z0-9_-]{1,64}$`.
 - Every cell is checked against its declared type (`value_type`), every file's `columns`, `row_key` and `execution_id` against the manifest (`result_shape`, `execution_binding`), and every result's hash against its execution's `result_hash`.
-- Derived values are computed with exact decimal arithmetic on the saved strings, never with binary floating point; operand counts are checked per operation (`derived_arity`). Display formatting happens once, after the calculation.
+- Derived values are computed with exact decimal arithmetic on the saved strings, never with binary floating point; operand counts and operand FORM are checked per operation (`derived_arity`). Display formatting happens once, after the calculation.
+- `difference`, `ratio` and `percent_change` accept named operands `{ after, baseline }`, and that is the form to write: their sign depends on which operand is which, both orders are valid arithmetic, and the named form is what makes the direction checkable rather than trusted (`docs/contracts/reference-grammar.md`, "Operand direction"). A positional pair on one of the three is a `direction_unstated` warning at `manifest.yaml#/derived/<i>`; named operands on `sum`, `min`, `max` or `percent_of` are refused with `derived_arity`, because those operations have no direction to declare.
 
 ## Display formatting
 
@@ -93,6 +94,7 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `falsifier-failed-inconclusive` | analytical_outcome | no error, one `falsifier_failed` warning: the pre-registered falsifier recorded `fail` and the Finding records `inconclusive`. `render` writes the page, with the falsifier on it |
 | `control-prose-dates-ids` | engine_category | no error: dates, timestamps, numbered headings, ids, definition versions, file paths and `{{literal:…}}` are not data-bearing |
 | `zero-denominator-derived` | engine_category | no error; the render says "not available", never 0 |
+| `derived-named-percent-change` | engine_category | no error and no warning: a `percent_change` with named operands `{ after, baseline }`; the rendered sign is the one the manifest declares |
 | `nullable-null-not-available` | engine_category | no error; a declared null renders "not available" in prose and in the table |
 | `display-only-rounding` | engine_category | no error; formatting is applied once at render and the saved decimals never reach the page |
 | `private-field-sentinel` | engine_category | no error; the column is outside `allowed_fields`, so the marker never had a path to a Reader and neither it nor the column name is in any rendered byte |
@@ -117,6 +119,7 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `artifact-modified-after-attestation` | engine_category | `stale_attestation` (plus a `stale_review` warning, which is never the failure by itself) |
 | `derived-cycle` | engine_category | `derived_cycle` |
 | `derived-unit-mismatch` | engine_category | `unit_mismatch` |
+| `derived-named-wrong-operation` | engine_category | `derived_arity`: named operands on `sum`, an operation with no direction |
 | `null-in-non-nullable-column` | engine_category | `null_value` |
 | `external-source-missing-type` | engine_category | `schema` |
 | `unsupported-schema-version` | engine_category | `schema` |

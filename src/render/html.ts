@@ -4,7 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { Marked, type Tokens } from "marked";
 // @ts-ignore: shared helpers.
-import { escapeHtml, safePath } from "../../scripts/fixture-safety.mjs";
+import { escapeHtml, safePath, operandRefs } from "../../scripts/fixture-safety.mjs";
 import { resolveTokens, tableCells, displayValue, type Results } from "./values.ts";
 // @ts-ignore: shared ESM library.
 import { TOKEN_RE } from "../../scripts/lib/validate-finding.mjs";
@@ -163,10 +163,17 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
       sub = `${rid} · ${key} · ${col}`; rows = refRows(rid, key, col);
     } else if (kind === "derived") {
       const d = m.derived.find((x: any) => x.id === body);
-      const parts = d.operands.map((o: string) => `${esc(displayValue(m, results, o, loc))} <span class="flag">(${esc(o.replace(/^ref:/, ""))})</span>`);
-      sub = `${d.operation.replace(/_/g, " ")} · ${d.operands.length} values`;
-      const first = /^ref:([a-z0-9_]+)\.([A-Za-z0-9_-]+)\.([a-z0-9_]+)$/.exec(d.operands[0] ?? "");
-      rows = [["Calculation", `The ${esc(d.operation.replace(/_/g, " "))} of ${parts.join(" and ")}${d.description ? `. ${esc(d.description)}` : ""}`, "computed at render"], ...(first ? refRows(first[1]!, first[2]!, first[3]!) : [])];
+      // Named operands are shown BY NAME. The value is the same arithmetic either way; what the Reader (and
+      // the reviewer reading over their shoulder) can see here is which operand the manifest declared as the
+      // measured value and which as the reference — the one thing that decides the sign.
+      const refs: string[] = operandRefs(d);
+      const cell = (o: string) => `${esc(displayValue(m, results, o, loc))} <span class="flag">(${esc(o.replace(/^ref:/, ""))})</span>`;
+      const how = Array.isArray(d.operands)
+        ? `of ${refs.map(cell).join(" and ")}`
+        : `of after ${cell(refs[0]!)} against baseline ${cell(refs[1]!)}`;
+      sub = `${d.operation.replace(/_/g, " ")} · ${refs.length} values`;
+      const first = /^ref:([a-z0-9_]+)\.([A-Za-z0-9_-]+)\.([a-z0-9_]+)$/.exec(refs[0] ?? "");
+      rows = [["Calculation", `The ${esc(d.operation.replace(/_/g, " "))} ${how}${d.description ? `. ${esc(d.description)}` : ""}`, "computed at render"], ...(first ? refRows(first[1]!, first[2]!, first[3]!) : [])];
     } else if (kind === "ext") {
       const x = m.external_sources.find((e: any) => e.id === body);
       sub = `${x.kind} · not a measurement`;
@@ -248,7 +255,12 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     const calc = [
       ...c.evidence.map((e: string) => `<li><code>${esc(e)}</code> = ${esc(resolveTokens(m, results, `{{${e}}}`, c.id, (s) => s))}</li>`),
       ...m.definitions.filter((d: any) => c.evidence.some((e: string) => { const rid = /^ref:([a-z0-9_]+)\./.exec(e)?.[1]; const res = m.results.find((r: any) => r.id === rid); return res?.columns.some((col: any) => col.definition_ref?.id === d.id); })).map((d: any) => `<li>Definition <code>${esc(d.id)}</code> version ${esc(String(d.version))} (${esc(d.kind)}, recorded as ${esc(d.lifecycle)})</li>`),
-      ...m.derived.filter((d: any) => c.evidence.includes(`derived:${d.id}`)).map((d: any) => `<li><code>${esc(d.id)}</code> is the ${esc(d.operation.replace(/_/g, " "))} of ${d.operands.map((o: string) => `<code>${esc(o)}</code>`).join(", ")}${d.description ? `: ${esc(d.description)}` : ""}</li>`),
+      ...m.derived.filter((d: any) => c.evidence.includes(`derived:${d.id}`)).map((d: any) => {
+        const refs: string[] = operandRefs(d);
+        const code = (o: string) => `<code>${esc(o)}</code>`;
+        const how = Array.isArray(d.operands) ? `of ${refs.map(code).join(", ")}` : `of after ${code(refs[0]!)} against baseline ${code(refs[1]!)}`;
+        return `<li><code>${esc(d.id)}</code> is the ${esc(d.operation.replace(/_/g, " "))} ${how}${d.description ? `: ${esc(d.description)}` : ""}</li>`;
+      }),
       ...m.external_sources.filter((x: any) => c.evidence.includes(`ext:${x.id}`)).map((x: any) => `<li><code>${esc(x.id)}</code> is a ${esc(x.kind.replace(/_/g, " "))} from a ${esc(x.source.type.replace(/_/g, " "))} dated ${esc(x.source.date)}: ${esc(x.source.description)}</li>`),
     ];
     return `<section aria-labelledby="${esc(c.id)}"><span class="type" title="${esc(hint)}">${esc(label)}</span><h3 id="${esc(c.id)}">${RP(c.sentence, `claim ${c.id}`)}</h3>${mdWithMarkers(memo.claims[c.id] ?? "", `claim ${c.id} memo`)}${who}<details><summary>Who was left out, and the limits of this claim</summary><ul>${limits.map((l) => `<li>${RP(l, c.id)}</li>`).join("")}</ul></details>${calc.length ? `<details><summary>How this was calculated</summary><ul>${calc.join("")}</ul></details>` : ""}<p class="flag"><a href="${mailto(m, c.id)}">Question or flag this claim</a> (reference: <code>${esc(m.finding.id)} r${esc(String(m.finding.revision))} ${esc(c.id)}</code>)</p></section>`;

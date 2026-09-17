@@ -188,7 +188,16 @@ test("every recorded output is evidence-valid, complete and rendered as a draft;
 
     const r = await render({ dir: join(root, name, "output"), generatedAt: "2026-09-16T12:00:00Z" });
     assert.equal(r.errors.length, 0, `${name}/output render: ${JSON.stringify(r.errors)}`);
-    assert.equal(r.warnings.length, 0, `${name}/output render: ${JSON.stringify(r.warnings)}`);
+    // `render` carries `check`'s warnings forward, and these recorded outputs raise exactly one kind:
+    // `direction_unstated` on a derived difference declared with a positional operand pair. They are RECORDED
+    // RUN OUTPUT — a record of what the writer wrote on 2026-09-16, before named operands existed
+    // (ag-derived-named-operands-kbk) — and one of the two shapes involved has no honest after/baseline
+    // reading at all: a policy minimum minus what has accumulated. Editing them to adopt the convention would
+    // make the fixture claim the run wrote something it did not. The reviewed exemplars under
+    // fixtures/instance, which are the living reference, ARE converted and raise nothing. Any other warning,
+    // and any warning anywhere but a derived entry, is still a failure.
+    const unexpected = r.warnings.filter((w) => !(w.category === "direction_unstated" && /^manifest\.yaml#\/derived\/\d+$/.test(w.location)));
+    assert.deepEqual(unexpected, [], `${name}/output render: ${JSON.stringify(unexpected)}`);
     const html = readFileSync(join(root, name, "output", "render", "finding.html"), "utf8");
     assert.ok(/class="draft"/.test(html), `${name}: a Finding with no verified approval renders labelled draft`);
   }

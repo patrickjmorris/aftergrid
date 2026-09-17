@@ -263,7 +263,7 @@
     },
     "requested_derived": {
       "type": "array",
-      "description": "Derived values a candidate Claim needs and the writer will declare in manifest.derived. The Analysis names the operation and the operands; it does not compute the number. Candidate evidence may cite these ids as `derived:<id>` before manifest.derived exists.",
+      "description": "Derived values a candidate Claim needs and the writer will declare in manifest.derived. The Analysis names the operation and the operands; it does not compute the number. Candidate evidence may cite these ids as `derived:<id>` before manifest.derived exists. `operands` has the same two forms as manifest.derived: a positional list, or the named pair { after, baseline } that difference, ratio and percent_change accept so the sign of the value is declared here, where the value is first requested.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -271,7 +271,13 @@
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "operation": { "type": "string", "enum": ["difference", "ratio", "percent_of", "percent_change", "sum", "min", "max"] },
-          "operands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/value_ref" } },
+          "operands": {
+            "description": "A positional list, or the named pair { after, baseline }, which is defined for difference, ratio and percent_change only and always means after against baseline.",
+            "oneOf": [
+              { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/value_ref" } },
+              { "type": "object", "additionalProperties": false, "required": ["after", "baseline"], "properties": { "after": { "$ref": "#/$defs/value_ref" }, "baseline": { "$ref": "#/$defs/value_ref" } } }
+            ]
+          },
           "unit": { "$ref": "#/$defs/unit" },
           "display": {
             "type": "object",

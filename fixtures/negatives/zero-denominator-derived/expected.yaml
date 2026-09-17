@@ -9,6 +9,8 @@ category: none
 location_pattern: ""
 defect: None. The web control arm has no signups, so a derived ratio divides by zero and a rate cell is null.
 description: A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.
+also_warnings:
+  - direction_unstated
 render:
   must_contain:
     - the share of that group who came back is <span class="ref"

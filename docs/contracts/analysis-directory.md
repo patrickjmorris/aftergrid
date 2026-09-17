@@ -107,7 +107,11 @@ candidate_claims:
       comparison{kind,description?,pre_registered}, population, window{start,end,timezone},
       exclusions[], limitations[], material_caveat?, recheck_draft }
 requested_derived:              # values the WRITER will declare in manifest.derived; cite as derived:<id>
-  - { id, operation, operands[], unit, display?, description? }
+  - { id, operation, operands[] | {after,baseline}, unit, display?, description? }
+                                # difference/ratio/percent_change: name the pair { after, baseline } so the
+                                # sign is declared here, where the value is first requested. A positional pair
+                                # is the warning `direction_unstated`; named operands on any other operation
+                                # are refused (`derived_arity`). See docs/contracts/reference-grammar.md.
 requested_external_sources:     # values the WRITER will declare in manifest.external_sources; cite as ext:<id>
   - { id, kind: target|assumption|external_reference, value, unit, source{type,description,date,owner?,location?} }
 outcome_recommendation:

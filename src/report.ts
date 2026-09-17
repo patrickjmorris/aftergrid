@@ -22,6 +22,10 @@ export type Category =
   // a Snapshot input captured before the Question was clarified (docs/contracts/analysis-directory.md): a
   // warning, because the evidence is still what it is — it was just chosen before anyone knew what was asked
   | "capture_before_clarify"
+  // a derived difference, ratio or percent change over a POSITIONAL operand pair (docs/contracts/reference-grammar.md):
+  // a warning, because both operand orders are valid arithmetic, so the sign of the rendered number is a fact
+  // no check can verify until the pair is named `{ after, baseline }`
+  | "direction_unstated"
   // distribution (docs/contracts/distribution.md): the shipped package disagreeing with itself
   | "plugin_manifest" | "invocation_policy"
   // background intake (docs/contracts/intake.md): states a request can rest in, and why it stopped there

@@ -168,7 +168,7 @@ results:
 derived:
   - id: lift
     operation: difference
-    operands: [ ref:retention_by_arm.checklist.retained_7d_rate, ref:retention_by_arm.control.retained_7d_rate ]
+    operands: { after: ref:retention_by_arm.checklist.retained_7d_rate, baseline: ref:retention_by_arm.control.retained_7d_rate }
     unit: ratio
     display: { kind: percentage_points, decimals: 1 }
     on_zero_denominator: not_available
@@ -176,14 +176,14 @@ derived:
     description: Checklist rate minus control rate, in percentage points.
   - id: mobile_lift
     operation: difference
-    operands: [ ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate, ref:retention_by_platform_arm.mobile_control.retained_7d_rate ]
+    operands: { after: ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate, baseline: ref:retention_by_platform_arm.mobile_control.retained_7d_rate }
     unit: ratio
     display: { kind: percentage_points, decimals: 1 }
     on_zero_denominator: not_available
     on_null: not_available
   - id: web_lift
     operation: difference
-    operands: [ ref:retention_by_platform_arm.web_checklist.retained_7d_rate, ref:retention_by_platform_arm.web_control.retained_7d_rate ]
+    operands: { after: ref:retention_by_platform_arm.web_checklist.retained_7d_rate, baseline: ref:retention_by_platform_arm.web_control.retained_7d_rate }
     unit: ratio
     display: { kind: percentage_points, decimals: 1 }
     on_zero_denominator: not_available
@@ -296,7 +296,7 @@ reviews:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16
+      value: 4575733c88853c14db32d6d2ca267c915ce061de68bec1fe2618109ca41ef14d
     blocking: []
     non_blocking: [ "c2 is an exploratory split; it is labelled as such." ]
 attestations:
@@ -306,7 +306,7 @@ attestations:
     date: "2026-09-15"
     content_digest:
       algorithm: sha256
-      value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16
+      value: 4575733c88853c14db32d6d2ca267c915ce061de68bec1fe2618109ca41ef14d
 export_policy:
   recipient_scope: named_readers
   granularity: aggregate_only
@@ -330,4 +330,4 @@ renderer:
   house_style_version: 0.2.0
 content_digest:
   algorithm: sha256
-  value: 3a6eb73735e66fdf72d3628353146a0b951f8e97f9767ed352aa5da33195fe16
+  value: 4575733c88853c14db32d6d2ca267c915ce061de68bec1fe2618109ca41ef14d
