@@ -15,7 +15,14 @@
 //
 // Idempotence: the build writes a fresh temporary database and renames it over `--out` only once it is complete.
 // A failed build leaves any previous `demo.duckdb` untouched.
-import { createWriteStream, createReadStream, mkdirSync, rmSync, existsSync, statSync, renameSync, readFileSync, writeFileSync } from "node:fs";
+//
+// `--append` is the one way a database gains months without being rebuilt. A window is a contiguous range, so
+// two far-apart months (January 2024 against January 2025) otherwise cost every month between them — 14 months
+// of streamed HVFHS and Citi Bike for the two that are wanted. Append copies the existing file, builds only the
+// months `build_meta.months` does not already list, and refuses outright when the run's sources, sample rate or
+// builder version differ from the ones the file was written with, because a database that mixed those would
+// make its own `build_meta` untrue.
+import { createWriteStream, createReadStream, copyFileSync, mkdirSync, rmSync, existsSync, statSync, renameSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -23,7 +30,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createInflateRaw } from "node:zlib";
 
-export const BUILDER_VERSION = "build-data.mjs/1.0.0";
+export const BUILDER_VERSION = "build-data.mjs/1.1.0";
 const USER_AGENT = `aftergrid-nyc-open-data-demo (${BUILDER_VERSION}; https://github.com/aftergrid)`;
 
 /** One trip in SAMPLE_RATE lands in `trips_sample`. See scripts/README.md for how this number was chosen. */
@@ -110,7 +117,7 @@ export function monthBounds(key) {
 // Arguments
 // ---------------------------------------------------------------------------------------------------------
 export function parseArgs(argv) {
-  const args = { from: DEFAULT_FROM, to: null, sources: [...SOURCES], out: DEFAULT_OUT, rawDir: DEFAULT_RAW, verify: false, sampleRate: SAMPLE_RATE, keepRaw: false };
+  const args = { from: DEFAULT_FROM, to: null, sources: [...SOURCES], out: DEFAULT_OUT, rawDir: DEFAULT_RAW, verify: false, sampleRate: SAMPLE_RATE, keepRaw: false, append: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const value = () => { const v = argv[++i]; if (v === undefined) throw new Error(`${arg} needs a value`); return v; };
@@ -127,12 +134,55 @@ export function parseArgs(argv) {
       args.sampleRate = Number(value());
       if (!Number.isInteger(args.sampleRate) || args.sampleRate < 1) throw new Error(`--sample-rate must be a positive integer, got ${argv[i]}`);
     } else if (arg === "--verify") args.verify = true;
+    else if (arg === "--append") args.append = true;
     else if (arg === "--keep-raw") args.keepRaw = true;
     else if (arg === "--help" || arg === "-h") args.help = true;
     else throw new Error(`unknown argument ${arg}`);
   }
   if (args.to !== null && args.to < args.from) throw new Error(`--to ${args.to} is before --from ${args.from}`);
+  // --verify does not build, so an --append beside it is a instruction that would be silently dropped.
+  if (args.append && args.verify) throw new Error("--append and --verify cannot be combined: --verify does not build");
   return args;
+}
+
+/**
+ * Which months of a requested window an `--append` run must build, and which the database already holds.
+ * Pure, so the decision is testable without a database: the caller supplies the months already recorded.
+ * A fresh build passes no existing months and gets the whole window back.
+ */
+export function appendPlan(existingMonths, windowMonths) {
+  const have = new Set(existingMonths);
+  return { build: windowMonths.filter((m) => !have.has(m)), skipped: windowMonths.filter((m) => have.has(m)) };
+}
+
+/** Every month the database will hold after this run: sorted, no duplicates. Written to `build_meta.months`. */
+export function mergeMonths(existingMonths, added) {
+  return [...new Set([...existingMonths, ...added])].sort();
+}
+
+/**
+ * The months a previous run recorded. `months` is the authority; `from`..`to` is the fallback for a database
+ * written before this key existed, where the window was contiguous by construction.
+ */
+export function monthsOf(meta) {
+  const listed = meta?.months;
+  if (typeof listed === "string" && listed.trim()) return listed.split(",").map((s) => s.trim()).filter(Boolean);
+  if (typeof meta?.from === "string" && typeof meta?.to === "string") return monthRange(meta.from, meta.to);
+  return [];
+}
+
+/**
+ * Why an `--append` run must not touch this database, or null when it may. Appending under a different sample
+ * rate, a different source list or a different builder would leave one file holding two rules and one
+ * `build_meta` describing only the last run — so it is refused rather than recorded.
+ */
+export function appendMismatch(meta, { sources, sampleRate, builderVersion = BUILDER_VERSION }) {
+  const was = String(meta?.sources ?? "").split(",").map((s) => s.trim()).filter(Boolean).sort().join(",");
+  const now = [...sources].sort().join(",");
+  if (was && was !== now) return `it was built from sources ${was} and this run asks for ${now}; one file cannot honestly record both`;
+  if (meta?.sample_rate && String(meta.sample_rate) !== String(sampleRate)) return `it samples 1 trip in ${meta.sample_rate} and this run asks for 1 in ${sampleRate}; trips_sample would hold two different rules`;
+  if (meta?.builder_version && meta.builder_version !== builderVersion) return `it was written by ${meta.builder_version} and this is ${builderVersion}; rebuild rather than append across versions`;
+  return null;
 }
 
 const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [options]
@@ -144,6 +194,9 @@ const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [option
   --out PATH           output database (default examples/nyc-open-data/demo.duckdb)
   --raw-dir PATH       where downloaded and streamed files land (default examples/nyc-open-data/data/raw)
   --sample-rate N      one trip in N enters trips_sample (default ${SAMPLE_RATE})
+  --append             add to an existing --out the months of this window it does not already hold, instead of
+                       rebuilding it. Refused when --out was built with different sources, a different sample
+                       rate or a different builder version. Cannot be combined with --verify
   --keep-raw           keep the streamed Citi Bike CSVs instead of deleting each after it is aggregated
   --verify             do not build: print each table's row count and content hash from --out and exit
 `;
@@ -613,41 +666,76 @@ async function probeLatestMonth(from, log) {
   return latest;
 }
 
+/** `build_meta` of an existing database, as a plain object. Read-only, under the Instance's own limits. */
+async function readBuildMeta(path) {
+  const handle = await openDuckDb(path, {
+    access_mode: "READ_ONLY", memory_limit: INSTANCE_LIMITS.memory_limit, threads: String(INSTANCE_LIMITS.threads),
+  });
+  try {
+    const rows = await rowsOf(handle.connection, "select key, value from build_meta");
+    return Object.fromEntries(rows.map((r) => [String(r.key), String(r.value)]));
+  } finally { handle.close(); }
+}
+
 export async function build(args, log = console.log) {
   const started = Date.now();
   const to = args.to ?? await probeLatestMonth(args.from, log);
-  const months = monthRange(args.from, to);
+  const window = monthRange(args.from, to);
   log(`building ${args.out}`);
-  log(`  window ${args.from}..${to} (${months.length} month${months.length === 1 ? "" : "s"}), sources ${args.sources.join(",")}, sample 1 in ${args.sampleRate}`);
+  log(`  window ${args.from}..${to} (${window.length} month${window.length === 1 ? "" : "s"}), sources ${args.sources.join(",")}, sample 1 in ${args.sampleRate}`);
 
   mkdirSync(args.rawDir, { recursive: true });
   mkdirSync(dirname(args.out), { recursive: true });
   const temporary = `${args.out}.building`;
   for (const stale of [temporary, `${temporary}.wal`]) rmSync(stale, { force: true });
 
+  // --append against an existing file: work on a copy of it, and build only what it does not already hold.
+  // Against no file it is not an error and not a silent no-op — it says so and builds the window.
+  let previousMeta = null;
+  let existingMonths = [];
+  if (args.append) {
+    if (!existsSync(args.out)) log(`  --append: no database at ${args.out} yet, so this run builds one`);
+    else {
+      previousMeta = await readBuildMeta(args.out);
+      const refusal = appendMismatch(previousMeta, { sources: args.sources, sampleRate: args.sampleRate });
+      if (refusal) throw new Error(`--append refused for ${args.out}: ${refusal}`);
+      existingMonths = monthsOf(previousMeta);
+      copyFileSync(args.out, temporary);
+      log(`  --append: ${args.out} already holds ${existingMonths.length} month${existingMonths.length === 1 ? "" : "s"} (${existingMonths.join(",") || "none recorded"})`);
+    }
+  }
+  const plan = appendPlan(existingMonths, window);
+  const months = plan.build;
+  for (const month of plan.skipped) log(`    ${month}: already built — skipped`);
+  if (!months.length) log("  every month of this window is already here; only build_meta is rewritten");
+
   const handle = await openDuckDb(temporary, { ...BUILD_LIMITS, temp_directory: join(args.rawDir, "duckdb-spill") });
   const connection = handle.connection;
   const provenance = [];
-  let weatherCoverage = "not built";
+  let weatherCoverage = previousMeta?.weather_coverage ?? "not built";
   let complete = false;
   try {
-    for (const statement of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) await connection.run(statement);
-    const needsHttp = args.sources.includes("hvfhs");
+    if (!previousMeta) for (const statement of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) await connection.run(statement);
+    const needsHttp = args.sources.includes("hvfhs") && months.length > 0;
     if (needsHttp) { await connection.run("install httpfs"); await connection.run("load httpfs"); }
 
-    // Taxi zones: 12 KB, downloaded and hashed. crz_zones is validated against it.
-    log("  taxi zones");
-    const zonePath = join(args.rawDir, "taxi_zone_lookup.csv");
-    provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" })).row);
-    await connection.run(`insert into taxi_zones select "LocationID"::INTEGER, "Borough", "Zone", "service_zone" from read_csv(${sqlString(zonePath)}, header=true)`);
-    const zoneRows = await rowsOf(connection, "select location_id, borough, zone from taxi_zones");
-    const crz = deriveCrzZones(zoneRows.map((r) => ({ location_id: r.location_id, borough: r.borough, zone: r.zone })));
-    await insertRows(connection, "crz_zones", ["location_id", "zone", "borough"], crz);
-    log(`    ${zoneRows.length} zones, ${crz.length} in the Congestion Relief Zone`);
+    // Taxi zones: 12 KB, downloaded and hashed. crz_zones is validated against it. They do not vary by month,
+    // so an append leaves the rows — and the provenance of the fetch that produced them — exactly as they are.
+    if (previousMeta) log("  taxi zones: already built — kept, with the provenance of the fetch that wrote them");
+    else {
+      log("  taxi zones");
+      const zonePath = join(args.rawDir, "taxi_zone_lookup.csv");
+      provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" })).row);
+      await connection.run(`insert into taxi_zones select "LocationID"::INTEGER, "Borough", "Zone", "service_zone" from read_csv(${sqlString(zonePath)}, header=true)`);
+      const zoneRows = await rowsOf(connection, "select location_id, borough, zone from taxi_zones");
+      const crz = deriveCrzZones(zoneRows.map((r) => ({ location_id: r.location_id, borough: r.borough, zone: r.zone })));
+      await insertRows(connection, "crz_zones", ["location_id", "zone", "borough"], crz);
+      log(`    ${zoneRows.length} zones, ${crz.length} in the Congestion Relief Zone`);
+    }
 
     // TLC. Yellow months are downloaded and hashed; HVFHS months are streamed by DuckDB over httpfs.
     for (const service of ["yellow", "hvfhs"]) {
-      if (!args.sources.includes(service)) continue;
+      if (!args.sources.includes(service) || !months.length) continue;
       log(`  TLC ${service}`);
       for (const month of months) {
         const url = TLC_BASE + TLC_SERVICES[service].file(month);
@@ -673,26 +761,32 @@ export async function build(args, log = console.log) {
     }
 
     // GHCN: one 16 MB station history covers every month, so it is downloaded once and hashed.
-    if (args.sources.includes("ghcn")) {
+    if (args.sources.includes("ghcn") && months.length) {
       log("  GHCN-Daily");
       const path = join(args.rawDir, `${GHCN_STATION}.csv`);
       // One file carries the station's whole history, so its period is not the build window.
       provenance.push((await download(GHCN_URL, path, { source: "ghcn", period: "station history" })).row);
+      // The months this run builds, not the whole requested window: an append fetches weather for the days it
+      // is adding. The anti-join below is what makes a re-read of an overlapping range harmless.
       const first = months[0].replace("-", "") + "01";
       const afterLast = nextMonth(months[months.length - 1]).replace("-", "") + "01";
       // Q_FLAG is set when a value failed one of GHCN's quality checks; those values are dropped, not carried.
       await connection.run(`
         insert into weather_daily
-        select strptime("DATE", '%Y%m%d')::DATE, ${sqlString(GHCN_STATION)},
-               max("DATA_VALUE") filter (where "ELEMENT" = 'TMAX') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'TMIN') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'PRCP') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'SNOW') * 1.0
-        from read_csv(${sqlString(path)}, header=true, types={'ID':'VARCHAR','DATE':'VARCHAR','ELEMENT':'VARCHAR','DATA_VALUE':'BIGINT','M_FLAG':'VARCHAR','Q_FLAG':'VARCHAR','S_FLAG':'VARCHAR','OBS_TIME':'VARCHAR'})
-        where "ID" = ${sqlString(GHCN_STATION)} and "ELEMENT" in ('TMAX','TMIN','PRCP','SNOW')
-          and ("Q_FLAG" is null or "Q_FLAG" = '')
-          and "DATE" >= ${sqlString(first)} and "DATE" < ${sqlString(afterLast)}
-        group by 1`);
+        with day as (
+          select strptime("DATE", '%Y%m%d')::DATE as observation_date, ${sqlString(GHCN_STATION)} as station_id,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'TMAX') / 10.0 as tmax_c,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'TMIN') / 10.0 as tmin_c,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'PRCP') / 10.0 as prcp_mm,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'SNOW') * 1.0 as snow_mm
+          from read_csv(${sqlString(path)}, header=true, types={'ID':'VARCHAR','DATE':'VARCHAR','ELEMENT':'VARCHAR','DATA_VALUE':'BIGINT','M_FLAG':'VARCHAR','Q_FLAG':'VARCHAR','S_FLAG':'VARCHAR','OBS_TIME':'VARCHAR'})
+          where "ID" = ${sqlString(GHCN_STATION)} and "ELEMENT" in ('TMAX','TMIN','PRCP','SNOW')
+            and ("Q_FLAG" is null or "Q_FLAG" = '')
+            and "DATE" >= ${sqlString(first)} and "DATE" < ${sqlString(afterLast)}
+          group by 1
+        )
+        select * from day
+        where observation_date not in (select observation_date from weather_daily)`);
       const days = await oneOf(connection, "select count(*)::BIGINT as n, min(observation_date)::VARCHAR as first, max(observation_date)::VARCHAR as last from weather_daily");
       weatherCoverage = Number(days.n) ? `${days.first}..${days.last}` : "none";
       log(`    ${Number(days.n)} days at ${GHCN_STATION} (${weatherCoverage})`);
@@ -708,7 +802,7 @@ export async function build(args, log = console.log) {
     }
 
     // Citi Bike: streamed out of the remote monthly zip, one member CSV at a time.
-    if (args.sources.includes("citibike")) {
+    if (args.sources.includes("citibike") && months.length) {
       log("  Citi Bike");
       await connection.run("create temp table stg_cb_daily (ride_date DATE, member_casual VARCHAR, rideable_type VARCHAR, rides BIGINT, duration_seconds_sum BIGINT)");
       await connection.run("create temp table stg_cb_stations (station_id VARCHAR, station_name VARCHAR, latitude DOUBLE, longitude DOUBLE, is_start BOOLEAN, seen_on DATE)");
@@ -740,9 +834,14 @@ export async function build(args, log = console.log) {
     }
 
     await insertRows(connection, "build_provenance", PROVENANCE_COLUMNS, provenance);
+    // `months` is the authority on what the database holds; `from`/`to` are its outer bounds and, after an
+    // append of two far-apart windows, are not a range every month between them is present for.
+    const held = mergeMonths(existingMonths, months);
+    if (previousMeta) await connection.run("delete from build_meta");
     await insertRows(connection, "build_meta", ["key", "value"], [
       { key: "builder_version", value: BUILDER_VERSION },
-      { key: "from", value: args.from }, { key: "to", value: to },
+      { key: "from", value: held[0] ?? args.from }, { key: "to", value: held[held.length - 1] ?? to },
+      { key: "months", value: held.join(",") },
       { key: "sources", value: args.sources.join(",") },
       { key: "sample_rate", value: String(args.sampleRate) },
       { key: "weather_coverage", value: weatherCoverage },
@@ -761,8 +860,9 @@ export async function build(args, log = console.log) {
   renameSync(temporary, args.out);
   rmSync(`${temporary}.wal`, { force: true });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
-  log(`  wrote ${args.out} (${(statSync(args.out).size / 1e6).toFixed(1)} MB) in ${seconds}s`);
-  return { out: args.out, months, to, seconds: Number(seconds), provenance };
+  const held = mergeMonths(existingMonths, months);
+  log(`  wrote ${args.out} (${(statSync(args.out).size / 1e6).toFixed(1)} MB) in ${seconds}s — ${held.length} month${held.length === 1 ? "" : "s"}: ${held.join(",")}`);
+  return { out: args.out, months, window, held, to, seconds: Number(seconds), provenance, appended: !!previousMeta };
 }
 
 // ---------------------------------------------------------------------------------------------------------

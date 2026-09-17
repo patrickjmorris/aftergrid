@@ -9,8 +9,8 @@ import { join } from "node:path";
 import { DuckDBInstance } from "@duckdb/node-api";
 import {
   BUILDER_VERSION, CRZ_ZONE_IDS, DEFAULT_FROM, INSTANCE_LIMITS, MONEY, PROVENANCE_COLUMNS, SAMPLE_RATE, SOURCES, TABLES,
-  canonicalExpr, deriveCrzZones, monthBounds, monthRange, nextMonth, parseArgs, parseMonth, provenanceRow,
-  sampleFilterSql, tableHashSql, utcStamp, verifyDatabase,
+  appendMismatch, appendPlan, canonicalExpr, deriveCrzZones, mergeMonths, monthBounds, monthRange, monthsOf,
+  nextMonth, parseArgs, parseMonth, provenanceRow, sampleFilterSql, tableHashSql, utcStamp, verifyDatabase,
 } from "../examples/nyc-open-data/scripts/build-data.mjs";
 
 const scratch = () => {
@@ -47,6 +47,10 @@ test("arguments: documented defaults, a validated source list, and no silent typ
   assert.deepEqual(explicit.sources, ["yellow", "ghcn"]);
   assert.equal(explicit.sampleRate, 7);
   assert.equal(explicit.verify, true);
+  assert.equal(defaults.append, false);
+  assert.equal(parseArgs(["--append"]).append, true);
+  // --verify does not build, so an --append beside it would be an instruction silently dropped.
+  assert.throws(() => parseArgs(["--append", "--verify"]), /--append and --verify cannot be combined/);
 
   assert.throws(() => parseArgs(["--sources", "yellow,taxis"]), /unknown source\(s\) taxis/);
   assert.throws(() => parseArgs(["--sources", ""]), /at least one source/);
@@ -219,4 +223,30 @@ test("--verify reads every declared table under the Instance's own limits, and n
 
     await assert.rejects(verifyDatabase(join(dir, "absent.duckdb")), /no database at/);
   } finally { clean(); }
+});
+
+test("--append plans months rather than windows, and refuses a database it would make untrue", () => {
+  // Why --append exists: a window is contiguous, so January 2024 against January 2025 otherwise costs the
+  // twelve months between them — about 12 GB streamed for the two that are wanted. The plan is over months,
+  // and it reports what it skipped rather than silently rebuilding it.
+  const want = ["2024-01", "2024-12", "2025-01", "2025-02"];
+  assert.deepEqual(appendPlan([], ["2024-12", "2025-01", "2025-02"]), { build: ["2024-12", "2025-01", "2025-02"], skipped: [] }, "no existing months means a plain build");
+  assert.deepEqual(appendPlan(["2024-12", "2025-01", "2025-02"], ["2024-01"]), { build: ["2024-01"], skipped: [] });
+  assert.deepEqual(appendPlan(["2024-12", "2025-01", "2025-02"], ["2024-12", "2025-01"]), { build: [], skipped: ["2024-12", "2025-01"] }, "a window already held costs no fetch at all");
+
+  assert.deepEqual(mergeMonths(["2024-12", "2025-01", "2025-02"], ["2024-01"]), want, "the recorded months are sorted and deduplicated");
+  assert.deepEqual(mergeMonths(["2024-01"], ["2024-01"]), ["2024-01"], "re-adding a month does not duplicate it");
+
+  // `months` is the authority on what a database holds; from..to is the fallback for one written before the
+  // key existed, where the window was contiguous by construction.
+  assert.deepEqual(monthsOf({ months: "2024-01,2024-12", from: "2024-01", to: "2024-12" }), ["2024-01", "2024-12"]);
+  assert.deepEqual(monthsOf({ from: "2024-01", to: "2024-03" }), ["2024-01", "2024-02", "2024-03"]);
+  assert.deepEqual(monthsOf({}), [], "a database recording neither is treated as holding nothing, never as holding everything");
+
+  const same = { sources: SOURCES.join(","), sample_rate: String(SAMPLE_RATE), builder_version: BUILDER_VERSION };
+  assert.equal(appendMismatch(same, { sources: [...SOURCES], sampleRate: SAMPLE_RATE }), null);
+  assert.equal(appendMismatch(same, { sources: [...SOURCES].reverse(), sampleRate: SAMPLE_RATE }), null, "the source list is a set, not an order");
+  assert.match(String(appendMismatch(same, { sources: ["yellow"], sampleRate: SAMPLE_RATE })), /cannot honestly record both/);
+  assert.match(String(appendMismatch(same, { sources: [...SOURCES], sampleRate: 500 })), /two different rules/);
+  assert.match(String(appendMismatch(same, { sources: [...SOURCES], sampleRate: SAMPLE_RATE, builderVersion: "build-data.mjs/9.9.9" })), /rebuild rather than append/);
 });

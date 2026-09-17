@@ -1,0 +1,100 @@
+# The case where the Check has to stop the Analysis. The ask is for a like-for-like comparison on weather; the
+# comparability Check fails on 21 of the 31 aligned day pairs, and the 10 that survive are not a month. The
+# Finding must report the Check's failure as the result, not route around it.
+#
+# This is the same month pair as `crz_trips_jan2025_vs_jan2024`, deliberately. That case is `answered` because
+# it describes what changed and states the weather Check's failure as a limitation; this one asks for a
+# weather-matched comparison, which the same failure makes unavailable. The two are not in conflict — they are
+# what the difference between describing a change and controlling for something looks like.
+#
+# Reference values computed 2026-09-17 from demo.duckdb built the same day (build-data.mjs/1.1.0).
+schema_version: 0.1.0
+id: weather_confounded_comparison
+raw_ask: Comparing only days when the weather was similar, did trips into the Congestion Relief Zone change in January 2025 against January 2024?
+reader: city_transport_analyst
+expected:
+  outcome: inconclusive
+  claim_type: descriptive
+  definition_ids: [comparable_weather_day, crz_trip]
+  tables_read: [weather_daily, trips_daily, crz_zones]
+  values:
+    - { id: aligned_pairs, reference: comparability.aligned.pairs, value: 31, tolerance: 0, unit: day pairs, population: the nth day of January 2025 against the nth day of January 2024 at station USW00094728, window: 2024-01-01..2024-01-31 against 2025-01-01..2025-01-31 }
+    - { id: comparable_pairs, reference: comparability.aligned.comparable_pairs, value: 10, tolerance: 0, unit: day pairs, population: same, window: same, note: "under a third of the month survives the rule" }
+    - { id: not_comparable_pairs, reference: comparability.aligned.not_comparable_pairs, value: 21, tolerance: 0, unit: day pairs, population: same, window: same, note: "the Check fails here: this is the business result, not an engine error" }
+    - { id: unknown_pairs, reference: comparability.aligned.unknown_pairs, value: 0, tolerance: 0, unit: day pairs, population: same, window: same, note: "no missing observation is being counted as a match or a mismatch" }
+    - { id: max_tmax_gap_c, reference: comparability.aligned.max_gap_c, value: 14.4, tolerance: 0.05, unit: degrees Celsius, population: the largest same-day maximum-temperature difference between the two Januaries, window: same }
+    - { id: mean_tmax_jan2024_c, reference: monthly_weather.jan2024.mean_tmax_c, value: 5.53, tolerance: 0.005, unit: degrees Celsius, population: daily maximum temperature at USW00094728, window: 2024-01-01..2024-01-31 }
+    - { id: mean_tmax_jan2025_c, reference: monthly_weather.jan2025.mean_tmax_c, value: 2.55, tolerance: 0.005, unit: degrees Celsius, population: same, window: 2025-01-01..2025-01-31, note: "January 2025 was about 3 degrees colder on average" }
+    - { id: prcp_total_jan2024_mm, reference: monthly_weather.jan2024.prcp_mm_total, value: 134.1, tolerance: 0.05, unit: millimetres, population: total precipitation at USW00094728, window: 2024-01-01..2024-01-31 }
+    - { id: prcp_total_jan2025_mm, reference: monthly_weather.jan2025.prcp_mm_total, value: 15.5, tolerance: 0.05, unit: millimetres, population: same, window: 2025-01-01..2025-01-31, note: "January 2024 had nearly nine times the rainfall, and 15 wet days against 4" }
+    - { id: wet_days_jan2024, reference: monthly_weather.jan2024.wet_days, value: 15, tolerance: 0, unit: days, population: days with at least 1 mm of precipitation, window: 2024-01-01..2024-01-31 }
+    - { id: wet_days_jan2025, reference: monthly_weather.jan2025.wet_days, value: 4, tolerance: 0, unit: days, population: same, window: 2025-01-01..2025-01-31 }
+  must_state:
+    - that the weather comparability Check failed, on 21 of 31 aligned day pairs, and that this failing is the answer rather than a problem with the tooling
+    - the two ways the months differed, in plain words — January 2025 was about 3 degrees colder on average, and January 2024 had nearly nine times the rainfall over fifteen wet days against four
+    - that the 10 comparable pairs are not a month, and that computing a change over them would be a different and much smaller population than the Question asks about
+    - that version 1 of comparable_weather_day uses temperature and a wet/dry split only, and does not test snow — so even a passing Check would not have made the two months alike on snow
+    - 'what would make the Question answerable: more years of the same month, or a comparison that models weather rather than matching on it, neither of which this Instance holds'
+  must_not:
+    - report a change computed over the 10 comparable pairs as the answer to the Question
+    - report the Check failure as an error, a bug or an incomplete run
+    - conclude that the two months are comparable because the aligned-pair count is complete
+    - use the failure to argue that congestion pricing had, or did not have, an effect
+  reasoning: >-
+    Every day of both months is present and no observation is missing, so this is not insufficient_data — the
+    data is complete and the comparison is still not available. The rule the Question depends on
+    (comparable_weather_day, version 1: maximum temperature within 5 degrees Celsius and the same wet/dry class)
+    holds on 10 of 31 aligned pairs and fails on 21, with the largest same-day temperature gap at 14.4 degrees.
+    Ten days is not a January. The honest Finding reports the Check's outcome as its result, names the two
+    differences in the Reader's own words, and abstains from the comparison rather than computing it over
+    whatever survived.
+constraints:
+  window: { start: "2024-01-01", end: "2025-01-31", timezone: America/New_York }
+  population: aligned calendar days of January 2024 and January 2025 at GHCN station USW00094728
+  data_to: "2025-02-05"
+  required_checks: [invariant, minimum_data]
+reference:
+  parameters: { a_start: "2024-01-01", a_end: "2024-02-01", b_start: "2025-01-01", b_end: "2025-02-01", days: 31 }
+  queries:
+    - id: comparability
+      row_key: comparison
+      sql: |
+        with a as (
+          select tmax_c, prcp_mm, date_diff('day', $a_start::DATE, observation_date) as offset_days
+          from weather_daily
+          where observation_date >= $a_start::DATE and observation_date < $a_start::DATE + $days::INTEGER
+        ),
+        b as (
+          select tmax_c, prcp_mm, date_diff('day', $b_start::DATE, observation_date) as offset_days
+          from weather_daily
+          where observation_date >= $b_start::DATE and observation_date < $b_start::DATE + $days::INTEGER
+        ),
+        paired as (
+          select abs(a.tmax_c - b.tmax_c) as gap_c, a.tmax_c as tmax_a, b.tmax_c as tmax_b,
+                 case when a.prcp_mm is null then 'unknown' when a.prcp_mm < 1 then 'dry' else 'wet' end as class_a,
+                 case when b.prcp_mm is null then 'unknown' when b.prcp_mm < 1 then 'dry' else 'wet' end as class_b
+          from a join b on a.offset_days = b.offset_days
+        )
+        select 'aligned' as comparison,
+               count(*)::BIGINT as pairs,
+               count(*) filter (where tmax_a is null or tmax_b is null or class_a = 'unknown' or class_b = 'unknown')::BIGINT as unknown_pairs,
+               count(*) filter (where tmax_a is not null and tmax_b is not null and class_a <> 'unknown' and class_b <> 'unknown'
+                                  and gap_c <= 5.0 and class_a = class_b)::BIGINT as comparable_pairs,
+               count(*) filter (where tmax_a is not null and tmax_b is not null and class_a <> 'unknown' and class_b <> 'unknown'
+                                  and not (gap_c <= 5.0 and class_a = class_b))::BIGINT as not_comparable_pairs,
+               round(max(gap_c), 1) as max_gap_c
+        from paired
+    - id: monthly_weather
+      row_key: period
+      sql: |
+        select case when observation_date < $a_end::DATE then 'jan2024' else 'jan2025' end as period,
+               count(*)::BIGINT as days,
+               round(avg(tmax_c), 2) as mean_tmax_c,
+               round(sum(prcp_mm), 1) as prcp_mm_total,
+               round(sum(snow_mm), 1) as snow_mm_total,
+               count(*) filter (where prcp_mm >= 1)::BIGINT as wet_days,
+               count(*) filter (where snow_mm > 0)::BIGINT as snow_days
+        from weather_daily
+        where (observation_date >= $a_start::DATE and observation_date < $a_end::DATE)
+           or (observation_date >= $b_start::DATE and observation_date < $b_end::DATE)
+        group by 1

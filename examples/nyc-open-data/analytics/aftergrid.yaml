@@ -1,0 +1,36 @@
+# aftergrid Instance policy. Scaffolded by `aftergrid setup`; every value below is yours to edit.
+# Field meanings and the full layout: docs/contracts/instance-layout.md
+#
+# Guard this file with CODEOWNERS and branch protection. A Finding pull request must never be able to widen
+# the allowlist that judges it (docs/contracts/publication.md); nothing in the Engine can enforce that for you.
+schema_version: 0.1.0
+instance_root: analytics
+connection:
+  adapter: duckdb
+  duckdb:
+    # A .duckdb file, or a directory of <table>.csv files. Relative to this Instance root.
+    path: demo.duckdb
+    # DuckDB has no roles: the safety here is that the engine opens the file READ_ONLY on every statement.
+    read_only: true
+    # The largest planned scan any read may make. It bounds `capture` as well as `execute`, because a
+    # whole-table copy is a scan of the whole table; a table over it is refused with `admission` before
+    # anything is read or written (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern").
+    estimate_cap: 5000000
+render:
+  # House font for the Reader HTML and chart PNGs. The HTML stays self-contained: the font is embedded, never linked.
+  # preset: system (default, no embedding) | geist (shipped with the Engine, SIL OFL). Or bring your own files:
+  #   font: { family: Inter, files: [ { path: fonts/Inter[wght].woff2, weight: "100 900" } ], fallback: "system-ui, sans-serif" }
+  font: { preset: system }
+publication:
+  # Where Finding pull requests are opened.
+  repository: patrickjmorris/aftergrid
+  # Humans whose APPROVED GitHub review counts as publication authority. Never the automation identity:
+  # GitHub does not let the author of a pull request approve it, and there is no bypass.
+  trusted_approvers: [patrickjmorris]
+  automation_login: "github-actions[bot]"
+export_defaults:
+  recipient_scope: named_readers
+  granularity: aggregate_only
+owner:
+  name: "Patrick Morris"
+  contact: patrickjohnmorris@gmail.com

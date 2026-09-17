@@ -4,9 +4,11 @@ A public demo Instance built on three open datasets, so you can see what a Findi
 yourself — before pointing aftergrid at data you cannot share. Everything here is public: the data, the
 definitions, the golden Questions, and eventually the Findings and the pull request that approved one.
 
-**Status: scaffold, plus the data build.** This directory holds the layout, the data terms, the plan, and now
-`scripts/build-data.mjs`, which runs. The Instance and the Findings arrive in later beads, and every step below
-says which. Nothing in this file describes something you can run unless it says you can.
+**Status: the data build and the Instance are done; no Finding exists.** This directory holds the layout, the
+data terms, `scripts/build-data.mjs`, which runs, and `analytics/`, which is a filled-in Instance — connection,
+Reader profiles, definitions and golden Questions. Nothing in it is approved. The Findings arrive in a later
+bead, and every step below says which. Nothing in this file describes something you can run unless it says you
+can.
 
 ## The headline Question
 
@@ -45,17 +47,21 @@ later bead; do not expect them to run today.
    a bounded `demo.duckdb` with a provenance table. — **this works today.** Start with one month
    (`--from 2025-01 --to 2025-01`, about 90 seconds and 45 MB) before building the whole window; options,
    tables, units, the sampling rule and the measured numbers are in [`scripts/README.md`](scripts/README.md).
-2. **Set up the Instance.** `aftergrid setup` against `examples/nyc-open-data/analytics`, with the DuckDB
-   adapter pointed at the file step 1 built, then the definitions, Reader profiles and golden Questions.
-   — *not yet available* (see [`analytics/README.md`](analytics/README.md) for why the directory is empty).
+2. **Set up the Instance.** — **this is done, and committed.**
+   [`analytics/`](analytics/README.md) holds `aftergrid.yaml` (DuckDB adapter, `path: demo.duckdb`, **inside**
+   the Instance root — `safePath` refuses a `..`, so the build's `--out` has to name that directory), two Reader
+   profiles, eight `proposed` definitions and five golden Questions whose reference values were computed from a
+   real build on 2026-09-17. Nothing there is approved and no Finding exists yet;
+   [`analytics/README.md`](analytics/README.md) lists what is and is not there, and the numbers behind each
+   golden.
 3. **Load the skills.** From a checkout of this repository:
 
    ```bash
    claude --plugin-dir /path/to/aftergrid
    ```
 
-   This works today — it loads the Engine's skills (`skills/README.md`). There is nothing demo-specific to ask
-   it until steps 1 and 2 land.
+   This works today — it loads the Engine's skills (`skills/README.md`). With steps 1 and 2 done there is now
+   something demo-specific to ask it, but step 4 below is still the first thing nobody has run.
 4. **Ask the congestion Question.** `/grill-question` on the ask above, then `/analyze`. — *not yet available*:
    it needs the data and the Instance.
 5. **Read the Finding.** Open the rendered HTML, follow a number to the query that produced it, see the weather
@@ -64,16 +70,19 @@ later bead; do not expect them to run today.
    today and is independent of everything above; the contract is `docs/contracts/setup.md`, and `--adapter` is
    optional (`docs/contracts/record.md`).
 
-## Planned golden Questions
+## The golden Questions
 
-Three reference cases, chosen so the demo shows an honest range of outcomes rather than three wins. None of them
-is committed yet.
+Five reference cases, chosen so the demo shows an honest range of outcomes rather than five wins. All five are
+committed in [`analytics/golden/`](analytics/README.md), with reference values computed from a real build on
+2026-09-17.
 
 | Question | Expected outcome | Why |
 | --- | --- | --- |
-| Trips into the Congestion Relief Zone, January 2025 against January 2024 | answered | A defined population, a stated window, a baseline period, and a falsifier a Check can evaluate |
-| Did the tip rate change after congestion pricing? | likely inconclusive | Tips move with fare, payment type and metered-fare rules at the same time; the data can describe the change and is unlikely to separate it |
-| Did congestion pricing cause fewer taxi rides citywide? | needs_reframing | "Citywide" is the wrong denominator for a zone-boundary policy, and "cause" is not available from an observational before/after |
+| Trips into the Congestion Relief Zone, January 2025 against January 2024 | answered (associational) | A defined population, a stated window, a baseline period, and a falsifier a Check can evaluate. Zone trips rose 2.7%, all trips rose 5.5%, so the zone's *share* fell |
+| Did the tip rate change after congestion pricing? | inconclusive | The rate moved — and the move at the policy date is smaller than the very next month-on-month move, which no policy explains |
+| Did congestion pricing cause fewer taxi rides citywide? | needs_reframing | "Citywide" is the wrong denominator for a zone-boundary policy, "cause" is not available from an observational before/after, and the premise is false: citywide rides rose |
+| Are Citi Bike members riding e-bikes more than a year ago? | answered (descriptive) | Share and total both rose. The Question deliberately asserts no fee change: no source here carries one |
+| Comparing only days when the weather was similar, did zone trips change? | inconclusive | The comparability Check fails on 21 of 31 aligned day pairs, and the 10 that survive are not a month |
 
 The expected outcome is the point. A demo where every Question is answerable would misrepresent what this tool
 is for.

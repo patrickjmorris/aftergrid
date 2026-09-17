@@ -13,6 +13,10 @@ node examples/nyc-open-data/scripts/build-data.mjs --from 2025-01 --to 2025-01
 # one source, into a named file
 node examples/nyc-open-data/scripts/build-data.mjs --from 2024-01 --to 2024-03 --sources yellow,ghcn --out /tmp/small.duckdb
 
+# two far-apart months in one database, without the twelve months between them
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-12 --to 2025-02 --out demo.duckdb
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-01 --to 2024-01 --append --out demo.duckdb
+
 # row count and content hash per table, no network
 node examples/nyc-open-data/scripts/build-data.mjs --verify
 ```
@@ -25,10 +29,58 @@ node examples/nyc-open-data/scripts/build-data.mjs --verify
 | `--out PATH` | Output database. Default `examples/nyc-open-data/demo.duckdb`. |
 | `--raw-dir PATH` | Where downloads and streamed CSVs land. Default `examples/nyc-open-data/data/raw`. |
 | `--sample-rate N` | One trip in `N` enters `trips_sample`. Default **1000**, the constant `SAMPLE_RATE` in the script. |
+| `--append` | Add to an existing `--out` only the months of this window it does not already hold. See below. |
 | `--keep-raw` | Keep the streamed Citi Bike CSVs instead of deleting each once it is aggregated. |
 | `--verify` | Do not build. Print each table's row count and content hash from `--out`, and exit. |
 
 Output is gitignored, as is `data/raw/`. Nothing the script writes is ever committed.
+
+## `--append`: months, not windows
+
+A window is a contiguous range, so a database holding January 2024 *and* January 2025 costs the twelve months
+between them — about 12 GB streamed for the two that are wanted. `--append` is the way out, and it is the only
+way this script adds to a database rather than replacing it.
+
+```bash
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-12 --to 2025-02 --out demo.duckdb   # 3 months
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-01 --to 2024-01 --append --out demo.duckdb
+```
+
+What it does, in order: read `build_meta` from `--out`; refuse if the run would make that file untrue; copy the
+database to `<out>.building`; build only the months `build_meta.months` does not list, logging the ones it
+skipped; rewrite `build_meta`; rename over `--out`. The same temporary-file discipline as a fresh build, so a
+throttled or failed append leaves the previous database exactly as it was — which is not hypothetical: the
+append that produced the four-month demo database was refused by CloudFront on its first attempt and the
+existing three months were untouched.
+
+**Three refusals, none of them overridable.** An append is refused when `--out` was built with a different
+source list, a different `--sample-rate`, or a different `builder_version`. Each would leave one file holding
+two rules while `build_meta` described only the last run. The answer is a rebuild, not a flag.
+
+**What is not re-fetched.** `taxi_zones` and `crz_zones` do not vary by month, so an append keeps them and keeps
+the `build_provenance` row of the fetch that wrote them. Weather is re-read from the station history for the
+appended months only, with an anti-join on the days already present, so an overlapping append adds nothing
+twice. The GHCN row therefore appears in `build_provenance` once per run — with the *same* `fetched_at`, because
+the sidecar records when those bytes were fetched and not when the build ran.
+
+`--append` cannot be combined with `--verify`, which does not build; the pair is refused rather than silently
+dropping the flag. The offline half — the month plan, the month merge, the three refusals — is tested in
+`src/examples-build.test.ts`.
+
+### `build_meta.months` is the authority
+
+`build_meta` gains a `months` key: every month the database holds, sorted and comma-separated. **`from` and `to`
+are its outer bounds and, after an append of two far-apart windows, are not a range that every month between
+them is present for.** A four-month demo database reads `from: 2024-01`, `to: 2025-02`, and
+`months: 2024-01,2024-12,2025-01,2025-02`. Read `months`.
+
+`weather_coverage` has the same shape and the same caveat: it names the first and last observation in
+`weather_daily`, not a guarantee that every day between them is there. On the four-month build it reads
+`2024-01-01..2025-02-05` over 98 rows, which is January 2024 plus December 2024 through 5 February 2025 and
+nothing in between.
+
+A database written before `months` existed has no such key, and the script falls back to `from`..`to` for it —
+correct, because every window was contiguous before `--append` existed.
 
 ## What it builds
 
@@ -47,7 +99,7 @@ DuckDB, which spills to `--raw-dir/duckdb-spill` if it needs to.
 | `taxi_zones` | taxi zone | `location_id`, `borough`, `zone`, `service_zone` — the TLC lookup, unchanged |
 | `crz_zones` | taxi zone | the Congestion Relief Zone; see below |
 | `build_provenance` | one row per fetched source file | see below |
-| `build_meta` | one row per build parameter | `builder_version`, `from`, `to`, `sources`, `sample_rate`, `weather_coverage`, `built_at`, `duckdb_version` |
+| `build_meta` | one row per build parameter | `builder_version`, `from`, `to`, `months`, `sources`, `sample_rate`, `weather_coverage`, `built_at`, `duckdb_version`. **`months` is the authority on what the database holds**; `from`/`to` are its outer bounds — see `--append` below |
 
 ### Units, and what the columns are not
 

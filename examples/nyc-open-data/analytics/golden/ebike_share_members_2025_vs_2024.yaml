@@ -1,0 +1,72 @@
+# Answerable, with caveats that have to survive into the memo. The share rose AND the total rose, which is the
+# one combination that makes a share safe to report — so the Finding has to show both.
+#
+# The Question deliberately does NOT name a fee change or a date. Citi Bike has changed e-bike pricing more than
+# once, and a fee change is the first thing this Reader will reach for; but no fee schedule, amount or date is
+# in any source this Instance reads, nor in NOTICE.md or the example README. Asserting one would be inventing
+# evidence. The Operator has to supply a sourced, dated document before any Finding here may name a fee change
+# — that is an open input, recorded in must_state below rather than guessed at.
+#
+# Reference values computed 2026-09-17 from demo.duckdb built the same day (build-data.mjs/1.1.0).
+schema_version: 0.1.0
+id: ebike_share_members_2025_vs_2024
+raw_ask: Are Citi Bike members riding e-bikes more than they were a year ago?
+reader: bike_product_manager
+expected:
+  outcome: answered
+  claim_type: descriptive
+  definition_ids: [member_ride, ebike_ride]
+  tables_read: [citibike_daily]
+  values:
+    - { id: member_ebike_share_jan2024, reference: member_mix.jan2024.member_ebike_share, value: 0.628456, tolerance: 0.000001, unit: share of member rides, population: Citi Bike rides taken under a membership in the New York City archives, window: 2024-01-01..2024-01-31 ride dates }
+    - { id: member_ebike_share_jan2025, reference: member_mix.jan2025.member_ebike_share, value: 0.691767, tolerance: 0.000001, unit: share of member rides, population: same, window: 2025-01-01..2025-01-31 ride dates }
+    - { id: member_rides_jan2024, reference: member_mix.jan2024.member_rides, value: 1679647, tolerance: 0, unit: rides, population: same, window: 2024-01-01..2024-01-31 ride dates, note: "the denominator: a share is not readable without it" }
+    - { id: member_rides_jan2025, reference: member_mix.jan2025.member_rides, value: 1922501, tolerance: 0, unit: rides, population: same, window: 2025-01-01..2025-01-31 ride dates, note: "member rides rose 14.5% too, so the rising share is not a shrinking total" }
+    - { id: member_ebike_rides_jan2024, reference: member_mix.jan2024.member_ebike_rides, value: 1055584, tolerance: 0, unit: rides, population: member rides on an electric bike, window: 2024-01-01..2024-01-31 ride dates }
+    - { id: member_ebike_rides_jan2025, reference: member_mix.jan2025.member_ebike_rides, value: 1329923, tolerance: 0, unit: rides, population: same, window: 2025-01-01..2025-01-31 ride dates }
+  must_state:
+    - that these are rides and not riders — the files carry no rider identity and no repeat-rider link, so "members" means rides taken under a membership and never a count of people
+    - the denominator in words, and both the share and the total, because a rising share on a falling total would mean something else entirely
+    - that this is one January against one January, both winter months, and not a trend
+    - that a pricing or fee change would be an obvious alternative explanation, that this Instance holds no fee data of any kind, and that no fee change is being asserted here
+    - "an open input for the Operator: if a fee-change explanation is wanted, a sourced and dated fee schedule has to be added to this Instance first — nothing in the three sources can supply it"
+    - that the Citi Bike data sharing policy forbids using the data to identify riders, and nothing here attempts to
+  must_not:
+    - name a fee change, a fee amount or a date on which fees changed
+    - attribute the rise to price, weather, fleet mix or anything else this Instance cannot observe
+    - describe the rise in share as more members, or as more people riding
+    - report the share without the ride counts beside it
+  reasoning: >-
+    A defined population, a stated window, a named baseline period and a share whose denominator is in the same
+    table. The member e-bike share rose from about 62.8% to about 69.2%, and member rides rose from 1.68m to
+    1.92m, so the share rose on a growing base rather than a shrinking one — which is what makes the share safe
+    to report at all. The Claim is descriptive: what fraction of member rides were on e-bikes, in each month.
+    Nothing was randomised and no explanation is available from these files, so anything past the description —
+    including the fee change this Reader will think of first — is an alternative explanation to name and not a
+    finding to state. The case exists partly to test that the Finding refuses to date a fee change it cannot
+    source.
+constraints:
+  window: { start: "2024-01-01", end: "2025-01-31", timezone: America/New_York }
+  population: Citi Bike rides in the New York City monthly archives; Jersey City files are not in this Instance
+  data_to: "2025-02-28"
+  required_checks: [invariant, minimum_data]
+reference:
+  parameters: { a_start: "2024-01-01", a_end: "2024-02-01", b_start: "2025-01-01", b_end: "2025-02-01" }
+  queries:
+    - id: member_mix
+      row_key: period
+      sql: |
+        with scoped as (
+          select ride_date, member_casual, rideable_type, rides
+          from citibike_daily
+          where (ride_date >= $a_start::DATE and ride_date < $a_end::DATE)
+             or (ride_date >= $b_start::DATE and ride_date < $b_end::DATE)
+        )
+        select case when ride_date < $a_end::DATE then 'jan2024' else 'jan2025' end as period,
+               sum(rides) filter (where member_casual = 'member')::BIGINT as member_rides,
+               sum(rides) filter (where member_casual = 'member' and rideable_type = 'electric_bike')::BIGINT as member_ebike_rides,
+               round(sum(rides) filter (where member_casual = 'member' and rideable_type = 'electric_bike')::DOUBLE
+                     / nullif(sum(rides) filter (where member_casual = 'member'), 0), 6) as member_ebike_share,
+               sum(rides)::BIGINT as all_rides
+        from scoped
+        group by 1

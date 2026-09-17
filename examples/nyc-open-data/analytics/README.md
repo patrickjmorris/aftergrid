@@ -1,33 +1,254 @@
-# Instance root (not scaffolded yet)
+# The demo Instance
 
-This is where the demo Instance will live: `aftergrid.yaml`, `readers.md`, `definitions/`, `findings/`,
-`decisions/`, `golden/`. The layout is `docs/contracts/instance-layout.md`.
+The public Instance for the New York City open-data walkthrough: the connection profile, the Reader profiles,
+the metric definitions and the Golden Questions. Layout: `docs/contracts/instance-layout.md`. Everything here
+was written by `aftergrid setup` or by hand on top of what setup wrote, and everything here is public.
 
-**It is empty on purpose.** `aftergrid setup` has not been run here, and this file is the only thing in the
-directory. Three reasons, all of which would otherwise put something untrue in the tree:
+**Status: the Instance is scaffolded and filled in. No Finding has been produced.** Nothing below describes
+something that has been approved, reviewed or published, because nothing has.
 
-- `setup` writes `aftergrid.yaml` and **never overwrites it** (`docs/contracts/setup.md`). Committing an
-  adapterless one now would mean the setup bead's own command — `setup --adapter duckdb --duckdb-path
-  demo.duckdb` — could only *print* a connection block rather than configure the Instance.
-- A publication policy needs a real repository, a real automation identity and real trusted approvers. Inventing
-  them would put a trusted approver who has approved nothing, and a bot account that does not exist, into a
-  public file — while the whole point of this demo is to carry one Finding through a real approval to `ready`.
-- The scaffold ships `definitions/example_definition.md` and a generic Reader profile. Committed here they would
-  read as the demo's definitions and the demo's Reader, which they are not.
+## What is here
 
-## What lands here
+| | |
+| --- | --- |
+| `aftergrid.yaml` | Written by `aftergrid setup --adapter duckdb --duckdb-path demo.duckdb`. Connection, publication policy, owner. |
+| `readers.md` | Two Reader profiles: `city_transport_analyst` and `bike_product_manager`. |
+| `definitions/` | Eight definitions, **all `proposed`**, none approved. |
+| `golden/` | Five Golden Questions with reference values computed from a built database on 2026-09-17. |
+| `findings/` | Empty. |
+| `decisions/`, `decisions.md` | Empty, and the generated index of an empty Decision log. |
+| `provisional/` | Empty, with the scaffold's README. |
+| `demo.duckdb` | **Not committed.** Gitignored; rebuilt from public sources by the build script. |
 
-Run `aftergrid setup` against this directory with the DuckDB adapter pointed at the `demo.duckdb` the data build
-produces, then fill in:
+## The data this Instance reads
 
-- **Definitions** for the congestion Question and its companions: what counts as a trip into the Congestion
-  Relief Zone (by taxi zone id), a comparable weather day, a taxi trip, a for-hire trip, tip rate, a member ride
-  and an e-bike ride. Proposed first; approved by the owner, with the approval recorded.
-- **Reader profiles** in `readers.md`: a non-data city transport reader, and a bike product reader.
-- **Golden Questions** in `golden/`: the three in the example README, plus the cases the Citi Bike Finding
-  needs. Their expected outcomes include `inconclusive` and `needs_reframing` deliberately.
-- **Findings** in `findings/`: the congestion pricing Finding, taken through a real pull request to a verified
-  approval, and the Citi Bike one.
+`connection.duckdb.path` is `demo.duckdb`, **inside this Instance root**. That is not a style choice:
+`openInstanceAdapter` resolves the path through `safePath`, which refuses a `..` component and an absolute path,
+so a warehouse one directory up in `examples/nyc-open-data/` cannot be configured. The build script's `--out`
+has to name this directory.
 
-Until then there is nothing here for `aftergrid check` to read, which is exactly what the `examples-check` CI job
-reports.
+The database was built in two runs on **2026-09-17**, into four months rather than a fourteen-month contiguous
+window — the goldens need January 2024 and December 2024 through February 2025, and building the twelve months
+between would have streamed roughly 12 GB for nothing:
+
+```bash
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-12 --to 2025-02 \
+  --out examples/nyc-open-data/analytics/demo.duckdb                     # 202.2 s
+node examples/nyc-open-data/scripts/build-data.mjs --from 2024-01 --to 2024-01 --append \
+  --out examples/nyc-open-data/analytics/demo.duckdb                     # 87.0 s
+```
+
+`--append` is new and is documented in [`../scripts/README.md`](../scripts/README.md). The result is 135.8 MB
+holding `build_meta.months = 2024-01,2024-12,2025-01,2025-02`: 5,390,695 rows in `trips_daily`, 93,739 in
+`trips_sample`, 98 days in `weather_daily`, 484 rows in `citibike_daily`, 9,024 in `citibike_stations`, 265
+taxi zones and 38 zone rows.
+
+### Provenance, and the dates the numbers rest on
+
+Every number in `golden/` was computed on **2026-09-17** from files fetched the same day. The TLC restates
+published months, so a rebuild can legitimately disagree; `build_provenance` records what was read.
+
+| Source | Period | Bytes | Mode | `Last-Modified` |
+| --- | --- | --- | --- | --- |
+| `tlc_yellow` | 2024-01 | 49,961,641 | downloaded, sha256 `c4d59da7bbc8…` | Thu, 21 Mar 2024 15:35:44 GMT |
+| `tlc_yellow` | 2024-12 | 61,524,085 | downloaded, sha256 `41ebf7db80be…` | Fri, 21 Feb 2025 21:29:11 GMT |
+| `tlc_yellow` | 2025-01 | 59,158,238 | downloaded, sha256 `9af277e4c0d3…` | Wed, 23 Apr 2025 16:31:58 GMT |
+| `tlc_yellow` | 2025-02 | 60,343,086 | downloaded, sha256 `037cba555a73…` | Wed, 23 Apr 2025 16:16:58 GMT |
+| `tlc_hvfhs` | 2024-01, 2024-12, 2025-01, 2025-02 | 472.8 / 507.5 / 491.1 / 461.6 MB | streamed, **never hashed** | Mar 2024 – Apr 2025 |
+| `tlc_zones` | static | 12,331 | downloaded, sha256 `1a99e1050922…` | Thu, 22 Feb 2024 21:33:00 GMT |
+| `ghcn` | station history | 16,003,495 | downloaded, sha256 `7e75c1ba4031…` | Sun, 09 Feb 2025 07:54:31 GMT |
+| `citibike` | 2024-01, 2024-12, 2025-01, 2025-02 | 369.0 / 450.8 / 414.2 / 396.0 MB | streamed, **never hashed** | Jul 2025 |
+
+Two things that table says plainly. **Weather stops before the trips do**: the GHCN station export was last
+modified 9 February 2025 and its last observation is 5 February 2025, so `weather_daily` holds 98 days — all of
+January 2024, all of December 2024 and January 2025, and 1–5 February 2025. The headline comparison is inside
+that coverage. And **a streamed file has no hash**, because the build never holds its bytes; its size, `ETag`
+and `Last-Modified` are what identify it.
+
+### `trips_daily` is over the admission cap at this window
+
+`aftergrid capture --catalog` against this Instance on 2026-09-17:
+
+```
+build_meta                 9 scan rows  admissible (estimate_under_cap)
+build_provenance          15 scan rows  admissible (estimate_under_cap)
+citibike_daily           484 scan rows  admissible (estimate_under_cap)
+citibike_stations      9,024 scan rows  admissible (estimate_under_cap)
+crz_zones                 38 scan rows  admissible (estimate_under_cap)
+taxi_zones               265 scan rows  admissible (estimate_under_cap)
+trips_daily        5,390,695 scan rows  NOT admissible: exceeds the cap of 5,000,000
+trips_sample          93,739 scan rows  admissible (estimate_under_cap)
+weather_daily             98 scan rows  admissible (estimate_under_cap)
+```
+
+One month of `trips_daily` is about 1.3 million rows and is comfortably admissible; **four months are not.** The
+default `estimate_cap` is 5,000,000 and `capture` copies whole tables, so the whole-table read of `trips_daily`
+is refused with `admission` before a byte is written. This is the designed behaviour
+(`docs/contracts/setup.md`, `docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern"), not a
+defect, and the cap has deliberately **not** been raised here to make the number go away.
+
+The Finding bead therefore has a decision to make, and it is recorded here rather than discovered later: capture
+a narrower database (one month either side is ~2.6 million rows), or have `build-data.mjs` write a bounded
+per-Question table beside `trips_daily` and capture that. The analytical window still lives in the analysis SQL
+either way.
+
+## Reader profiles
+
+Both are **composites, not people**, and neither has sat for a Reader session. `readers.md` says so in the file.
+
+- **`city_transport_analyst`** — a non-data transport programme lead who decides what to report upward about
+  how the charge is going. Wants trips into the zone, the same month a year earlier, and whether the two periods
+  were alike enough to compare. Will misread a before/after difference as an effect, and a zone change as a
+  citywide one.
+- **`bike_product_manager`** — owns a bike share product area; reads dashboards but never writes a query. Wants
+  the member/casual mix and e-bike use. Will misread a rising share on a falling total, and ride counts as
+  people.
+
+## Definitions: all eight are drafts
+
+Every file in `definitions/` carries `lifecycle: proposed` and **no `approval:` block**. That is the contract's
+word for "not approved" (`docs/contracts/instance-layout.md`; `draft` is not a value the layout defines). None
+of them may headline a published decision metric until the owner approves it through the approval flow and the
+approval is recorded against the definition's own content hash. Nobody has approved anything here.
+
+| Definition | Kind | What it pins down |
+| --- | --- | --- |
+| `crz_trip` | metric | A trip **into** the zone is one whose pickup **or** dropoff zone is in `crz_zones`. Pickups-only is a different metric; a trip with both ends inside is counted once; it is not "trips that paid the fee". |
+| `taxi_trip` | metric | Yellow medallion only. Green taxis are not in this build at all; `fare_sum` is the metered fare, not what the passenger paid. |
+| `fhv_trip` | metric | **High-volume** for-hire only. The TLC's separate non-high-volume `fhv_tripdata` is not fetched, so the id is wider than the population, and the file says so. |
+| `comparable_weather_day` | diagnostic | TMAX within ±5 °C and the same wet/dry class (under 1 mm / 1 mm or more), on aligned days. Units from `weather_daily`: °C and mm. A missing observation is `unknown`, never a match or a mismatch. Version 1 does **not** test snow. |
+| `tip_rate` | metric | `tip_sum / fare_sum`, **yellow only**. HVFHS tips exist in the data but their denominator is `base_passenger_fare`, a different quantity, so no cross-service rate is available. Cash trips record a zero tip and cannot be separated at this grain — `payment_type` is kept only in the 1-in-1000 sample. |
+| `member_ride` | metric | A ride taken under a membership. A ride, **not a rider**: the files carry no identity and no repeat-rider link. NYC archives only. |
+| `ebike_ride` | metric | `rideable_type = 'electric_bike'`. States that no fee schedule, amount or date exists in any source this Instance reads. |
+| `weekday_share` | diagnostic | Share of trips on Mon–Fri, to catch a comparison that is really a calendar difference. Public holidays are **not** excluded, and New Year's Day is in every January window here. |
+
+Each was run against the built database READ_ONLY under the Engine's own `DEFAULT_LIMITS`
+(`scripts/lib/sql-runner.mjs`: 256 MB, 2 threads), 2026-09-17:
+
+```
+comparable_weather_day    31 rows   16ms      member_ride      62 rows    2ms
+crz_trip                  62 rows   31ms      taxi_trip        31 rows    6ms
+ebike_ride                62 rows    2ms      tip_rate          3 rows   21ms
+fhv_trip                  31 rows   19ms      weekday_share     2 rows   21ms
+```
+
+## Golden Questions, and the numbers behind them
+
+Five reference cases. **Every value below was computed from the built database on 2026-09-17**; none was
+estimated, rounded from memory or carried over from a published figure. Tolerances on counts are `0` on
+purpose: a later rebuild that disagrees has hit a TLC restatement, which is worth knowing.
+
+### `crz_trips_jan2025_vs_jan2024` — expected `answered`, `associational`
+
+The headline case, and the answer is not the one the count alone suggests.
+
+| | January 2024 | January 2025 | Change |
+| --- | --- | --- | --- |
+| Trips into the zone | 9,037,182 | 9,277,575 | **+2.7 %** |
+| All yellow + HVFHS trips | 22,628,536 | 23,880,870 | **+5.5 %** |
+| Zone share of all trips | 0.399371 | 0.388494 | **−1.09 pp** |
+
+Trips into the zone rose — and rose *less* than trips everywhere, so the zone's share of all trips fell. Both
+sentences are about the same data, and the Finding has to carry both. The weather Check's outcome is part of
+what must be stated: 10 of the 31 aligned day pairs are comparable and **21 are not**.
+
+### `tip_rate_after_pricing` — expected `inconclusive`
+
+| Month | Tip rate | Step from the previous month in this Instance |
+| --- | --- | --- |
+| 2024-01 | 0.183541 | — |
+| 2024-12 | 0.175953 | −0.007589 *(against January 2024: an eleven-month gap, not a month-on-month step)* |
+| 2025-01 | 0.173272 | **−0.00268** — the move at the policy date |
+| 2025-02 | 0.162998 | **−0.010274** — the very next move, with no policy change behind it |
+
+`inconclusive`, not `insufficient_data`: every month asked for is present and complete and the metric computes.
+The step at the change is *smaller* than the step immediately after it, four non-consecutive months give no
+baseline for ordinary variation, and the rate is diluted by a cash share this grain cannot observe.
+
+### `fewer_taxi_rides_citywide_because_of_pricing` — expected `needs_reframing`
+
+| | January 2024 | January 2025 |
+| --- | --- | --- |
+| All trips citywide | 22,628,536 | 23,880,870 (**+5.5 %**) |
+| Yellow only | 2,964,606 | 3,475,204 (**+17.2 %**) |
+| Trips touching neither end of the zone | 13,591,354 | 14,603,295 |
+
+Three defects at once: the denominator is wrong (three trips in five never touch the zone and were never
+charged), "cause" is unavailable from an observational before/after with no randomisation and no control area,
+and the premise is false — citywide rides rose. Reporting the true direction while keeping the causal frame
+would be the worse failure.
+
+### `ebike_share_members_2025_vs_2024` — expected `answered`, `descriptive`
+
+| | January 2024 | January 2025 |
+| --- | --- | --- |
+| Member rides | 1,679,647 | 1,922,501 (**+14.5 %**) |
+| Member rides on an e-bike | 1,055,584 | 1,329,923 |
+| Member e-bike share | 0.628456 | 0.691767 (**+6.3 pp**) |
+
+The share rose *and* the total rose, which is what makes a share safe to report at all. **The Question does not
+name a fee change or a date**, deliberately: Citi Bike has changed e-bike pricing more than once, and this
+Reader will reach for that first — but no fee schedule, amount or date is in any of the three sources, in
+`NOTICE.md` or in the example README, so asserting one would be inventing evidence. The golden records it as an
+open input for the Operator: a sourced, dated fee document has to be added to this Instance before any Finding
+here may name a fee change.
+
+### `weather_confounded_comparison` — expected `inconclusive`
+
+The case where the Check has to stop the Analysis. Same month pair, aligned day by day:
+
+| | Value |
+| --- | --- |
+| Aligned day pairs | 31 |
+| Comparable | **10** |
+| Not comparable | **21** |
+| Unknown (missing observation) | 0 |
+| Largest same-day TMAX gap | 14.4 °C |
+
+| | January 2024 | January 2025 |
+| --- | --- | --- |
+| Mean TMAX | 5.53 °C | 2.55 °C |
+| Total precipitation | 134.1 mm | 15.5 mm |
+| Wet days (≥ 1 mm) | 15 | 4 |
+
+Ten days is not a January. This does not contradict the headline case: that one *describes* what changed and
+states the Check's failure as a limitation; this one asks for a weather-matched comparison, which the same
+failure makes unavailable.
+
+### Reproducing the numbers
+
+With a built `demo.duckdb` in this directory:
+
+```bash
+node --test src/examples-instance.test.ts
+```
+
+Its last test recomputes every reference value through the DuckDB adapter and skips out loud when the data is
+absent. `src/examples-instance.test.ts` also runs in CI, where it validates the committed files and skips that
+one test — it needs no data and makes no network call.
+
+`node src/cli.ts eval --golden all --analyzer fixture --instance examples/nyc-open-data/analytics` runs and
+loads all five goldens, but it reports five `not_run` cases and says so itself: with no recorded run under
+`fixtures/runs/` the fixture analyzer declines, and **no reference query executes**. Recomputation needs
+`--analyzer command` with a real model, or the test above.
+
+## What is **not** here
+
+- **No Finding.** `findings/` is empty. The `examples-check` CI job reports that there is nothing to check, which
+  is the truth.
+- **No approved definition.** All eight are `proposed` and carry no approval block. Approval is an attestation
+  the owner gives later, verified against GitHub; nothing here synthesises one.
+- **No Decision record**, and no review of any kind.
+- **No committed data.** `demo.duckdb` and `data/raw/` are gitignored. Rebuild them.
+- **The guardrail hook is not installed.** Setup was run with `--skip-hook`, because the hook writes into a
+  Claude Code `settings.json` on one machine — it is per-machine local configuration, not a shared artifact, so
+  committing it would be committing somebody else's setup. Install it yourself with `aftergrid hook install`
+  before running unattended intake here.
+- **The publication policy is unverified.** Setup's preflight found the policy self-consistent —
+  `github-actions[bot]` opens the pull requests, `patrickjmorris` is the only trusted approver, and the two are
+  not the same account, which GitHub requires — but with no `GITHUB_TOKEN` it could not confirm against the API
+  that the repository exists or that those logins resolve to distinct accounts. That is `unknown`, and setup
+  reports the whole run as `incomplete` because of it. **No approval has been recorded here and none will ever
+  be synthesised**: a `publication_approval` attestation in this Instance can only come from a real APPROVED
+  review by `patrickjmorris` on a real pull request at a real commit.
+- **`trips_daily` cannot currently be captured** at this window. See above.

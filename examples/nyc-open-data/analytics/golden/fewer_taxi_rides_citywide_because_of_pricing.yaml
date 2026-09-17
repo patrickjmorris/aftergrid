@@ -1,0 +1,65 @@
+# The ask that has to be sent back. Three separate problems, and the Finding has to name all three rather than
+# answer past them: the denominator is wrong for a zone-boundary policy, "cause" is not available from an
+# observational before/after, and the premise is false — citywide rides went up, not down.
+#
+# Reference values computed 2026-09-17 from demo.duckdb built the same day (build-data.mjs/1.1.0).
+schema_version: 0.1.0
+id: fewer_taxi_rides_citywide_because_of_pricing
+raw_ask: Did congestion pricing cause fewer taxi rides citywide?
+reader: city_transport_analyst
+expected:
+  outcome: needs_reframing
+  claim_type: descriptive
+  definition_ids: [crz_trip, taxi_trip, fhv_trip]
+  tables_read: [trips_daily, crz_zones]
+  values:
+    - { id: all_trips_jan2024, reference: citywide.jan2024.all_trips, value: 22628536, tolerance: 0, unit: trips, population: all yellow and high-volume for-hire trips citywide, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: all_trips_jan2025, reference: citywide.jan2025.all_trips, value: 23880870, tolerance: 0, unit: trips, population: same, window: 2025-01-01..2025-01-31 pickup dates, note: "citywide rides ROSE 5.5%; the ask presumes they fell" }
+    - { id: yellow_trips_jan2024, reference: citywide.jan2024.yellow_trips, value: 2964606, tolerance: 0, unit: trips, population: yellow taxi trips citywide, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: yellow_trips_jan2025, reference: citywide.jan2025.yellow_trips, value: 3475204, tolerance: 0, unit: trips, population: same, window: 2025-01-01..2025-01-31 pickup dates, note: "yellow alone rose 17.2%" }
+    - { id: outside_zone_trips_jan2024, reference: citywide.jan2024.outside_zone_trips, value: 13591354, tolerance: 0, unit: trips, population: trips with neither pickup nor dropoff in the Congestion Relief Zone, window: 2024-01-01..2024-01-31 pickup dates, note: "60% of the citywide denominator never touches the zone and was never charged" }
+    - { id: outside_zone_trips_jan2025, reference: citywide.jan2025.outside_zone_trips, value: 14603295, tolerance: 0, unit: trips, population: same, window: 2025-01-01..2025-01-31 pickup dates }
+  must_state:
+    - 'that "citywide" is the wrong denominator for a policy that applies at a zone boundary, and why: three trips in five never touch the zone and were never charged, so they dilute whatever happened inside it'
+    - that the premise is not what the data shows — citywide trips rose about 5.5% and yellow trips rose about 17.2%
+    - 'that "cause" is not available: nothing was randomised, every vehicle met the charge on the same date, there is no untreated comparison area, and January 2024 and January 2025 differed in weather'
+    - 'the Question this Instance can answer instead, in one sentence: what happened to trips into the zone, and to the zone''s share of all trips, against the same month a year earlier'
+    - that the sharpened Question is `crz_trips_jan2025_vs_jan2024`, and that its answer is still associational
+  must_not:
+    - answer the Question as asked with a citywide number
+    - report "no effect" or "no decrease" as the finding — the ask cannot be answered, which is not the same as answering it "no"
+    - substitute a different denominator silently and keep the causal wording
+    - treat the rise in citywide trips as evidence that congestion pricing increased ridership
+  reasoning: >-
+    Three defects, none of them fixable by running the query. The denominator is wrong: a zone-boundary policy
+    against a citywide baseline puts 13.6 million untreated trips in January 2024 alone into the comparison.
+    The causal wording is unavailable: the charge started for everyone on one date with no randomisation and no
+    control area, so an observational before/after supports an associational Claim at most. And the premise is
+    false — citywide trips rose. Reporting the true direction while keeping the causal frame would be the worse
+    failure, so the outcome is needs_reframing and the Finding hands back a Question that can be answered.
+constraints:
+  window: { start: "2024-01-01", end: "2025-01-31", timezone: America/New_York }
+  population: all yellow and high-volume for-hire trips in the TLC records, city-wide
+  data_to: "2025-02-28"
+  required_checks: [invariant]
+reference:
+  parameters: { a_start: "2024-01-01", a_end: "2024-02-01", b_start: "2025-01-01", b_end: "2025-02-01" }
+  queries:
+    - id: citywide
+      row_key: period
+      sql: |
+        with crz as (select location_id from crz_zones),
+        scoped as (
+          select pickup_date, service, pu_location_id, do_location_id, trips
+          from trips_daily
+          where (pickup_date >= $a_start::DATE and pickup_date < $a_end::DATE)
+             or (pickup_date >= $b_start::DATE and pickup_date < $b_end::DATE)
+        )
+        select case when pickup_date < $a_end::DATE then 'jan2024' else 'jan2025' end as period,
+               sum(trips) filter (where service = 'yellow')::BIGINT as yellow_trips,
+               sum(trips) filter (where service = 'hvfhs')::BIGINT as fhv_trips,
+               sum(trips)::BIGINT as all_trips,
+               sum(trips) filter (where pu_location_id not in (select location_id from crz)
+                                   and do_location_id not in (select location_id from crz))::BIGINT as outside_zone_trips
+        from scoped
+        group by 1

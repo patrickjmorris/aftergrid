@@ -1,0 +1,100 @@
+# The demo's headline case. Answerable — and the answer is not the one the raw count suggests: trips into the
+# zone rose, and rose LESS than trips citywide, so the zone's share of all trips fell. A Finding that reports
+# only the count gets the direction right and the meaning wrong.
+#
+# Reference values computed 2026-09-17 from demo.duckdb built the same day (build-data.mjs/1.1.0, months
+# 2024-01, 2024-12, 2025-01, 2025-02). Tolerances on counts are 0 on purpose: the TLC restates published
+# months, so a later rebuild that disagrees has a changed source, not a wrong Analysis.
+schema_version: 0.1.0
+id: crz_trips_jan2025_vs_jan2024
+raw_ask: Did trips into the Congestion Relief Zone change after congestion pricing started, compared with the same period a year earlier?
+reader: city_transport_analyst
+expected:
+  outcome: answered
+  claim_type: associational
+  definition_ids: [crz_trip, taxi_trip, fhv_trip, comparable_weather_day, weekday_share]
+  tables_read: [trips_daily, crz_zones, weather_daily]
+  values:
+    - { id: crz_trips_jan2025, reference: crz_by_period.jan2025.crz_trips, value: 9277575, tolerance: 0, unit: trips, population: yellow and high-volume for-hire trips with a pickup or dropoff in the 38 Congestion Relief Zone taxi zones, window: 2025-01-01..2025-01-31 pickup dates, note: "a difference here means the TLC restated the month; it does not mean the Analysis is wrong" }
+    - { id: crz_trips_jan2024, reference: crz_by_period.jan2024.crz_trips, value: 9037182, tolerance: 0, unit: trips, population: same, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: all_trips_jan2025, reference: crz_by_period.jan2025.all_trips, value: 23880870, tolerance: 0, unit: trips, population: "all yellow and high-volume for-hire trips, zone or no zone", window: 2025-01-01..2025-01-31 pickup dates, note: "the denominator; without it the count above cannot be read" }
+    - { id: all_trips_jan2024, reference: crz_by_period.jan2024.all_trips, value: 22628536, tolerance: 0, unit: trips, population: same, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: crz_share_jan2025, reference: crz_by_period.jan2025.crz_share, value: 0.388494, tolerance: 0.000001, unit: share of all trips, population: zone trips out of all trips, window: 2025-01-01..2025-01-31 pickup dates }
+    - { id: crz_share_jan2024, reference: crz_by_period.jan2024.crz_share, value: 0.399371, tolerance: 0.000001, unit: share of all trips, population: zone trips out of all trips, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: comparable_weather_pairs, reference: weather_pairs.aligned.comparable_pairs, value: 10, tolerance: 0, unit: day pairs, population: the 31 aligned day pairs of the two Januaries at station USW00094728, window: 2024-01-01..2024-01-31 against 2025-01-01..2025-01-31, note: "the weather Check outcome: 10 of 31 pairs comparable" }
+    - { id: not_comparable_weather_pairs, reference: weather_pairs.aligned.not_comparable_pairs, value: 21, tolerance: 0, unit: day pairs, population: same, window: same }
+  must_state:
+    - the denominator in words — that this is trips into the zone out of all yellow and high-volume for-hire trips, and what that share was in each month
+    - that January 2024 is the baseline period, and that it is a single month and not a trend
+    - the outcome of the weather comparability Check, including that it failed on 21 of the 31 aligned day pairs and that the two Januaries differed markedly in rainfall and temperature
+    - that the count of trips into the zone rose while the zone's share of all trips fell, and that those two sentences are about the same data
+    - that the TLC restates published months, so these numbers are as of the fetch date recorded in build_provenance
+    - that these are trip records with no rider identity, so nothing here says whether the same people changed behaviour
+  must_not:
+    - state or imply that congestion pricing caused the change
+    - report the rise in zone trips without the denominator or without the share
+    - describe the two periods as comparable on weather
+    - generalise one January against one January into a trend
+  reasoning: >-
+    A defined population (crz_trip), a stated window, a named baseline period and a falsifier a Check can
+    evaluate. The data answers what changed: trips into the zone rose about 2.7% while all trips rose about
+    5.5%, so the zone's share of trips fell by about 1.1 percentage points. The denominator is the whole point
+    of the case — an honest Finding reports both the count and the share and says they are the same data. The
+    strongest available Claim is associational: assignment was not randomised, every vehicle in the city met
+    the charge on the same date, there is no control area, and the weather Check fails on this pair, so a
+    causal reading is refused rather than hedged.
+constraints:
+  window: { start: "2024-01-01", end: "2025-01-31", timezone: America/New_York }
+  population: yellow taxi and high-volume for-hire trips in the TLC records for January 2024 and January 2025
+  data_to: "2025-02-28"
+  required_checks: [invariant, falsifier]
+reference:
+  parameters: { a_start: "2024-01-01", a_end: "2024-02-01", b_start: "2025-01-01", b_end: "2025-02-01", days: 31 }
+  queries:
+    - id: crz_by_period
+      row_key: period
+      sql: |
+        with crz as (select location_id from crz_zones),
+        scoped as (
+          select pickup_date, pu_location_id, do_location_id, trips
+          from trips_daily
+          where service in ('yellow', 'hvfhs')
+            and ((pickup_date >= $a_start::DATE and pickup_date < $a_end::DATE)
+              or (pickup_date >= $b_start::DATE and pickup_date < $b_end::DATE))
+        )
+        select case when pickup_date < $a_end::DATE then 'jan2024' else 'jan2025' end as period,
+               sum(trips) filter (where pu_location_id in (select location_id from crz)
+                                     or do_location_id in (select location_id from crz))::BIGINT as crz_trips,
+               sum(trips)::BIGINT as all_trips,
+               round(sum(trips) filter (where pu_location_id in (select location_id from crz)
+                                           or do_location_id in (select location_id from crz))::DOUBLE
+                     / nullif(sum(trips), 0), 6) as crz_share
+        from scoped
+        group by 1
+    - id: weather_pairs
+      row_key: comparison
+      sql: |
+        with a as (
+          select tmax_c, prcp_mm, date_diff('day', $a_start::DATE, observation_date) as offset_days
+          from weather_daily
+          where observation_date >= $a_start::DATE and observation_date < $a_start::DATE + $days::INTEGER
+        ),
+        b as (
+          select tmax_c, prcp_mm, date_diff('day', $b_start::DATE, observation_date) as offset_days
+          from weather_daily
+          where observation_date >= $b_start::DATE and observation_date < $b_start::DATE + $days::INTEGER
+        ),
+        paired as (
+          select abs(a.tmax_c - b.tmax_c) as gap_c, a.tmax_c as tmax_a, b.tmax_c as tmax_b,
+                 case when a.prcp_mm is null then 'unknown' when a.prcp_mm < 1 then 'dry' else 'wet' end as class_a,
+                 case when b.prcp_mm is null then 'unknown' when b.prcp_mm < 1 then 'dry' else 'wet' end as class_b
+          from a join b on a.offset_days = b.offset_days
+        )
+        select 'aligned' as comparison,
+               count(*)::BIGINT as pairs,
+               count(*) filter (where tmax_a is null or tmax_b is null or class_a = 'unknown' or class_b = 'unknown')::BIGINT as unknown_pairs,
+               count(*) filter (where tmax_a is not null and tmax_b is not null and class_a <> 'unknown' and class_b <> 'unknown'
+                                  and gap_c <= 5.0 and class_a = class_b)::BIGINT as comparable_pairs,
+               count(*) filter (where tmax_a is not null and tmax_b is not null and class_a <> 'unknown' and class_b <> 'unknown'
+                                  and not (gap_c <= 5.0 and class_a = class_b))::BIGINT as not_comparable_pairs
+        from paired
