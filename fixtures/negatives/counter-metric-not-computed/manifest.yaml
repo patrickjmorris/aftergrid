@@ -500,7 +500,7 @@ reviews:
     date: 2026-09-15
     content_digest: &a1
       algorithm: sha256
-      value: 304cd2ced9d0a3142de31480c9b06f58b7b43ad07bc0a05a4d6bc331d7d0ac22
+      value: 02fcb9f0398a2630652a73eb3870c18b1fe0d72a0a803a92a85270558b5b04dc
     blocking: []
     non_blocking:
       - Generated negative fixture for the evidence seam. The recorded execution and Check outcomes are carried over from the exemplar; they are not a record of an execution in this directory.
@@ -530,4 +530,4 @@ content_digest: *a1
 counter_metrics_reported:
   - id: retained_7d
     version: 2
-    not_computed: The retained_7d window runs seven days past the last signup, and this extract stops at the experiment window, so the counter-metric cannot be computed over the same cohort here.
+    not_computed: Every retained_7d value in this Finding belongs to one experiment arm, and no result in it carries the rate for the signup cohort as a whole, which is the population habit_creation_rate v2 is measured over, so the counter-metric cannot be reported over that population here.

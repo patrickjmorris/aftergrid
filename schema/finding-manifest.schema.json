@@ -1464,7 +1464,8 @@
           "not_computed": {
             "type": "string",
             "minLength": 1,
-            "description": "One sentence: why this counter-metric could not be computed. An explicit, reviewable absence, never a way past the rule."
+            "pattern": "\\S",
+            "description": "One sentence: why this counter-metric could not be computed. An explicit, reviewable absence, never a way past the rule. At least one non-whitespace character: a blank reason is the silence the rule exists to refuse, spelled with a space."
           }
         },
         "oneOf": [

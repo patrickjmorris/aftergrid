@@ -310,6 +310,12 @@ function validateMemo(manifest, results) {
     if (fm.counter_metrics_none_because !== undefined && (typeof fm.counter_metrics_none_because !== "string" || !fm.counter_metrics_none_because.trim())) {
       err("schema", loc, `${d.path}: counter_metrics_none_because must be one sentence saying why no counter-metric could be named`, "write the sentence, or remove the key");
     }
+    // A counter-metric list on a definition this Finding pins as SUPPORTING obliges nobody: the rule is about
+    // what a Finding publishes. Silence there read the same as a definition that named none, and those are
+    // different facts, so the one that is true is said.
+    if (d.role === "supporting" && Array.isArray(fm.counter_metrics) && fm.counter_metrics.length) {
+      report.info.push(`${d.id} names ${fm.counter_metrics.length} counter-metric(s) and is pinned as supporting, so this Finding is not obliged to report them`);
+    }
     if (d.role === "decision_metric" && Array.isArray(fm.counter_metrics)) {
       for (const c of fm.counter_metrics) {
         if (!c || typeof c.id !== "string") continue;
@@ -320,7 +326,7 @@ function validateMemo(manifest, results) {
             "add the counter-metric's definition to the Instance, or correct the id in the primary definition's counter_metrics");
           continue;
         }
-        counterRequired.push({ loc, primary: d.id, counter: c, definitionIndex: n });
+        counterRequired.push({ loc, primary: d.id, counter: c });
       }
     }
     if (d.role === "decision_metric" && fm.counter_metrics === undefined) {
@@ -449,22 +455,41 @@ function validateMemo(manifest, results) {
   // hard, reported here over the Question's own window (docs/contracts/finding-manifest.md).
   //
   // Only two things a manifest can establish are checked, and they are checked exactly: the value is TRACED —
-  // it resolves through the same resolver `render` uses, and its result comes from an execution that pins the
-  // counter-metric's definition, which is what ties the number to that definition's population and denominator
-  // rather than to a column that happens to sit nearby — and it is over the SAME WINDOW as the Question. Whether
-  // a `not_computed` reason is honest is the method review's, and no Check can tell one from the other.
+  // it resolves through the same resolver `render` uses, and the COLUMN it reads declares `definition_ref` equal
+  // to the counter-metric, which is what ties the number to that definition's population and denominator rather
+  // than to a column that happens to sit nearby — and it is over the SAME WINDOW as the Question. Neither the
+  // honesty of a `not_computed` reason nor whether the row read is the definition's whole population is
+  // something a Check can see; both are the method review's.
   const reported = manifest.counter_metrics_reported ?? [];
-  /** Every result a value reference reads, following derived operands. An `ext:` value reads none. */
+  /**
+   * Every result CELL a value reference reads, as { result, column }, following derived operands. An `ext:`
+   * value reads none. The column is carried because a `ref:` value names one column, and the column is where
+   * the manifest declares which definition the number was computed under.
+   */
   const resultsBehind = (ref, seen = new Set()) => {
-    if (ref.startsWith("ref:")) return [ref.slice(4).split(".")[0]];
+    if (ref.startsWith("ref:")) { const [result, , column] = ref.slice(4).split("."); return [{ result, column }]; }
     if (!ref.startsWith("derived:")) return [];
     const id = ref.slice(8);
     if (seen.has(id)) return [];
     const d = manifest.derived.find((x) => x.id === id);
     return d ? operandRefs(d).flatMap((o) => resultsBehind(o, new Set([...seen, id]))) : [];
   };
+  const reportedSeen = new Map();
   reported.forEach((entry, n) => {
     const loc = `manifest.yaml#/counter_metrics_reported/${n}`;
+    // One counter-metric, one answer. Two entries for the same id let a Finding report a value and, a few lines
+    // down, a reason it could not be computed, and every rule below would pass on whichever it read first.
+    if (reportedSeen.has(entry.id)) {
+      err("duplicate_id", loc, `counter-metric ${entry.id} is reported twice (also at manifest.yaml#/counter_metrics_reported/${reportedSeen.get(entry.id)})`,
+        "report each counter-metric once: a value traced over the Question's window, or not_computed with the reason");
+    } else reportedSeen.set(entry.id, n);
+    // The schema refuses a blank reason first (`not_computed` carries `pattern: "\\S"`), so this is a belt on
+    // the same rule, stated where the counter-metric rules live: a reason is what a method reviewer reads, and
+    // whitespace is silence spelled out.
+    if (entry.not_computed !== undefined && !String(entry.not_computed).trim()) {
+      err("schema", loc, `counter-metric ${entry.id} records not_computed with no reason in it`,
+        "write the sentence saying why it could not be computed, or report a traced value instead");
+    }
     const pinned = manifest.definitions.find((d) => d.id === entry.id && d.version === entry.version);
     if (!pinned) {
       counterFail(loc, `counter-metric ${entry.id} v${entry.version} is reported and is not pinned in definitions at that version`,
@@ -483,14 +508,31 @@ function validateMemo(manifest, results) {
         "report the counter-metric over the window the decision metric was measured over, or state what this other window shows in a Claim of its own");
     }
     const behind = resultsBehind(entry.ref);
-    const pinsDefinition = behind.some((rid) => {
-      const res = manifest.results.find((r) => r.id === rid);
-      const ex = res && manifest.executions.find((e) => e.id === res.execution_id);
-      return !!ex && (ex.definition_refs ?? []).some((r) => r.id === entry.id && r.version === entry.version);
-    });
-    if (!pinsDefinition) {
-      counterFail(loc, `the value reported for counter-metric ${entry.id} v${entry.version} traces to ${behind.length ? `result(s) ${behind.join(", ")}, none of which was` : "no result, so nothing was"} produced by an execution pinning that definition`,
-        `run the counter-metric's own SQL and declare it: the execution behind this value carries definition_refs including { id: ${entry.id}, version: ${entry.version} }. That binding is what says the number is this definition's population and denominator, not a nearby column`);
+    // A `ref:` value names ONE column, so the binding is checked where the manifest declares it per column:
+    // `results[].columns[].definition_ref`. The execution-level test this replaces accepted any column of any
+    // result an execution pinning the definition produced -- a signup count, a text cell -- which is the "nearby
+    // column" the rule exists to refuse. What no manifest field can settle is WHICH ROWS: the column is the
+    // definition's, and whether the row is the definition's own population or a subpopulation of it is the
+    // method review's (docs/contracts/finding-manifest.md, "How \"the same population and window\" is checked").
+    if (entry.ref.startsWith("ref:")) {
+      const { result: rid, column } = behind[0];
+      const declared = manifest.results.find((r) => r.id === rid)?.columns.find((c) => c.name === column)?.definition_ref;
+      if (!declared || declared.id !== entry.id || declared.version !== entry.version) {
+        counterFail(loc, `the value reported for counter-metric ${entry.id} v${entry.version} reads column ${rid}.${column}, which ${declared ? `is declared under definition ${declared.id} v${declared.version}` : "declares no definition_ref"}`,
+          `point ref at a column whose results[].columns[].definition_ref is { id: ${entry.id}, version: ${entry.version} }: run the counter-metric's own SQL, declare the definition on the column it produced, and report that cell. The column declaration is what says the number is this definition's population and denominator, and not another column of the same result`);
+      }
+    } else {
+      // A `derived:` value is computed from several cells and has no column of its own, so the binding it can
+      // carry is the one its operands' executions carry.
+      const pinsDefinition = behind.some(({ result: rid }) => {
+        const res = manifest.results.find((r) => r.id === rid);
+        const ex = res && manifest.executions.find((e) => e.id === res.execution_id);
+        return !!ex && (ex.definition_refs ?? []).some((r) => r.id === entry.id && r.version === entry.version);
+      });
+      if (!pinsDefinition) {
+        counterFail(loc, `the value reported for counter-metric ${entry.id} v${entry.version} traces to ${behind.length ? `result(s) ${[...new Set(behind.map((b) => b.result))].join(", ")}, none of which was` : "no result, so nothing was"} produced by an execution pinning that definition`,
+          `run the counter-metric's own SQL and declare it: the execution behind this value carries definition_refs including { id: ${entry.id}, version: ${entry.version} }. That binding is what says the number is this definition's population and denominator, not a nearby column`);
+      }
     }
   });
   for (const req of counterRequired) {
@@ -617,6 +659,8 @@ function validateMemo(manifest, results) {
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
   if (manifest.finding.state !== "complete" || report.errors.length) readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
+  // Read only by the info line below: no caller of validateFinding reads a counter-metric summary off the
+  // return, so none is carried there.
   const counterMetrics = reported.map((e) => `${e.id} v${e.version}: ${e.ref ? `reported as ${e.ref}` : `not computed (${e.not_computed})`}`);
   if (counterRequired.length) {
     report.info.push(`counter-metrics named by the published decision metric(s): ${counterRequired.map((r) => `${r.primary} -> ${r.counter.id}`).join(", ")}; ${reported.length} reported [${counterMetrics.join("; ") || "none"}]`);
@@ -626,7 +670,7 @@ function validateMemo(manifest, results) {
   // src/publication (src/commands/check.ts applies the same clamp to the verified-review answer).
   if (checksReportedByAgent && readiness === "ready") readiness = "unknown";
   if (checksReportedByAgent) reasons.push(`${agentChecks.length} Check outcome(s) were reported by the harness, not executed by aftergrid; that alone can never make a Finding ready`);
-  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, checksReportedByAgent, recordedExecutions: recordedExecutions.map((e) => e.id), readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`), counterMetrics });
+  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, checksReportedByAgent, recordedExecutions: recordedExecutions.map((e) => e.id), readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
   } catch (e) {
     err(e.category ?? (e.code === "ENOENT" ? "missing_file" : "invalid_artifact"), e.location ?? e.path ?? dir, e.message, "correct the artifact and retry");
     return finish(null, { evidence: "invalid", executionAvailability: "artifact_only", sqlExecution: "not_performed (artifact verification)", readiness: "not_ready" });

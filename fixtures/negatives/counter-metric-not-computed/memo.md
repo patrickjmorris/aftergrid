@@ -46,7 +46,7 @@ This split was not planned before the experiment. It is a follow-up look, so tre
 - The two groups are about the same size, as random assignment should produce (Check arm_balance).
 - The count of people who came back matches the approved definition of "came back within a week" computed a second way (Check retained_7d_reconcile).
 - Decision metric: habit_creation_rate v2, approved. Its definition names a counter-metric: a forced habit step in onboarding lifts that rate with habits nobody comes back for.
-- Counter-metric named by that definition: {{literal:7-day}} retention — not computed. This extract stops at the experiment window, so it cannot be measured over the same cohort.
+- Counter-metric named by that definition: {{literal:7-day}} retention — not computed. Every value of it here belongs to one experiment arm, and nothing in this Finding carries it for the whole signup cohort.
 - Definition used: retained_7d v2. An approval by Dana dated the twenty-eighth of May is recorded in the team's records; this draft has not verified it.
 - Data: the saved results can be replayed. The retained inputs here are trimmed stubs, so the queries cannot be rerun against them.
 - Method review: none was performed. This is a generated negative fixture; the recorded review entry says so. No human has approved this Finding for publication; it is a draft.

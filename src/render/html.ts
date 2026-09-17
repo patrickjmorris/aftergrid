@@ -145,7 +145,14 @@ export type RenderInputs = { dir: string; manifest: any; results: Results; memo:
    * (docs/contracts/instance-layout.md). The renderer never opens an Instance file itself; without this map a
    * counter-metric fact still says what was reported, and simply does not repeat what it guards against.
    */
-  counterWhy?: Record<string, string> };
+  counterWhy?: Record<string, string>;
+  /**
+   * Counter-metric ids the published decision metric names and this Finding reports nothing for, read from the
+   * same front matter by the same caller. Only a DRAFT can reach the renderer with any: once `finding.state` is
+   * `complete` an unreported counter-metric is an evidence error and `render` refuses the Finding. A Reader of a
+   * draft is shown the gap rather than a page that reads as though the decision metric named nothing.
+   */
+  counterUnreported?: string[] };
 
 function mailto(manifest: any, claimId?: string): string {
   const id = manifest.finding.id, rev = manifest.finding.revision;
@@ -207,6 +214,7 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     return `<span class="ref" tabindex="0" aria-describedby="${id}">${esc(display)}<span class="tip" id="${id}" role="tooltip">${tipInner(kind, body, display, loc)}</span></span>`;
   };
   const counterWhy: Record<string, string> = inp.counterWhy ?? {};
+  const counterUnreported: string[] = inp.counterUnreported ?? [];
   /** `ref:a.b.c` / `derived:x` / `ext:x` split into the (kind, body) pair `tokenHtml` takes. */
   const refParts = (ref: string): [string, string] => { const at = ref.indexOf(":"); return [ref.slice(0, at), ref.slice(at + 1)]; };
   const TOKENS = new RegExp((TOKEN_RE as RegExp).source, "g");
@@ -321,8 +329,13 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     // Definition fact: a counter-metric a Reader has to go looking for is one the decision can be made without.
     // A reported value carries the same provenance popover as every other number on the page.
     ...(m.counter_metrics_reported ?? []).map((c: any) => c.not_computed
-      ? fact("no", "Counter-metric", `${esc(c.id)} — not computed: ${esc(String(c.not_computed))}${counterWhy[c.id] ? ` It was named because: ${esc(counterWhy[c.id]!)}` : ""}`)
+      ? fact("no", "Counter-metric", `${esc(c.id)} — not computed: ${esc(String(c.not_computed))}${counterWhy[c.id] ? ` — it was named because: ${esc(counterWhy[c.id]!)}` : ""}`)
       : fact("wn", "Counter-metric", `${esc(c.id)}: ${tokenHtml(...refParts(c.ref), `counter-metric ${c.id}`)}, over ${esc(c.window.start)} to ${esc(c.window.end)} (${esc(c.window.timezone)})${counterWhy[c.id] ? ` — ${esc(counterWhy[c.id]!)}` : ""}`)),
+    // The gap itself, on the page. A draft whose decision metric names a counter-metric it has not reported used
+    // to render with no mention of it at all: the Reader saw a decision metric and no sign that anything was
+    // owed beside it, which is the Goodhart failure the rule exists to catch, printed silently.
+    ...counterUnreported.map((id: string) => fact("no", "Counter-metric",
+      `${esc(id)} not yet reported. This draft publishes a decision metric whose definition names it as what would be damaged, and reports neither a value for it nor a reason it could not be computed${counterWhy[id] ? `; it was named because: ${esc(counterWhy[id]!)}` : ""}.`)),
     // A review's standing is judged per kind by the one module `check` and `review status` read
     // (scripts/lib/review-currency.mjs). A review behind a later one of the same kind is history: it is counted
     // once, with no warning mark, instead of shown as one more thing wrong with the page. Rendering each of

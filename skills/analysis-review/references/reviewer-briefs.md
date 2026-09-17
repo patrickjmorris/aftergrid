@@ -42,9 +42,12 @@ Work through each of these against every Claim in `manifest.yaml` and its subsec
 - **Counter-metrics honestly reported.** Where the decision metric's definition names counter-metrics, each
   reported value is the counter-metric's own calculation over the Question's population and window — and each
   `not_computed` reason is a real obstacle, not the run having stopped early. `check` establishes that an entry
-  exists and that its window matches; only you can judge whether the reason is true, and whether a
-  counter-metric that moved the wrong way is treated as a result or quietly left out of the Answer. A bad
-  counter-metric buried where the Answer does not mention it is blocking.
+  exists, that its window matches, and that the column the value reads is declared under that definition. It
+  cannot see which ROWS the cell covers, so a value in the right column that is one subpopulation of the metric
+  — one arm, one platform — passes `check` and is yours to catch: the population is the definition's only when
+  the result's `row_key` is the definition's population key. Only you can judge whether the reason is true, and
+  whether a counter-metric that moved the wrong way is treated as a result or quietly left out of the Answer. A
+  bad counter-metric buried where the Answer does not mention it is blocking.
 - **Small numbers and noise.** A difference the data cannot distinguish from noise is not written as a
   difference. Where `minimum_data` failed, the Finding says so rather than reporting the number anyway.
 

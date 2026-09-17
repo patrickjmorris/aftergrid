@@ -619,7 +619,7 @@ export const CASES: NegativeCase[] = [
     location_pattern: "",
     defect: "None. The decision metric names a counter-metric and the Finding reports it, traced, over the Question's own window.",
     description:
-      "The positive control for counter_metric_missing. The reported value resolves through the same strict resolver render uses, its window equals question.window field for field, and the execution behind it pins the counter-metric's definition — which is what ties the number to that definition's population and denominator rather than to a nearby column.",
+      "The positive control for counter_metric_missing. The reported value resolves through the same strict resolver render uses, its window equals question.window field for field, and the column it reads declares definition_ref { id: retained_7d, version: 2 } — which is what ties the number to that definition's population and denominator rather than to another column of the same result. Which ROWS that cell covers is not something the manifest states; the method reviewer confirms it.",
     render: {
       must_contain: [
         "<strong>Counter-metric</strong> retained_7d:",
@@ -661,20 +661,20 @@ export const CASES: NegativeCase[] = [
     location_pattern: "",
     defect: "None. The counter-metric could not be computed, and the Finding says so and says why.",
     description:
-      "The second positive control. A stated reason is a fact a method reviewer reads and can reject; what the Engine refuses is silence. No Check can tell an honest reason from a lazy one, which is exactly why the reason is a sentence in the manifest rather than a boolean.",
+      "The second positive control. A stated reason is a fact a method reviewer reads and can reject; what the Engine refuses is silence. No Check can tell an honest reason from a lazy one, which is exactly why the reason is a sentence in the manifest rather than a boolean: the reason recorded here is the method reviewer's to accept or refuse, and check neither corroborates it nor disputes it. It is one a reader of this directory can check, which is the point of writing it down — every retained_7d cell here belongs to one experiment arm, and no result carries the rate for the whole signup cohort.",
     render: {
       must_contain: [
         "<strong>Counter-metric</strong> retained_7d — not computed:",
-        "this extract stops at the experiment window",
+        "no result in it carries the rate for the signup cohort as a whole",
       ],
     },
     mutate: (m, files) => {
       publishHabitCreationRate(m);
       m.counter_metrics_reported = [{
         id: "retained_7d", version: 2,
-        not_computed: "The retained_7d window runs seven days past the last signup, and this extract stops at the experiment window, so the counter-metric cannot be computed over the same cohort here.",
+        not_computed: "Every retained_7d value in this Finding belongs to one experiment arm, and no result in it carries the rate for the signup cohort as a whole, which is the population habit_creation_rate v2 is measured over, so the counter-metric cannot be reported over that population here.",
       }];
-      editMemo(files, counterMemo("- Counter-metric named by that definition: {{literal:7-day}} retention — not computed. This extract stops at the experiment window, so it cannot be measured over the same cohort.\n"));
+      editMemo(files, counterMemo("- Counter-metric named by that definition: {{literal:7-day}} retention — not computed. Every value of it here belongs to one experiment arm, and nothing in this Finding carries it for the whole signup cohort.\n"));
     },
   },
   {

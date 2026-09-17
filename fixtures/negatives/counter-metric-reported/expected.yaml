@@ -8,7 +8,7 @@ expect: pass
 category: none
 location_pattern: ""
 defect: None. The decision metric names a counter-metric and the Finding reports it, traced, over the Question's own window.
-description: The positive control for counter_metric_missing. The reported value resolves through the same strict resolver render uses, its window equals question.window field for field, and the execution behind it pins the counter-metric's definition — which is what ties the number to that definition's population and denominator rather than to a nearby column.
+description: "The positive control for counter_metric_missing. The reported value resolves through the same strict resolver render uses, its window equals question.window field for field, and the column it reads declares definition_ref { id: retained_7d, version: 2 } — which is what ties the number to that definition's population and denominator rather than to another column of the same result. Which ROWS that cell covers is not something the manifest states; the method reviewer confirms it."
 render:
   must_contain:
     - "<strong>Counter-metric</strong> retained_7d:"

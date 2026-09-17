@@ -8,8 +8,8 @@ expect: pass
 category: none
 location_pattern: ""
 defect: None. The counter-metric could not be computed, and the Finding says so and says why.
-description: The second positive control. A stated reason is a fact a method reviewer reads and can reject; what the Engine refuses is silence. No Check can tell an honest reason from a lazy one, which is exactly why the reason is a sentence in the manifest rather than a boolean.
+description: "The second positive control. A stated reason is a fact a method reviewer reads and can reject; what the Engine refuses is silence. No Check can tell an honest reason from a lazy one, which is exactly why the reason is a sentence in the manifest rather than a boolean: the reason recorded here is the method reviewer's to accept or refuse, and check neither corroborates it nor disputes it. It is one a reader of this directory can check, which is the point of writing it down — every retained_7d cell here belongs to one experiment arm, and no result carries the rate for the whole signup cohort."
 render:
   must_contain:
     - "<strong>Counter-metric</strong> retained_7d — not computed:"
-    - this extract stops at the experiment window
+    - no result in it carries the rate for the signup cohort as a whole

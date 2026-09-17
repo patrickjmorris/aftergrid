@@ -204,9 +204,13 @@ counter_metrics_reported:
 ```
 
 - **The number is traced like every other number.** Run the counter-metric's own SQL, declare the execution with
-  `definition_refs` including that definition at that version, and point `ref` at a cell of its result. That
-  binding is what says the value is the counter-metric's population and denominator and not a nearby column, and
-  `check` looks for it. Pin the counter-metric's definition in `definitions[]` too, `role: supporting`.
+  `definition_refs` including that definition at that version, declare `definition_ref: { id, version }` on the
+  result column it produced, and point `ref` at a cell of that column. What `check` looks at is that column's
+  `definition_ref` (for a `derived:` value, its operands' executions): the column has to be the counter-metric's,
+  not a count or a label sitting beside it in the same result. What `check` cannot look at is the row — nothing in
+  the manifest says which population a row key denotes, so a cell in the right column can still be one
+  subpopulation of the metric, and it is the method reviewer who confirms the row is the population the decision
+  metric was measured over. Pin the counter-metric's definition in `definitions[]` too, `role: supporting`.
 - **The window is the Question's**, field for field. A counter-metric measured over some other period is a
   different fact; make it a Claim of its own instead of reporting it here.
 - **When it cannot be computed, say so and say why**: `- { id: …, version: …, not_computed: "<one sentence>" }`,
