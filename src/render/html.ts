@@ -8,6 +8,8 @@ import { escapeHtml, safePath } from "../../scripts/fixture-safety.mjs";
 import { resolveTokens, tableCells, displayValue, type Results } from "./values.ts";
 // @ts-ignore: shared ESM library.
 import { TOKEN_RE } from "../../scripts/lib/validate-finding.mjs";
+// @ts-ignore: the one per-kind review computation, shared with `check` and `review status`.
+import { classifyReviews } from "../../scripts/lib/review-currency.mjs";
 import { renderChartSvg, accessibleSvg, RENDERER_VERSION, HOUSE_STYLE_VERSION } from "./charts.ts";
 import { systemFont, type ResolvedFont } from "./fonts.ts";
 
@@ -273,6 +275,8 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
   const checksFailed = m.checks.filter((c: any) => c.outcome === "fail" && !firedIds.has(c.id)).map((c: any) => `${esc(c.description)}${c.kind === "minimum_data" ? " (this failure is the result of the Finding, not an error)" : ""}`);
   const checksNotRun = m.checks.filter((c: any) => c.outcome === "not_run").map((c: any) => esc(c.description));
   const fact = (mark: string, title: string, body: string) => `<li><span class="mk ${mark}">${mark === "ok" ? "✓" : mark === "wn" ? "!" : mark === "no" ? "×" : "–"}</span><span><strong>${title}</strong> ${body}</span></li>`;
+  const reviewStanding = classifyReviews(m.reviews ?? [], m.content_digest?.value) as { index: number; kind: string; review: any; state: string }[];
+  const supersededReviews = reviewStanding.filter((e) => e.state === "superseded");
   const facts = [
     checksPassed.length ? fact("ok", "Checks passed", checksPassed.join(" · ")) : "",
     checksFailed.length ? fact("no", "Checks that did not pass", checksFailed.join(" · ")) : "",
@@ -280,7 +284,16 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     ...firedFalsifiers.map((c: any) => fact("no", "Falsifier",
       `${esc(falsifierStatement ?? String(c.description))} — recorded ${esc(String(c.outcome))}; this Finding is ${esc(OUTCOME_WORD[String(m.finding.outcome)] ?? String(m.finding.outcome))}.`)),
     ...m.definitions.map((d: any) => fact(d.lifecycle === "approved" ? "wn" : "na", "Definition", `${esc(d.id)}, version ${esc(String(d.version))}, recorded as ${esc(d.lifecycle)}${d.approval ? ` (approval recorded by ${esc(d.approval.approver)} on ${esc(d.approval.date)}; a recorded lifecycle is not a verified approval)` : ""}.`)),
-    ...m.reviews.map((r: any) => fact(r.content_digest.value !== m.content_digest.value || r.blocking?.length ? "wn" : "ok", `${esc(r.kind.replace(/^./, (x: string) => x.toUpperCase()))} review`, `Recorded ${esc(r.date)} by ${esc(r.reviewer)}${r.content_digest.value !== m.content_digest.value ? "; for an earlier version of this content, so it is stale" : ""}${r.blocking?.length ? `; blocking: ${r.blocking.map(esc).join("; ")}` : ""}.`)),
+    // A review's standing is judged per kind by the one module `check` and `review status` read
+    // (scripts/lib/review-currency.mjs). A review behind a later one of the same kind is history: it is counted
+    // once, with no warning mark, instead of shown as one more thing wrong with the page. Rendering each of
+    // them as "so it is stale" put three warnings on a Finding whose three current reviews were all in order
+    // (Citi Bike run 2, `examples/nyc-open-data/docs/run-log.md`; bead `ag-review-superseded-rsk`).
+    ...reviewStanding.filter((e: any) => e.state !== "superseded").map(({ review: r, state }: any) =>
+      fact(state === "stale" || r.blocking?.length ? "wn" : "ok", `${esc(r.kind.replace(/^./, (x: string) => x.toUpperCase()))} review`, `Recorded ${esc(r.date)} by ${esc(r.reviewer)}${state === "stale" ? "; for an earlier version of this content, so it is stale" : ""}${r.blocking?.length ? `; blocking: ${r.blocking.map(esc).join("; ")}` : ""}.`)),
+    supersededReviews.length
+      ? fact("na", "Earlier reviews", `${supersededReviews.length} earlier review${supersededReviews.length === 1 ? "" : "s"} superseded by a later review of the same kind (${esc(supersededReviews.map((e: any) => `${e.kind} ${e.review.date}`).join(", "))}). They are recorded in the manifest; the review of each kind that applies to this version is listed above.`)
+      : "",
     fact(inp.readiness === "ready" ? "ok" : "no", "Publication approval", inp.readiness === "ready" ? "Verified." : "None verified. This is a draft."),
     // What the Finding KEPT, which is `snapshot.inputs` and never the guarantee list: a recorded Finding retains
     // nothing and still guarantees artifact_replay, so reading the guarantees as a kept copy would tell a Reader

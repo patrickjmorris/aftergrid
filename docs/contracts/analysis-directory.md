@@ -260,7 +260,7 @@ missing input with a `needs_input` one; it never presents a halted run as done.
 | `aftergrid execute <dir>` | Runs every execution and Check on the retained inputs | `results/*.json`, the evidence hashes, Check outcomes, `snapshot.guarantees`, the content digest |
 | `aftergrid record <dir> --execution <id> --result <file> --tool "<name>"` | Runs nothing: writes down one query the harness ran | `queries/*.sql`, `results/*.json`, the evidence hashes, `executed_by`, `mode: recorded`, `snapshot.guarantees: [artifact_replay]`, the content digest |
 | `aftergrid record <dir> --check <id> --outcome <o> --tool "<name>"` | Runs nothing: writes down one agent-reported Check outcome | `checks/evidence/*`, `checks[].outcome` and `reported_by`, the content digest |
-| `aftergrid check <dir> [--mode rerun]` | Reports syntax, content, evidence, execution and readiness as separate facts | nothing |
+| `aftergrid check <dir> [--mode rerun]` | Reports syntax, content, evidence, execution and readiness as separate facts; reviews are judged per kind, so a superseded review is `review_superseded` info and only a kind's newest review can be `stale_review` | nothing |
 | `aftergrid review record <dir> --kind <k> --reviewer "<who>"` | Appends one agent review, bound to the digest the files hash to now | `reviews[]` |
 | `aftergrid review status <dir>` | Runs the artifact check, then reports the review standing and the halt decision. **Exits non-zero when a required kind's newest review is stale or missing** | nothing |
 
@@ -298,9 +298,19 @@ verdict: continue (reviewed by agents with no blocking findings; …)
 | 1 | errors found: a required kind's newest review is stale (`stale_review`) or missing (`incomplete`), or the artifact check reported an error |
 | 2 | usage — no Finding directory given |
 
-The per-index `stale_review` warnings that `aftergrid check` prints from
-`scripts/lib/validate-finding.mjs` are unchanged: they still name every non-current entry one by one, and
-relabelling them is bead `ag-review-superseded-rsk`. The verdict is `review status`'s counts line.
+`aftergrid check` makes the same split, from the same module (`scripts/lib/review-currency.mjs`), so the two
+commands can never disagree about which reviews are a reason to review again:
+
+| What a recorded review is | What `check` reports | What `review status` reports |
+| --- | --- | --- |
+| bound to the current digest | nothing | counted `current` |
+| behind a later review of the same kind | `review_superseded` info at `manifest.yaml#/reviews/<n>`, naming the review that replaced it | counted `superseded`, one info line per entry |
+| the newest of its kind and not at the current digest | one `stale_review` **warning** at `manifest.yaml#/reviews/<n>` | counted `stale`, and one `stale_review` **error** at `reviews/<kind>`, which is what exits 1 |
+
+A `stale_review` warning is therefore raised at most once per kind, against the newest entry, and never once
+per non-current entry. `review status` drops `check`'s `stale_review` warnings from its own report rather than
+printing them beside its per-kind errors: the fact is stated once. The verdict is `review status`'s counts
+line.
 
 ## What this contract does not establish
 

@@ -133,8 +133,10 @@ It cannot read English.
    that the new revision is unapproved. Carrying it forward would leave `check` reporting `stale_attestation`
    and `render` refusing, so a legitimate draft could not even be previewed.
 5. Leaves `reviews[]` exactly as it is. They bind the previous digest, which is the truth, and `check` reports
-   each as a `stale_review` warning. That is what "the reviews go stale" means here: nothing is edited to make
-   it look current.
+   the newest review of each kind as a `stale_review` warning — a review already behind a later one of the same
+   kind is superseded history and is reported as `review_superseded` info instead
+   (`docs/contracts/analysis-directory.md`). That is what "the reviews go stale" means here: nothing is edited
+   to make it look current.
 6. Re-pins `content_digest` with the shared `digestOf`, re-renders and re-checks, and merges both reports.
 7. For `interpretation`, adds a `needs_attention` warning and a readiness reason saying Method and Question
    review are required.

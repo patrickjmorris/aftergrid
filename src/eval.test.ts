@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { contentDigest } from "./digest.ts";
 import { DuckDbAdapter } from "./adapters/duckdb.ts";
+import { checkArtifact } from "./commands/check.ts";
 import { decideHalt, newestByKind, recordReview, reviewStatus, type ReviewEntry } from "./commands/review.ts";
 import { emptyReport, exitCodeFor } from "./report.ts";
 import {
@@ -524,8 +525,20 @@ test("a review superseded by a later one of the same kind at the current digest 
   assert.equal(exitCodeFor(report), 0, "a superseded review is no reason to halt or to re-review");
   assert.equal(report.decision.superseded.length, 3);
   assert.deepEqual(report.decision.stale, []);
-  assert.ok(report.info.some((i) => /superseded by a later method review; it is history, not a reason to review again/.test(i)),
+  // Named by index, named by the review that replaced it, and reported as `review_superseded` rather than as a
+  // `stale_review` warning: three facts an Operator reading "stale" per entry could not have got.
+  assert.ok(report.info.some((i) => i === "review_superseded: manifest.yaml#/reviews/0 — the method review of 2026-09-15 is superseded by the method review of 2026-09-16 at the current digest; it is history, not a reason to review again (recorded by agent:test/method)"),
     JSON.stringify(report.info));
+  assert.equal(report.info.filter((i) => i.startsWith("review_superseded:")).length, 3, JSON.stringify(report.info));
+  assert.deepEqual(report.warnings.filter((w) => w.category === "stale_review"), [],
+    "nothing is stale, so `review status` carries no stale_review warning of its own and none from the check it ran");
+
+  // `aftergrid check` reads the same module, so it agrees: three info lines, no warning, and the exit code of a
+  // Finding with nothing wrong with it.
+  const checked = checkArtifact({ dir });
+  assert.deepEqual(checked.warnings.filter((w) => w.category === "stale_review"), [], JSON.stringify(checked.warnings));
+  assert.equal(checked.info.filter((i) => i.startsWith("review_superseded:")).length, 3, JSON.stringify(checked.info));
+  assert.equal(exitCodeFor(checked), 0, "a superseded review is not a reason for `check` to fail either");
 
   // And once a kind has no review at the current digest at all, that kind is stale: it is reviewed again, and
   // the reviewer named is the newest of the two, not the round-1 one behind it.
@@ -544,6 +557,41 @@ test("a review superseded by a later one of the same kind at the current digest 
     "every round-1 review is superseded: two by a current review, and method's by the round-2 review that is itself the stale one");
   assert.deepEqual(rolledBack.missing_kinds, ["method"]);
   assert.equal(rolledBack.next, "halt");
+});
+
+test("only a kind's newest review can be stale: one warning for the kind, not one per entry behind it", () => {
+  const dir = findingWithoutReviews();
+  const digest = manifestOf(dir).content_digest.value;
+  const at = (value: string) => ({ algorithm: "sha256", value });
+  const manifest = manifestOf(dir);
+  // Method reviewed twice and never at the current digest; question and reader current. One kind to review
+  // again, one entry of history behind it.
+  manifest.reviews = [
+    { kind: "method", reviewer: "agent:test/method-round-1", date: "2026-09-15", content_digest: at("0".repeat(64)), blocking: [], non_blocking: [] },
+    { kind: "method", reviewer: "agent:test/method-round-2", date: "2026-09-16", content_digest: at("1".repeat(64)), blocking: [], non_blocking: [] },
+    { kind: "question", reviewer: "agent:test/question", date: "2026-09-16", content_digest: at(digest), blocking: [], non_blocking: [] },
+    { kind: "reader", reviewer: "agent:test/reader", date: "2026-09-16", content_digest: at(digest), blocking: [], non_blocking: [] },
+  ];
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(manifest, { lineWidth: 0 }));
+
+  // `aftergrid check`: one warning, naming the newest method review by its own index, and one info line for the
+  // entry behind it. Before this bead both entries were warned about, and the pile read as "the reviews are stale".
+  const checked = checkArtifact({ dir });
+  assert.deepEqual(checked.warnings.filter((w) => w.category === "stale_review"),
+    [{ category: "stale_review", location: "manifest.yaml#/reviews/1", message: "the newest method review is for a different content digest" }],
+    JSON.stringify(checked.warnings));
+  assert.deepEqual(checked.info.filter((i) => i.startsWith("review_superseded:")),
+    ["review_superseded: manifest.yaml#/reviews/0 — the method review of 2026-09-15 is superseded by the method review of 2026-09-16, which is itself not at the current digest; that kind's staleness is reported once, against its newest review"],
+    JSON.stringify(checked.info));
+
+  // `review status`: the same split, reported as the error that makes the command exit 1, and named per kind.
+  const report = reviewStatus({ dir });
+  assert.equal(report.info[0], "reviews: 2 current, 1 superseded, 1 stale", JSON.stringify(report.info));
+  assert.deepEqual(report.errors.filter((e) => e.category === "stale_review").map((e) => e.location), ["reviews/method"]);
+  assert.deepEqual(report.warnings.filter((w) => w.category === "stale_review"), [],
+    "the staleness is said once, as an error: the validator's per-entry warning is not repeated beside it");
+  assert.equal(report.info.filter((i) => i.startsWith("review_superseded:")).length, 1);
+  assert.equal(exitCodeFor(report), 1);
 });
 
 test("the eval asserts that the produced Finding's newest review of each kind is at its own digest", () => {

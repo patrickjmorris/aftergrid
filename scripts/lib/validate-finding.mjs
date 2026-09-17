@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { safePath, validateStructure, validateResult, calculate, ContractError } from "../fixture-safety.mjs";
+import { classifyReviews, supersededMessage } from "./review-currency.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -470,7 +471,16 @@ function validateMemo(manifest, results) {
   // 5. digest + readiness
   const d = digestOf(manifest, DIR);
   if (d.value !== manifest.content_digest.value) err("digest", "manifest.yaml#/content_digest", "content digest does not match current content", "re-pin with aftergrid execute (evidence) or aftergrid revise --pin (presentation); fixtures: scripts/fixture-tool.mjs build");
-  for (const [n, r] of (manifest.reviews || []).entries()) if (r.content_digest.value !== d.value) warn("stale_review", `manifest.yaml#/reviews/${n}`, `${r.kind} review is for a different content digest`);
+  // Reviews are judged per kind, by the same module `aftergrid review status` reads
+  // (scripts/lib/review-currency.mjs): only a kind's NEWEST review decides whether that kind is reviewed at the
+  // current digest. A review behind a later one of the same kind is superseded history and is reported as info,
+  // never as a warning — warning about every non-current entry is what let an Operator read a trio of
+  // superseded reviews as "all reviews stale" and spend a run redoing reviews that were already current
+  // (examples/nyc-open-data/docs/run-log.md, Citi Bike run 2).
+  for (const e of classifyReviews(manifest.reviews, d.value)) {
+    if (e.state === "stale") warn("stale_review", `manifest.yaml#/reviews/${e.index}`, `the newest ${e.kind} review is for a different content digest`);
+    else if (e.state === "superseded") report.info.push(`review_superseded: manifest.yaml#/reviews/${e.index} — ${supersededMessage(e, d.value)}`);
+  }
   let readiness = "not_ready"; const reasons = [];
   const approvals = (manifest.attestations || []).filter((a) => a.kind === "publication_approval");
   for (const [n, a] of approvals.entries()) {

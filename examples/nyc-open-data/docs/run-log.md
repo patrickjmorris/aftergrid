@@ -242,6 +242,13 @@ launched run 3 to redo them.
 Gap: superseded reviews are history, not staleness; `review status` should say "superseded by the review at
 the current digest" and reserve `stale_review` for a kind with no current review.
 
+Amendment 2026-09-17 (bead `ag-review-superseded-rsk`): landed. `check` and `review status` share one per-kind
+computation (`scripts/lib/review-currency.mjs`); a superseded review is `review_superseded` info naming the
+review that replaced it, `stale_review` is raised at most once per kind against its newest review, and the
+rendered page lists superseded reviews once as earlier reviews instead of as warnings. The review tree this run
+built is reconstructed as a test in `src/eval.test.ts`, which asserts `reviews: 3 current, 3 superseded, 0
+stale`, no `stale_review` warning and exit 0. The Finding itself was not committed, so nothing here re-reads it.
+
 ## Citi Bike run 3 — 2026-09-17T18:53:31Z to 18:56:41Z (3 min; Opus; ≈$2)
 
 Instructed to re-run the three reviews. The run read the manifest, found reviews 3–5 already at the current

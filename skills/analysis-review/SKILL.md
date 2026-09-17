@@ -22,16 +22,26 @@ be clearer, an interesting cut nobody made — is **non-blocking**. Report it an
 aftergrid review status <finding-dir>
 ```
 
-It prints the reviews bound to the current content digest, the ones bound to older content, and whether
-`/analyze` would halt. A review bound to older content is not a review of this Finding: redo it.
+It prints one counts line — `reviews: <n> current, <m> superseded, <k> stale` — and whether `/analyze` would
+halt. **Superseded and stale are different facts, and only one of them is work:**
+
+- **superseded** — a later review of the same kind exists. History. Redoing it is a wasted run: `aftergrid
+  review record` dedupes on (kind, reviewer, digest) and would write nothing. `check` reports it as
+  `review_superseded` info, never as a warning.
+- **stale** — that kind's **newest** review is bound to older content, so nobody has reviewed the Finding as it
+  now stands. Redo that kind. Never re-pin a review to content it did not read.
+
+A manifest that keeps its round-1 reviews beside the current ones is therefore normal, and `0 stale` means
+there is nothing to redo however many superseded entries sit behind it.
 
 The halt decision is computed, not assumed: the command runs the offline artifact check itself, so a Finding
 whose evidence is broken reports `halt` here with the check error rather than `continue`. It executes no SQL,
 so step 2 is still the gate — a rerun mismatch is invisible to this command. On a Finding outside its Instance
 there is nothing to validate against, and the command says the evidence was not judged instead of guessing.
 
-Done when you can name which of `method`, `question`, `reader` still needs a review of the current content,
-and whether the command already halted on the evidence.
+Done when you can name which of `method`, `question`, `reader` still needs a review of the current content
+(that is the `stale` count and the missing kinds, never the `superseded` count), and whether the command
+already halted on the evidence.
 
 ## 2. Separate a broken execution from a thin answer
 
@@ -92,7 +102,8 @@ The Reader review adds `--profile <profile id>`.
 The command refuses when the Finding's files no longer hash to its pinned digest. That refusal is correct:
 re-pin the Finding first, then review what is actually there. The command never writes an attestation.
 
-Done when `aftergrid review status <finding-dir>` lists a current `method`, `question` and `reader` review.
+Done when `aftergrid review status <finding-dir>` lists a current `method`, `question` and `reader` review. The
+round-1 reviews stay in the manifest and are counted `superseded`; leave them there.
 
 ## 6. Report what was found
 

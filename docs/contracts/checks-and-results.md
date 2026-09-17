@@ -18,7 +18,7 @@ Conventions the manifest schema cannot express. `aftergrid check` and the DuckDB
 - A Check statement is a single SELECT. Retained inputs are the only relations it may read; external file access, attach and installation of extensions are disabled in the execution sandbox, and each execution sees only the inputs its manifest entry declares.
 - Artifact-verification mode does not execute Checks and reports SQL execution as not performed; it never turns a recorded `not_run` into `pass`.
 - **Agent-reported outcomes.** On the recorded data path (`docs/contracts/record.md`, ADR 0010) the harness runs the Check and `aftergrid record` writes down what it said. Such an entry carries `checks[].reported_by` (`kind: harness`, the tool, and the artifact the report rests on). An agent-reported outcome is somebody's word, not a mechanical result: `check` verifies the one thing a saved artifact can establish — that the named evidence file is present and still hashes to what was pinned — and reports `checks_reported_by_agent: true` as its own fact. It can lower publication readiness (to `unknown` at most) and never raise it. `pass` is the one outcome that asserts something held, so it may only be recorded with an evidence file; a `pass` with none is `unevidenced_outcome`, from `record` and from `check` alike. `fail`, `not_run` and `error` may carry evidence and are not required to.
-- Build (and any future `check --pin`) rewrites hashes, results and outcomes only. It never creates, rebinds or refreshes an approval, a review or an attestation; those become stale and are reported as stale.
+- Build (and any future `check --pin`) rewrites hashes, results and outcomes only. It never creates, rebinds or refreshes an approval, a review or an attestation; those become stale and are reported as stale. "Stale" is judged per review kind: a review behind a later review of the same kind is superseded history, reported as `review_superseded` info, and only a kind's newest review can be `stale_review` (`docs/contracts/analysis-directory.md`).
 
 ## Retained inputs
 
@@ -114,7 +114,7 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `falsifier-failed-but-answered` | analytical_outcome | `analytical_outcome` (plus a `falsifier_failed` warning); `render` is refused |
 | `snapshot-input-hash-mismatch` | engine_category | `hash_mismatch` |
 | `stale-attestation` | engine_category | `stale_attestation` |
-| `artifact-modified-after-attestation` | engine_category | `stale_attestation` (plus a `stale_review` warning, which is never the failure by itself) |
+| `artifact-modified-after-attestation` | engine_category | `stale_attestation` (plus a `stale_review` warning on the method review, which is the newest of its kind and never the failure by itself) |
 | `derived-cycle` | engine_category | `derived_cycle` |
 | `derived-unit-mismatch` | engine_category | `unit_mismatch` |
 | `null-in-non-nullable-column` | engine_category | `null_value` |

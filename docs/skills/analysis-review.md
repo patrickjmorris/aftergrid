@@ -12,7 +12,8 @@ makes).
 Each returns two lists: `blocking` and `non_blocking`. The skill records one review per reviewer into
 `manifest.yaml` through `aftergrid review record`, bound to the content digest the Finding's files currently
 hash to. Editing the Finding afterwards changes that digest, and the reviews become visibly stale rather than
-silently wrong.
+silently wrong. Reviewing it again does not: the earlier review of that kind becomes **superseded** history,
+which is not staleness and is nobody's work.
 
 It is **model-invoked** (`user-invocable: false`, `policy.allow_implicit_invocation: true`). `/analyze` reaches
 for it between shaping the narrative and running `aftergrid check`.
@@ -46,6 +47,15 @@ so they run in parallel and none of them sees the others' findings.
 the report says "reviewed by three agent reviewers" rather than approved, verified or cleared. Publication
 readiness stays whatever `aftergrid check` reports, including `unknown`.
 
+**`review status` says 3 superseded — do I redo those reviews?** No. Superseded and stale are different facts.
+A **superseded** review is one a later review of the same kind replaced: history, reported as
+`review_superseded` info, and redoing it writes nothing because `aftergrid review record` dedupes on (kind,
+reviewer, digest). A **stale** review is a kind whose *newest* review is bound to older content: that kind has
+not been reviewed as the Finding now stands, and it is the only one to redo. The counts line separates them,
+`check` raises `stale_review` at most once per kind, and a Finding with `0 stale` needs no review redone
+however many superseded entries sit behind its current ones. (Citi Bike run 2 conflated the two and spent a
+run on reviews that could not be recorded — `examples/nyc-open-data/docs/run-log.md`.)
+
 **Where do the Reader criteria come from?** `skills/shape-narrative/references/narrative-criteria.md` when that
 skill is installed, so the writer and the reviewer judge against the same list. When it is not, the skill's own
 `references/reader-criteria.md` is used instead.
@@ -55,7 +65,9 @@ skill is installed, so the writer and the reviewer judge against the same list. 
 - `aftergrid review status <dir>` lists a current `method`, `question` and `reader` review after it runs.
 - Every recorded review's `content_digest` equals the Finding's `content_digest`, and `attestations` is
   untouched.
-- Editing the memo afterwards makes all three reviews report as stale, not as current.
+- Editing the memo afterwards makes all three reviews report as stale, not as current. Recording three new
+  reviews over them makes the old three report as `superseded`, not as stale: `review status` exits 0 and the
+  rendered page lists them once as earlier reviews rather than as three warnings.
 - A Finding whose `aftergrid check` reports a `check_error` gets no reviews at all, and a `needs_attention`
   reason naming the category and location. `aftergrid review status` on that Finding also reports `halt` with
   that error: it runs the artifact check itself, so its decision is never a claim about evidence it did not

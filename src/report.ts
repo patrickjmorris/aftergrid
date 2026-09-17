@@ -11,6 +11,10 @@ export type Category =
   // the recorded data path (docs/contracts/record.md, ADR 0010): the harness ran it and the Engine wrote it down
   | "recorded_path" | "rerun_unavailable" | "unevidenced_outcome" | "false_guarantee"
   | "decision_binding" | "decision_conflict" | "render_error" | "rerun_mismatch" | "admission" | "cancelled" | "resource_limit" | "sql_error" | "invalid_artifact" | "sql_policy" | "sql_parameter" | "check_shape" | "stale_review" | "minimum_data"
+  // a review behind a later one of the same kind (docs/contracts/analysis-directory.md): history, reported as
+  // an `info` line and never as a warning — `stale_review` is reserved for a kind whose NEWEST review is bound
+  // to other content, which is the only one anybody has to review again
+  | "review_superseded"
   | "policy_untrusted" | "solo_setup_invalid" | "tampered_output"
   // revision (docs/contracts/revise.md): a requested change that costs more than a re-render
   | "reopens_analysis"

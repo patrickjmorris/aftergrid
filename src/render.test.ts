@@ -54,7 +54,15 @@ test("both exemplars render: factual values agree across prose, tables and chart
   assert.ok(!html2.includes("<svg"), "no chart for the insufficient-data Finding");
   for (const v of ["We cannot tell yet", "2026-10-05", ">7<", ">67<", "887"]) assert.ok(html2.includes(v), v);
   assert.ok(/this failure is the result of the Finding, not an error/.test(html2));
-  assert.ok(/Method review<\/strong>[^<]*stale/.test(html2), "stale review is said to be stale");
+  // This exemplar carries a round-1 method review behind the current one. A superseded review is history: it is
+  // counted once, with the small mark, and never rendered as a stale-review warning on a page whose method
+  // review is current (bead `ag-review-superseded-rsk`).
+  assert.ok(/<span class="mk ok">✓<\/span><span><strong>Method review<\/strong> Recorded 2026-09-17 by [^<]*\.<\/span>/.test(html2),
+    "the current method review renders as current, with no staleness said about it");
+  assert.ok(/<span class="mk na">–<\/span><span><strong>Earlier reviews<\/strong> 1 earlier review superseded by a later review of the same kind \(method 2026-09-15\)\./.test(html2),
+    "the superseded review is listed once as history, with no warning mark");
+  assert.equal(html2.match(/Method review<\/strong>/g)!.length, 1, "the superseded review is not a second Method review fact");
+  assert.doesNotMatch(html2, /Method review<\/strong>[^<]*stale/, "no review on this page is said to be stale");
 });
 
 test("reader-safe export: private sentinels and non-exported fields never reach HTML, SVG or PNG; unsafe markup is escaped", async () => {

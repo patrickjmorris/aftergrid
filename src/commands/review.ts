@@ -25,6 +25,8 @@ import { parseDocument } from "yaml";
 import { schemaErrors } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment.
 import { safePath, ContractError } from "../../scripts/fixture-safety.mjs";
+// @ts-ignore: the one per-kind review computation, shared with `aftergrid check` so the two cannot disagree.
+import { REVIEW_KINDS as REVIEW_KIND_NAMES, classifyReviews, newestByKind as newestByKindOf, supersededMessage } from "../../scripts/lib/review-currency.mjs";
 import { contentDigest } from "../digest.ts";
 import { checkArtifact } from "./check.ts";
 import { findInstance } from "../instance.ts";
@@ -33,7 +35,8 @@ import { emptyReport, type Problem, type Report } from "../report.ts";
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
 export type ReviewKind = "method" | "question" | "reader" | "visual";
-export const REVIEW_KINDS: ReviewKind[] = ["method", "question", "reader", "visual"];
+/** The runtime list lives in `scripts/lib/review-currency.mjs`, which `aftergrid check` reads too. */
+export const REVIEW_KINDS: ReviewKind[] = REVIEW_KIND_NAMES as ReviewKind[];
 /** The kinds `/analysis-review` dispatches; `visual` belongs to `/iterate-visual` and is not required here. */
 export const REQUIRED_REVIEW_KINDS: ReviewKind[] = ["method", "question", "reader"];
 
@@ -45,6 +48,22 @@ export type ReviewEntry = {
   profile?: string;
   blocking: string[];
   non_blocking: string[];
+};
+
+/**
+ * One recorded review's standing against the digest the content hashes to now, as
+ * `scripts/lib/review-currency.mjs` computes it. `index` is the entry's position in `manifest.reviews`, so a
+ * report can name `manifest.yaml#/reviews/<n>` rather than describe a review it cannot point at.
+ */
+export type ReviewStanding = {
+  index: number;
+  kind: ReviewKind;
+  review: ReviewEntry;
+  state: "current" | "superseded" | "stale";
+  /** The newest review of this entry's kind; the entry itself when it is the newest. */
+  newest?: ReviewEntry;
+  /** Set on a `superseded` entry only: the review that replaced it. */
+  supersededBy?: ReviewEntry;
 };
 
 export type RecordReviewOptions = {
@@ -202,24 +221,23 @@ export type HaltDecision = {
   superseded: { kind: ReviewKind; reviewer: string }[];
   /** Required kinds with no review bound to the current digest. */
   missing_kinds: ReviewKind[];
+  /**
+   * Every recorded review with its index and its standing, so a report can name the entry it means
+   * (`manifest.yaml#/reviews/<n>`) instead of describing a review the reader has to go and find.
+   */
+  standing: ReviewStanding[];
 };
 
 /**
  * The newest review of each kind: latest `date`, and for equal dates the one recorded later in the manifest.
  *
  * Only this entry decides whether a kind is reviewed at the current content digest. Everything behind it is
- * superseded history. (The per-index `stale_review` warnings in `scripts/lib/validate-finding.mjs` still flag
- * every non-current entry one by one; relabelling those is bead `ag-review-superseded-rsk`, and nothing here
- * changes them.)
+ * superseded history. The implementation is `scripts/lib/review-currency.mjs`, imported here rather than
+ * written twice: `aftergrid check` reads the same module, so a review this command calls superseded is never
+ * warned about as stale by the other (bead `ag-review-superseded-rsk`).
  */
 export function newestByKind(reviews: ReviewEntry[]): Map<ReviewKind, ReviewEntry> {
-  const newest = new Map<ReviewKind, ReviewEntry>();
-  for (const r of reviews ?? []) {
-    if (!r || !REVIEW_KINDS.includes(r.kind)) continue;
-    const held = newest.get(r.kind);
-    if (!held || String(r.date ?? "") >= String(held.date ?? "")) newest.set(r.kind, r);
-  }
-  return newest;
+  return newestByKindOf(reviews) as Map<ReviewKind, ReviewEntry>;
 }
 
 /**
@@ -239,21 +257,16 @@ export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: strin
   const current = all.filter((r) => r.content_digest?.value === input.currentDigest);
   // Staleness is judged per kind: a kind is stale when it has been reviewed and none of its reviews is bound
   // to the current digest, and the review to redo is that kind's newest. Everything else a kind carries is
-  // superseded history, and re-reviewing on account of one is a wasted run.
-  const newest = newestByKind(all);
-  const reviewedNow = (k: ReviewKind) => current.some((r) => r.kind === k);
-  const stale = [...newest.entries()]
-    .filter(([kind]) => !reviewedNow(kind))
-    .map(([kind, r]) => ({ kind, reviewer: r.reviewer }));
-  const superseded = all
-    .filter((r) => r && REVIEW_KINDS.includes(r.kind) && r.content_digest?.value !== input.currentDigest
-      && (reviewedNow(r.kind) || newest.get(r.kind) !== r))
-    .map((r) => ({ kind: r.kind, reviewer: r.reviewer }));
+  // superseded history, and re-reviewing on account of one is a wasted run. The split is computed by
+  // `scripts/lib/review-currency.mjs`, the same module `aftergrid check` reads.
+  const classified = classifyReviews(all, input.currentDigest) as ReviewStanding[];
+  const stale = classified.filter((e) => e.state === "stale").map((e) => ({ kind: e.kind, reviewer: e.review.reviewer }));
+  const superseded = classified.filter((e) => e.state === "superseded").map((e) => ({ kind: e.kind, reviewer: e.review.reviewer }));
   const blocking = current
     .filter((r) => (r.blocking ?? []).length)
     .map((r) => ({ kind: r.kind, reviewer: r.reviewer, items: r.blocking }));
   const missing_kinds = REQUIRED_REVIEW_KINDS.filter((k) => !current.some((r) => r.kind === k));
-  const base = { blocking, stale, superseded, missing_kinds };
+  const base = { blocking, stale, superseded, missing_kinds, standing: classified };
 
   const errors = input.checkErrors;
   if (errors?.length) {
@@ -293,7 +306,7 @@ export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string 
   const report = emptyReport("review") as ReviewStatusReport;
   report.readiness = "unknown";
   report.readiness_reasons.push("review status validates the artifact but reads no publication source; `aftergrid check` decides readiness and a human APPROVED review decides approval");
-  report.decision = { next: "halt", state: "needs_attention", reason: "nothing was read", blocking: [], stale: [], superseded: [], missing_kinds: [...REQUIRED_REVIEW_KINDS] };
+  report.decision = { next: "halt", state: "needs_attention", reason: "nothing was read", blocking: [], stale: [], superseded: [], missing_kinds: [...REQUIRED_REVIEW_KINDS], standing: [] };
   const dir = resolve(opts.dir);
   const manifestPath = resolve(dir, "manifest.yaml");
   if (!existsSync(manifestPath)) {
@@ -330,7 +343,10 @@ export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string 
     report.evidence = artifact.evidence;
     report.sql_execution = "not_performed";
     for (const e of checkErrors) report.errors.push(e);
-    for (const w of artifact.warnings) if (w.category !== "incomplete") report.warnings.push(w);
+    // `stale_review` is dropped, not lost: this command reports staleness itself, per kind and as an error, and
+    // repeating the validator's per-entry warning beside it is the double report that made a manifest with
+    // three current reviews look like six problems (Citi Bike run 2, `examples/nyc-open-data/docs/run-log.md`).
+    for (const w of artifact.warnings) if (w.category !== "incomplete" && w.category !== "stale_review") report.warnings.push(w);
     report.info.push(checkErrors.length
       ? `the artifact check reported ${checkErrors.length} error(s); it executed no SQL, so \`aftergrid check --mode rerun\` is still the last word on whether the Checks run`
       : "the artifact check reported no errors; it executed no SQL, so a rerun mismatch would not be visible here");
@@ -364,8 +380,10 @@ export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string 
   }
   // A superseded review is history. It is reported as neither an error nor a warning: saying so is what stops
   // the next Operator from ordering a re-review that `review record` would dedupe away and write nothing for.
-  for (const s of decision.superseded) {
-    report.info.push(`the ${s.kind} review by ${s.reviewer} is superseded by a later ${s.kind} review; it is history, not a reason to review again`);
+  // The wording is the validator's, from the same module, so `check` and `review status` say the same thing.
+  for (const s of decision.standing) {
+    if (s.state !== "superseded") continue;
+    report.info.push(`review_superseded: manifest.yaml#/reviews/${s.index} — ${supersededMessage(s, currentDigest)} (recorded by ${s.review.reviewer})`);
   }
   report.info.unshift(countsLine(reviews, currentDigest, decision), verdictLine(decision));
   return report;
