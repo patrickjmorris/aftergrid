@@ -96,7 +96,7 @@ const FIXTURE_MARKER = "PRIVATE_FIXTURE_MARKER_DO_NOT_RENDER";
 const MARKER_ALLOWED = new Set(["scripts/lib/validate-finding.mjs", "scripts/pack-smoke.mjs"]);
 
 /** Directories that are development material and must not be in the tarball. */
-const FORBIDDEN_PREFIXES = ["fixtures/", "tests/", ".beads/", "docs/design/", "docs/spec/", "docs/adr/", "node_modules/", ".git/", ".github/"];
+const FORBIDDEN_PREFIXES = ["fixtures/", "examples/", "tests/", ".beads/", "docs/design/", "docs/spec/", "docs/adr/", "node_modules/", ".git/", ".github/"];
 
 /** Files the product is not the product without. */
 const REQUIRED_ENTRIES = [
@@ -175,7 +175,7 @@ function auditStep(tgz) {
 
   return {
     value: { entries, root },
-    detail: `${entries.length} entries, ${scanned} files scanned: no credential pattern, no fixture marker outside ${[...MARKER_ALLOWED].join(", ")}, no fixtures/tests/beads/design docs, MIT notice intact`,
+    detail: `${entries.length} entries, ${scanned} files scanned: no credential pattern, no fixture marker outside ${[...MARKER_ALLOWED].join(", ")}, no fixtures/examples/tests/beads/design docs, MIT notice intact`,
     extra: { entries: entries.length, files_scanned: scanned, marker_allowlist: [...MARKER_ALLOWED] },
   };
 }

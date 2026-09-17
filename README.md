@@ -6,6 +6,13 @@ Pre-release. Nothing is published to npm yet, the repository is private, and the
 `"private": true` on purpose: packaging is verified, publishing is a separate owner action
 (`docs/contracts/distribution.md`).
 
+## Try it on open data
+
+`examples/nyc-open-data/` is a public demo Instance on NYC TLC trip records, NOAA weather and Citi Bike data —
+somewhere to see the whole chain before pointing `setup` at data you cannot share. It is a scaffold today: the
+layout, the data terms and the plan are there, the build script and the Findings are not, and its README says
+which step is which.
+
 ## Run the CLI from source
 
 Requires Node 22.18 or newer, or Node 24 or newer (TypeScript type stripping is on by default from those versions), and pnpm. No native compiler: DuckDB ships prebuilt.

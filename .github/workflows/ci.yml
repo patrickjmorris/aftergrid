@@ -67,3 +67,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: node src/cli.ts plugin validate --json
       - run: node scripts/pack-smoke.mjs
+
+  examples-check:
+    # Every Finding committed under examples/ stays valid. Artifact mode only: it verifies the committed
+    # evidence and needs no data, which is the point — example data is never committed (examples/README.md).
+    # With no example Findings yet the job says so and passes; it is a guard for when they land, not a claim
+    # that any exist.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: check every committed example Finding in artifact mode
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dirs=(examples/*/analytics/findings/*/)
+          if [ ${#dirs[@]} -eq 0 ]; then echo "no example Findings yet"; exit 0; fi
+          for d in "${dirs[@]}"; do
+            echo "::group::check ${d%/}"
+            node src/cli.ts check "${d%/}" --mode artifact --json
+            echo "::endgroup::"
+          done

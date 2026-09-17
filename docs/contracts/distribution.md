@@ -23,7 +23,8 @@ below is about a locally packed tarball and a locally installed plugin; publishi
 | `README.md`, `LICENSE` | |
 
 Deliberately **not** in the package: `fixtures/` (an Operator's data comes from their own Instance, and the
-Engine holds no nouns), `tests/`, `.beads/`, `docs/design/`, `docs/spec/`, `docs/adr/`, `.github/`. The pack smoke
+Engine holds no nouns), `examples/` (worked examples on public data, for reading and running from a checkout —
+`examples/README.md`), `tests/`, `.beads/`, `docs/design/`, `docs/spec/`, `docs/adr/`, `.github/`. The pack smoke
 fails if any of them appears in the tarball.
 
 ## No build step, and the evidence for it

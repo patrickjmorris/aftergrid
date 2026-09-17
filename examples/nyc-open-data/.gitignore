@@ -1,0 +1,10 @@
+# No demo data is ever committed: the build script rebuilds it from the public sources.
+demo.duckdb
+demo.duckdb.wal
+data/raw/**
+*.parquet
+*.csv.zip
+
+# The Instance itself is tracked, Findings included — a retained input or provenance file under a Finding is
+# reviewed material, not a download, even when it carries one of the extensions above.
+!analytics/findings/**

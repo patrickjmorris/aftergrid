@@ -479,3 +479,19 @@ test("`record` is documented as refusing any attestation, not only an approval",
     assert.match(line!, /any attestation/i, `${page} narrows the refusal to an approval: ${line}`);
   }
 });
+
+// ag-demo-open-data-qsl.1: examples/ is material for a checkout, not for an install. The `files` allowlist is
+// what keeps it out, and an allowlist excludes by omission — so the rule has to be asserted, not assumed.
+test("the packed tarball carries no examples/ path, and there is an example to leave out", () => {
+  assert.ok(existsSync(join(REPO, "examples", "README.md")), "examples/README.md must exist, or this test asserts nothing");
+
+  const packed = spawnSync("npm", ["pack", "--dry-run", "--json"], { cwd: REPO, encoding: "utf8", timeout: 120_000 });
+  assert.equal(packed.status, 0, `npm pack --dry-run failed: ${packed.stderr}`);
+  const files: string[] = JSON.parse(packed.stdout)[0].files.map((f: { path: string }) => f.path);
+  assert.deepEqual(files.filter((f) => f.startsWith("examples/")), [], "examples/ must not be in the package");
+
+  // And the tarball audit rejects it too, so a later `files` entry cannot quietly let it back in.
+  const audit = readFileSync(join(REPO, "scripts", "pack-smoke.mjs"), "utf8");
+  const forbidden = audit.slice(audit.indexOf("const FORBIDDEN_PREFIXES"), audit.indexOf("const REQUIRED_ENTRIES"));
+  assert.match(forbidden, /"examples\/"/, "scripts/pack-smoke.mjs must reject an examples/ entry in the tarball");
+});
