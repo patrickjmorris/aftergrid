@@ -1,0 +1,44 @@
+# Opens the draft pull request for a demo Finding branch AS the repository's automation identity.
+#
+# Publication readiness (docs/contracts/publication.md) requires the pull request author to be the Instance's
+# `publication.automation_login` and the approver to be a different, trusted human. GitHub does not let an
+# author approve their own pull request, so a Finding pushed by the owner cannot be approved by the owner unless
+# something else opens the pull request. This workflow is that something: it runs with GITHUB_TOKEN, so the pull
+# request's author is github-actions[bot], which is what examples/nyc-open-data/analytics/aftergrid.yaml names.
+# It opens a DRAFT and writes no review; approval is a human's click and nothing here can stand in for it.
+name: examples-pr
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch holding the Finding revision (e.g. demo/crz-trips-r2)"
+        required: true
+        type: string
+      finding:
+        description: "Finding directory, repo-relative"
+        required: true
+        type: string
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.branch }}" }
+      - name: open the draft pull request as the automation identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ inputs.branch }}
+          FINDING: ${{ inputs.finding }}
+        run: |
+          set -euo pipefail
+          case "$BRANCH" in *[!A-Za-z0-9/._-]*|"") echo "branch name refused" >&2; exit 2;; esac
+          case "$FINDING" in *[!A-Za-z0-9/._-]*|"") echo "finding path refused" >&2; exit 2;; esac
+          test -f "$FINDING/manifest.yaml" || { echo "no manifest at $FINDING" >&2; exit 2; }
+          existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || true)
+          if [ -n "$existing" ]; then echo "pull request #$existing already open for this branch"; exit 0; fi
+          gh pr create --draft --base main --head "$BRANCH" \
+            --title "Finding: $FINDING" \
+            --body "Draft pull request opened by the automation identity for the Finding at \`$FINDING\` (docs/contracts/publication.md). Approval by a trusted human at the head commit is what makes it publishable; this pull request carries no review of its own."
