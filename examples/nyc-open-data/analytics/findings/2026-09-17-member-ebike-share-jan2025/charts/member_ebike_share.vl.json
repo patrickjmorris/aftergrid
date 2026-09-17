@@ -1,0 +1,25 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Bound by the renderer to result member_ebike_by_period. No data, no transform, no aggregate encodings. The accent is pinned to the month the Claim is about.",
+  "data": { "name": "result" },
+  "width": 460,
+  "height": 90,
+  "layer": [
+    {
+      "mark": { "type": "bar" },
+      "encoding": {
+        "y": { "field": "period_label", "type": "nominal", "title": null, "sort": ["January 2024", "January 2025"] },
+        "x": { "field": "member_ebike_share", "type": "quantitative", "title": "Share of member rides taken on an e-bike", "axis": { "format": ".0%", "values": [0, 0.5, 1] }, "scale": { "domain": [0, 1] } },
+        "color": { "field": "period_label", "type": "nominal", "legend": null, "scale": { "domain": ["January 2025", "January 2024"], "range": ["#0b6e4f", "#b9b9b9"] } }
+      }
+    },
+    {
+      "mark": { "type": "text", "align": "left", "dx": 6, "fontSize": 13, "fontWeight": "bold", "color": "#1c1c1c" },
+      "encoding": {
+        "y": { "field": "period_label", "type": "nominal", "title": null, "sort": ["January 2024", "January 2025"] },
+        "x": { "field": "member_ebike_share", "type": "quantitative", "scale": { "domain": [0, 1] } },
+        "text": { "field": "member_ebike_share", "type": "quantitative", "format": ".1%" }
+      }
+    }
+  ]
+}

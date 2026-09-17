@@ -1,0 +1,40 @@
+{
+  "result_id": "weather_by_period",
+  "execution_id": "ex_weather_by_period",
+  "row_key": "period",
+  "columns": [
+    "period",
+    "period_label",
+    "days_observed",
+    "mean_tmax_c",
+    "freezing_days",
+    "wet_days",
+    "snow_days",
+    "total_prcp_mm",
+    "total_snow_mm"
+  ],
+  "rows": [
+    {
+      "period": "baseline",
+      "period_label": "January 2024",
+      "days_observed": 31,
+      "mean_tmax_c": "5.53",
+      "freezing_days": 6,
+      "wet_days": 15,
+      "snow_days": 4,
+      "total_prcp_mm": "134.10",
+      "total_snow_mm": "58.00"
+    },
+    {
+      "period": "after",
+      "period_label": "January 2025",
+      "days_observed": 31,
+      "mean_tmax_c": "2.55",
+      "freezing_days": 8,
+      "wet_days": 4,
+      "snow_days": 3,
+      "total_prcp_mm": "15.50",
+      "total_snow_mm": "77.00"
+    }
+  ]
+}
