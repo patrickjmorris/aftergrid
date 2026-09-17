@@ -262,7 +262,7 @@ code, pre, .mono { font-family: var(--mono); }
 .term { contain: inline-size; background: var(--term-bg); color: #DCE6F5; border-radius: 14px; font-family: var(--mono); font-size: 13px; line-height: 1.65; overflow: hidden; box-shadow: var(--shadow-card); border: 1px solid #22355A; }
 .term .tbar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); font-size: 11.5px; color: #7B8CA8; }
 .term .tbar .dots { display: flex; gap: 6px; } .term .tbar .dots i { width: 10px; height: 10px; border-radius: 999px; background: #2C3E60; display: block; }
-.term pre { margin: 0; padding: 20px 22px; white-space: pre; overflow-x: auto; }
+.term pre { margin: 0; padding: 20px 22px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .term .p { color: #8FB0E6; } .term .ok { color: #7ED9B2; } .term .warn { color: #F3C36B; } .term .dim { color: #7B8CA8; } .term .str { color: #C9D6EA; }
 
 .phone { contain: inline-size; width: 300px; max-width: 100%; margin: 0 auto; background: #0F1B30; border-radius: 42px; padding: 12px; box-shadow: 0 30px 60px -28px rgba(20,36,64,.7), inset 0 0 0 2px #2C3E60; }
@@ -375,12 +375,13 @@ code, pre, .mono { font-family: var(--mono); }
 .vs-grid .pane { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 32px; position: relative; overflow: hidden; }
 .vs-grid .pane .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 20px; }
 .vs-grid .pane.bad { background: var(--paper-2); }
-.badge-bad { position: relative; display: inline-flex; align-items: center; gap: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; font-size: 18px; font-weight: 600; color: var(--ink-2); box-shadow: var(--shadow-float); }
+.badge-bad { position: relative; display: inline-flex; flex-wrap: wrap; max-width: 100%; align-items: center; gap: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; font-size: 18px; font-weight: 600; color: var(--ink-2); box-shadow: var(--shadow-float); }
 .badge-bad .pct { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; color: var(--ink); line-height: 1; }
 .badge-bad .v { display: inline-flex; align-items: center; gap: 6px; background: var(--pass-bg); color: var(--pass); border-radius: 999px; padding: 4px 10px; font-size: 13px; }
 .badge-bad::after { content: ""; position: absolute; left: -6px; right: -6px; top: 50%; height: 3px; background: var(--fail); transform: rotate(-7deg); border-radius: 2px; }
 .vs-grid .pane p { margin-top: 20px; color: var(--ink-2); font-size: 15px; max-width: 40ch; }
 @container page (max-width: 820px) { .vs-grid { grid-template-columns: minmax(0,1fr); } }
+@container page (max-width: 560px) { .badge-bad .pct { font-size: 30px; } .badge-bad { font-size: 15px; padding: 14px 16px; } .vs-grid .pane { padding: 22px; } }
 
 /* checks table */
 .tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
@@ -427,6 +428,7 @@ code, pre, .mono { font-family: var(--mono); }
 .rev-stack .sheet2 { position: absolute; left: 0; right: 0; top: 0; height: 140px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-float); }
 .rev-stack .sheet2.b2 { transform: translate(30px, -4px) rotate(.8deg); opacity: .55; }
 .rev-stack .sheet2.b1 { transform: translate(15px, 18px) rotate(.3deg); opacity: .85; }
+@container page (max-width: 900px) { .rev-stack .sheet2.b2 { transform: translate(12px, -4px) rotate(.5deg); } .rev-stack .sheet2.b1 { transform: translate(6px, 12px) rotate(.2deg); } }
 .rev-stack .sheet2 span { position: absolute; left: 16px; top: 10px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .04em; }
 .rev-stack .doc, .rev-stack .frame { position: relative; }
 .rev-stack { contain: inline-size; }
@@ -451,6 +453,7 @@ code, pre, .mono { font-family: var(--mono); }
 @container page (max-width: 760px) { .ei { grid-template-columns: minmax(0,1fr); } }
 .tree { contain: inline-size; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto; box-shadow: var(--shadow-float); }
 .tree pre { margin: 0; }
+@container page (max-width: 560px) { .tree .c { display: none; } .tree { font-size: 11.5px; } }
 .tree .c { color: var(--ink-3); }
 
 /* figure with leader lines */
@@ -470,7 +473,7 @@ code, pre, .mono { font-family: var(--mono); }
 .src-render { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; align-items: start; }
 .src { display: grid; gap: 10px; }
 .src-lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-top: 8px; }
-.src pre { contain: inline-size; margin: 0; background: var(--term-bg); color: #DCE6F5; border-radius: 12px; padding: 16px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.6; overflow-x: auto; white-space: pre; border: 1px solid #22355A; }
+.src pre { contain: inline-size; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; background: var(--term-bg); color: #DCE6F5; border-radius: 12px; padding: 16px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.6; border: 1px solid #22355A; }
 .src pre b { color: #8FB0E6; font-weight: 500; }
 @container page (max-width: 860px) { .src-render { grid-template-columns: minmax(0,1fr); } }
 
@@ -700,27 +703,31 @@ const frame = (inner, url = FINDING_URL, cls = '') => `<div class="frame ${cls}"
 const terminal = (lines, title = 'claude · loop-example/analytics') => `<div class="term" role="img" aria-label="Terminal session"><div class="tbar"><span class="dots"><i></i><i></i><i></i></span><span>${esc(title)}</span></div><pre>${lines}</pre></div>`;
 const TERM_MAIN = `<span class="p">$</span> aftergrid new finding checklist-retention <span class="dim">\\</span>
     --ask <span class="str">"Did the onboarding checklist help?"</span>
-<span class="dim">created analytics/findings/2026-07-20-onboarding-checklist-retention</span>
+<span class="dim">created findings/2026-07-20-onboarding-checklist-retention</span>
 
-<span class="p">$</span> aftergrid check analytics/findings/2026-07-20-onboarding-checklist-retention
-  syntax          <span class="ok">ok</span>
-  content         <span class="ok">complete</span>   6 sections · 2 claims typed
-  evidence        <span class="ok">valid</span>      12 references → 3 saved results
-  sql executed    <span class="ok">yes</span>        snapshot 2026-07-19 · 2 retained inputs
-  checks          <span class="ok">4 pass</span>     unique_users · arm_balance · reconcile · falsifier
-  publication     <span class="warn">not ready</span>  no human approval at this revision
+<span class="p">$</span> cd findings/2026-07-20-onboarding-checklist-retention
+<span class="p">$</span> aftergrid check .
+  syntax        <span class="ok">ok</span>
+  content       <span class="ok">complete</span>   6 sections · 2 claims typed
+  evidence      <span class="ok">valid</span>      12 references → 3 results
+  sql executed  <span class="ok">yes</span>        snapshot 2026-07-19
+  checks        <span class="ok">4 pass</span>     unique_users, arm_balance,
+                           reconcile, falsifier
+  publication   <span class="warn">not ready</span>  no human approval yet
 
-<span class="p">$</span> aftergrid render analytics/findings/2026-07-20-onboarding-checklist-retention --png
-<span class="dim">render/finding.html · charts/retention_by_arm.svg · charts/retention_by_arm.png</span>`;
-const TERM_REVISIT = `<span class="p">$</span> aftergrid revisit analytics/findings/2026-07-20-onboarding-checklist-retention
-<span class="dim">snapshot refreshed · 2026-09-14 · 2 retained inputs · rerunning 3 queries</span>
+<span class="p">$</span> aftergrid render . --png
+<span class="dim">wrote render/finding.html, retention_by_arm.svg,
+      retention_by_arm.png</span>`;
+const TERM_REVISIT = `<span class="p">$</span> cd findings/2026-07-20-onboarding-checklist-retention
+<span class="p">$</span> aftergrid revisit .
+<span class="dim">snapshot refreshed 2026-09-14 · rerunning 3 queries</span>
 
-  c1  gap ≥ 3 pp, n ≥ 500 per arm      6.3 → 5.1 pp   <span class="ok">holds</span>
-  c2  phones vs web (exploratory)       <span class="dim">not automatically evaluable</span>
-                                                       <span class="warn">not comparable</span>
-  falsifier                                            <span class="ok">passed</span>
+  c1  gap ≥ 3 pp, n ≥ 500/arm    6.3 → 5.1 pp  <span class="ok">holds</span>
+  c2  phones vs web, follow-up   <span class="dim">not automatically</span>
+                                 <span class="dim">evaluable</span> · <span class="warn">not comparable</span>
+  falsifier                      <span class="ok">passed</span>
 
-<span class="dim">revision 2 written for review · 1 decision rests on c1 · Dana decides</span>`;
+<span class="dim">revision 2 written for review · 1 decision rests on c1</span>`;
 
 const phone = (inner) => `<div class="phone"><div class="screen"><div class="status"><span>9:41</span><span class="island"></span><span>●●●</span></div><div class="doc">${inner}</div></div></div>`;
 
@@ -828,12 +835,12 @@ V['rev-terminal'] = { name:'Terminal', html: () => sec('Revisit', `<div class="g
 /* OSS */
 V['oss-split'] = { name:'Engine / Instance', html: () => sec('Open source', `<div class="head"><h2 class="h2">The engine is public. Your context stays yours.</h2><p class="lead">Skills are verbs. Your metric definitions, table docs and decisions are nouns, and they never leave your private repo.</p></div><div class="ei"><div class="box pub"><h3>Engine</h3><p class="sub">github.com/patrickjmorris/aftergrid · MIT</p><ul><li>Skills: /grill-question, /analyze, /revise-finding</li><li>Checks and the Finding validator</li><li>Adapters: DuckDB, Postgres</li><li>CLI: new finding, check, render, decide, revisit</li><li>Guardrail hook for Claude Code</li></ul></div><div class="box"><h3>Instance</h3><p class="sub">your-team/analytics · private</p><ul><li>Metric definitions, versioned and approved by a person</li><li>Table docs and Reader profiles</li><li>Golden Questions with expected answers</li><li>Findings, reviewed as pull requests</li><li>The decision log</li></ul></div></div>`) };
 V['oss-tree'] = { name:'Repo tree', html: () => sec('Open source', `<div class="grid2" style="gap:64px;align-items:center"><div><h2 class="h2">A Finding is a folder in a git repo.</h2><p class="lead" style="margin-top:20px">Markdown, JSON, SQL and YAML. It renders on GitHub, diffs cleanly and is reviewed as a pull request before a Reader sees it. No notebook, no dashboard, no vendor.</p></div><div class="tree"><pre>analytics/findings/2026-07-20-onboarding-checklist-retention/
-├── memo.md            <span class="c"># six fixed sections, {{ref}} tokens</span>
-├── manifest.yaml      <span class="c"># claims, evidence, digest, attestations</span>
+├── memo.md            <span class="c"># six sections, {{ref}} tokens</span>
+├── manifest.yaml      <span class="c"># claims, evidence, digest</span>
 ├── queries/
 │   └── retention_by_arm.sql
 ├── results/
-│   └── retention_by_arm.json   <span class="c"># stable row keys, hashed</span>
+│   └── retention_by_arm.json   <span class="c"># row keys, hashed</span>
 ├── inputs/            <span class="c"># retained snapshot, hashed</span>
 ├── checks/
 │   ├── unique_users.sql
