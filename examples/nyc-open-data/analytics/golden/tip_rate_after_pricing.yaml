@@ -1,0 +1,72 @@
+# An expected abstention. The tip rate did move — and the move at the policy date is smaller than the very next
+# month-to-month move, which has nothing to do with the policy. Two month-on-month steps is not a variation
+# estimate, and the metric is diluted by cash trips the data cannot separate. The honest Finding says so.
+#
+# Reference values computed 2026-09-17 from demo.duckdb built the same day (build-data.mjs/1.1.0).
+schema_version: 0.1.0
+id: tip_rate_after_pricing
+raw_ask: Did the tip rate change after congestion pricing started?
+reader: city_transport_analyst
+expected:
+  outcome: inconclusive
+  claim_type: descriptive
+  definition_ids: [tip_rate, taxi_trip]
+  tables_read: [trips_daily]
+  values:
+    - { id: tip_rate_dec2024, reference: tip_rate_by_month.dec2024.tip_rate, value: 0.175953, tolerance: 0.000001, unit: tips as a share of metered fare, population: yellow taxi trips, window: 2024-12-01..2024-12-31 pickup dates }
+    - { id: tip_rate_jan2025, reference: tip_rate_by_month.jan2025.tip_rate, value: 0.173272, tolerance: 0.000001, unit: tips as a share of metered fare, population: yellow taxi trips, window: 2025-01-01..2025-01-31 pickup dates }
+    - { id: tip_rate_feb2025, reference: tip_rate_by_month.feb2025.tip_rate, value: 0.162998, tolerance: 0.000001, unit: tips as a share of metered fare, population: yellow taxi trips, window: 2025-02-01..2025-02-28 pickup dates }
+    - { id: tip_rate_jan2024, reference: tip_rate_by_month.jan2024.tip_rate, value: 0.183541, tolerance: 0.000001, unit: tips as a share of metered fare, population: yellow taxi trips, window: 2024-01-01..2024-01-31 pickup dates }
+    - { id: step_at_the_change, reference: tip_rate_by_month.jan2025.step_from_previous_month, value: -0.00268, tolerance: 0.000001, unit: change in share from the previous month, population: yellow taxi trips, window: December 2024 to January 2025, note: "the move at the policy date" }
+    - { id: step_after_the_change, reference: tip_rate_by_month.feb2025.step_from_previous_month, value: -0.010274, tolerance: 0.000001, unit: change in share from the previous month, population: yellow taxi trips, window: January 2025 to February 2025, note: "the very next move, with no policy change behind it, is nearly four times larger" }
+    - { id: months_available, reference: tip_rate_by_month.jan2025.months_in_series, value: 4, tolerance: 0, unit: months, population: months of yellow trips in this Instance, window: "2024-01, 2024-12, 2025-01, 2025-02", note: "and they are not consecutive: there is no December 2023 to make the year-earlier step comparable" }
+  must_state:
+    - that the tip rate fell, and by how much, before saying anything about why
+    - that the fall between December and January is smaller than the fall between January and February, and that nothing changed in policy between January and February
+    - that this Instance holds four months, not consecutively, which is too few to say what an ordinary month-to-month move looks like
+    - that the rate is tips divided by metered fare over all yellow trips, cash trips included, and that cash trips record a tip of zero whatever the rider handed over — so the rate moves when the cash share moves
+    - that the card-only rate cannot be computed at this grain, because payment_type is kept only in the 1-in-1000 sample
+    - that high-volume for-hire tips exist in the data but have a different denominator, so there is no tip rate comparable across the two services
+  must_not:
+    - attribute the fall to congestion pricing
+    - present the December-to-January step as evidence of an effect without the January-to-February step beside it
+    - report a single tip rate across yellow and high-volume for-hire
+    - call the result "no change" — the rate moved, and what is unavailable is the attribution, not the movement
+  reasoning: >-
+    Not insufficient_data: every month asked for is present and complete, and the metric computes. It is
+    inconclusive, which is a different thing. The step at the policy date is -0.0027 and the next step, with no
+    policy change behind it, is -0.0103; with four non-consecutive months there is no baseline for ordinary
+    month-to-month variation, and the metric is diluted by a cash share this grain cannot observe. Tips move
+    with fare, payment type and metered-fare rules at once, and the data describes the change without
+    separating it. The honest Finding reports the movement and refuses the attribution.
+constraints:
+  window: { start: "2024-12-01", end: "2025-02-28", timezone: America/New_York }
+  population: yellow taxi trips in the TLC records
+  data_to: "2025-02-28"
+  required_checks: [minimum_data, falsifier]
+reference:
+  parameters: {}
+  queries:
+    - id: tip_rate_by_month
+      row_key: month
+      sql: |
+        with by_month as (
+          select date_trunc('month', pickup_date) as month_start,
+                 sum(tip_sum) as tip_usd,
+                 sum(fare_sum) as fare_usd
+          from trips_daily
+          where service = 'yellow'
+          group by 1
+        )
+        select case strftime(month_start, '%Y-%m')
+                 when '2024-01' then 'jan2024'
+                 when '2024-12' then 'dec2024'
+                 when '2025-01' then 'jan2025'
+                 when '2025-02' then 'feb2025'
+                 else strftime(month_start, '%Y-%m')
+               end as month,
+               round(tip_usd / nullif(fare_usd, 0), 6) as tip_rate,
+               round(tip_usd / nullif(fare_usd, 0)
+                     - lag(tip_usd / nullif(fare_usd, 0)) over (order by month_start), 6) as step_from_previous_month,
+               count(*) over ()::BIGINT as months_in_series
+        from by_month

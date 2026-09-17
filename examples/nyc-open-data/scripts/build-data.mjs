@@ -17,15 +17,25 @@
 // The rename replaces the old file in one step — the old database is never unlinked first, so `--out` is either
 // the previous build or this one and never briefly absent. A failed build leaves any previous file untouched.
 //
+// `--append` is the one way a database gains months without being rebuilt. A window is a contiguous range, so
+// two far-apart months (January 2024 against January 2025) otherwise cost every month between them — 14 months
+// of streamed HVFHS and Citi Bike for the two that are wanted. Append copies the existing file, builds only the
+// months `build_meta.months` does not already list, and refuses outright when the run's sources, sample rate or
+// builder version differ from the ones the file was written with, because a database that mixed those would
+// make its own `build_meta` untrue.
+//
 // A skipped month is not a success: every month a source does not serve is recorded in `build_meta`
 // (`months_built:<source>` and `months_skipped`), summarised in the log, and — when the window was stated with
-// an explicit `--to` — exits 1. A build in which *every* requested month of a source was skipped refuses to
-// replace an existing `--out` at all, rather than putting an empty database where a good one was.
+// an explicit `--to` — exits 1. That holds on the append path too: a month asked for and not served is a
+// shortfall whether the run built one month or thirty. A build (or append) whose result would hold no months at
+// all for a requested source refuses to replace an existing `--out`, rather than putting an empty database
+// where a good one was. A month the file already holds is not a skip of this kind: it is reported as already
+// built and changes nothing.
 //
 // Hashes rendered from DOUBLE: `trips_sample` keeps the source's own DOUBLE money columns, so its *content hash*
 // (not its membership) is rendered by DuckDB's double formatting and is only comparable across builds on the
 // same engine. The sample *key* is money-cast to DECIMAL(18,4) and does not have that dependency.
-import { createWriteStream, createReadStream, mkdirSync, rmSync, existsSync, statSync, renameSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, createReadStream, copyFileSync, mkdirSync, rmSync, existsSync, statSync, renameSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -35,8 +45,9 @@ import { createInflateRaw } from "node:zlib";
 // The Engine's own SQL limits, imported rather than copied so the two cannot drift apart.
 import { DEFAULT_LIMITS, runBounded } from "../../../scripts/lib/sql-runner.mjs";
 
-// 2.0.0: the sample key casts money to DECIMAL(18,4) (see `buildTlcMonth`), so `trips_sample` membership differs
-// from a 1.x build of the same bytes. Everything else about the schema is unchanged.
+// 2.0.0: the sample key casts money to DECIMAL(18,4) (see `sampleKeySql`), so `trips_sample` membership differs
+// from a 1.x build of the same bytes. Everything else about the schema is unchanged — and `--append` refuses a
+// file written by any other version, so the two keys never meet inside one database.
 export const BUILDER_VERSION = "build-data.mjs/2.0.0";
 const USER_AGENT = `aftergrid-nyc-open-data-demo (${BUILDER_VERSION}; https://github.com/aftergrid)`;
 
@@ -154,7 +165,7 @@ export function monthBounds(key) {
 // Arguments
 // ---------------------------------------------------------------------------------------------------------
 export function parseArgs(argv) {
-  const args = { from: DEFAULT_FROM, to: null, sources: [...SOURCES], out: DEFAULT_OUT, rawDir: DEFAULT_RAW, verify: false, sampleRate: SAMPLE_RATE, keepRaw: false };
+  const args = { from: DEFAULT_FROM, to: null, sources: [...SOURCES], out: DEFAULT_OUT, rawDir: DEFAULT_RAW, verify: false, sampleRate: SAMPLE_RATE, keepRaw: false, append: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const value = () => { const v = argv[++i]; if (v === undefined) throw new Error(`${arg} needs a value`); return v; };
@@ -171,12 +182,89 @@ export function parseArgs(argv) {
       args.sampleRate = Number(value());
       if (!Number.isInteger(args.sampleRate) || args.sampleRate < 1) throw new Error(`--sample-rate must be a positive integer, got ${argv[i]}`);
     } else if (arg === "--verify") args.verify = true;
+    else if (arg === "--append") args.append = true;
     else if (arg === "--keep-raw") args.keepRaw = true;
     else if (arg === "--help" || arg === "-h") args.help = true;
     else throw new Error(`unknown argument ${arg}`);
   }
   if (args.to !== null && args.to < args.from) throw new Error(`--to ${args.to} is before --from ${args.from}`);
+  // --verify does not build, so an --append beside it is a instruction that would be silently dropped.
+  if (args.append && args.verify) throw new Error("--append and --verify cannot be combined: --verify does not build");
   return args;
+}
+
+/**
+ * Which months of a requested window an `--append` run must build, and which the database already holds.
+ * Pure, so the decision is testable without a database: the caller supplies the months already recorded.
+ * A fresh build passes no existing months and gets the whole window back.
+ */
+export function appendPlan(existingMonths, windowMonths) {
+  const have = new Set(existingMonths);
+  return { build: windowMonths.filter((m) => !have.has(m)), skipped: windowMonths.filter((m) => have.has(m)) };
+}
+
+/** Every month the database will hold after this run: sorted, no duplicates. Written to `build_meta.months`. */
+export function mergeMonths(existingMonths, added) {
+  return [...new Set([...existingMonths, ...added])].sort();
+}
+
+/**
+ * The months a previous run recorded. `months` is the authority; `from`..`to` is the fallback for a database
+ * written before this key existed, where the window was contiguous by construction.
+ */
+export function monthsOf(meta) {
+  const listed = meta?.months;
+  if (typeof listed === "string" && listed.trim()) return listed.split(",").map((s) => s.trim()).filter(Boolean);
+  if (typeof meta?.from === "string" && typeof meta?.to === "string") return monthRange(meta.from, meta.to);
+  return [];
+}
+
+/**
+ * The months a previous run recorded as built for one source. A database written by this builder always carries
+ * the key — `--append` refuses any other builder version — so the fallback is for a hand-made or truncated
+ * `build_meta`: the file's own month list, which is what "this source was requested and the file holds it" meant
+ * before the key existed. An empty value is an answer (none), not a missing key.
+ */
+export function monthsBuiltOf(meta, source, fallback = []) {
+  const listed = meta?.[`months_built:${source}`];
+  if (typeof listed === "string") return listed.split(",").map((s) => s.trim()).filter(Boolean);
+  return [...fallback];
+}
+
+/**
+ * The skip record a database should carry after this run: the skips of this run, plus the ones a previous run
+ * recorded that are still true. A month since built is dropped from the record — it is no longer missing — and
+ * a (source, month) this run decided again is decided by this run. `builtBySource` is `{source: [months]}` as
+ * the finished file holds them.
+ */
+export function mergeSkips(previousJson, current, builtBySource = {}) {
+  let previous = [];
+  try { const parsed = JSON.parse(previousJson ?? "[]"); if (Array.isArray(parsed)) previous = parsed; } catch { previous = []; }
+  const decidedNow = new Set(current.map((s) => `${s.source} ${s.month}`));
+  const kept = previous.filter((s) => s && typeof s.source === "string" && typeof s.month === "string" &&
+    !decidedNow.has(`${s.source} ${s.month}`) && !(builtBySource[s.source] ?? []).includes(s.month));
+  return [...kept, ...current];
+}
+
+/**
+ * Why an `--append` run must not touch this database, or null when it may. Appending under a different sample
+ * rate, a different source list or a different builder would leave one file holding two rules and one
+ * `build_meta` describing only the last run — so it is refused rather than recorded.
+ */
+export function appendMismatch(meta, { sources, sampleRate, builderVersion = BUILDER_VERSION }) {
+  const was = String(meta?.sources ?? "").split(",").map((s) => s.trim()).filter(Boolean).sort().join(",");
+  const now = [...sources].sort().join(",");
+  if (was && was !== now) return `it was built from sources ${was} and this run asks for ${now}; one file cannot honestly record both`;
+  if (meta?.sample_rate && String(meta.sample_rate) !== String(sampleRate)) return `it samples 1 trip in ${meta.sample_rate} and this run asks for 1 in ${sampleRate}; trips_sample would hold two different rules`;
+  // The version is not bookkeeping: the trips_sample key changed in 2.0.0 (money is cast to DECIMAL(18,4) before
+  // it is hashed), so months written by a 1.x builder and months written by this one were sampled by two
+  // different rules. One file holding both would have a `sample_rate` that describes neither half honestly.
+  if (meta?.builder_version && meta.builder_version !== builderVersion) {
+    return `it was written by ${meta.builder_version} and this is ${builderVersion}; the trips_sample key changed ` +
+      `in build-data.mjs/2.0.0 (money is cast to DECIMAL(18,4) before hashing), so the two runs would sample by ` +
+      `different rules — rebuild without --append rather than append across versions`;
+  }
+  return null;
 }
 
 const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [options]
@@ -188,12 +276,15 @@ const USAGE = `Usage: node examples/nyc-open-data/scripts/build-data.mjs [option
   --out PATH           output database (default examples/nyc-open-data/demo.duckdb)
   --raw-dir PATH       where downloaded and streamed files land (default examples/nyc-open-data/data/raw)
   --sample-rate N      one trip in N enters trips_sample (default ${SAMPLE_RATE})
+  --append             add to an existing --out the months of this window it does not already hold, instead of
+                       rebuilding it. Refused when --out was built with different sources, a different sample
+                       rate or a different builder version. Cannot be combined with --verify
   --keep-raw           keep the streamed Citi Bike CSVs instead of deleting each after it is aggregated
   --verify             do not build: print each table's row count and content hash from --out and exit
 
-Exit status: 1 when a month inside an explicit --to window was skipped, so a shortened build is not mistaken
-for a complete one. A build in which every requested month of a source was skipped refuses to replace an
-existing --out at all.
+Exit status: 1 when a month inside an explicit --to window was not served, so a shortened build (or append) is
+not mistaken for a complete one. A month --append finds already built is not one of those. A run whose result
+would hold no month at all of a requested source refuses to replace an existing --out.
 `;
 
 // ---------------------------------------------------------------------------------------------------------
@@ -742,6 +833,17 @@ async function probeLatestMonth(from, log) {
   return latest;
 }
 
+/** `build_meta` of an existing database, as a plain object. Read-only, under the Instance's own limits. */
+async function readBuildMeta(path) {
+  const handle = await openDuckDb(path, {
+    access_mode: "READ_ONLY", memory_limit: INSTANCE_LIMITS.memory_limit, threads: String(INSTANCE_LIMITS.threads),
+  });
+  try {
+    const rows = await rowsOf(handle.connection, "select key, value from build_meta");
+    return Object.fromEntries(rows.map((r) => [String(r.key), String(r.value)]));
+  } finally { handle.close(); }
+}
+
 /**
  * Everything this build reaches the network (or the disk it opens a database on) through. `build` takes these as
  * an argument so the offline tests can walk a whole window — skipped months, refusals, the staging tables — with
@@ -753,45 +855,72 @@ export async function build(args, log = console.log, injected = {}) {
   const { download, head, confirmNotPublished, zipDirectory, extractZipEntry, probeLatestMonth, openDatabase } = { ...BUILD_DEPS, ...injected };
   const started = Date.now();
   const to = args.to ?? await probeLatestMonth(args.from, log);
-  const months = monthRange(args.from, to);
+  const window = monthRange(args.from, to);
   log(`building ${args.out}`);
-  log(`  window ${args.from}..${to} (${months.length} month${months.length === 1 ? "" : "s"}), sources ${args.sources.join(",")}, sample 1 in ${args.sampleRate}`);
+  log(`  window ${args.from}..${to} (${window.length} month${window.length === 1 ? "" : "s"}), sources ${args.sources.join(",")}, sample 1 in ${args.sampleRate}`);
 
   mkdirSync(args.rawDir, { recursive: true });
   mkdirSync(dirname(args.out), { recursive: true });
   const temporary = `${args.out}.building`;
   for (const stale of [temporary, `${temporary}.wal`]) rmSync(stale, { force: true });
 
-  // What was actually built, per source, and every month that was not. A month the publisher does not serve is a
-  // fact about the window, not a line of log output that scrolls away: it is carried to build_meta and to the
-  // exit status.
-  const monthsBuilt = new Map(MONTHLY_SOURCES.filter((s) => args.sources.includes(s)).map((s) => [s, []]));
+  // --append against an existing file: work on a copy of it, and build only what it does not already hold.
+  // Against no file it is not an error and not a silent no-op — it says so and builds the window.
+  let previousMeta = null;
+  let existingMonths = [];
+  if (args.append) {
+    if (!existsSync(args.out)) log(`  --append: no database at ${args.out} yet, so this run builds one`);
+    else {
+      previousMeta = await readBuildMeta(args.out);
+      const refusal = appendMismatch(previousMeta, { sources: args.sources, sampleRate: args.sampleRate });
+      if (refusal) throw new Error(`--append refused for ${args.out}: ${refusal}`);
+      existingMonths = monthsOf(previousMeta);
+      copyFileSync(args.out, temporary);
+      log(`  --append: ${args.out} already holds ${existingMonths.length} month${existingMonths.length === 1 ? "" : "s"} (${existingMonths.join(",") || "none recorded"})`);
+    }
+  }
+  const plan = appendPlan(existingMonths, window);
+  const months = plan.build;
+  for (const month of plan.skipped) log(`    ${month}: already built — skipped`);
+  if (!months.length) log("  every month of this window is already here; only build_meta is rewritten");
+
+  // What this run builds, per source, and every month a source would not serve. A month the publisher does not
+  // serve is a fact about the window, not a line of log output that scrolls away: it is carried to build_meta
+  // and to the exit status. A month the file already holds is not one of these — it is in `plan.skipped`, was
+  // asked for once and answered once, and nothing about it fell short.
+  const requestedMonthly = MONTHLY_SOURCES.filter((s) => args.sources.includes(s));
+  const monthsBuilt = new Map(requestedMonthly.map((s) => [s, []]));
   const skipped = [];
   const skip = (source, month, reason) => { skipped.push({ source, month, reason }); log(`    ${month}: ${reason} — skipped`); };
 
   const handle = await openDatabase(temporary, { ...BUILD_LIMITS, temp_directory: join(args.rawDir, "duckdb-spill") });
   const connection = handle.connection;
   const provenance = [];
-  let weatherCoverage = "not built";
+  let weatherCoverage = previousMeta?.weather_coverage ?? "not built";
+  let held = [...existingMonths]; // every month the finished file holds; settled once the sources have run
   let complete = false;
   try {
-    for (const statement of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) await connection.run(statement);
-    const needsHttp = args.sources.includes("hvfhs");
+    if (!previousMeta) for (const statement of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) await connection.run(statement);
+    const needsHttp = args.sources.includes("hvfhs") && months.length > 0;
     if (needsHttp) { await connection.run("install httpfs"); await connection.run("load httpfs"); }
 
-    // Taxi zones: 12 KB, downloaded and hashed. crz_zones is validated against it.
-    log("  taxi zones");
-    const zonePath = join(args.rawDir, "taxi_zone_lookup.csv");
-    provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" }, log)).row);
-    await connection.run(`insert into taxi_zones select "LocationID"::INTEGER, "Borough", "Zone", "service_zone" from read_csv(${sqlString(zonePath)}, header=true)`);
-    const zoneRows = await rowsOf(connection, "select location_id, borough, zone from taxi_zones");
-    const crz = deriveCrzZones(zoneRows.map((r) => ({ location_id: r.location_id, borough: r.borough, zone: r.zone })));
-    await insertRows(connection, "crz_zones", ["location_id", "zone", "borough"], crz);
-    log(`    ${zoneRows.length} zones, ${crz.length} in the Congestion Relief Zone`);
+    // Taxi zones: 12 KB, downloaded and hashed. crz_zones is validated against it. They do not vary by month,
+    // so an append leaves the rows — and the provenance of the fetch that produced them — exactly as they are.
+    if (previousMeta) log("  taxi zones: already built — kept, with the provenance of the fetch that wrote them");
+    else {
+      log("  taxi zones");
+      const zonePath = join(args.rawDir, "taxi_zone_lookup.csv");
+      provenance.push((await download(ZONE_LOOKUP_URL, zonePath, { source: "tlc_zones", period: "static" }, log)).row);
+      await connection.run(`insert into taxi_zones select "LocationID"::INTEGER, "Borough", "Zone", "service_zone" from read_csv(${sqlString(zonePath)}, header=true)`);
+      const zoneRows = await rowsOf(connection, "select location_id, borough, zone from taxi_zones");
+      const crz = deriveCrzZones(zoneRows.map((r) => ({ location_id: r.location_id, borough: r.borough, zone: r.zone })));
+      await insertRows(connection, "crz_zones", ["location_id", "zone", "borough"], crz);
+      log(`    ${zoneRows.length} zones, ${crz.length} in the Congestion Relief Zone`);
+    }
 
     // TLC. Yellow months are downloaded and hashed; HVFHS months are streamed by DuckDB over httpfs.
     for (const service of ["yellow", "hvfhs"]) {
-      if (!args.sources.includes(service)) continue;
+      if (!args.sources.includes(service) || !months.length) continue;
       log(`  TLC ${service}`);
       for (const month of months) {
         const url = TLC_BASE + TLC_SERVICES[service].file(month);
@@ -818,26 +947,32 @@ export async function build(args, log = console.log, injected = {}) {
     }
 
     // GHCN: one 16 MB station history covers every month, so it is downloaded once and hashed.
-    if (args.sources.includes("ghcn")) {
+    if (args.sources.includes("ghcn") && months.length) {
       log("  GHCN-Daily");
       const path = join(args.rawDir, `${GHCN_STATION}.csv`);
       // One file carries the station's whole history, so its period is not the build window.
       provenance.push((await download(GHCN_URL, path, { source: "ghcn", period: "station history" }, log)).row);
+      // The months this run builds, not the whole requested window: an append fetches weather for the days it
+      // is adding. The anti-join below is what makes a re-read of an overlapping range harmless.
       const first = months[0].replace("-", "") + "01";
       const afterLast = nextMonth(months[months.length - 1]).replace("-", "") + "01";
       // Q_FLAG is set when a value failed one of GHCN's quality checks; those values are dropped, not carried.
       await connection.run(`
         insert into weather_daily
-        select strptime("DATE", '%Y%m%d')::DATE, ${sqlString(GHCN_STATION)},
-               max("DATA_VALUE") filter (where "ELEMENT" = 'TMAX') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'TMIN') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'PRCP') / 10.0,
-               max("DATA_VALUE") filter (where "ELEMENT" = 'SNOW') * 1.0
-        from read_csv(${sqlString(path)}, header=true, types={'ID':'VARCHAR','DATE':'VARCHAR','ELEMENT':'VARCHAR','DATA_VALUE':'BIGINT','M_FLAG':'VARCHAR','Q_FLAG':'VARCHAR','S_FLAG':'VARCHAR','OBS_TIME':'VARCHAR'})
-        where "ID" = ${sqlString(GHCN_STATION)} and "ELEMENT" in ('TMAX','TMIN','PRCP','SNOW')
-          and ("Q_FLAG" is null or "Q_FLAG" = '')
-          and "DATE" >= ${sqlString(first)} and "DATE" < ${sqlString(afterLast)}
-        group by 1`);
+        with day as (
+          select strptime("DATE", '%Y%m%d')::DATE as observation_date, ${sqlString(GHCN_STATION)} as station_id,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'TMAX') / 10.0 as tmax_c,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'TMIN') / 10.0 as tmin_c,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'PRCP') / 10.0 as prcp_mm,
+                 max("DATA_VALUE") filter (where "ELEMENT" = 'SNOW') * 1.0 as snow_mm
+          from read_csv(${sqlString(path)}, header=true, types={'ID':'VARCHAR','DATE':'VARCHAR','ELEMENT':'VARCHAR','DATA_VALUE':'BIGINT','M_FLAG':'VARCHAR','Q_FLAG':'VARCHAR','S_FLAG':'VARCHAR','OBS_TIME':'VARCHAR'})
+          where "ID" = ${sqlString(GHCN_STATION)} and "ELEMENT" in ('TMAX','TMIN','PRCP','SNOW')
+            and ("Q_FLAG" is null or "Q_FLAG" = '')
+            and "DATE" >= ${sqlString(first)} and "DATE" < ${sqlString(afterLast)}
+          group by 1
+        )
+        select * from day
+        where observation_date not in (select observation_date from weather_daily)`);
       const days = await oneOf(connection, "select count(*)::BIGINT as n, min(observation_date)::VARCHAR as first, max(observation_date)::VARCHAR as last from weather_daily");
       weatherCoverage = Number(days.n) ? `${days.first}..${days.last}` : "none";
       log(`    ${Number(days.n)} days at ${GHCN_STATION} (${weatherCoverage})`);
@@ -853,7 +988,7 @@ export async function build(args, log = console.log, injected = {}) {
     }
 
     // Citi Bike: streamed out of the remote monthly zip, one member CSV at a time.
-    if (args.sources.includes("citibike")) {
+    if (args.sources.includes("citibike") && months.length) {
       log("  Citi Bike");
       const scratch = join(args.rawDir, "citibike");
       mkdirSync(scratch, { recursive: true });
@@ -884,16 +1019,23 @@ export async function build(args, log = console.log, injected = {}) {
       if (!args.keepRaw) rmSync(scratch, { recursive: true, force: true });
     }
 
-    // What the window asked for against what it got, in the log and in the database.
-    for (const [source, built] of monthsBuilt) log(`  ${source}: ${built.length} of ${months.length} month${months.length === 1 ? "" : "s"} built`);
+    // What the window asked for against what it got, in the log and in the database. On an append the record is
+    // about the file and not about the run, so this run's months are merged with the ones already recorded.
+    const heldBySource = new Map([...monthsBuilt].map(([source, built]) =>
+      [source, mergeMonths(monthsBuiltOf(previousMeta, source, existingMonths), built)]));
+    for (const [source, built] of monthsBuilt) {
+      const line = `  ${source}: ${built.length} of ${months.length} month${months.length === 1 ? "" : "s"} built`;
+      log(previousMeta ? `${line} this run, ${heldBySource.get(source).length} in the file` : line);
+    }
     if (skipped.length) {
       log(`  ${skipped.length} month${skipped.length === 1 ? "" : "s"} skipped:`);
       for (const s of skipped) log(`    ${s.source} ${s.month}: ${s.reason}`);
     }
 
-    // An all-skipped source is an empty table, and an empty table quietly replacing a good one is the worst
-    // outcome available here: the file is newer, smaller, and wrong. Refuse, and leave what is already there.
-    const starved = [...monthsBuilt].filter(([, built]) => built.length === 0).map(([source]) => source);
+    // A source the finished database holds no month of is an empty table, and an empty table quietly replacing
+    // a good one is the worst outcome available here: the file is newer, smaller, and wrong. Refuse, and leave
+    // what is already there. On an append the months the copy already carries count — they are still in it.
+    const starved = [...heldBySource].filter(([, months]) => months.length === 0).map(([source]) => source);
     if (starved.length && existsSync(args.out)) {
       throw new Error(`every requested month of ${starved.join(", ")} was skipped, so this build carries no ` +
         `${starved.join("/")} data at all. ${args.out} already exists and is left exactly as it was; the new ` +
@@ -901,13 +1043,22 @@ export async function build(args, log = console.log, injected = {}) {
     }
 
     await insertRows(connection, "build_provenance", PROVENANCE_COLUMNS, provenance);
+    // `months` is the authority on what the database holds; `from`/`to` are its outer bounds and, after an
+    // append of two far-apart windows, are not a range every month between them is present for. A month no
+    // per-month source served is not listed: it is not in here, and a later --append should retry it.
+    const addedThisRun = requestedMonthly.length
+      ? months.filter((month) => requestedMonthly.some((source) => monthsBuilt.get(source).includes(month)))
+      : months;
+    held = mergeMonths(existingMonths, addedThisRun);
+    if (previousMeta) await connection.run("delete from build_meta");
     await insertRows(connection, "build_meta", ["key", "value"], [
       { key: "builder_version", value: BUILDER_VERSION },
-      { key: "from", value: args.from }, { key: "to", value: to },
+      { key: "from", value: held[0] ?? args.from }, { key: "to", value: held[held.length - 1] ?? to },
+      { key: "months", value: held.join(",") },
       { key: "to_source", value: args.to === null ? "probed" : "explicit" },
       { key: "sources", value: args.sources.join(",") },
-      ...[...monthsBuilt].map(([source, built]) => ({ key: `months_built:${source}`, value: built.join(",") })),
-      { key: "months_skipped", value: JSON.stringify(skipped) },
+      ...[...heldBySource].map(([source, built]) => ({ key: `months_built:${source}`, value: built.join(",") })),
+      { key: "months_skipped", value: JSON.stringify(mergeSkips(previousMeta?.months_skipped, skipped, Object.fromEntries(heldBySource))) },
       { key: "sample_rate", value: String(args.sampleRate) },
       { key: "weather_coverage", value: weatherCoverage },
       { key: "built_at", value: new Date().toISOString() },
@@ -927,12 +1078,14 @@ export async function build(args, log = console.log, injected = {}) {
   renameSync(temporary, args.out);
   rmSync(`${temporary}.wal`, { force: true });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
-  log(`  wrote ${args.out} (${(statSync(args.out).size / 1e6).toFixed(1)} MB) in ${seconds}s`);
-  // A skipped month inside a window the caller stated is a shortfall against what was asked for, and the exit
-  // status says so. A probed window ends where the publisher ends, so a skip at its edge is not a shortfall.
+  log(`  wrote ${args.out} (${(statSync(args.out).size / 1e6).toFixed(1)} MB) in ${seconds}s — ${held.length} month${held.length === 1 ? "" : "s"}: ${held.join(",")}`);
+  // A month asked for and not served is a shortfall against what was asked for, and the exit status says so —
+  // on an append too, where the run is short but the request was just as explicit. A probed window ends where
+  // the publisher ends, so a skip at its edge is not a shortfall. A month the file already held is not a skip.
   const incomplete = args.to !== null && skipped.length > 0;
   if (incomplete) log(`  the window was given explicitly and ${skipped.length} month${skipped.length === 1 ? " inside it was" : "s inside it were"} skipped: exit status 1`);
-  return { out: args.out, months, to, seconds: Number(seconds), provenance, monthsBuilt: Object.fromEntries(monthsBuilt), skipped, incomplete };
+  return { out: args.out, months, window, held, to, seconds: Number(seconds), provenance, appended: !!previousMeta,
+    monthsBuilt: Object.fromEntries(monthsBuilt), skipped, incomplete };
 }
 
 // ---------------------------------------------------------------------------------------------------------

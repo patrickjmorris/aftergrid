@@ -12,9 +12,9 @@ import { DEFAULT_LIMITS } from "../scripts/lib/sql-runner.mjs";
 import {
   BUILDER_VERSION, BUILD_DEPS, CONTROL_URL, CRZ_ZONE_IDS, DEFAULT_FROM, INSTANCE_LIMITS, MIN_MONTH, MONEY,
   NotPublished, PROVENANCE_COLUMNS, SAMPLE_RATE, SOURCES, TABLES, TLC_SERVICES,
-  build, canonicalExpr, confirmNotPublished, deriveCrzZones, monthBounds, monthRange, nextMonth, parseArgs,
-  parseMonth, provenanceRow, readCachedDownload, recordDownload, sampleFilterSql, sampleKeySql, tableHashSql, utcStamp,
-  verifyDatabase,
+  appendMismatch, appendPlan, build, canonicalExpr, confirmNotPublished, deriveCrzZones, mergeMonths, mergeSkips,
+  monthBounds, monthRange, monthsBuiltOf, monthsOf, nextMonth, parseArgs, parseMonth, provenanceRow,
+  readCachedDownload, recordDownload, sampleFilterSql, sampleKeySql, tableHashSql, utcStamp, verifyDatabase,
 } from "../examples/nyc-open-data/scripts/build-data.mjs";
 
 const scratch = () => {
@@ -51,6 +51,10 @@ test("arguments: documented defaults, a validated source list, and no silent typ
   assert.deepEqual(explicit.sources, ["yellow", "ghcn"]);
   assert.equal(explicit.sampleRate, 7);
   assert.equal(explicit.verify, true);
+  assert.equal(defaults.append, false);
+  assert.equal(parseArgs(["--append"]).append, true);
+  // --verify does not build, so an --append beside it would be an instruction silently dropped.
+  assert.throws(() => parseArgs(["--append", "--verify"]), /--append and --verify cannot be combined/);
 
   assert.throws(() => parseArgs(["--sources", "yellow,taxis"]), /unknown source\(s\) taxis/);
   assert.throws(() => parseArgs(["--sources", ""]), /at least one source/);
@@ -483,4 +487,145 @@ test("the control object refusing is named as throttling, and never compared wit
     return true;
   });
   await assert.rejects(confirmNotPublished("https://example.invalid/x.parquet", 404), /x\.parquet -> 404/);
+});
+
+test("--append plans months rather than windows, and refuses a database it would make untrue", () => {
+  // Why --append exists: a window is contiguous, so January 2024 against January 2025 otherwise costs the
+  // twelve months between them — about 12 GB streamed for the two that are wanted. The plan is over months,
+  // and it reports what it skipped rather than silently rebuilding it.
+  const want = ["2024-01", "2024-12", "2025-01", "2025-02"];
+  assert.deepEqual(appendPlan([], ["2024-12", "2025-01", "2025-02"]), { build: ["2024-12", "2025-01", "2025-02"], skipped: [] }, "no existing months means a plain build");
+  assert.deepEqual(appendPlan(["2024-12", "2025-01", "2025-02"], ["2024-01"]), { build: ["2024-01"], skipped: [] });
+  assert.deepEqual(appendPlan(["2024-12", "2025-01", "2025-02"], ["2024-12", "2025-01"]), { build: [], skipped: ["2024-12", "2025-01"] }, "a window already held costs no fetch at all");
+
+  assert.deepEqual(mergeMonths(["2024-12", "2025-01", "2025-02"], ["2024-01"]), want, "the recorded months are sorted and deduplicated");
+  assert.deepEqual(mergeMonths(["2024-01"], ["2024-01"]), ["2024-01"], "re-adding a month does not duplicate it");
+
+  // `months` is the authority on what a database holds; from..to is the fallback for one written before the
+  // key existed, where the window was contiguous by construction.
+  assert.deepEqual(monthsOf({ months: "2024-01,2024-12", from: "2024-01", to: "2024-12" }), ["2024-01", "2024-12"]);
+  assert.deepEqual(monthsOf({ from: "2024-01", to: "2024-03" }), ["2024-01", "2024-02", "2024-03"]);
+  assert.deepEqual(monthsOf({}), [], "a database recording neither is treated as holding nothing, never as holding everything");
+
+  const same = { sources: SOURCES.join(","), sample_rate: String(SAMPLE_RATE), builder_version: BUILDER_VERSION };
+  assert.equal(appendMismatch(same, { sources: [...SOURCES], sampleRate: SAMPLE_RATE }), null);
+  assert.equal(appendMismatch(same, { sources: [...SOURCES].reverse(), sampleRate: SAMPLE_RATE }), null, "the source list is a set, not an order");
+  assert.match(String(appendMismatch(same, { sources: ["yellow"], sampleRate: SAMPLE_RATE })), /cannot honestly record both/);
+  assert.match(String(appendMismatch(same, { sources: [...SOURCES], sampleRate: 500 })), /two different rules/);
+  assert.match(String(appendMismatch(same, { sources: [...SOURCES], sampleRate: SAMPLE_RATE, builderVersion: "build-data.mjs/9.9.9" })), /rebuild without --append/);
+
+  // The version check is not bookkeeping: 1.x sampled by a different key, so a 1.1.0 file is refused by name
+  // and the refusal says why rather than leaving the user to guess which of the two files is wrong.
+  const older = { ...same, builder_version: "build-data.mjs/1.1.0" };
+  const refusal = String(appendMismatch(older, { sources: [...SOURCES], sampleRate: SAMPLE_RATE }));
+  assert.match(refusal, /written by build-data\.mjs\/1\.1\.0 and this is build-data\.mjs\/2\.0\.0/);
+  assert.match(refusal, /trips_sample key changed in build-data\.mjs\/2\.0\.0/);
+  assert.match(refusal, /DECIMAL\(18,4\)/);
+  assert.match(refusal, /rebuild without --append/);
+});
+
+test("the skip record follows the file: a month since built drops out, one still missing stays", () => {
+  const previous = JSON.stringify([
+    { source: "citibike", month: "2024-02", reason: "not published" },
+    { source: "yellow", month: "2024-03", reason: "not published" },
+  ]);
+  const merged = mergeSkips(previous, [{ source: "yellow", month: "2024-04", reason: "not published" }],
+    { citibike: ["2024-01", "2024-02"], yellow: ["2024-01"] });
+  assert.deepEqual(merged, [
+    { source: "yellow", month: "2024-03", reason: "not published" },
+    { source: "yellow", month: "2024-04", reason: "not published" },
+  ], "the citibike month an append filled in is no longer missing, so it leaves the record");
+
+  assert.deepEqual(mergeSkips(undefined, [], {}), [], "no previous record is an empty one, not a crash");
+  assert.deepEqual(mergeSkips("not json", [], {}), []);
+  assert.deepEqual(
+    mergeSkips(JSON.stringify([{ source: "yellow", month: "2024-03", reason: "not published" }]),
+      [{ source: "yellow", month: "2024-03", reason: "the archive holds no CSV member" }], {}),
+    [{ source: "yellow", month: "2024-03", reason: "the archive holds no CSV member" }],
+    "a month this run decided again is this run's answer, recorded once",
+  );
+
+  // Per-source built months come from the file's own key; the fallback is for a build_meta without one.
+  assert.deepEqual(monthsBuiltOf({ "months_built:citibike": "2024-01,2024-03" }, "citibike"), ["2024-01", "2024-03"]);
+  assert.deepEqual(monthsBuiltOf({ "months_built:citibike": "" }, "citibike", ["2024-09"]), [], "an empty value is 'none', not 'unknown'");
+  assert.deepEqual(monthsBuiltOf({ months: "2024-09" }, "citibike", ["2024-09"]), ["2024-09"]);
+});
+
+test("--append adds the months the file lacks, and its record describes the file rather than the run", async () => {
+  const { dir, clean } = scratch();
+  try {
+    const served = ["2024-01", "2024-03"];
+    await build(fakeArgs(dir, ["--to", "2024-01"]), () => {}, fakeNetwork({ citibikeMonths: served }));
+
+    const sql: string[] = [];
+    const log: string[] = [];
+    const args = fakeArgs(dir, ["--from", "2024-03", "--to", "2024-03", "--append"]);
+    const appended = await build(args, (l: string) => log.push(l), fakeNetwork({ citibikeMonths: served, sqlLog: sql }));
+
+    assert.equal(appended.appended, true);
+    assert.deepEqual(appended.held, ["2024-01", "2024-03"], "the file holds both months, which are not a range");
+    assert.deepEqual(appended.monthsBuilt, { citibike: ["2024-03"] }, "the return describes this run");
+    assert.equal(appended.incomplete, false);
+    assert.ok(log.some((l) => /citibike: 1 of 1 month built this run, 2 in the file/.test(l)), `no cumulative summary in:\n${log.join("\n")}`);
+
+    const meta = await readMeta(args.out);
+    assert.equal(meta.months, "2024-01,2024-03");
+    assert.equal(meta["months_built:citibike"], "2024-01,2024-03", "build_meta describes the file, so it is cumulative");
+    assert.equal(meta.from, "2024-01");
+    assert.equal(meta.to, "2024-03");
+    assert.deepEqual(JSON.parse(meta.months_skipped), []);
+    assert.equal(meta.builder_version, BUILDER_VERSION);
+
+    // Staging is per month on the append path too, and the appended month is aggregated once.
+    assert.equal(sql.filter((s) => /create temp table "stg_cb_daily"/.test(s)).length, 1);
+    assert.equal(sql.filter((s) => /delete from stg_cb/i.test(s)).length, 0);
+    const verified = await verifyDatabase(args.out);
+    assert.equal(verified.find((r: any) => r.table === "citibike_daily")?.rows, 4, "two ride days a month, two months");
+    assert.equal(verified.find((r: any) => r.table === "citibike_stations")?.rows, 8);
+    assert.equal(verified.find((r: any) => r.table === "taxi_zones")?.rows, CRZ_ZONE_IDS.length, "the zone rows are kept, not re-fetched and re-inserted");
+  } finally { clean(); }
+});
+
+test("a month --append asks for and does not get is a shortfall, and the file it already had survives", async () => {
+  const { dir, clean } = scratch();
+  try {
+    await build(fakeArgs(dir, ["--to", "2024-01"]), () => {}, fakeNetwork({ citibikeMonths: ["2024-01"] }));
+
+    const args = fakeArgs(dir, ["--from", "2024-02", "--to", "2024-02", "--append"]);
+    const appended = await build(args, () => {}, fakeNetwork({ citibikeMonths: ["2024-01"] }));
+
+    assert.deepEqual(appended.skipped, [{ source: "citibike", month: "2024-02", reason: "not published" }]);
+    assert.equal(appended.incomplete, true, "an explicit window fell short, on the append path as on any other");
+    assert.deepEqual(appended.held, ["2024-01"], "a month nothing served is not recorded as held, so a later append retries it");
+
+    const meta = await readMeta(args.out);
+    assert.equal(meta.months, "2024-01");
+    assert.equal(meta["months_built:citibike"], "2024-01");
+    assert.deepEqual(JSON.parse(meta.months_skipped), [{ source: "citibike", month: "2024-02", reason: "not published" }]);
+    const verified = await verifyDatabase(args.out);
+    assert.equal(verified.find((r: any) => r.table === "citibike_daily")?.rows, 2, "the month the file already held is still there");
+  } finally { clean(); }
+});
+
+test("--append against a database written by an older builder is refused, and that database is untouched", async () => {
+  const { dir, clean } = scratch();
+  try {
+    const args = fakeArgs(dir, ["--to", "2024-01"]);
+    await build(args, () => {}, fakeNetwork({ citibikeMonths: ["2024-01", "2024-02"] }));
+
+    // Age the file: a 1.1.0 build sampled by the pre-DECIMAL key.
+    const instance = await DuckDBInstance.create(args.out);
+    const connection = await instance.connect();
+    await connection.run("update build_meta set value = 'build-data.mjs/1.1.0' where key = 'builder_version'");
+    await connection.run("checkpoint");
+    connection.closeSync(); instance.closeSync();
+    const before = readFileSync(args.out);
+
+    await assert.rejects(
+      build(fakeArgs(dir, ["--from", "2024-02", "--to", "2024-02", "--append"]), () => {}, fakeNetwork({ citibikeMonths: ["2024-01", "2024-02"] })),
+      /--append refused .*trips_sample key changed in build-data\.mjs\/2\.0\.0/s,
+    );
+    assert.deepEqual(readFileSync(args.out), before, "the older database is left exactly as it was");
+    assert.equal(existsSync(`${args.out}.building`), false);
+  } finally { clean(); }
 });
