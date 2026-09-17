@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { contentDigest } from "./digest.ts";
 import { DuckDbAdapter } from "./adapters/duckdb.ts";
-import { decideHalt, recordReview, reviewStatus, type ReviewEntry } from "./commands/review.ts";
-import { emptyReport } from "./report.ts";
+import { decideHalt, newestByKind, recordReview, reviewStatus, type ReviewEntry } from "./commands/review.ts";
+import { emptyReport, exitCodeFor } from "./report.ts";
 import {
   assertCase, createCommandAnalyzer, createFixtureAnalyzer, loadDefinitions, loadGoldens, normalisePhrase,
   resolveWarehouse, runEval, type Analyzer, type GoldenQuestion,
@@ -437,6 +437,143 @@ test("review status reports the halt decision from the check it actually ran, no
   assert.match(report.decision.reason, /check_error at checks\/minimum_data\.sql/);
   assert.equal(report.evidence, "invalid");
   assert.equal(report.sql_execution, "not_performed", "the artifact check executes no SQL and the report says so");
+});
+
+/* ------------------------------------------------------------------ ag-analyze-review-last-oko */
+
+// The chain ends with `review status`, so `review status` has to answer in the exit code as well as in prose.
+// Citi Bike runs 2 and 3 (`examples/nyc-open-data/docs/run-log.md`): a headless run read "halt" in a note,
+// exited 0, and reported the Finding as reviewed; and an Operator read a trio of superseded reviews as "all
+// reviews stale" and spent a run redoing reviews that `review record` could not have written.
+
+/**
+ * A copy of the onboarding exemplar with its own hand review dropped, so a test that counts reviews counts
+ * only the ones it recorded. Reviews are outside the content digest, so removing them re-pins nothing.
+ */
+function findingWithoutReviews(): string {
+  const dir = copyInstanceFinding("2026-07-20-onboarding-checklist-retention");
+  const manifest = manifestOf(dir);
+  const digest = manifest.content_digest.value;
+  manifest.reviews = [];
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(manifest, { lineWidth: 0 }));
+  assert.equal(manifestOf(dir).content_digest.value, digest);
+  return dir;
+}
+
+test("review status exits non-zero, and prints one counts line, when a required kind's newest review is stale", () => {
+  const dir = findingWithoutReviews();
+  for (const kind of ["method", "question", "reader"] as const) {
+    assert.deepEqual(recordReview({ dir, kind, reviewer: `agent:test/${kind}`, date: "2026-09-16" }).errors, []);
+  }
+
+  const clean = reviewStatus({ dir });
+  assert.deepEqual(clean.errors, [], JSON.stringify(clean.errors));
+  assert.equal(exitCodeFor(clean), 0, "three current reviews and a clean check is the one case that exits 0");
+  assert.equal(clean.info[0], "reviews: 3 current, 0 superseded, 0 stale", JSON.stringify(clean.info));
+  assert.match(clean.info[1]!, /^verdict: continue \(/, JSON.stringify(clean.info));
+
+  // The edit that makes the reviews describe content nobody read.
+  writeFileSync(join(dir, "memo.md"), readFileSync(join(dir, "memo.md"), "utf8") + "\nOne sentence added after the reviews.\n");
+  const edited = reviewStatus({ dir });
+  assert.equal(edited.info[0], "reviews: 0 current, 0 superseded, 3 stale", JSON.stringify(edited.info));
+  assert.match(edited.info[1]!, /^verdict: halt \(/);
+  assert.equal(exitCodeFor(edited), 1, "a run that edits after reviewing must not be able to exit 0 here");
+  assert.deepEqual(edited.errors.filter((e) => e.category === "stale_review").map((e) => e.location).sort(),
+    ["reviews/method", "reviews/question", "reviews/reader"]);
+  for (const e of edited.errors.filter((e) => e.category === "stale_review")) {
+    assert.match(e.remedy!, /never re-pin a review/, "the remedy is another review, never a re-pin");
+  }
+  assert.equal(edited.decision.next, "halt");
+});
+
+test("review status reports a missing required review as an error of its own, and exits non-zero", () => {
+  const dir = findingWithoutReviews();
+  assert.deepEqual(recordReview({ dir, kind: "method", reviewer: "agent:test/method", date: "2026-09-16" }).errors, []);
+
+  const report = reviewStatus({ dir });
+  assert.equal(exitCodeFor(report), 1);
+  assert.equal(report.info[0], "reviews: 1 current, 0 superseded, 0 stale");
+  assert.deepEqual(report.errors.filter((e) => e.category === "incomplete").map((e) => e.location),
+    ["reviews/question", "reviews/reader"]);
+  assert.deepEqual(report.errors.filter((e) => e.category === "stale_review"), [],
+    "a kind nobody has reviewed yet is missing, not stale");
+});
+
+test("a review superseded by a later one of the same kind at the current digest is history, not staleness", () => {
+  const dir = findingWithoutReviews();
+  const digest = manifestOf(dir).content_digest.value;
+  for (const kind of ["method", "question", "reader"] as const) {
+    assert.deepEqual(recordReview({ dir, kind, reviewer: `agent:test/${kind}`, date: "2026-09-16" }).errors, []);
+  }
+  // Three round-1 reviews at an earlier digest, behind the three current ones: exactly Citi Bike run 2's tree.
+  const manifest = manifestOf(dir);
+  manifest.reviews = [
+    ...["method", "question", "reader"].map((kind) => ({
+      kind, reviewer: `agent:test/${kind}`, date: "2026-09-15",
+      content_digest: { algorithm: "sha256", value: "0".repeat(64) }, blocking: [], non_blocking: [],
+    })),
+    ...manifest.reviews,
+  ];
+  writeFileSync(join(dir, "manifest.yaml"), toYaml(manifest, { lineWidth: 0 }));
+
+  const report = reviewStatus({ dir });
+  assert.equal(manifestOf(dir).content_digest.value, digest, "the reviews are outside the digest envelope");
+  assert.equal(report.info[0], "reviews: 3 current, 3 superseded, 0 stale", JSON.stringify(report.info));
+  assert.match(report.info[1]!, /^verdict: continue \(/);
+  assert.deepEqual(report.errors, [], "nothing is stale and nothing is missing, so nothing is an error");
+  assert.equal(exitCodeFor(report), 0, "a superseded review is no reason to halt or to re-review");
+  assert.equal(report.decision.superseded.length, 3);
+  assert.deepEqual(report.decision.stale, []);
+  assert.ok(report.info.some((i) => /superseded by a later method review; it is history, not a reason to review again/.test(i)),
+    JSON.stringify(report.info));
+
+  // And once a kind has no review at the current digest at all, that kind is stale: it is reviewed again, and
+  // the reviewer named is the newest of the two, not the round-1 one behind it.
+  const reviews: ReviewEntry[] = manifestOf(dir).reviews;
+  assert.equal(newestByKind(reviews).get("method")!.reviewer, "agent:test/method");
+  assert.equal(newestByKind(reviews).get("method")!.date, "2026-09-16", "the newest review of a kind is the later one");
+  const rolledBack = decideHalt({
+    reviews: reviews.map((r) => (r.kind === "method" && r.date === "2026-09-16"
+      ? { ...r, reviewer: "agent:test/method-round-2", content_digest: { algorithm: "sha256" as const, value: "1".repeat(64) } }
+      : r)),
+    currentDigest: digest,
+  });
+  assert.deepEqual(rolledBack.stale, [{ kind: "method", reviewer: "agent:test/method-round-2" }],
+    "the kind with no review at the current digest is stale, named by its newest review");
+  assert.deepEqual(rolledBack.superseded.map((s) => s.kind), ["method", "question", "reader"],
+    "every round-1 review is superseded: two by a current review, and method's by the round-2 review that is itself the stale one");
+  assert.deepEqual(rolledBack.missing_kinds, ["method"]);
+  assert.equal(rolledBack.next, "halt");
+});
+
+test("the eval asserts that the produced Finding's newest review of each kind is at its own digest", () => {
+  const golden = loadGoldens(INSTANCE).find((g) => g.id === "price_change_cancellations")!;
+  const unavailable = { status: "unavailable", reason: "not needed for this assertion" } as const;
+  const assertOne = (manifest: any) =>
+    assertCase({ golden, dir: PRICE, manifest, memo: "", reference: unavailable }).find((a) => a.id === "reviews_current")!;
+
+  const shipped = manifestOf(PRICE);
+  const current = assertOne(shipped);
+  assert.equal(current.status, "pass", JSON.stringify(current));
+  assert.equal(current.category, "analytical");
+  assert.match(current.observed, /superseded review\(s\) behind them/, "the exemplar's round-1 review is history, and passes");
+
+  const digest = shipped.content_digest.value;
+  const stale = assertOne({ ...shipped, reviews: shipped.reviews.map((r: any) => ({ ...r, content_digest: { algorithm: "sha256", value: "f".repeat(64) } })) });
+  assert.equal(stale.status, "fail", JSON.stringify(stale));
+  assert.match(stale.observed, /edited after it was reviewed/);
+
+  const none = assertOne({ ...shipped, reviews: [] });
+  assert.equal(none.status, "fail");
+  assert.match(none.observed, /records no review at all/);
+
+  const visualOnly = assertOne({ ...shipped, reviews: [{ kind: "visual", reviewer: "agent:x", date: "2026-09-17", content_digest: { algorithm: "sha256", value: digest }, blocking: [], non_blocking: [] }] });
+  assert.equal(visualOnly.status, "fail", "a visual review is not one of the three that complete a draft");
+  assert.match(visualOnly.observed, /none of a required kind/);
+
+  const unpinned = assertOne({ ...shipped, content_digest: undefined });
+  assert.equal(unpinned.status, "not_evaluated");
+  assert.equal(unpinned.category, "infrastructure", "a manifest with no digest is a broken artifact, not a wrong answer");
 });
 
 test("insufficient evidence with clean reviews continues: too little data is an answer, not a failure", () => {

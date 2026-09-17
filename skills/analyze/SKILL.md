@@ -28,10 +28,17 @@ run prints when the directory refuses one).
 | `iterate_visual` | `/iterate-visual` | every chart has passed the rubric or been handed back after the third pass |
 | `shape_narrative` | `/shape-narrative` | the memo is answer-first and each Evidence subsection is one Claim |
 | `analysis_review` | `/analysis-review` | a current `method`, `question` and `reader` review is recorded |
-| `check` | `aftergrid check` | the report has no errors |
+| `check` | `aftergrid check`, then `aftergrid review status` | `check` reports no errors **and** `review status` exits 0 |
 
 Every stage runs, in this order, exactly once. A Finding with no chart still passes through `iterate_visual`,
 which has nothing to do and says so.
+
+**The last two commands of every run, in this order, are `aftergrid check <finding-dir>` and then
+`aftergrid review status <finding-dir>`.** Nothing runs after them — no edit, no re-pin, no fix, not a
+one-word memo change. The chain ends with review status because a review binds to a content digest: any edit
+after a review leaves the reviews describing content nobody read, and a run that edits and then reports
+"reviewed" has reported something untrue. If you must change anything after `review status`, that is not a
+finish: go back to `analysis_review`, review the Finding as it now is, and run both commands again.
 
 **The data path does not change the stages.** By default the harness runs the SQL and `aftergrid record` writes
 down what it ran (ADR 0010, `docs/contracts/record.md`); an adapter is the upgrade an Instance may configure. A
@@ -85,7 +92,28 @@ answer: record it and carry on to `shape_narrative`. `/analysis-review` returnin
 answer: halt. The craft loops live inside the craft skills, where each pass is recorded; a loop rerun from here
 produces a different result with no record of why.
 
-Done when `aftergrid check <finding-dir>` reports no errors, or the run has halted.
+### Reading `review status`
+
+`aftergrid review status` prints one counts line and one verdict line:
+
+```
+reviews: 3 current, 3 superseded, 0 stale
+verdict: continue (reviewed by agents with no blocking findings; …)
+```
+
+Act on the counts, not on the individual warnings:
+
+- **A `stale_review` for a kind whose NEWEST review is not at the current digest means re-run that review.**
+  Invoke `/analysis-review` again for that kind and record the new review at the digest the Finding carries
+  now. **Never re-pin** a review — editing a recorded review's `content_digest` claims a reviewer read bytes
+  they never saw, and it is the one repair this mechanism exists to prevent.
+- **A review superseded by a later review of the same kind at the current digest is history, not staleness.**
+  It is not a reason to review anything again. `review status` counts it as `superseded`, and `aftergrid review record`
+  dedupes on (kind, reviewer, digest), so a re-review ordered on account of one would write nothing and spend
+  a run for no artifact. (This happened: `examples/nyc-open-data/docs/run-log.md`, Citi Bike runs 2 and 3.)
+
+Done when `aftergrid check <finding-dir>` reports no errors and `aftergrid review status <finding-dir>` exits
+0, or the run has halted.
 
 ## 4. Halt conditions
 
@@ -102,6 +130,8 @@ Three halts, and the difference matters to whoever picks the Finding up.
 
 - any blocking finding from `/analysis-review`
 - any error from `aftergrid check`, including a Check that errored, a hash mismatch or a rerun mismatch
+- a non-zero exit from `aftergrid review status` that the run cannot clear by reviewing again: a required
+  kind's newest review is stale or missing after `/analysis-review` has already run for it
 - a chart handed back by `/iterate-visual` after its third pass
 
 **`permission_denied` — the harness refused a write inside the Finding directory.**
@@ -158,8 +188,23 @@ Give the Operator, in this order:
    the words the command used. On the recorded path, also: which tool ran the queries and Checks, that the
    Check outcomes were reported rather than executed (`checks_reported_by_agent`), and that the Snapshot
    guarantees `artifact_replay` only, so the Analysis cannot be rerun or revisited.
-4. The next command: `aftergrid render <dir>` for a draft the Operator can read, or the command that clears
+4. **The review standing, quoted verbatim from `aftergrid review status`: its counts line and its verdict
+   line, as the command printed them, plus the exit code.** Two lines, copied:
+
+   ```
+   reviews: 3 current, 3 superseded, 0 stale
+   verdict: continue (reviewed by agents with no blocking findings; …)
+   ```
+
+   Do **not** summarise the reviews in your own words, and do not retell what the reviewers said instead —
+   their text is in `reviews[]` and `review status` reprints the blocking ones. The verdict is the command's
+   sentence, not yours. A run that writes "three current reviews, no blocking findings" from its own reading
+   of the manifest is how a stale-review warning became an Operator's wasted run
+   (`examples/nyc-open-data/docs/run-log.md`, Citi Bike run 2). If `review status` exited non-zero, say so in
+   the same breath as the number: the run is not finished.
+5. The next command: `aftergrid render <dir>` for a draft the Operator can read, or the command that clears
    the halt.
 
 Publication readiness is whatever `check` said, including `unknown`. Never round `unknown` up, and never
-describe an agent review as approval.
+describe an agent review as approval. Never call a Finding reviewed on the strength of reviews whose newest
+entry is not at the digest the Finding now carries — that is what the exit code is for.

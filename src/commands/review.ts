@@ -7,6 +7,13 @@
 // execution ahead of every review finding, and a command that printed that decision without looking at the
 // evidence would be announcing a conclusion it had not reached.
 //
+// `status` is the last command of an `/analyze` run, and it answers with an exit code as well as with prose: a
+// required kind whose newest review is stale or missing is an **error**, so the command exits 1 and a headless
+// harness cannot report a Finding as reviewed over reviews nobody redid. Its counts line
+// (`reviews: <n> current, <m> superseded, <k> stale`) separates the two facts an Operator once conflated: a
+// review superseded by a later one of the same kind is history, and only a kind whose newest review is bound
+// to other content has to be reviewed again.
+//
 // A review binds to a content digest. Recording one against a Finding whose files no longer hash to the digest
 // its manifest pins would produce a review of something nobody reviewed, so that is refused rather than
 // recorded — the review would look current and be false.
@@ -153,7 +160,25 @@ function summarise(report: Report, reviews: ReviewEntry[], currentDigest: string
   for (const b of decision.blocking) {
     report.warnings.push({ category: "needs_attention", location: `reviews/${b.kind}`, message: `${b.reviewer} recorded ${b.items.length} blocking finding(s): ${b.items.join(" | ")}` });
   }
-  report.info.push(`review status: ${decision.next} (${decision.reason})`);
+  report.info.push(countsLine(reviews, currentDigest, decision));
+  report.info.push(verdictLine(decision));
+}
+
+/**
+ * The one line a headless harness reads instead of counting entries itself: `reviews: <n> current,
+ * <m> superseded, <k> stale`. Three different facts, and the middle one is not a problem — a review superseded
+ * by a later one of the same kind at the current digest is history (Citi Bike run 3,
+ * `examples/nyc-open-data/docs/run-log.md`: an Operator read a trio of superseded reviews as "all reviews
+ * stale" and spent a run redoing reviews that were already current).
+ */
+export function countsLine(reviews: ReviewEntry[], currentDigest: string, decision: HaltDecision): string {
+  const current = (reviews ?? []).filter((r) => r.content_digest?.value === currentDigest).length;
+  return `reviews: ${current} current, ${decision.superseded.length} superseded, ${decision.stale.length} stale`;
+}
+
+/** The line `/analyze` quotes verbatim in its final report, instead of retelling what the reviewers said. */
+export function verdictLine(decision: HaltDecision): string {
+  return `verdict: ${decision.next} (${decision.reason})`;
 }
 
 /* ------------------------------------------------------------------ the halt decision */
@@ -164,11 +189,38 @@ export type HaltDecision = {
   state: "complete" | "needs_attention";
   reason: string;
   blocking: { kind: ReviewKind; reviewer: string; items: string[] }[];
-  /** Reviews recorded against some other digest: they reviewed different content. */
+  /**
+   * Kinds that have been reviewed and have no review bound to the current digest — their **newest** review
+   * reviewed other content, and `reviewer` names whoever wrote it. That kind has to be reviewed again; the
+   * review is never re-pinned to content it did not read.
+   */
   stale: { kind: ReviewKind; reviewer: string }[];
+  /**
+   * Reviews behind a later review of the same kind. History, not staleness: the kind's newest review is the
+   * one that counts, and a superseded entry is no reason to review anything again.
+   */
+  superseded: { kind: ReviewKind; reviewer: string }[];
   /** Required kinds with no review bound to the current digest. */
   missing_kinds: ReviewKind[];
 };
+
+/**
+ * The newest review of each kind: latest `date`, and for equal dates the one recorded later in the manifest.
+ *
+ * Only this entry decides whether a kind is reviewed at the current content digest. Everything behind it is
+ * superseded history. (The per-index `stale_review` warnings in `scripts/lib/validate-finding.mjs` still flag
+ * every non-current entry one by one; relabelling those is bead `ag-review-superseded-rsk`, and nothing here
+ * changes them.)
+ */
+export function newestByKind(reviews: ReviewEntry[]): Map<ReviewKind, ReviewEntry> {
+  const newest = new Map<ReviewKind, ReviewEntry>();
+  for (const r of reviews ?? []) {
+    if (!r || !REVIEW_KINDS.includes(r.kind)) continue;
+    const held = newest.get(r.kind);
+    if (!held || String(r.date ?? "") >= String(held.date ?? "")) newest.set(r.kind, r);
+  }
+  return newest;
+}
 
 /**
  * Whether `/analyze` continues or halts after `/analysis-review`, decided from recorded facts only.
@@ -183,13 +235,25 @@ export type HaltDecision = {
  * says so instead of asserting a validity nobody established.
  */
 export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: string; checkErrors?: Problem[] }): HaltDecision {
-  const current = (input.reviews ?? []).filter((r) => r.content_digest?.value === input.currentDigest);
-  const stale = (input.reviews ?? []).filter((r) => r.content_digest?.value !== input.currentDigest).map((r) => ({ kind: r.kind, reviewer: r.reviewer }));
+  const all = input.reviews ?? [];
+  const current = all.filter((r) => r.content_digest?.value === input.currentDigest);
+  // Staleness is judged per kind: a kind is stale when it has been reviewed and none of its reviews is bound
+  // to the current digest, and the review to redo is that kind's newest. Everything else a kind carries is
+  // superseded history, and re-reviewing on account of one is a wasted run.
+  const newest = newestByKind(all);
+  const reviewedNow = (k: ReviewKind) => current.some((r) => r.kind === k);
+  const stale = [...newest.entries()]
+    .filter(([kind]) => !reviewedNow(kind))
+    .map(([kind, r]) => ({ kind, reviewer: r.reviewer }));
+  const superseded = all
+    .filter((r) => r && REVIEW_KINDS.includes(r.kind) && r.content_digest?.value !== input.currentDigest
+      && (reviewedNow(r.kind) || newest.get(r.kind) !== r))
+    .map((r) => ({ kind: r.kind, reviewer: r.reviewer }));
   const blocking = current
     .filter((r) => (r.blocking ?? []).length)
     .map((r) => ({ kind: r.kind, reviewer: r.reviewer, items: r.blocking }));
   const missing_kinds = REQUIRED_REVIEW_KINDS.filter((k) => !current.some((r) => r.kind === k));
-  const base = { blocking, stale, missing_kinds };
+  const base = { blocking, stale, superseded, missing_kinds };
 
   const errors = input.checkErrors;
   if (errors?.length) {
@@ -200,7 +264,7 @@ export function decideHalt(input: { reviews: ReviewEntry[]; currentDigest: strin
     return { ...base, next: "halt", state: "needs_attention", reason: `${total} blocking finding(s) from ${blocking.map((b) => b.kind).join(", ")}` };
   }
   if (missing_kinds.length) {
-    return { ...base, next: "halt", state: "needs_attention", reason: `no current review of kind ${missing_kinds.join(", ")}${stale.length ? ` (${stale.length} review(s) bound to older content)` : ""}` };
+    return { ...base, next: "halt", state: "needs_attention", reason: `no current review of kind ${missing_kinds.join(", ")}${stale.length ? ` (${stale.length} kind(s) reviewed only at older content, which must be reviewed again rather than re-pinned)` : ""}` };
   }
   return {
     ...base,
@@ -217,6 +281,9 @@ export type ReviewStatusReport = Report & { decision: HaltDecision };
 /**
  * Read-only: what is recorded, what is stale, and whether `/analyze` continues. Writes nothing.
  *
+ * Exits non-zero (1, the code for "errors found") when any required kind's newest review is stale or missing,
+ * and prints the counts line first so the one fact a headless harness needs is the first note it reads.
+ *
  * It runs `checkArtifact` itself — the offline half of `aftergrid check`, which executes no SQL and reads no
  * publication source — because the decision it prints is a halt decision, and the first halt is a broken
  * execution. Without that the command could only see reviews, and would answer "continue, evidence-valid
@@ -226,7 +293,7 @@ export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string 
   const report = emptyReport("review") as ReviewStatusReport;
   report.readiness = "unknown";
   report.readiness_reasons.push("review status validates the artifact but reads no publication source; `aftergrid check` decides readiness and a human APPROVED review decides approval");
-  report.decision = { next: "halt", state: "needs_attention", reason: "nothing was read", blocking: [], stale: [], missing_kinds: [...REQUIRED_REVIEW_KINDS] };
+  report.decision = { next: "halt", state: "needs_attention", reason: "nothing was read", blocking: [], stale: [], superseded: [], missing_kinds: [...REQUIRED_REVIEW_KINDS] };
   const dir = resolve(opts.dir);
   const manifestPath = resolve(dir, "manifest.yaml");
   if (!existsSync(manifestPath)) {
@@ -273,9 +340,33 @@ export function reviewStatus(opts: { dir: string; checkImpl?: (o: { dir: string 
   }
 
   const reviews: ReviewEntry[] = Array.isArray(manifest?.reviews) ? manifest.reviews : [];
-  report.decision = decideHalt({ reviews, currentDigest, checkErrors });
-  for (const b of report.decision.blocking) report.warnings.push({ category: "needs_attention", location: `reviews/${b.kind}`, message: `${b.reviewer}: ${b.items.join(" | ")}` });
-  for (const s of report.decision.stale) report.warnings.push({ category: "stale_review", location: `reviews/${s.kind}`, message: `${s.reviewer} reviewed a different digest; redo this review or re-pin` });
-  report.info.push(`${reviews.length} review(s) recorded; ${report.decision.next} (${report.decision.reason})`);
+  const decision = decideHalt({ reviews, currentDigest, checkErrors });
+  report.decision = decision;
+  for (const b of decision.blocking) report.warnings.push({ category: "needs_attention", location: `reviews/${b.kind}`, message: `${b.reviewer}: ${b.items.join(" | ")}` });
+
+  // An edit after a review is an error, not a note. Before this, a headless run could read "halt" in a note,
+  // exit 0, and report the Finding as reviewed at the digest a reviewer had never seen (the gap Citi Bike runs
+  // 2 and 3 walked into, `examples/nyc-open-data/docs/run-log.md`). The exit code now carries it:
+  // `docs/contracts/analysis-directory.md` documents 1 for a stale or missing review of a required kind.
+  for (const s of decision.stale) {
+    report.errors.push({
+      category: "stale_review", location: `reviews/${s.kind}`,
+      message: `the newest ${s.kind} review (${s.reviewer}) is bound to other content, so this Finding is not reviewed at the digest it now carries`,
+      remedy: `run the ${s.kind} review again against the Finding as it is and record it; never re-pin a review to content it did not read`,
+    });
+  }
+  for (const kind of decision.missing_kinds.filter((k) => !decision.stale.some((s) => s.kind === k))) {
+    report.errors.push({
+      category: "incomplete", location: `reviews/${kind}`,
+      message: `no ${kind} review is recorded at the current content digest`,
+      remedy: `run /analysis-review and record the ${kind} review with \`aftergrid review record\``,
+    });
+  }
+  // A superseded review is history. It is reported as neither an error nor a warning: saying so is what stops
+  // the next Operator from ordering a re-review that `review record` would dedupe away and write nothing for.
+  for (const s of decision.superseded) {
+    report.info.push(`the ${s.kind} review by ${s.reviewer} is superseded by a later ${s.kind} review; it is history, not a reason to review again`);
+  }
+  report.info.unshift(countsLine(reviews, currentDigest, decision), verdictLine(decision));
   return report;
 }

@@ -62,6 +62,44 @@ manifest. `aftergrid review status <dir>` reprints them with the reviewer that r
 A `check` error goes into `reason` as its category and location, so the next person knows whether they are
 looking at a broken execution or at a disagreement about method.
 
+## The chain ends with `aftergrid review status`
+
+The last two commands of every run, in this order, are `aftergrid check <dir>` and then
+`aftergrid review status <dir>`. Nothing runs after them. Any edit after a review — a reworded sentence, a
+re-pinned definition, a chart swapped — changes the content digest and leaves every recorded review bound to
+content nobody read, so **an edit after a review sends the run back to `analysis_review` and both commands run
+again before it may report the Finding as reviewed.**
+
+`review status` answers in the exit code as well as in prose, so a headless run cannot miss it
+(`docs/contracts/analysis-directory.md`): **0** when every required kind's newest review is at the current
+digest and `check` found no error, **1** when a required kind's newest review is stale or missing. It prints
+two lines the run's final report quotes verbatim, rather than retelling them:
+
+```
+reviews: 3 current, 3 superseded, 0 stale
+verdict: continue (reviewed by agents with no blocking findings; …)
+```
+
+Two of those three counts are not problems, and telling them apart is the whole point:
+
+- **`stale`** — the kind's **newest** review is bound to other content. **Re-run that review**: invoke
+  `/analysis-review` for the kind and record the new one at the digest the Finding carries now. **Never
+  re-pin.** Editing a recorded review's `content_digest` to match the files makes a reviewer say they read
+  bytes they never saw; it is the review-side twin of loosening a falsifier after seeing its result.
+- **`superseded`** — the review is behind a later review of the same kind at the current digest. That is
+  **history, not staleness**, and it is not a reason to review anything again. The kind *is* reviewed; the
+  older entry is the record of the round before. `aftergrid review record` dedupes on (kind, reviewer,
+  digest), so a re-review ordered on account of a superseded entry writes nothing at all.
+- **`current`** — bound to the digest the Finding carries now. This is the count that decides whether the run
+  may say "reviewed".
+
+This is not hypothetical. `examples/nyc-open-data/docs/run-log.md`, Citi Bike run 2: the Finding carried three
+current reviews at the final digest and three superseded round-1 reviews at the earlier one. `review status`
+warned about the round-1 entries, the run's own summary said "three current reviews, no blocking findings" in
+its own words, and the Operator read the warnings as "all reviews stale" and spent run 3 ordering three
+re-reviews. Run 3 correctly discovered there was nothing to record and stopped. One quoted counts line would
+have cost nothing and saved that run.
+
 ## Halting with `permission_denied`
 
 The harness refused a write inside the Finding directory. This is not the Analysis saying anything: the run
@@ -116,6 +154,10 @@ mechanism exists to prevent.
 
 The Operator still has a decision to make — accept the inconclusive Finding, or open a revision with a newly
 pre-registered Question — but they make it about a written Finding they can read, not about a halted directory.
+
+**A review superseded by a later one of the same kind at the current digest.** The kind is reviewed. The
+older entry is history, `review status` counts it as `superseded` rather than `stale`, and the run neither
+halts nor re-reviews on account of one.
 
 **A missing or unconfigured adapter.** The recorded data path is the default (ADR 0010,
 `docs/contracts/record.md`): the harness runs the SQL and `aftergrid record` writes down what it ran. There is

@@ -288,6 +288,52 @@ test("the /analyze halt conditions do not name a missing adapter", () => {
   assert.match(halting, /## What is not a halt/, "the halting reference carries the same non-halt");
 });
 
+// ag-analyze-review-last-oko. Citi Bike runs 2 and 3 (`examples/nyc-open-data/docs/run-log.md`): a headless
+// run reported "three current reviews, no blocking findings" in its own words while the tree carried
+// superseded round-1 reviews, the Operator read those warnings as "all reviews stale", and a whole run went on
+// re-reviews that `review record` would have deduped away. The three sentences below are what the skill has to
+// keep saying, and the CLI has to keep implementing.
+test("the /analyze chain ends with review status, quotes its verdict line, and separates stale from superseded", () => {
+  const skill = readFileSync(join(REPO, "skills", "analyze", "SKILL.md"), "utf8");
+  const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+
+  // `assert.ok` rather than `assert.match`: these pages are thousands of characters, and a failure that dumps
+  // all three of them buries the one sentence that went missing.
+  const says = (name: string, text: string, pattern: RegExp, what: string) =>
+    assert.ok(pattern.test(text), `${name} must ${what} (no match for ${pattern})`);
+
+  for (const [name, text] of [["SKILL.md", skill], ["halting.md", halting], ["docs/skills/analyze.md", doc]] as const) {
+    // 1. The order of the last two commands, and that nothing follows them.
+    says(name, text, /last two commands of every run[\s\S]{0,240}`aftergrid check[\s\S]{0,160}`aftergrid review status/,
+      "name the last two commands of every run, in order");
+    // 2. An edit after a review re-reviews before the run may report the Finding reviewed.
+    says(name, text, /\/?analysis[-_]review/, "say where an edit after a review sends the run");
+    says(name, text, /edit(?:ed)?\s+(?:made\s+)?after\s+(?:a|the)\s+review/i, "name the edit-after-review case in those words");
+    // 3. A stale newest review means re-run that review, never re-pin it.
+    says(name, text, /never\s+re-?pin/i, "forbid re-pinning a review");
+    // 4. A superseded review is history, not a reason to re-review.
+    says(name, text, /superseded/, "use the word superseded for a replaced review");
+    says(name, text, /history,?\s+(?:and\s+)?not/i, "call a superseded review history rather than staleness");
+    // 5. The counts line and the verdict line, as the command prints them.
+    says(name, text, /reviews: 3 current, 3 superseded, 0 stale/, "show the counts line as the command prints it");
+    says(name, text, /verdict: continue/, "show the verdict line as the command prints it");
+  }
+  says("SKILL.md", skill, /verbatim/, "say the final report quotes the verdict line verbatim");
+  says("SKILL.md", skill, /not\*{0,2}\s+summarise/i, "say the run does not retell it in its own words");
+  says("docs/skills/analyze.md", doc, /verbatim/, "answer it the same way");
+
+  // The rule is not only prose: the command it describes exits non-zero, and the contract documents the code.
+  const command = readFileSync(join(REPO, "src", "commands", "review.ts"), "utf8");
+  says("src/commands/review.ts", command, /category: "stale_review", location: `reviews\/\$\{s\.kind\}`/,
+    "report a stale newest review as an error, not as a note");
+  says("src/commands/review.ts", command,
+    /reviews: \$\{current\} current, \$\{decision\.superseded\.length\} superseded, \$\{decision\.stale\.length\} stale/,
+    "build the counts line the skills quote");
+  const contract = readFileSync(join(REPO, "docs", "contracts", "analysis-directory.md"), "utf8");
+  says("docs/contracts/analysis-directory.md", contract, /\|\s*1\s*\|[^|]*stale_review/, "carry the exit-code row");
+});
+
 test("every `aftergrid record` line in the skills and their docs uses flags the CLI parses", () => {
   // The flags the shipped command really takes, read from the `record` branch of the CLI's own parseArgs.
   const cli = readFileSync(join(REPO, "src", "cli.ts"), "utf8");

@@ -265,6 +265,8 @@ missing input with a `needs_input` one; it never presents a halted run as done.
 | `aftergrid record <dir> --execution <id> --result <file> --tool "<name>"` | Runs nothing: writes down one query the harness ran | `queries/*.sql`, `results/*.json`, the evidence hashes, `executed_by`, `mode: recorded`, `snapshot.guarantees: [artifact_replay]`, the content digest |
 | `aftergrid record <dir> --check <id> --outcome <o> --tool "<name>"` | Runs nothing: writes down one agent-reported Check outcome | `checks/evidence/*`, `checks[].outcome` and `reported_by`, the content digest |
 | `aftergrid check <dir> [--mode rerun]` | Reports syntax, content, evidence, execution and readiness as separate facts | nothing |
+| `aftergrid review record <dir> --kind <k> --reviewer "<who>"` | Appends one agent review, bound to the digest the files hash to now | `reviews[]` |
+| `aftergrid review status <dir>` | Runs the artifact check, then reports the review standing and the halt decision. **Exits non-zero when a required kind's newest review is stale or missing** | nothing |
 
 `execute` records evidence and never judges readiness. Publication readiness is `check`'s answer, and it needs a
 human review (`docs/contracts/publication.md`).
@@ -273,6 +275,36 @@ human review (`docs/contracts/publication.md`).
 execution is run by an adapter against retained inputs, or run by the harness and recorded, and the manifest says
 which. `check --mode rerun` refuses a recorded Finding with `rerun_unavailable`. Full contract:
 `docs/contracts/record.md`.
+
+### `review status` is the last word on the reviews, and it says so in the exit code
+
+A review binds to a content digest, so an edit after a review leaves the review describing content nobody
+read. `review status` judges that **per kind, on the newest review of that kind**, and reports three separate
+counts on one line so a headless harness reads one string instead of counting entries:
+
+```
+reviews: 3 current, 3 superseded, 0 stale
+verdict: continue (reviewed by agents with no blocking findings; …)
+```
+
+- **current** — bound to the digest the Finding carries now.
+- **superseded** — behind a later review of the same kind. History. Not a reason to review anything again: a
+  re-review would be deduped on (kind, reviewer, digest) and write nothing. (Citi Bike run 2 recorded three
+  current reviews over three round-1 ones; the Operator read the round-1 warnings as "all reviews stale" and
+  spent run 3 discovering that nothing could be recorded — `examples/nyc-open-data/docs/run-log.md`.)
+- **stale** — the kind has been reviewed and **none** of its reviews is bound to the current digest, so its
+  **newest** review read other content and is the one named. That kind is reviewed again. A review is never
+  re-pinned to content it did not read.
+
+| Exit | What `aftergrid review status` established |
+| --- | --- |
+| 0 | every required kind (`method`, `question`, `reader`) has its newest review at the current digest, and the artifact check found no error |
+| 1 | errors found: a required kind's newest review is stale (`stale_review`) or missing (`incomplete`), or the artifact check reported an error |
+| 2 | usage — no Finding directory given |
+
+The per-index `stale_review` warnings that `aftergrid check` prints from
+`scripts/lib/validate-finding.mjs` are unchanged: they still name every non-current entry one by one, and
+relabelling them is bead `ag-review-superseded-rsk`. The verdict is `review status`'s counts line.
 
 ## What this contract does not establish
 
