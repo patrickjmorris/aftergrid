@@ -39,6 +39,12 @@ Work through each of these against every Claim in `manifest.yaml` and its subsec
   on a join that could duplicate rows, with no invariant on that grain, is blocking.
 - **Diagnostic calculations labelled.** A number from a `diagnostic` definition, or from no definition, is not
   presented as an approved metric.
+- **Counter-metrics honestly reported.** Where the decision metric's definition names counter-metrics, each
+  reported value is the counter-metric's own calculation over the Question's population and window — and each
+  `not_computed` reason is a real obstacle, not the run having stopped early. `check` establishes that an entry
+  exists and that its window matches; only you can judge whether the reason is true, and whether a
+  counter-metric that moved the wrong way is treated as a result or quietly left out of the Answer. A bad
+  counter-metric buried where the Answer does not mention it is blocking.
 - **Small numbers and noise.** A difference the data cannot distinguish from noise is not written as a
   difference. Where `minimum_data` failed, the Finding says so rather than reporting the number anyway.
 

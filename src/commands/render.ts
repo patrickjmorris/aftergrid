@@ -40,7 +40,18 @@ export async function render(opts: RenderOptions): Promise<Report> {
     const font = resolveFont(instance);
     const results = loadResults(dir, manifest);
     const memo = readFileSync(safePath(dir, "memo.md"), "utf8");
-    const { html, svgs } = await renderHtml({ dir, manifest, results, memo, readiness: report.readiness, readinessReasons: report.readiness_reasons, content: report.content, readerLabel, generatedAt: opts.generatedAt, font });
+    // Why each counter-metric was named lives in the PRIMARY definition's front matter, not in the manifest
+    // (docs/contracts/instance-layout.md): the sentence belongs to the metric's meaning, so a Finding restating
+    // it could restate it differently. Read here, once, from the Instance; the renderer opens no Instance file.
+    const counterWhy: Record<string, string> = {};
+    if (instance) for (const d of manifest.definitions ?? []) {
+      if (d.role !== "decision_metric") continue;
+      try {
+        const front = parseYaml(/^---\n([\s\S]*?)\n---/.exec(readFileSync(safePath(instance.root, d.path), "utf8"))![1]!);
+        for (const c of front?.counter_metrics ?? []) if (c?.id && typeof c.why === "string") counterWhy[c.id] = c.why;
+      } catch { /* the shared validator already refused an unreadable definition file above */ }
+    }
+    const { html, svgs } = await renderHtml({ dir, manifest, results, memo, readiness: report.readiness, readinessReasons: report.readiness_reasons, content: report.content, readerLabel, generatedAt: opts.generatedAt, font, counterWhy });
     const marker = manifest.export_policy.private_marker;
     const outputs: [string, Buffer][] = [["render/finding.html", Buffer.from(html, "utf8")], ...Object.entries(svgs).map(([id, svg]) => [`render/${id}.svg`, Buffer.from(svg, "utf8")] as [string, Buffer])];
     if (opts.png) for (const [id, svg] of Object.entries(svgs)) {

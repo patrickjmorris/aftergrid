@@ -112,12 +112,24 @@ async function verifyPublication(opts: CheckOptions, report: Report) {
     if (report.readiness === "ready") report.readiness = "unknown";
     report.readiness_reasons.push("Check outcomes on this Finding were reported by the harness, not executed by aftergrid; a review can approve what it read, and the Engine cannot report those outcomes as verified");
   }
+  // Re-stated here because `assessment.reasons` REPLACES the offline list: an unreported counter-metric is named
+  // as its own reason, not left inside the error count, because its remedy is an analysis to run rather than a
+  // field to correct (docs/contracts/finding-manifest.md).
+  report.readiness_reasons.push(...counterMetricReasons(report));
   // Evidence errors force not_ready with no exception, including for `unknown`: a Finding whose retained inputs or
   // approved definitions no longer hash to its manifest is definitely wrong, not merely unanswerable.
   if (report.errors.length) {
     report.readiness = "not_ready";
     report.readiness_reasons.push(`the evidence is invalid (${report.errors.length} error${report.errors.length === 1 ? "" : "s"}), which forces not_ready whatever the GitHub review says`);
   }
+}
+
+/** One readiness reason per run when a published decision metric's counter-metrics went unreported. */
+function counterMetricReasons(report: Report): string[] {
+  const unreported = report.errors.filter((e) => e.category === "counter_metric_missing");
+  return unreported.length
+    ? [`${unreported.length} counter-metric(s) named by this Finding's published decision metric are not reported; publication is refused until each is reported over the Question's window or explicitly recorded as not computed, with the reason`]
+    : [];
 }
 
 export type RetainedOpener = (baseDir: string, inputs: any[], limits?: any) => Promise<RetainedSession>;
@@ -284,6 +296,7 @@ export function checkArtifact(opts: CheckOptions): Report {
   report.readiness = (out.readiness as Report["readiness"]) ?? "not_ready";
   report.readiness_reasons.push(...((out.reasons as string[]) ?? []));
   if (manifest && manifest.finding.state !== "complete" && !report.readiness_reasons.includes("not complete")) report.readiness_reasons.unshift("not complete");
+  report.readiness_reasons.push(...counterMetricReasons(report));
   if (report.errors.length) report.readiness = "not_ready";
   return report;
 }

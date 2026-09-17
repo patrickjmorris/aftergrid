@@ -112,6 +112,35 @@ function editChart(m: any, files: Files, id: string, fn: (spec: any) => any): vo
 
 const editMemo = (files: Files, fn: (memo: string) => string): void => void files.set("memo.md", fn(files.get("memo.md")!));
 
+/** One definition file's front matter, read from the source Instance. */
+function definitionFront(name: string): any {
+  const text = readFileSync(join(SOURCE_INSTANCE, "definitions", name), "utf8");
+  return parseYaml(/^---\n([\s\S]*?)\n---/.exec(text)![1]!);
+}
+
+/**
+ * Publish `habit_creation_rate` v2 as the Finding's decision metric and demote `retained_7d` to supporting.
+ * The definition file is the Instance's own, approval included: a Finding may only restate an approval, so the
+ * restatement is copied from the file rather than written here, and `pinHashes` re-pins the content hash.
+ * That definition names `retained_7d` as its counter-metric, which is what these cases are about.
+ */
+function publishHabitCreationRate(m: any): void {
+  const front = definitionFront("habit_creation_rate.md");
+  m.definitions[0].role = "supporting";
+  m.definitions.push({
+    id: front.id, version: front.version, kind: front.kind, lifecycle: front.lifecycle,
+    path: "definitions/habit_creation_rate.md", content_hash: { algorithm: "sha256", value: "0".repeat(64) },
+    role: "decision_metric", approval: clone(front.approval),
+  });
+}
+
+/** Replace the memo's definition line with one that names the decision metric, plus whatever it reports. */
+const counterMemo = (reportedLine: string) => (memo: string): string =>
+  replaceOnce(memo, "- Definition used: retained_7d v2.",
+    "- Decision metric: habit_creation_rate v2, approved. Its definition names a counter-metric: a forced habit step in onboarding lifts that rate with habits nobody comes back for.\n" +
+    reportedLine +
+    "- Definition used: retained_7d v2.");
+
 // ---------------------------------------------------------------- bases
 
 const STUB_INPUT_DESCRIPTION =
@@ -574,6 +603,80 @@ export const CASES: NegativeCase[] = [
       m.definitions[0].approval.source.review_id = 9999999;
     },
   },
+  // ------------------------------------------------------- counter-metrics (ag-counter-metric-fv0)
+  //
+  // `habit_creation_rate` v2 is the Instance's approved definition that names a counter-metric: "a forced habit
+  // step in onboarding lifts this rate with habits nobody comes back for", and what would fall is `retained_7d`
+  // (fixtures/instance/analytics/definitions/habit_creation_rate.md). These three cases publish it as the
+  // decision metric of the onboarding exemplar — a Finding whose Question is onboarding and whose retained_7d
+  // values already cover the Question's window, so the counter-metric it must report is one it already has.
+  {
+    name: "counter-metric-reported",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "pass",
+    category: "none",
+    location_pattern: "",
+    defect: "None. The decision metric names a counter-metric and the Finding reports it, traced, over the Question's own window.",
+    description:
+      "The positive control for counter_metric_missing. The reported value resolves through the same strict resolver render uses, its window equals question.window field for field, and the execution behind it pins the counter-metric's definition — which is what ties the number to that definition's population and denominator rather than to a nearby column.",
+    render: {
+      must_contain: [
+        "<strong>Counter-metric</strong> retained_7d:",
+        "habits nobody comes back for",
+        "over 2026-06-01 to 2026-07-12 (America/New_York)",
+      ],
+    },
+    mutate: (m, files) => {
+      publishHabitCreationRate(m);
+      m.counter_metrics_reported = [{
+        id: "retained_7d", version: 2,
+        window: { start: m.question.window.start, end: m.question.window.end, timezone: m.question.window.timezone },
+        ref: "ref:retention_by_arm.checklist.retained_7d_rate",
+      }];
+      editMemo(files, counterMemo("- Counter-metric named by that definition: {{literal:7-day}} retention, {{ref:retention_by_arm.checklist.retained_7d_rate}} in the checklist arm. Pushing habit creation with a forced onboarding step would create habits nobody comes back for; it did not here.\n"));
+    },
+  },
+  {
+    name: "counter-metric-missing",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "error",
+    category: "counter_metric_missing",
+    location_pattern: "^manifest\\.yaml#/definitions/1$",
+    defect: "A complete Finding publishes a decision metric whose definition names a counter-metric, and reports no value for it and no reason it could not be computed.",
+    description:
+      "The Goodhart gap with a Check in front of it. An approved definition that says out loud what pushing it would damage is worth nothing if the Finding that publishes it can leave that out, so the publication path refuses it: report the counter-metric over the same population and window, or record explicitly that it could not be computed, and why.",
+    mutate: (m, files) => {
+      publishHabitCreationRate(m);
+      editMemo(files, counterMemo(""));
+    },
+  },
+  {
+    name: "counter-metric-not-computed",
+    base: "numeric",
+    layer: "engine_category",
+    expect: "pass",
+    category: "none",
+    location_pattern: "",
+    defect: "None. The counter-metric could not be computed, and the Finding says so and says why.",
+    description:
+      "The second positive control. A stated reason is a fact a method reviewer reads and can reject; what the Engine refuses is silence. No Check can tell an honest reason from a lazy one, which is exactly why the reason is a sentence in the manifest rather than a boolean.",
+    render: {
+      must_contain: [
+        "<strong>Counter-metric</strong> retained_7d — not computed:",
+        "this extract stops at the experiment window",
+      ],
+    },
+    mutate: (m, files) => {
+      publishHabitCreationRate(m);
+      m.counter_metrics_reported = [{
+        id: "retained_7d", version: 2,
+        not_computed: "The retained_7d window runs seven days past the last signup, and this extract stops at the experiment window, so the counter-metric cannot be computed over the same cohort here.",
+      }];
+      editMemo(files, counterMemo("- Counter-metric named by that definition: {{literal:7-day}} retention — not computed. This extract stops at the experiment window, so it cannot be measured over the same cohort.\n"));
+    },
+  },
   {
     name: "private-marker-in-memo",
     base: "numeric",
@@ -858,7 +961,7 @@ owner:
   contact: dana@loop.example
 `;
 
-const DEFINITION_FILES = ["retained_7d.md", "weekly_cancellation_rate.md"];
+const DEFINITION_FILES = ["habit_creation_rate.md", "retained_7d.md", "weekly_cancellation_rate.md"];
 
 function writeFile(root: string, rel: string, text: string, written: string[]): void {
   const path = join(root, rel);

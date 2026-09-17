@@ -29,6 +29,8 @@ node scripts/fixture-tool.mjs validate fixtures/instance/analytics/findings/<dir
 
 `definitions/retained_7d.md` carries an approval block in the shape a real one has, pointing at a fictional repository and review id. It exists so the schema branch has an example. `aftergrid check` will report its verification as unavailable, and nothing in this directory may be read as a human having approved anything.
 
+`definitions/habit_creation_rate.md` is the example of a definition that names a **counter-metric** (`docs/contracts/instance-layout.md`): pushing habit creation with a forced onboarding step would create habits nobody comes back for, so it names `retained_7d` as what would fall. That sentence is front matter, so adding it changed the definition's content hash — which is why the file is version 2 with an approval of its own, and why version 1's approval is not carried over. The Finding side of the rule is exercised by three generated negatives: `counter-metric-reported`, `counter-metric-missing` and `counter-metric-not-computed`.
+
 ## Regression checks and execution boundaries
 
 Run `npm test` for the fixture-tool regression suite and `npm run validate:fixtures` for every checked-in Finding. Tests use disposable copies, including paths with spaces and apostrophes; they do not rewrite the checked-in evidence.

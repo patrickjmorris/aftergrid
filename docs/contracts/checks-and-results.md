@@ -20,6 +20,26 @@ Conventions the manifest schema cannot express. `aftergrid check` and the DuckDB
 - **Agent-reported outcomes.** On the recorded data path (`docs/contracts/record.md`, ADR 0010) the harness runs the Check and `aftergrid record` writes down what it said. Such an entry carries `checks[].reported_by` (`kind: harness`, the tool, and the artifact the report rests on). An agent-reported outcome is somebody's word, not a mechanical result: `check` verifies the one thing a saved artifact can establish — that the named evidence file is present and still hashes to what was pinned — and reports `checks_reported_by_agent: true` as its own fact. It can lower publication readiness (to `unknown` at most) and never raise it. `pass` is the one outcome that asserts something held, so it may only be recorded with an evidence file; a `pass` with none is `unevidenced_outcome`, from `record` and from `check` alike. `fail`, `not_run` and `error` may carry evidence and are not required to.
 - Build (and any future `check --pin`) rewrites hashes, results and outcomes only. It never creates, rebinds or refreshes an approval, a review or an attestation; those become stale and are reported as stale. "Stale" is judged per review kind: a review behind a later review of the same kind is superseded history, reported as `review_superseded` info, and only a kind's newest review can be `stale_review` (`docs/contracts/analysis-directory.md`).
 
+## The counter-metric rule is a Check in the publication path, not a Check file
+
+`counter_metric_missing` is not a `checks/<id>.sql` and never will be: it reads the manifest and the Instance's
+definition files, and there is no SQL that could ask whether an Operator wrote down what pushing a metric would
+damage. It sits beside `definition_not_approved` in `scripts/lib/validate-finding.mjs` — the same place, the same
+axis, and the same severity rule.
+
+- A `role: decision_metric` definition whose own front matter lists `counter_metrics`
+  (`docs/contracts/instance-layout.md`) obliges the Finding to report each one: a Claim or table value traced to a
+  result over the Question's window, or an explicit stated reason it could not be computed. The manifest block and
+  the exact checks are in `docs/contracts/finding-manifest.md`, "Counter-metrics the decision metric names".
+- It is an **error** when `finding.state` is `complete` and a **warning** while the Finding is a draft, because it
+  is a completeness defect of a published decision metric and a draft has not published anything yet.
+- It is not an evidence-validity condition for a `role: supporting` definition, and it says nothing about whether
+  the counter-metric's own number is good or bad. A counter-metric that moved the wrong way is a **result**, written
+  up in the memo and judged by the Reader and the decision owner; the Engine's business is only that it is there,
+  traced, over the same population and window, or explicitly absent with a reason.
+- Nothing here can tell an honest `not_computed` reason from a lazy one. That is the method review's job, and it is
+  the reason the reason is a sentence in the manifest rather than a boolean.
+
 ## Retained inputs
 
 There may be none. On the recorded path nothing is captured, and a result file arrives from the Operator's tool as `.json` or `.csv` and is rewritten into the canonical format below before anything is pinned (`docs/contracts/record.md`). Everything under this heading is the adapter route.
@@ -108,6 +128,9 @@ live in the Golden Questions (`fixtures/instance/analytics/golden/`).
 | `missing-memo-section` | engine_category | `template` |
 | `claim-without-recheck` | engine_category | `schema` |
 | `decision-metric-not-approved` | engine_category | `definition_not_approved` |
+| `counter-metric-reported` | engine_category | no error: the decision metric lists a counter-metric and the Finding reports it as a value traced over the Question's window |
+| `counter-metric-missing` | engine_category | `counter_metric_missing` |
+| `counter-metric-not-computed` | engine_category | no error: the counter-metric is reported as `not_computed` with a stated reason |
 | `decision-metric-approval-forged` | engine_category | `untrusted_attestation` (plus `definition_not_approved`): the manifest states an approval the definition file does not record |
 | `private-marker-in-memo` | engine_category | `export_policy` at `memo.md:<line>:<col>`; `render` is refused |
 | `definition-version-not-pinned` | engine_category | `definition_version` |

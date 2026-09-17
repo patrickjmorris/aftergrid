@@ -45,6 +45,7 @@ external_sources[] --ext-->  claims[].evidence / derived[].operands
 derived[]          --operands-->  results / ext / other derived (acyclic; a named pair on difference/ratio/percent_change)
 claims[]           --chart_ids/table_ids-->  charts[] / tables[]  --result_id-->  results[]
 checks[]           --path+hash-->  checks/*.sql ; question.falsifier.check_id --> checks[]
+counter_metrics_reported[] --id+version--> definitions[]  --ref--> results / derived / external_sources
 ```
 
 `check` walks this graph. Every data-bearing displayed value must end at a `results[]` cell, a `derived[]` value or an `external_sources[]` entry. A `derived[]` entry whose value has a direction — `difference`, `ratio`, `percent_change` — names its operand pair — `{ after, baseline }` for a before-and-after comparison, `{ minuend, subtrahend }` or `{ numerator, denominator }` when it is not one — because the sign is otherwise an operand order nothing can check (`docs/contracts/reference-grammar.md`, "Operand direction"). A `claims[].numeric: true` Claim needs at least one evidence reference and at least one chart or table.
@@ -62,6 +63,52 @@ Two routes produce evidence, and the manifest says which one produced each execu
 Each Claim declares: `type` (descriptive, associational, causal), one `sentence`, `population` (who is counted), `comparison` (compared with what, and whether it was pre-registered), `window`, `exclusions`, `limitations`, and a `recheck` policy. Associational and causal Claims cannot have `comparison.kind: none`. The Claim(s) marked `answer_bearing` carry a `material_caveat`, which the memo and render place next to the Answer.
 
 A Claim with `numeric: false` is representable: `evidence` may be empty and no chart or table is needed. This is how an insufficient-data Finding states what is missing without inventing a number.
+
+## Counter-metrics the decision metric names
+
+A Metric definition may name counter-metrics: what pushing it hard would damage (`docs/contracts/instance-layout.md`, "Counter-metrics"). When such a definition is this Finding's **published decision metric** — an entry in `definitions[]` whose `role` is `decision_metric` — the Finding reports every counter-metric the definition lists, or says why it could not. A decision metric published with its counter-metrics unreported is the Goodhart failure with a Check in front of it, so it is a publication-path error, not a note.
+
+```yaml
+counter_metrics_reported:
+  - id: deep_return_rate_7d
+    version: 1
+    window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
+    ref: ref:deep_return_by_arm.checklist.deep_return_rate_7d
+  - id: support_contacts_per_user
+    version: 1
+    not_computed: The support tool is not in the warehouse, so this cannot be computed over the experiment window.
+```
+
+- `counter_metrics_reported` is optional at the top level and omitted when empty, so no manifest written before this existed has changed shape or digest.
+- `id` and `version` name a definition **pinned in `definitions[]`** at the same id and version. That is what binds the counter-metric's content hash: a reported counter-metric whose definition the Finding does not pin is a name, not a metric.
+- Exactly one of `ref` and `not_computed` (enforced by the schema).
+- With `ref`: a `value_ref` in the grammar of `docs/contracts/reference-grammar.md`, resolved through the same strict resolver `render` uses (`resolveValueStrict`), so it is traced, its result's hash is checked, and it is inside `export_policy.allowed_fields` — a counter-metric a Reader cannot be shown is not reported.
+- With `not_computed`: one sentence, the stated reason. `window` is then absent: nothing was computed, so there is no window to declare. The reason is a fact a reviewer reads, never a way past the rule — "we did not get to it" is a reason the method review rejects, and no Check can tell that from a good one.
+
+### How "the same population and window" is checked
+
+Mechanically, and only in the ways a manifest can be checked:
+
+1. **Window.** An entry with a `ref` carries `window`, and its `start`, `end` and `timezone` must equal `question.window` field for field. A counter-metric measured over a different period is a different fact and is reported as one: change the Question's window, or state what this window is in a Claim of its own.
+2. **Population and denominator.** These are the counter-metric definition's own, so they are checked by binding the number to that definition rather than by comparing prose: the result the `ref` resolves into must be produced by an `executions[]` entry whose `definition_refs` include `{ id, version }` of the counter-metric. The definition's SQL fixes the grain, the population and the denominator; the execution's parameters fix the window it ran over; the declared `window` above states that window in the manifest so the two can be compared without reading SQL. A number that merely sits in a nearby result set does not qualify.
+3. **Not the coverage window.** `coverage.data_from` / `coverage.data_to` describe what data the Finding holds, which is normally wider than the Question's window (the onboarding exemplar covers signups to 2026-07-12 and their opens to 2026-07-19). The comparison is against `question.window`, which is what the decision metric itself was measured over.
+
+### `counter_metric_missing`
+
+Category `counter_metric_missing` (`src/report.ts`, additive), reported at `manifest.yaml#/definitions/<i>` for the decision metric, or at `manifest.yaml#/counter_metrics_reported/<i>` for a bad entry. It is raised when, for a `role: decision_metric` definition whose file lists `counter_metrics`:
+
+| Situation | Reported |
+| --- | --- |
+| a listed counter-metric has no `counter_metrics_reported` entry | `counter_metric_missing` at the definition |
+| a reported entry names a version the definition pinned differently | `counter_metric_missing` at the entry |
+| a reported entry's id or version is not in `definitions[]` | `counter_metric_missing` at the entry |
+| an entry with `ref` whose `window` differs from `question.window` | `counter_metric_missing` at the entry |
+| an entry with `ref` whose result comes from no execution pinning that definition | `counter_metric_missing` at the entry |
+| an entry with `ref` that does not resolve, or is outside `allowed_fields` | the resolver's own category (`unresolved_reference`, `export_policy`, …) at the entry |
+| a listed counter-metric that `definitions/<id>.md` does not exist for | `counter_metric_missing` at the definition |
+| an entry naming a counter-metric no decision metric lists | a `counter_metric_missing` **warning** at the entry: the report is honest but unasked-for, and removing it is the author's call |
+
+**Severity follows `finding.state`, on the same axis as `definition_not_approved`.** A missing counter-metric is a content-completeness defect of a *published* decision metric, so it is an **error** when `finding.state` is `complete` (evidence `invalid`, readiness `not_ready`), and a **warning** while the Finding is `draft` or `needs_input` — a draft has not claimed to be finished, and the missing counter-metric is exactly the kind of thing a draft is still gathering. A warning names the same remedy the error does, plus that the draft cannot complete until it is reported. A counter-metric is never an evidence-validity condition for a `role: supporting` definition: the rule is about what a Finding publishes as its decision metric.
 
 ## Recheck policy (v0 schema only)
 
@@ -86,7 +133,7 @@ Consequences: editing one Claim's `type` or an exclusion changes the digest and 
 
 ## What JSON Schema enforces and what `check` enforces
 
-JSON Schema (`schema/finding-manifest.schema.json`) enforces field shapes, enums, the conditional branches (state ↔ outcome, question state ↔ falsifier kind, answered ↔ resolved Question, not-answerable ↔ needs-reframing, numeric Claim ↔ chart or table, answer-bearing ↔ material caveat, associational/causal ↔ a comparison). Everything cross-referential is `check`'s job: id uniqueness within each list, every reference resolving, exact result ↔ execution identities and hashes, result cell types, row-key uniqueness, export allowlisting for chart data and for every prose and derived reference, Check files returning exactly one boolean-or-null row, definition version pinning and approval binding, the digest, and attestation currency. The fixture validator in `scripts/fixture-tool.mjs` implements a subset of this list and says so; the full list is the contract for `aftergrid check`.
+JSON Schema (`schema/finding-manifest.schema.json`) enforces field shapes, enums, the conditional branches (state ↔ outcome, question state ↔ falsifier kind, answered ↔ resolved Question, not-answerable ↔ needs-reframing, numeric Claim ↔ chart or table, answer-bearing ↔ material caveat, associational/causal ↔ a comparison). It also enforces that a `counter_metrics_reported` entry carries exactly one of `ref` and `not_computed`, and a `window` only with `ref`. Everything cross-referential is `check`'s job: id uniqueness within each list, every reference resolving, whether each counter-metric the decision metric's file lists is reported over the Question's window, exact result ↔ execution identities and hashes, result cell types, row-key uniqueness, export allowlisting for chart data and for every prose and derived reference, Check files returning exactly one boolean-or-null row, definition version pinning and approval binding, the digest, and attestation currency. The fixture validator in `scripts/fixture-tool.mjs` implements a subset of this list and says so; the full list is the contract for `aftergrid check`.
 
 ## Attestations and trust
 

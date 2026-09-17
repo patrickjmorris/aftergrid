@@ -241,3 +241,29 @@ export function validateResult(data, res) {
 
 export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const sqlString = value => "'" + String(value).replaceAll("'", "''") + "'";
+
+// ---------------------------------------------------------------- counter-metrics (definition front matter)
+//
+// The one shape check for a definition's `counter_metrics` list (docs/contracts/instance-layout.md). Lives here
+// because both sides need it and neither can import the other: `src/analysis/definitions.ts` writes the list and
+// `scripts/lib/validate-finding.mjs` reads it back out of the Instance. Returns plain sentences; the caller
+// decides the category and the location.
+export function counterMetricProblems(entries, selfId) {
+  if (entries === undefined) return [];
+  if (!Array.isArray(entries) || entries.length === 0) return ["counter_metrics must be a non-empty list, or absent; it is never written as an empty list"];
+  const out = [];
+  const seen = new Set();
+  entries.forEach((e, i) => {
+    const at = `counter_metrics[${i}]`;
+    if (!e || typeof e !== "object" || Array.isArray(e)) { out.push(`${at} must be an object { id, version?, why }`); return; }
+    const { id, version, why } = e;
+    for (const key of Object.keys(e)) if (!["id", "version", "why"].includes(key)) out.push(`${at} has an unknown key '${key}'`);
+    if (typeof id !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(id)) out.push(`${at}.id is not a definition id (^[a-z][a-z0-9_]{0,63}$)`);
+    else if (id === selfId) out.push(`${at}.id names this definition; a counter-metric is another definition`);
+    else if (seen.has(id)) out.push(`${at}.id '${id}' is listed twice`);
+    else seen.add(id);
+    if (version !== undefined && (typeof version !== "number" || !Number.isInteger(version) || version < 1)) out.push(`${at}.version must be a whole number of 1 or more, or absent to mean the current version`);
+    if (typeof why !== "string" || !why.trim()) out.push(`${at}.why must be one sentence saying what gaming the primary metric would do to this one`);
+  });
+  return out;
+}

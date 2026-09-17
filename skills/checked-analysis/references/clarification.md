@@ -83,9 +83,53 @@ When no approved definition fits, write a proposal to `<instance>/definitions/<i
   the file's content hash; a front-matter field is display only.
 - `kind: metric` for something a decision could rest on, `kind: diagnostic` for a calculation used inside the
   Analysis. Kind and lifecycle are separate axes.
-- Front matter: id, version, kind, lifecycle, grain, population, denominator, window, owner. Body: the plain
-  meaning, then canonical SQL per dialect under `## SQL (<dialect>)`.
+- Front matter: id, version, kind, lifecycle, grain, population, denominator, window, owner, and — for a
+  `kind: metric` a decision could rest on — `counter_metrics`. See below.
+- Body: the plain meaning, then canonical SQL per dialect under `## SQL (<dialect>)`.
 - Reference implementation of the exact bytes: `proposeDefinition` in `src/analysis/definitions.ts`.
+
+### Ask the counter-metric question
+
+Whenever you propose a `kind: metric` definition that could be a **decision metric**, ask it, in the same round as
+the metric itself:
+
+> **What would get worse if this metric were pushed hard?**
+
+Not "is there a risk" — what mechanism, and which metric would carry it. A metric that becomes a target stops
+measuring the thing it stood for, and nothing in the Engine can notice that. What it can do is make the answer
+part of the definition and then insist a Finding report it.
+
+Write the answer into the proposal:
+
+```yaml
+counter_metrics:
+  - id: <another definition in this Instance>
+    version: 2        # optional: omit to mean whichever version the Instance currently carries
+    why: One sentence, the mechanism — what gaming the primary metric would do to this one.
+```
+
+- The id must be **another definition in the same Instance**. When the counter-metric has no definition yet,
+  propose it too (`lifecycle: proposed` is fine — a counter-metric is not the published decision metric, so it
+  never needs approval).
+- `why` names the mechanism. "Support load could rise" is not an answer; "holding cancellations down by making
+  cancelling hard pushes the work onto support contacts, which this counts" is.
+- **"None, because …" is a real answer, and it is recorded.** The field is omitted when empty, so an Operator who
+  thought about it and found nothing would look exactly like one who was never asked. Write the sentence into
+  `counter_metrics_none_because` instead, and leave `counter_metrics` out entirely:
+
+  ```yaml
+  counter_metrics_none_because: This counts a fixed policy population that no team can move, so pushing the rate has nothing to trade against.
+  ```
+
+  Never `counter_metrics: []`. An empty list is a new byte in the front matter of every definition that has none,
+  and the content hash of every already-approved definition would move with it.
+- **On an already-approved definition this is the Operator's call, not yours.** Naming a counter-metric changes the
+  definition's content hash, which is a new version and a new approval — correctly, because what a metric would
+  damage is part of what it means. So it is a `needs_input` item of kind `definition_approval` naming the
+  Operator, exactly like any other change to an approved definition.
+- What this buys later: a Finding that publishes this definition as its decision metric must report every
+  counter-metric it names, over the same population and window, or say why it could not
+  (`counter_metric_missing`, `docs/contracts/finding-manifest.md`).
 
 **Never edit a file whose front matter says `lifecycle: approved` or carries an `approval:` block.** When the
 Question needs a change to an approved definition, that is a `needs_input` item of kind `definition_approval`

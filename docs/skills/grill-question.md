@@ -13,7 +13,8 @@ it finds facts about your data itself instead of asking you for them.
 The result lands in a Finding's `manifest.yaml` (`question`, `reader`) and in the `analysis.yaml` beside it, as a
 seed marked `stage: clarified` (`reader_profile`, `assumptions`, `pre_registered_comparison`, `needs_input`). New
 Metric definitions are written to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval
-block.
+block, and a definition that could be the decision metric carries the answer to one more question: what would
+get worse if this metric were pushed hard.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`): it creates
 a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
@@ -48,6 +49,18 @@ result, and the skill will not write one.
 content hash, recorded separately (`docs/contracts/instance-layout.md`). A proposed definition may back a
 supporting or diagnostic Claim with its status shown; it can never be the published decision metric.
 
+**What is the "what would get worse" question for?** Goodhart's Law: a metric that becomes a target stops
+measuring the thing it stood for, and no Check can see that happening. So the answer becomes part of the
+definition — `counter_metrics: [{ id, version?, why }]`, each naming another definition in your Instance and one
+sentence saying the mechanism — and a Finding that later publishes this metric as its decision metric has to
+report those counter-metrics beside it, over the same population and window, or say why it could not
+(`counter_metric_missing`). A counter-metric never needs approving: it is not the published decision metric.
+
+**What if nothing would get worse?** Then that is the answer, and it is written down:
+`counter_metrics_none_because: "<one sentence>"`. The list is omitted when empty — that is what keeps every
+definition you already approved byte-identical — so "none" needs its own place, or an Operator who thought about
+it would look exactly like one who was never asked.
+
 **Will it edit a definition I already approved?** No. An approved file is read and never written. A Question
 that needs a change to one becomes a `needs_input` item of kind `definition_approval` naming you, and the
 analysis stops there for that metric.
@@ -76,5 +89,7 @@ named is a better artifact than a resolved-looking one with an invented falsifie
 - Unsettled parts are absent from the manifest and listed in `question.unresolved` — never filled in.
 - Any definition it wrote reads `lifecycle: proposed` and carries no approval block, and any approved definition
   file is byte-for-byte as you left it.
+- Every metric it proposes as a candidate decision metric either names counter-metrics with a mechanism each, or
+  records in one sentence why it names none. Neither is left blank.
 - The hand-off names the definitions with their versions and lifecycles, and does not round `unresolved` up to
   "ready".

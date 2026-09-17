@@ -3,7 +3,7 @@
 // Extracted from fixture-tool.mjs after the 2026-09-15 code review; behaviour and categories unchanged.
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { safePath, validateStructure, validateResult, calculate, operandRefs, DIRECTIONAL_OPERATIONS, ContractError } from "../fixture-safety.mjs";
+import { safePath, validateStructure, validateResult, calculate, operandRefs, counterMetricProblems, DIRECTIONAL_OPERATIONS, ContractError } from "../fixture-safety.mjs";
 import { classifyReviews, supersededMessage } from "./review-currency.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -249,6 +249,13 @@ function validateMemo(manifest, results) {
   const schemaProblems = schemaErrors(manifest, REPO);
   if (schemaProblems.length) { report.errors.push(...schemaProblems); return finish(manifest); }
   validateStructure(manifest, DIR, INSTANCE);
+  // A counter-metric the published decision metric names but the Finding does not report is a completeness
+  // defect of what this Finding PUBLISHES, so it follows the same axis as `definition_not_approved`: an error
+  // once `finding.state` is complete, a warning while it is a draft that has not claimed to be finished.
+  const counterFail = (location, message, remedy) => {
+    if (manifest.finding.state === "complete") err("counter_metric_missing", location, message, remedy);
+    else warn("counter_metric_missing", location, `${message}; the draft cannot complete until it is reported`, remedy);
+  };
   // 2. hashes
   const checkHash = (p, expected, loc) => {
     const full = safePath(DIR, p);
@@ -260,6 +267,10 @@ function validateMemo(manifest, results) {
   manifest.queries.forEach((q, n) => checkHash(q.path, q.content_hash, `manifest.yaml#/queries/${n}`));
   manifest.checks.forEach((c, n) => checkHash(c.path, c.content_hash, `manifest.yaml#/checks/${n}`));
   manifest.results.forEach((r, n) => checkHash(r.path, r.content_hash, `manifest.yaml#/results/${n}`));
+  // What each published decision metric's own file says it would damage if it were pushed hard
+  // (docs/contracts/instance-layout.md). Collected here, where the definition file is read, and evaluated
+  // against `counter_metrics_reported` below, once the results exist to resolve a reported value against.
+  const counterRequired = [];
   manifest.definitions.forEach((d, n) => {
     const p = safePath(INSTANCE, d.path);
     if (!existsSync(p)) return err("missing_file", `manifest.yaml#/definitions/${n}`, `${d.path} not in Instance`, "");
@@ -287,6 +298,36 @@ function validateMemo(manifest, results) {
       else warn("definition_not_approved", `manifest.yaml#/definitions/${n}`, `decision metric ${d.id} ${why}; the draft cannot complete until it is approved`);
     }
     if (d.role === "decision_metric" && approved) report.info.push(`decision metric ${d.id} v${d.version}: approval recorded in ${d.path} and bound to its current content; this command does not verify it against ${d.approval.source.type}`);
+    // Counter-metrics are front matter, so a malformed list is a definition whose meaning cannot be read; that is
+    // `schema` at the Finding's pointer to it, the same as any other unreadable pinned artifact.
+    const loc = `manifest.yaml#/definitions/${n}`;
+    for (const message of counterMetricProblems(fm.counter_metrics, fm.id)) {
+      err("schema", loc, `${d.path}: ${message}`, "counter_metrics is a list of { id, version?, why } naming other definitions in this Instance (docs/contracts/instance-layout.md)");
+    }
+    if (fm.counter_metrics !== undefined && fm.counter_metrics_none_because !== undefined) {
+      err("schema", loc, `${d.path}: counter_metrics_none_because says no counter-metric could be named, and counter_metrics names some`, "a definition names counter-metrics or says why it names none, never both");
+    }
+    if (fm.counter_metrics_none_because !== undefined && (typeof fm.counter_metrics_none_because !== "string" || !fm.counter_metrics_none_because.trim())) {
+      err("schema", loc, `${d.path}: counter_metrics_none_because must be one sentence saying why no counter-metric could be named`, "write the sentence, or remove the key");
+    }
+    if (d.role === "decision_metric" && Array.isArray(fm.counter_metrics)) {
+      for (const c of fm.counter_metrics) {
+        if (!c || typeof c.id !== "string") continue;
+        // A counter-metric names another definition in the same Instance. A name with no file behind it is not a
+        // metric, and a Finding cannot report what the Instance does not define.
+        if (!existsSync(safePath(INSTANCE, `definitions/${c.id}.md`))) {
+          counterFail(loc, `decision metric ${d.id} names the counter-metric ${c.id}, and this Instance has no definitions/${c.id}.md`,
+            "add the counter-metric's definition to the Instance, or correct the id in the primary definition's counter_metrics");
+          continue;
+        }
+        counterRequired.push({ loc, primary: d.id, counter: c, definitionIndex: n });
+      }
+    }
+    if (d.role === "decision_metric" && fm.counter_metrics === undefined) {
+      report.info.push(fm.counter_metrics_none_because
+        ? `decision metric ${d.id} names no counter-metric, and records why: ${fm.counter_metrics_none_because}`
+        : `decision metric ${d.id} names no counter-metric and does not say why; /grill-question asks what would get worse if this metric were pushed hard`);
+    }
   });
   // 3. referential integrity + results
   const ids = (arr) => new Set(arr.map((x) => x.id));
@@ -404,6 +445,75 @@ function validateMemo(manifest, results) {
     else { if (ck.kind !== "falsifier") err("schema", "manifest.yaml#/question/falsifier", "falsifier check must have kind falsifier", ""); if (ck.expected_outcome !== q.falsifier.expected_outcome) err("schema", "manifest.yaml#/question/falsifier", "expected_outcome differs between question and check", ""); }
   }
   if (q.metric && !defOk(q.metric)) err("definition_version", "manifest.yaml#/question/metric", `definition ${q.metric.id} v${q.metric.version} not pinned`, "");
+  // Counter-metrics: what the published decision metric's definition says would get worse if it were pushed
+  // hard, reported here over the Question's own window (docs/contracts/finding-manifest.md).
+  //
+  // Only two things a manifest can establish are checked, and they are checked exactly: the value is TRACED —
+  // it resolves through the same resolver `render` uses, and its result comes from an execution that pins the
+  // counter-metric's definition, which is what ties the number to that definition's population and denominator
+  // rather than to a column that happens to sit nearby — and it is over the SAME WINDOW as the Question. Whether
+  // a `not_computed` reason is honest is the method review's, and no Check can tell one from the other.
+  const reported = manifest.counter_metrics_reported ?? [];
+  /** Every result a value reference reads, following derived operands. An `ext:` value reads none. */
+  const resultsBehind = (ref, seen = new Set()) => {
+    if (ref.startsWith("ref:")) return [ref.slice(4).split(".")[0]];
+    if (!ref.startsWith("derived:")) return [];
+    const id = ref.slice(8);
+    if (seen.has(id)) return [];
+    const d = manifest.derived.find((x) => x.id === id);
+    return d ? operandRefs(d).flatMap((o) => resultsBehind(o, new Set([...seen, id]))) : [];
+  };
+  reported.forEach((entry, n) => {
+    const loc = `manifest.yaml#/counter_metrics_reported/${n}`;
+    const pinned = manifest.definitions.find((d) => d.id === entry.id && d.version === entry.version);
+    if (!pinned) {
+      counterFail(loc, `counter-metric ${entry.id} v${entry.version} is reported and is not pinned in definitions at that version`,
+        "pin the counter-metric's definition in definitions[] with its content hash; a reported counter-metric whose definition the Finding does not pin is a name, not a metric");
+    }
+    if (entry.ref === undefined) return;   // `not_computed`: the reason is prose a reviewer reads.
+    checkExport(manifest, entry.ref, loc);
+    const value = resolveValueRef(manifest, entry.ref, loc, results);
+    if (value === null) return;            // Its own category was already reported at this location.
+    const w = manifest.question.window;
+    if (!w) {
+      counterFail(loc, `counter-metric ${entry.id} is reported over a window and the Question states none`,
+        "settle the Question's window with /grill-question: 'the same window' has nothing to mean until the Question has one");
+    } else if (entry.window.start !== w.start || entry.window.end !== w.end || entry.window.timezone !== w.timezone) {
+      counterFail(loc, `counter-metric ${entry.id} is reported over ${entry.window.start}..${entry.window.end} ${entry.window.timezone} and the Question's window is ${w.start}..${w.end} ${w.timezone}`,
+        "report the counter-metric over the window the decision metric was measured over, or state what this other window shows in a Claim of its own");
+    }
+    const behind = resultsBehind(entry.ref);
+    const pinsDefinition = behind.some((rid) => {
+      const res = manifest.results.find((r) => r.id === rid);
+      const ex = res && manifest.executions.find((e) => e.id === res.execution_id);
+      return !!ex && (ex.definition_refs ?? []).some((r) => r.id === entry.id && r.version === entry.version);
+    });
+    if (!pinsDefinition) {
+      counterFail(loc, `the value reported for counter-metric ${entry.id} v${entry.version} traces to ${behind.length ? `result(s) ${behind.join(", ")}, none of which was` : "no result, so nothing was"} produced by an execution pinning that definition`,
+        `run the counter-metric's own SQL and declare it: the execution behind this value carries definition_refs including { id: ${entry.id}, version: ${entry.version} }. That binding is what says the number is this definition's population and denominator, not a nearby column`);
+    }
+  });
+  for (const req of counterRequired) {
+    const entry = reported.find((e) => e.id === req.counter.id);
+    if (!entry) {
+      counterFail(req.loc, `decision metric ${req.primary} names the counter-metric ${req.counter.id} (${req.counter.why}) and this Finding reports no value for it`,
+        `add a counter_metrics_reported entry for ${req.counter.id}: either a value traced to a result over the Question's window, or not_computed with the reason it could not be computed. A decision metric published without what it would damage is the failure the counter-metric was written to catch`);
+    } else if (req.counter.version !== undefined && entry.version !== req.counter.version) {
+      counterFail(`manifest.yaml#/counter_metrics_reported/${reported.indexOf(entry)}`,
+        `${req.primary} pins the counter-metric ${req.counter.id} at v${req.counter.version} and this Finding reports v${entry.version}`,
+        "report the version the primary definition pins, or change the pin in the primary definition — which is a new version of it and a new approval");
+    }
+  }
+  const requiredIds = new Set(counterRequired.map((r) => r.counter.id));
+  reported.forEach((entry, n) => {
+    // Honest but unasked-for. The Finding reports a counter-metric no published decision metric names: worth
+    // saying once, never a reason to refuse a Finding for reporting more than it had to.
+    if (!requiredIds.has(entry.id)) {
+      warn("counter_metric_missing", `manifest.yaml#/counter_metrics_reported/${n}`,
+        `${entry.id} is reported as a counter-metric and no decision metric in this Finding names it`,
+        "name it in the decision metric's own counter_metrics, or report it as an ordinary supporting value");
+    }
+  });
   // Reader profile
   if (manifest.reader.profile !== "generic") {
     const readers = existsSync(safePath(INSTANCE, "readers.md")) ? readFileSync(safePath(INSTANCE, "readers.md"), "utf8") : "";
@@ -507,12 +617,16 @@ function validateMemo(manifest, results) {
   if (approvals.length === 0) reasons.push("no publication_approval attestation");
   if (manifest.finding.state !== "complete" || report.errors.length) readiness = "not_ready";
   const decisionMetrics = manifest.definitions.filter((x) => x.role === "decision_metric");
+  const counterMetrics = reported.map((e) => `${e.id} v${e.version}: ${e.ref ? `reported as ${e.ref}` : `not computed (${e.not_computed})`}`);
+  if (counterRequired.length) {
+    report.info.push(`counter-metrics named by the published decision metric(s): ${counterRequired.map((r) => `${r.primary} -> ${r.counter.id}`).join(", ")}; ${reported.length} reported [${counterMetrics.join("; ") || "none"}]`);
+  }
   // An agent-reported Check outcome can lower publication readiness and never raise it: whatever else is
   // recorded, a Finding whose Checks were reported rather than executed is `unknown` at most, here and in
   // src/publication (src/commands/check.ts applies the same clamp to the verified-review answer).
   if (checksReportedByAgent && readiness === "ready") readiness = "unknown";
   if (checksReportedByAgent) reasons.push(`${agentChecks.length} Check outcome(s) were reported by the harness, not executed by aftergrid; that alone can never make a Finding ready`);
-  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, checksReportedByAgent, recordedExecutions: recordedExecutions.map((e) => e.id), readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`) });
+  return finish(manifest, { evidence: report.errors.length ? "invalid" : manifest.finding.state !== "complete" ? "incomplete" : "valid", sqlExecution: "not_performed (artifact verification)", executionAvailability, recordedCheckOutcomes, checksReportedByAgent, recordedExecutions: recordedExecutions.map((e) => e.id), readiness, reasons, decisionMetrics: decisionMetrics.map((x) => `${x.id} v${x.version} ${x.lifecycle}${x.approval ? " (approval recorded)" : ""}`), counterMetrics });
   } catch (e) {
     err(e.category ?? (e.code === "ENOENT" ? "missing_file" : "invalid_artifact"), e.location ?? e.path ?? dir, e.message, "correct the artifact and retry");
     return finish(null, { evidence: "invalid", executionAvailability: "artifact_only", sqlExecution: "not_performed (artifact verification)", readiness: "not_ready" });

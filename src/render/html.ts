@@ -139,7 +139,13 @@ function operandWording(d: any, cells: string[], positionalJoin = " and "): stri
   return `of after ${a} against baseline ${b}`;
 }
 
-export type RenderInputs = { dir: string; manifest: any; results: Results; memo: string; readiness: string; readinessReasons: string[]; content: string; readerLabel: string; generatedAt?: string; charts?: boolean; font?: ResolvedFont };
+export type RenderInputs = { dir: string; manifest: any; results: Results; memo: string; readiness: string; readinessReasons: string[]; content: string; readerLabel: string; generatedAt?: string; charts?: boolean; font?: ResolvedFont;
+  /**
+   * `why` per counter-metric id, read out of the primary definition's front matter by the caller
+   * (docs/contracts/instance-layout.md). The renderer never opens an Instance file itself; without this map a
+   * counter-metric fact still says what was reported, and simply does not repeat what it guards against.
+   */
+  counterWhy?: Record<string, string> };
 
 function mailto(manifest: any, claimId?: string): string {
   const id = manifest.finding.id, rev = manifest.finding.revision;
@@ -200,6 +206,9 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     const id = `tip-${++tipCount}`;
     return `<span class="ref" tabindex="0" aria-describedby="${id}">${esc(display)}<span class="tip" id="${id}" role="tooltip">${tipInner(kind, body, display, loc)}</span></span>`;
   };
+  const counterWhy: Record<string, string> = inp.counterWhy ?? {};
+  /** `ref:a.b.c` / `derived:x` / `ext:x` split into the (kind, body) pair `tokenHtml` takes. */
+  const refParts = (ref: string): [string, string] => { const at = ref.indexOf(":"); return [ref.slice(0, at), ref.slice(at + 1)]; };
   const TOKENS = new RegExp((TOKEN_RE as RegExp).source, "g");
   // Parse authored Markdown before inserting token values, so data cannot create tags, links or blocks.
   const R = (text: string, loc: string) => {
@@ -308,6 +317,12 @@ export async function renderHtml(inp: RenderInputs): Promise<{ html: string; svg
     ...firedFalsifiers.map((c: any) => fact("no", "Falsifier",
       `${esc(falsifierStatement ?? String(c.description))} — recorded ${esc(String(c.outcome))}; this Finding is ${esc(OUTCOME_WORD[String(m.finding.outcome)] ?? String(m.finding.outcome))}.`)),
     ...m.definitions.map((d: any) => fact(d.lifecycle === "approved" ? "wn" : "na", "Definition", `${esc(d.id)}, version ${esc(String(d.version))}, recorded as ${esc(d.lifecycle)}${d.approval ? ` (approval recorded by ${esc(d.approval.approver)} on ${esc(d.approval.date)}; a recorded lifecycle is not a verified approval)` : ""}.`)),
+    // What the decision metric would damage if it were pushed hard, reported beside it and never folded into the
+    // Definition fact: a counter-metric a Reader has to go looking for is one the decision can be made without.
+    // A reported value carries the same provenance popover as every other number on the page.
+    ...(m.counter_metrics_reported ?? []).map((c: any) => c.not_computed
+      ? fact("no", "Counter-metric", `${esc(c.id)} — not computed: ${esc(String(c.not_computed))}${counterWhy[c.id] ? ` It was named because: ${esc(counterWhy[c.id]!)}` : ""}`)
+      : fact("wn", "Counter-metric", `${esc(c.id)}: ${tokenHtml(...refParts(c.ref), `counter-metric ${c.id}`)}, over ${esc(c.window.start)} to ${esc(c.window.end)} (${esc(c.window.timezone)})${counterWhy[c.id] ? ` — ${esc(counterWhy[c.id]!)}` : ""}`)),
     // A review's standing is judged per kind by the one module `check` and `review status` read
     // (scripts/lib/review-currency.mjs). A review behind a later one of the same kind is history: it is counted
     // once, with no warning mark, instead of shown as one more thing wrong with the page. Rendering each of

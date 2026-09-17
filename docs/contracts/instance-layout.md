@@ -87,6 +87,10 @@ population: users who completed signup
 denominator: signup cohort
 window: 7 days from signup, analytical timezone America/New_York
 owner: ...
+counter_metrics:                                    # optional; see below
+  - id: deep_return_rate_7d
+    version: 1                                      # optional; omitted means the definition's current version
+    why: Pushing this metric with re-engagement nudges buys single one-tap opens, which count here and leave the share of users who came back on three or more days flat.
 approval:
   source: { type: github_pr_review, repository: ..., pull_request: 12, review_id: 345, commit_sha: ... }
   approver: ...
@@ -106,6 +110,32 @@ Plain-language meaning.
 ```
 ```
 
-**Definition content hash.** SHA-256 of the UTF-8 bytes of: the canonical JSON (sorted keys, no whitespace) of the front matter with the `approval` key removed, then a newline, then the body below the closing `---`. The approval block is excluded so an approval can carry the hash of what it approved; the rest of the front matter (id, version, kind, grain, population, denominator, window, owner) is included because changing any of it changes the definition's meaning. Reference implementation: `definitionHash` in `scripts/fixture-tool.mjs`.
+**Definition content hash.** SHA-256 of the UTF-8 bytes of: the canonical JSON (sorted keys, no whitespace) of the front matter with the `approval` key removed, then a newline, then the body below the closing `---`. The approval block is excluded so an approval can carry the hash of what it approved; the rest of the front matter (id, version, kind, grain, population, denominator, window, owner, `counter_metrics`, `counter_metrics_none_because`) is included because changing any of it changes the definition's meaning. Reference implementation: `definitionHash` in `scripts/lib/validate-finding.mjs`.
+
+## Counter-metrics
+
+A metric that becomes a target stops measuring the thing it stood for. The Engine cannot notice that on its own, so a definition says out loud what pushing it would damage, and a Finding that publishes it as its decision metric has to report that thing beside it.
+
+```yaml
+counter_metrics:
+  - id: <another definition in this Instance>
+    version: 2            # optional
+    why: One plain sentence.
+counter_metrics_none_because: One plain sentence.   # optional, and only when counter_metrics is absent
+```
+
+- **Shape.** `counter_metrics` is a list of `{ id, version?, why }`. `id` uses the definition charset `^[a-z][a-z0-9_]{0,63}$` and names **another definition file in the same Instance** — `definitions/<id>.md` must exist, and a definition may not name itself. `version`, when present, pins that definition's version; when absent the counter-metric is whatever version the Instance currently carries. Ids are unique within the list. Nothing requires a counter-metric to be approved: it is not the published decision metric, and a proposed counter-metric named honestly is worth more than an approved one nobody wrote down.
+- **`why` is one sentence**, and it says what gaming the primary metric would do to this one — the mechanism, not the sentiment. "Support load could rise" is not it; "holding cancellations down by making cancelling hard pushes the work onto support contacts, which this counts" is.
+- **Optional, and omitted when empty.** A definition with no counter-metrics carries **no** `counter_metrics` key — never `counter_metrics: []`. That is what keeps every already-approved definition's content hash byte-identical: the field's absence is its default, so no definition approved before this existed has changed.
+- **"None" is a recorded decision, not an omission.** Because the field is omitted when empty, an explicit "none, because …" has nowhere to live, and an Operator who thought about it would look exactly like one who never did. `counter_metrics_none_because` is that place: one sentence saying why nothing could be named. It is refused alongside a non-empty `counter_metrics` — a definition either names counter-metrics or says why it names none, never both. `/grill-question` records the answer there (`docs/skills/grill-question.md`).
+- **Hash consequence.** `counter_metrics` and `counter_metrics_none_because` are front matter, so they are inside the definition content hash. Adding either to an **approved** definition changes its hash, which is a new version and a new Operator approval — not a clerical cost but the correct one: what a metric would damage if it were pushed is part of what the metric means, so an Operator approves that sentence the way they approve the population and the denominator. A **proposed** definition is still being proposed; adding the field there needs no version bump, only a re-pin wherever its hash is cited.
+- **Publication consequence.** When a definition that lists counter-metrics is a Finding's published decision metric, the Finding must report each one: `counter_metric_missing` in `docs/contracts/finding-manifest.md`.
 
 The Engine never contains a definition, a table name, a reader or a credential. Synthetic fixtures in the Engine mirror this layout under `fixtures/instance/`.
+
+## Where definition front matter is validated
+
+There is no JSON Schema file for a definition. Front matter is validated in code, in two places, and both are the contract:
+
+- `renderProposedDefinition` / `proposeDefinition` in `src/analysis/definitions.ts` write the canonical bytes (key order included) and refuse to touch an approved file.
+- `validateFinding` in `scripts/lib/validate-finding.mjs` reads the file of every definition a Finding pins and checks id, version, lifecycle, the approval binding and the `counter_metrics` shape. A malformed `counter_metrics` block is reported as `schema` at `manifest.yaml#/definitions/<i>`, because the Finding cannot be evaluated against a definition whose own front matter cannot be read.

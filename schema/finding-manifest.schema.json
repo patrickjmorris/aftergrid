@@ -1434,6 +1434,73 @@
         }
       }
     },
+    "counter_metrics_reported": {
+      "type": "array",
+      "description": "What this Finding reports for each counter-metric its published decision metric's definition names (docs/contracts/instance-layout.md). Optional and omitted when empty, so a manifest written before counter-metrics existed is unchanged. Whether every listed counter-metric is covered, and whether the window is the Question's, is check's job: docs/contracts/finding-manifest.md.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id",
+            "description": "The counter-metric definition's id. Must also be pinned in definitions[] at this version."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ref": {
+            "$ref": "#/$defs/value_ref",
+            "description": "The traced value reported for this counter-metric. Resolved through the same strict resolver render uses, so it is hashed, allowlisted and displayable."
+          },
+          "window": {
+            "$ref": "#/$defs/window",
+            "description": "The period the reported value covers. Required with `ref`, and checked field for field against question.window."
+          },
+          "not_computed": {
+            "type": "string",
+            "minLength": 1,
+            "description": "One sentence: why this counter-metric could not be computed. An explicit, reviewable absence, never a way past the rule."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "ref",
+              "window"
+            ],
+            "not": {
+              "required": [
+                "not_computed"
+              ]
+            }
+          },
+          {
+            "required": [
+              "not_computed"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "ref"
+                  ]
+                },
+                {
+                  "required": [
+                    "window"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
     "coverage": {
       "type": "object",
       "additionalProperties": false,

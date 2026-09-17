@@ -39,8 +39,12 @@ _Avoid_: freeze, baseline, as-of, fingerprint
 ### Context
 
 **Metric definition**:
-The versioned meaning of a metric in plain language and in canonical SQL: grain, population, denominator, window, owner. Status is proposed, approved or deprecated; only an Operator can approve, and the approver and reviewed revision are recorded. Only an approved definition may carry a published decision metric.
+The versioned meaning of a metric in plain language and in canonical SQL: grain, population, denominator, window, owner, and the counter-metrics it names. Status is proposed, approved or deprecated; only an Operator can approve, and the approver and reviewed revision are recorded. Only an approved definition may carry a published decision metric.
 _Avoid_: metric (bare), KPI, measure
+
+**Counter-metric**:
+A Metric definition another definition names as what pushing it hard would damage, with one sentence saying the mechanism. Part of the primary definition's meaning, so it is inside its content hash and inside what an Operator approves. A Finding whose published decision metric names counter-metrics reports each one, over the same population and window, or states why it could not.
+_Avoid_: guardrail metric, health metric, countervailing measure
 
 **Diagnostic calculation**:
 A traceable calculation used inside an Analysis that is not an approved Metric definition. Allowed in working Analyses with explicit status; never the headline of a Finding.
@@ -94,5 +98,6 @@ _Avoid_: stakeholder, consumer, end user, audience
 - Every data-bearing value in a **Finding** resolves from a typed evidence reference: query execution, **Snapshot**, and a **Metric definition** or **Diagnostic calculation**, or an explicitly sourced target/assumption
 - A **Decision record** cites a **Finding** and enters the **Decision log**; merging a **Finding** does not create one
 - A **Revisit** of a **Finding** tests every **Decision record** that cites it
+- A **Metric definition** may name **Counter-metrics**, which are other Metric definitions in the same **Instance**; a **Finding** publishing it as its decision metric reports each of them or says why it could not
 - A **Golden Question** has a reviewed expected answer or abstention with explicit evidence constraints and tolerances
 - The **Engine** operates on an **Instance**; the **Operator** owns both; the **Reader** understands, inspects and follows up on **Findings** without SQL

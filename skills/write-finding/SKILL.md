@@ -187,6 +187,42 @@ more often", not "Retention by arm" or "Who was counted").
 **Done when** every token and every displayed column resolves to a listed field, and `coverage` names both
 what is in and what is out.
 
+## 7b. Report what the decision metric would damage
+
+Read the definition file of every `definitions[]` entry whose `role` is `decision_metric`. When its front matter
+carries `counter_metrics`, this Finding reports every one of them, and a complete Finding that does not is
+refused at publication with `counter_metric_missing`.
+
+Per counter-metric, one entry in `counter_metrics_reported`:
+
+```yaml
+counter_metrics_reported:
+  - id: <the counter-metric definition's id>
+    version: <the version, also pinned in definitions[]>
+    window: { start: …, end: …, timezone: … }     # equal to question.window, field for field
+    ref: ref:<result>.<row_key>.<column>          # the traced value
+```
+
+- **The number is traced like every other number.** Run the counter-metric's own SQL, declare the execution with
+  `definition_refs` including that definition at that version, and point `ref` at a cell of its result. That
+  binding is what says the value is the counter-metric's population and denominator and not a nearby column, and
+  `check` looks for it. Pin the counter-metric's definition in `definitions[]` too, `role: supporting`.
+- **The window is the Question's**, field for field. A counter-metric measured over some other period is a
+  different fact; make it a Claim of its own instead of reporting it here.
+- **When it cannot be computed, say so and say why**: `- { id: …, version: …, not_computed: "<one sentence>" }`,
+  and no `window`. That is a fact a method reviewer reads and can reject. "We did not get to it" is not a reason,
+  and no Check can tell one from the other — which is exactly why it is a sentence and not a boolean.
+- **Say it in the memo too**, one line per counter-metric in **How we checked**, with the value as a token
+  (`docs/contracts/memo-template.md`, "Where a counter-metric goes"). The render puts each on the page as its own
+  fact beside the decision metric.
+- **A counter-metric that moved the wrong way is a result, not a problem to bury.** Report it in the same words
+  you would report a good one, and if it changes the Answer, give it a Claim and say so in the Answer sentence.
+  Nothing here lets a Finding pass by leaving it out, and nothing here decides what the number means.
+
+**Done when** every counter-metric the decision metric's definition names has an entry, each entry either
+resolves to a traced value over `question.window` or carries a stated reason, and the memo says the same thing
+in words.
+
 ## 8. Write memo.md
 
 Six sections, in this order, and no others: **Answer**, **Decision it informs**, **Evidence**, **How we
@@ -202,7 +238,8 @@ answer-first here and let that skill sharpen it.
   included, followed by `<!-- claim: <id> -->`. A numeric Claim's subsection opens with its
   `<!-- chart: <id> -->` or `<!-- table: <id> -->` marker, then the prose: who is counted, compared with
   what, over which period, what was left out, what the limits are.
-- **How we checked** — the Checks by name and outcome, the definitions with their lifecycle, the Snapshot
+- **How we checked** — the Checks by name and outcome, the definitions with their lifecycle, every counter-metric
+  the decision metric names with its value as a token or the reason it could not be computed, the Snapshot
   guarantees, the Reader profile, and that no review or approval is recorded yet. Separate facts, never one
   badge.
 - **What would change our mind** — the Question's falsifier in plain words, then each Claim's Recheck policy

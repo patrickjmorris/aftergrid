@@ -54,6 +54,8 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `nullable-null-not-available` | engine_category | `none` | A column declared `nullable` holds `null`. Valid evidence; renders as "not available" in prose and in the table. |
 | `display-only-rounding` | engine_category | `none` | The rate column declares whole-percent display while the saved values keep full precision. The render shows whole percents once; the raw decimals never reach the page. |
 | `private-field-sentinel` | engine_category | `none` | A declared but non-exported column carries the Instance's private marker. `export_policy.allowed_fields` projects the column away, so neither the marker nor the column name reaches any rendered byte and `check` reports nothing: the marker never had a path to a Reader. The refusal path is `private-marker-in-memo`. |
+| `counter-metric-reported` | engine_category | `none` | No defect. The decision metric's definition names a counter-metric and the Finding reports it: a value traced to a result over the Question's own window, produced by an execution that pins the counter-metric's definition. The positive control for `counter_metric_missing`. |
+| `counter-metric-not-computed` | engine_category | `none` | No defect. The counter-metric could not be computed and the Finding records that, with the reason, as `counter_metrics_reported[].not_computed`. A stated reason is a fact a method reviewer can reject; silence is what the Engine refuses. |
 
 ## Readiness: no error, but never ready
 
@@ -75,6 +77,7 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
 | `claim-without-recheck` | engine_category | `schema` | The second Claim declares no Recheck policy. |
 | `decision-metric-not-approved` | engine_category | `definition_not_approved` | A complete Finding names a proposed, unapproved Metric definition as its decision metric. |
 | `decision-metric-approval-forged` | engine_category | `untrusted_attestation` | The manifest states an approval for its decision metric — right shape, right content hash, trusted source type — that `definitions/retained_7d.md` does not record: a different approver and a different review. An approval is granted on the definition, not by the Finding citing it. |
+| `counter-metric-missing` | engine_category | `counter_metric_missing` | A complete Finding publishes a decision metric whose definition names a counter-metric, and reports neither a value for it nor a reason it could not be computed. The Goodhart gap, refused in the publication path. |
 | `private-marker-in-memo` | engine_category | `export_policy` | The Instance's `export_policy.private_marker` is typed into the memo prose, where every byte is Reader-facing. `check` reports it with a line and column and `render` is refused; it is not left to the output-byte check. |
 | `definition-version-not-pinned` | engine_category | `definition_version` | The Question cites a definition version the manifest does not pin. |
 | `failing-reconciliation-check` | engine_category | `check_failed` | The required reconciliation Check is recorded as `fail` while the Finding still answers the Question. Render is refused. |

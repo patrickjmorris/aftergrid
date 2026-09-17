@@ -62,6 +62,13 @@ you cannot run is not written at all.
 New definitions go to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval block. An
 approved definition is read, never edited.
 
+When the definition you propose could be the **decision metric**, ask what would get worse if it were pushed
+hard, and write the answer down: `counter_metrics: [{ id, version?, why }]` naming another definition in this
+Instance, or — when the honest answer is none — `counter_metrics_none_because: "<sentence>"`. "None" is a
+recorded decision, never an omission, because the field is omitted when empty and silence would look identical
+to never having asked. Full procedure and the exact front matter: *Ask the counter-metric question* in the
+reference.
+
 Done when `aftergrid check <finding-dir>` runs clean of schema errors and reports the state you intended.
 Evidence is `valid` in every row below: nothing is wrong with the evidence, there is none yet.
 
@@ -77,7 +84,9 @@ Tell the Operator, in this order:
 
 1. The Question in their words: the decision, who is counted, over what window, compared with what.
 2. Which definitions it uses, each with its version and lifecycle. Name any that is `proposed`, and say plainly
-   that a proposed definition cannot be the published decision metric until they approve it.
+   that a proposed definition cannot be the published decision metric until they approve it. For the decision
+   metric, say what its counter-metrics are, or that it records why there are none — and, when nothing is
+   recorded either way, say that too rather than leave it unsaid.
 3. Anything unresolved, and who owns it. Do not round `unresolved` up to "ready".
 4. The next command: `/analyze <finding-dir>`, which runs the checked analysis, the writing and the review.
 

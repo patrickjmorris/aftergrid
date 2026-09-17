@@ -85,6 +85,11 @@ location and stops rather than writing around it.
 - A Finding that could not answer says so in its first sentence and contains no invented threshold, falsifier
   or number. Where the pre-registered falsifier fired, the outcome is `inconclusive` (or `needs_reframing`) and
   the Answer names what the falsifier asked and what the data showed — the numbers stay, the Answer does not.
+- Where the published decision metric's definition names counter-metrics, every one of them is reported:
+  `counter_metrics_reported` carries either a value traced to a result over the Question's own window or a
+  stated reason it could not be computed, the memo says the same in words under *How we checked*, and the
+  rendered page shows each as its own fact beside the decision metric. A counter-metric that moved the wrong
+  way is reported in the same words a good one would be.
 - `reviews` and `attestations` are as empty as they were before the skill ran.
 - Recorded runs: `fixtures/runs/kpc-numeric` (a named Reader profile, `answered`, a causal Claim earned by
   randomised assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no
