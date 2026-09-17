@@ -1,0 +1,33 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Bound by the renderer to result crz_by_day_type. No data, no transform, no aggregate encodings. The accent is on the one bar the Claim is about (weekdays, January 2025); weekend days are grey context.",
+  "data": { "name": "result" },
+  "encoding": {
+    "y": { "field": "day_type_label", "type": "nominal", "title": null, "sort": ["Weekdays", "Weekend days"], "axis": { "labelFontWeight": "bold", "labelFontSize": 13, "ticks": false, "domain": false, "labelPadding": 8 } },
+    "yOffset": { "field": "period_label", "type": "nominal", "sort": ["January 2024", "January 2025"] },
+    "x": { "field": "crz_trips_per_day", "type": "quantitative", "axis": null, "scale": { "domain": [0, 400000] } }
+  },
+  "layer": [
+    {
+      "mark": { "type": "bar" },
+      "encoding": {
+        "color": { "field": "period_day_type", "type": "nominal", "legend": null, "scale": { "domain": ["baseline_weekday", "after_weekday", "baseline_weekend", "after_weekend"], "range": ["#b8b8b8", "#1f5fa8", "#d4d4d4", "#a3a3a3"] } }
+      }
+    },
+    {
+      "mark": { "type": "text", "align": "right", "dx": -6, "baseline": "middle", "fontSize": 12 },
+      "encoding": {
+        "text": { "field": "period_label", "type": "nominal" },
+        "color": { "field": "period_day_type", "type": "nominal", "legend": null, "scale": { "domain": ["baseline_weekday", "after_weekday", "baseline_weekend", "after_weekend"], "range": ["#222222", "#ffffff", "#222222", "#222222"] } }
+      }
+    },
+    {
+      "mark": { "type": "text", "align": "left", "dx": 6, "baseline": "middle", "fontSize": 12, "fontWeight": "bold" },
+      "encoding": {
+        "text": { "field": "crz_trips_per_day", "type": "quantitative", "format": ",.0f" },
+        "color": { "value": "#222222" }
+      }
+    }
+  ],
+  "resolve": { "scale": { "color": "independent" } }
+}

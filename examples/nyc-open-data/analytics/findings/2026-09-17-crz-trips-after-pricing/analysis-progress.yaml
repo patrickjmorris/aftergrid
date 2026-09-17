@@ -1,10 +1,29 @@
-stage: checked_analysis
-status: needs_attention
-reason: "check_failed at checks/falsifier_direction_holds_by_day_type: the required falsifier, written before any total was seen and expecting pass, recorded fail (monthly total of trips into the zone up, per-weekday average up, per-weekend-day average down). aftergrid check reports evidence invalid and render is refused while it stands. This is a disagreement about what the data support, not a broken execution: all six results reran exactly and the other four Checks passed. The Check was not edited after the result. analysis.yaml recommends inconclusive. Owner: Patrick Morris (Operator) - decide whether to accept inconclusive as it stands or open a new revision with a newly pre-registered Question; write_finding onward has not run."
-stale_definitions:
-  # The Instance's `weekday_share` definition was improved after this run (it now reads the bounded `crz_daily`
-  # table). This Finding pins the version it actually read, so `check` reports `hash_mismatch` at
-  # manifest.yaml#/definitions/1 and the repair is a new revision, never a re-pin of committed run output.
-  # Named here rather than left to a blanket tolerance: which definition moved is part of the halt.
-  - weekday_share
-updated: "2026-09-17T15:22:48Z"
+stage: check
+status: done
+reason: ""
+# Revision 2 opened on the Operator's decision (Patrick Morris, 2026-09-17) resolving the revision-1
+# needs_attention halt: reframe. Weekdays and weekend days are separate questions. Revision 1 is archived
+# under revisions/1/. weekday_share is re-pinned in this revision at the content the Instance now holds,
+# which is the repair the revision-1 halt named for its hash_mismatch.
+# clarify ended 2026-09-17T17:23:47Z (question.state resolved, new falsifier statement).
+# checked_analysis ended 2026-09-17T17:33:29Z: evidence valid, rerun exact, the new pre-registered falsifier
+# recorded fail, analysis.yaml recommends inconclusive. That is the answer, not a halt; the run continued.
+# write_finding ended 2026-09-17T17:38:37Z: outcome inconclusive, five Claims, one chart, six tables; check
+# reports no errors; render wrote a draft and warns that the pinned renderer 0.0.0 is not the running 0.2.0.
+# iterate_visual ended 2026-09-17T17:41:07Z: trips_per_day_by_day_type_chart (Claim c1) passed on its third
+# pass, 7 of 7 (advisory). Pass 1 failed one_message and direct_labels (bars named, values left to the axis;
+# title carried a point the bars do not show). Pass 2 failed one_message and rendered 1838 px wide because the
+# renderer draws the title on one line, which shrank the bars on the page. Pass 3 shortened the title, put
+# the accent on the one bar the Claim is about and made the weekend bars grey context. Known gap, not a
+# rubric item: the image no longer states the unit (trips into the zone per day); the figure description,
+# the table under it and the prose do. No Variants kept: each pass overwrote the same spec file.
+# shape_narrative ended 2026-09-17T17:42:02Z: one pass. Answer sentence shortened and made answer-first, a
+# trend sentence and a what-a-passed-Check-shows sentence added, chart description carries the title's value.
+# analysis_review ended 2026-09-17T17:46:16Z: method, question and reader reviews recorded by
+# agent:claude-fable-5-1 against digest 78901dfbade5..., no blocking finding, 25 non-blocking (4 method,
+# 5 question, 16 reader). Agent reviews are not approval.
+# check ended 2026-09-17T17:46:16Z: check --mode rerun - syntax ok, content complete, evidence valid, sql
+# performed, publication not_ready (no publication_approval attestation); zero errors; one falsifier_failed
+# warning, which is the outcome. render wrote render/finding.html as a draft. Normal completion: an
+# evidence-valid draft reviewed by agents, awaiting human publication readiness. Nothing was published.
+updated: "2026-09-17T17:46:16Z"
