@@ -116,6 +116,7 @@ Each is recorded with an id, a status (`pass`, `fail`, `not_evaluated`) and a ca
 | `constraint:window` | `question.window` start, end and timezone equal `constraints.window` | analytical |
 | `constraint:data_to` | `coverage.data_to` equals `constraints.data_to` | analytical |
 | `required_checks` | every kind in `constraints.required_checks` appears as some `checks[].kind` | analytical |
+| `reviews_current` | every review kind the Finding records has a review bound to the digest the manifest pins — so no kind's **newest** review read other content — and at least one of `method`, `question`, `reader` is recorded | analytical |
 
 `not_evaluated` is a real status and appears where there is nothing to judge: a golden with no
 `definition_ids`, a `null` expected value (not-availability is the render contract's job, not a cell search),
@@ -139,6 +140,17 @@ the entry's ordinal, so two entries sharing a 40-character prefix stay two asser
 
 `constraints.population` is prose and is not asserted; like `must_state`, a reviewer judges it. The other three
 constraint fields name things a Finding also declares, so each is compared directly.
+
+`reviews_current` is about **currency**, not completeness, and it is judged per kind on the newest review of
+that kind. A run that reviewed a Finding and then edited it produces a draft whose reviews describe content
+nobody read, and the run reporting that draft as reviewed is the regression this catches
+(`examples/nyc-open-data/docs/run-log.md`, Citi Bike runs 2 and 3). An earlier review that a later review of
+the same kind replaced is **superseded history** and fails nothing. A Finding with no review of any required
+kind fails, because nothing reviewed it. Whether all three required kinds are present is `aftergrid review
+status`'s gate, which exits non-zero on a missing one
+([`analysis-directory.md`](analysis-directory.md)); the assertion records the absent kinds in its `observed`
+text rather than duplicating that verdict. The digest read is the one the manifest pins: whether the files
+still hash to it is `aftergrid check`'s question and is reported as evidence validity.
 
 ## Analytical and infrastructure, kept apart
 

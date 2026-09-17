@@ -19,6 +19,7 @@ import addFormats from "ajv-formats";
 import { DuckDbAdapter } from "../adapters/duckdb.ts";
 import { AdapterError } from "../adapters/contract.ts";
 import { newFinding } from "../commands/new-finding.ts";
+import { newestByKind, REQUIRED_REVIEW_KINDS, type ReviewEntry } from "../commands/review.ts";
 import { redactCommand } from "./redact.ts";
 import { emptyReport, type Report } from "../report.ts";
 import {
@@ -530,9 +531,50 @@ export function assertCase(opts: AssertOptions): Assertion[] {
       : pass("claim_type", "analytical", `at most ${expected.claim_type}`, `the answer-bearing Claim is ${got}`));
   }
 
+  out.push(assertReviewsCurrent(manifest));
+
   out.push(...assertConstraints(golden, manifest));
 
   return out;
+}
+
+/**
+ * The reviews the produced Finding carries, against the digest it pins.
+ *
+ * A run that edits a Finding after reviewing it and then reports it as reviewed is the failure this assertion
+ * exists for (`examples/nyc-open-data/docs/run-log.md`, Citi Bike runs 2 and 3). Judged per kind on the
+ * **newest** review of that kind: an earlier review the run replaced is superseded history and fails nothing.
+ * A Finding with no review of any required kind fails — nothing reviewed it.
+ *
+ * The digest read here is the one the manifest pins. Whether the files still hash to it is `aftergrid check`'s
+ * question, not this assertion's, and is reported separately as evidence validity.
+ */
+function assertReviewsCurrent(manifest: any): Assertion {
+  const id = "reviews_current";
+  const expected = `the newest review of every kind the Finding records is bound to the Finding's own content digest, and at least one of ${REQUIRED_REVIEW_KINDS.join(", ")} is recorded`;
+  const digest = String(manifest?.content_digest?.value ?? "");
+  const reviews: ReviewEntry[] = Array.isArray(manifest?.reviews) ? manifest.reviews : [];
+  if (!digest) return skip(id, "infrastructure", expected, "the manifest pins no content digest, so no review can be judged current");
+
+  const required = reviews.filter((r) => REQUIRED_REVIEW_KINDS.includes(r?.kind));
+  if (!required.length) {
+    const kinds = [...new Set(reviews.map((r) => String(r?.kind)))].join(", ");
+    return fail(id, "analytical", expected, reviews.length
+      ? `the Finding records only ${kinds} review(s), none of a required kind`
+      : "the Finding records no review at all");
+  }
+
+  const newest = newestByKind(required);
+  const atDigest = (k: string) => required.some((r) => r.kind === k && String(r.content_digest?.value ?? "") === digest);
+  const stale = [...newest.values()].filter((r) => !atDigest(r.kind));
+  const superseded = required.filter((r) => String(r.content_digest?.value ?? "") !== digest).length;
+  if (stale.length) {
+    return fail(id, "analytical", expected,
+      `the newest ${stale.map((r) => r.kind).join(", ")} review is bound to other content (${stale.map((r) => String(r.content_digest?.value ?? "(none)").slice(0, 12)).join(", ")}…), so the Finding was edited after it was reviewed`);
+  }
+  const absent = REQUIRED_REVIEW_KINDS.filter((k) => !newest.has(k));
+  return pass(id, "analytical", expected,
+    `${[...newest.keys()].join(", ")} reviewed at ${digest.slice(0, 12)}…${superseded ? `, ${superseded} superseded review(s) behind them` : ""}${absent.length ? `; no ${absent.join(", ")} review is recorded, which \`aftergrid review status\` reports as its own error` : ""}`);
 }
 
 /** The cited Definition's version against the Instance's current one. Version, then lifecycle. */

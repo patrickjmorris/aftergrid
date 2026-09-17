@@ -313,7 +313,9 @@ test("compare classifies a regression and a fix from the retained records, and w
   assert.equal(comparison.totals.regressed, 1);
   assert.equal(comparison.totals.missing_from_run, 0);
   assert.ok(report.errors.some((e) => e.category === "eval_case_failed" && e.location === "golden/price_change_cancellations"));
-  assert.deepEqual(comparison.cases.find((c) => c.case === "price_change_cancellations")!.failing_assertions, ["outcome"]);
+  // Two assertions fail, and the second is the damage itself: the manifest was re-pinned to the digest the
+  // edited files hash to, which leaves the recorded method review bound to content nobody reviewed.
+  assert.deepEqual(comparison.cases.find((c) => c.case === "price_change_cancellations")!.failing_assertions, ["outcome", "reviews_current"]);
 
   assert.ok(existsSync(join(headDir, COMPARISON_FILE)));
   assert.match(readFileSync(join(headDir, SUMMARY_FILE), "utf8"), /## Compared against base0001[\s\S]*price_change_cancellations` — \*\*regressed\*\*/);

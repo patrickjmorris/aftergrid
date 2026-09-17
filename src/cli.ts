@@ -116,7 +116,9 @@ Lifecycle:
   review        record appends one agent review to the manifest, bound to the digest the files hash to now,
                 and refuses when they no longer match. It never writes an attestation and never reports
                 readiness: an agent review completes a draft, a human APPROVED review approves it. status
-                reprints what is recorded, what is stale, and whether /analyze continues or halts.
+                reprints what is recorded, what is stale, and whether /analyze continues or halts. It is the
+                last command of a run, prints "reviews: <n> current, <m> superseded, <k> stale", and exits 1
+                when a required kind's newest review is stale or missing: docs/contracts/analysis-directory.md.
   eval          runs Golden Questions end to end against an analyzer and records what happened per case under
                 <out>/<sha>/. Evaluation material, never a merge gate; analytical and infrastructure failures are
                 recorded apart; it approves nothing and validates no evidence. Contract: docs/contracts/eval.md.
