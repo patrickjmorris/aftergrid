@@ -154,14 +154,29 @@ test("nothing under analytics/ claims an approval, a review or a Finding that do
       // claim a human said yes. The word may be discussed in prose — it may not be asserted in front matter.
       assert.doesNotMatch(line, /^\s*lifecycle:\s*approved\b/, `${rel}:${i + 1} claims an approved lifecycle`);
       assert.doesNotMatch(line, /^\s*approval:\s*$/, `${rel}:${i + 1} opens an approval block`);
-      assert.doesNotMatch(line, /^\s*attestations:/, `${rel}:${i + 1} opens an attestations block`);
-      assert.doesNotMatch(line, /^\s*reviews:/, `${rel}:${i + 1} opens a reviews block`);
+      // An empty list is what `new finding` scaffolds and what an unreviewed draft carries; a block that opens
+      // onto entries is a claim that someone reviewed or attested, which nothing here may make.
+      assert.doesNotMatch(line, /^\s*attestations:\s*$/, `${rel}:${i + 1} opens an attestations block`);
+      assert.doesNotMatch(line, /^\s*reviews:\s*$/, `${rel}:${i + 1} opens a reviews block`);
+      assert.doesNotMatch(line, /^\s*(attestations|reviews):\s*\[\s*\{/, `${rel}:${i + 1} lists an inline review or attestation`);
     }
   }
-  // No Finding has been produced yet, so there is nothing for `examples-check` to verify and nothing to cite.
+  // Findings here are real run output, committed as produced, halts included. Each carries no review and no
+  // attestation (nobody has reviewed or approved anything in this Instance), and a run that stopped says so in
+  // analysis-progress.yaml rather than leaving a draft that looks finished.
   const findings = join(INSTANCE, "findings");
-  const present = readdirSync(findings).filter((f) => f !== ".gitkeep");
-  assert.deepEqual(present, [], `findings/ holds ${present.join(", ")}, but no Finding has been produced yet`);
+  for (const f of readdirSync(findings).filter((f) => f !== ".gitkeep")) {
+    const dir = join(findings, f);
+    const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
+    assert.deepEqual(manifest.reviews ?? [], [], `${f} carries a review nobody recorded`);
+    assert.deepEqual(manifest.attestations ?? [], [], `${f} carries an attestation nobody recorded`);
+    assert.equal(manifest.finding.state, "draft", `${f} is not a draft`);
+    if (manifest.finding.outcome === "pending") {
+      const progress = parseYaml(readFileSync(join(dir, "analysis-progress.yaml"), "utf8"));
+      assert.ok(["needs_attention", "needs_input"].includes(progress.status), `${f} is pending but records no halt`);
+      assert.ok(progress.reason && progress.reason.length > 20, `${f}'s halt gives no reason`);
+    }
+  }
   // decisions.md is the generated index of an empty Decision log.
   assert.deepEqual(readdirSync(join(INSTANCE, "decisions")).filter((f) => f !== ".gitkeep"), []);
 });
