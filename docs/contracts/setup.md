@@ -147,6 +147,17 @@ own sentence: DuckDB has no roles, so there is no role to probe, and the safety 
 policy the engine enforces on every statement. **An unsupported probe is never reported as a missing safety
 policy, and never as a passed probe.** It is not an error and not a warning.
 
+**A source larger than the admission cap is a setup outcome, not a setup failure.** Either backend block takes an
+optional `estimate_cap` (default 5,000,000): the largest planned scan any read may make. It bounds `capture` as
+well as `execute`, because a whole-table copy is a scan of the whole table, so an Instance pointed at a source
+with tens of millions of rows per table will connect, report its capability matrix and pass setup, and then have
+`capture` refuse that table with `admission` before reading a byte. That is the designed behaviour, and the
+answer is the windowed-Instance pattern in `docs/contracts/adapters.md`: the Operator's own build script writes a
+bounded table (a daily or per-zone aggregate, a windowed extract) plus a provenance table into the Instance's own
+DuckDB file, and aftergrid captures those — the analytical window still living in the analysis SQL. Run
+`aftergrid capture <finding-dir> --catalog` after setup to see each table's scan rows, bytes and admissibility
+before any Finding tries to copy one.
+
 **Postgres.** `PostgresAdapter.probePrivileges()` runs against the configured role.
 
 - A role with `can_write` or `can_ddl` is **refused** (`write_capable_role`) with the `CREATE ROLE` / `GRANT

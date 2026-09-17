@@ -38,8 +38,11 @@ export function openInstanceAdapter(instance: Instance): { adapter: Adapter; des
   const path = safePath(instance.root, String(rel)) as string;
   if (!existsSync(path)) throw new AdapterError("missing_file", `the configured DuckDB source ${rel} does not exist inside the Instance`, String(rel));
   const source: DuckDbSource = statSync(path).isDirectory() ? { kind: "csv_dir", path } : { kind: "duckdb_file", path };
+  // `estimate_cap` is the same input the postgres block takes, and it means the same thing on both: the largest
+  // planned scan a read — including a whole-table `capture` — may make. Absent, the adapter's own default stands.
+  const cap = connection.duckdb?.estimate_cap;
   return {
-    adapter: new DuckDbAdapter({ source }),
+    adapter: new DuckDbAdapter({ source, ...(cap === undefined || cap === null ? {} : { estimate_cap_rows: Number(cap) }) }),
     description: source.kind === "csv_dir"
       ? `duckdb over the read-only CSV directory ${rel}; each <table>.csv is materialised into a sealed in-memory database and the directory is never written`
       : `duckdb file ${rel}, opened with access_mode READ_ONLY, which the engine enforces for every statement`,

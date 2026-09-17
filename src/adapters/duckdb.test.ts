@@ -1,7 +1,7 @@
 // Seam-2 contract tests, DuckDB. The same behaviours are meant to run on Postgres (ag-postgres-adapter-dna).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync, cpSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -170,4 +170,55 @@ test("close during a first open leaves no connection behind, and overlapping cal
   assert.equal((s as any).category, "cancelled");
   assert.equal(Number(qres.rows[0]!.seven), 7, "the quick call ran after the slow one, untouched by its interrupt");
   await b.close();
+});
+
+// A whole-table capture IS a scan of the whole table, so the cap that bounds `execute` bounds `capture`
+// (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern"). The cap is lowered here through
+// the same `estimate_cap_rows` seam the admission tests above use, rather than by generating a source big enough
+// to cross the 5,000,000-row default: what is under test is the rule, not DuckDB's ability to read a large file.
+test("capture is refused for a table over the admission cap, before anything is read or written", async () => {
+  const a = adapter(scratchWarehouse(), { estimate_cap_rows: 4 });
+  const dest = mkdtempSync(join(tmpdir(), "ag-cap-big-"));
+  const over = await a.estimate("select * from users", {});
+  assert.equal(over.status, "estimated");
+  const scan = over.status === "estimated" ? over.scan_rows : 0;
+  assert.ok(scan > 4, `the fixture table must be over the lowered cap, got ${scan}`);
+
+  await assert.rejects(a.capture(["users"], dest), (e: any) =>
+    e instanceof AdapterError && e.category === "admission"
+    && e.location === "users"
+    // The observed scan estimate and the limit are both in the message.
+    && new RegExp(`whole-table scan of ${scan} rows`).test(e.message) && /admission limit of 4 rows/.test(e.message)
+    && /no window, predicate or row-bound flag/.test(e.message)
+    && /nothing was read and nothing was written/.test(e.message));
+  assert.equal(existsSync(join(dest, "inputs")), false, "a refused capture does not even create inputs/");
+
+  // A multi-table capture is all-or-nothing: the small table is not written because the large one is refused.
+  await assert.rejects(a.capture(["platforms", "users"], dest), (e: any) => e.category === "admission" && e.location === "users");
+  assert.equal(existsSync(join(dest, "inputs")), false, "no table is captured when any named table is over the cap");
+
+  // The same table, under a cap that admits it, captures normally: the refusal is the cap, not the table.
+  const ok = adapter(scratchWarehouse(), { estimate_cap_rows: 1e9 });
+  const captured = await ok.capture(["users"], dest);
+  assert.equal(captured.length, 1);
+  assert.ok(existsSync(join(dest, captured[0]!.path)));
+  await ok.close();
+  await a.close();
+});
+
+test("tableAdmissions reports scan rows, source bytes and admissibility without reading or writing anything", async () => {
+  const dir = scratchWarehouse();
+  const a = adapter(dir, { estimate_cap_rows: 4 });
+  const rows = await a.tableAdmissions(["users", "platforms"]);
+  assert.deepEqual(rows.map((r) => r.table), ["users", "platforms"]);
+  for (const r of rows) {
+    assert.equal(r.estimate.status, "estimated");
+    if (r.estimate.status === "estimated") assert.equal(r.estimate.unit, "estimated_rows");
+    // A CSV source states its own size; this is the file on disk, never inferred from the row estimate.
+    assert.equal(r.bytes, statSync(join(dir, `${r.table}.csv`)).size);
+  }
+  assert.equal(rows[0]!.admission.decision, "rejected", "users is over the lowered cap");
+  await assert.rejects(a.tableAdmissions(["not_a_table"]), (e: any) => e.category === "unresolved_reference");
+  assert.equal(existsSync(join(dir, "inputs")), false);
+  await a.close();
 });

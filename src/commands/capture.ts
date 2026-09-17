@@ -10,11 +10,15 @@
 // read to the analytical window happens in the analysis SQL, which converts to the analytical timezone
 // explicitly; it never happens here.
 //
-// Five refusals, none of them overridable from a flag:
+// Six refusals, none of them overridable from a flag:
 //   - An Instance with no adapter. That is the recorded path (ADR 0010) and the default: there is no source to
 //     copy from, and the refusal names `aftergrid record` rather than a connection to fix.
+//   - A table the planner puts over the Instance's admission limit. Because the read is the whole table, the cap
+//     that bounds `execute` bounds `capture` too; every named table is admitted before the first byte is read, so
+//     a refusal leaves the Finding exactly as it was. The remedy is the windowed-Instance pattern
+//     (docs/contracts/adapters.md), never a narrower capture.
 //   - `--catalog` reads the catalog and writes nothing at all, so a plan can be checked against the columns that
-//     actually exist before any table is copied.
+//     actually exist — and against each table's scan rows, bytes and admissibility — before any table is copied.
 //   - A revision carrying attestations is refused. Retained inputs are inside the content digest, so capturing
 //     into an approved revision would silently invalidate the approval; the answer is a new revision.
 //   - The manifest's `attestations` and `reviews` are never read for rebinding and never written.
@@ -27,7 +31,7 @@ import { parseDocument } from "yaml";
 import { emptyReport, type Problem, type Report } from "../report.ts";
 import { findInstance } from "../instance.ts";
 import { openInstanceAdapter } from "../analysis/source.ts";
-import { AdapterError, type RetainedInput } from "../adapters/contract.ts";
+import { AdapterError, type RetainedInput, type TableAdmission } from "../adapters/contract.ts";
 // @ts-ignore: shared digest envelope, the one used by the fixture build and by `check`.
 import { digestOf } from "../../scripts/lib/validate-finding.mjs";
 // @ts-ignore: shared path containment.
@@ -48,6 +52,18 @@ const categoryOf = (e: unknown): Problem["category"] =>
  * extract's extent, not a description that merely names the analytical window the SQL applies.
  */
 const BOUND_CLAIM = /\b(bounded|bounding|prefiltered|pre-filtered|filtered (?:to|down|by)|limited to|restricted to|clipped to|truncated to|trimmed to|narrowed to|subset of|only the rows|rows? between|either side of the window)\b/i;
+
+/**
+ * The one answer to a source too large to capture whole — the windowed-Instance pattern
+ * (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern"). It is a remedy and not a flag on
+ * purpose: the bounded table is the Operator's artifact, built by the Operator's script beside the Instance, so
+ * the narrowing is a visible, provenanced step rather than something capture did silently inside the digest.
+ */
+const LARGE_SOURCE_REMEDY =
+  "build a bounded table for this Question in the Instance's own DuckDB file (a daily/zone aggregate or a windowed extract), "
+  + "outside aftergrid, with a provenance table naming source, bytes, hash and build time; then capture that table. "
+  + "The analytical window still lives in SQL. See docs/contracts/adapters.md, \"Large sources: the windowed Instance pattern\", "
+  + "and `aftergrid capture <finding-dir> --catalog` to see each table's scan rows and whether it is admissible before copying anything.";
 
 /** The manifest shape `snapshot.inputs` accepts: the adapter's `runtime` field is summarised in `description`. */
 function toManifestInput(input: RetainedInput) {
@@ -114,8 +130,29 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
     if (opts.catalog) {
       const tables = await adapter.catalog();
       report.info.push(`catalog: ${tables.length} table${tables.length === 1 ? "" : "s"} visible; nothing was captured and nothing was written`);
-      for (const t of tables) report.info.push(`table ${t.name}: ${t.columns.map((c) => `${c.name} ${c.sql_type}`).join(", ")}`);
+      // Per-table admission alongside the columns: `capture` copies whole tables, so whether a table can be
+      // captured at all is a planner question, and this is where it is answered before anything is copied.
+      const wanted = (opts.tables ?? []).filter(Boolean);
+      const named = wanted.length ? tables.filter((t) => wanted.includes(t.name)) : tables;
+      let admissions: TableAdmission[] = [];
+      try { admissions = adapter.tableAdmissions ? await adapter.tableAdmissions(named.map((t) => t.name)) : []; }
+      catch (e) { report.info.push(`per-table admission is unavailable here (${(e as Error).message}); the columns below are still what the catalog reports`); }
+      const byTable = new Map(admissions.map((a) => [a.table, a]));
+      for (const t of tables) {
+        report.info.push(`table ${t.name}: ${t.columns.map((c) => `${c.name} ${c.sql_type}`).join(", ")}`);
+        const a = byTable.get(t.name);
+        if (!a) continue;
+        const scan = a.estimate.status === "estimated" ? `${a.estimate.scan_rows} scan rows (${a.estimate.unit})` : `scan rows unknown (${a.estimate.reason})`;
+        const bytes = a.bytes === undefined ? "bytes not stated by this source" : `${a.bytes} bytes at the source`;
+        if (a.admission.decision === "rejected") {
+          report.info.push(`admission ${t.name}: ${scan}, ${bytes} — NOT admissible: ${a.admission.reason}`);
+          report.warnings.push({ category: "admission", location: t.name, message: `a whole-table capture of ${t.name} would scan ${scan.split(" ")[0]} rows, over the admission limit; ${a.admission.reason}`, remedy: LARGE_SOURCE_REMEDY });
+        } else {
+          report.info.push(`admission ${t.name}: ${scan}, ${bytes} — admissible (${a.admission.basis})`);
+        }
+      }
       report.info.push("backend types only. Business units come from the evidence and the Metric definition, never from a SQL type (docs/contracts/adapters.md).");
+      report.info.push("scan rows are the planner's estimate for `select * from <table>`, which is the read capture performs; they are a planner model, never a count.");
       report.evidence = "not_evaluated";
       report.readiness_reasons.push("catalog read: this says nothing about any Finding");
       return report;
@@ -161,8 +198,14 @@ export async function capture(opts: CaptureOptions): Promise<Report> {
     report.info.push("attestations and reviews were not read for rebinding and were not written");
     report.readiness_reasons.push("capture records evidence; publication readiness is decided by `aftergrid check` and a human review");
   } catch (e) {
-    err(categoryOf(e), (e as any).location || dir, (e as Error).message,
-      "manifest.yaml was not changed; extracts already written under inputs/ are unreferenced and safe to delete");
+    const category = categoryOf(e);
+    // An `admission` refusal is the one failure that is about the shape of the source rather than the run, and
+    // the adapter checks every table before it writes anything, so this remedy names the pattern instead of
+    // offering to clean up extracts that do not exist.
+    err(category, (e as any).location || dir, (e as Error).message,
+      category === "admission"
+        ? `${LARGE_SOURCE_REMEDY} manifest.yaml was not changed and no extract was written: admission is decided for every named table before the first byte is read.`
+        : "manifest.yaml was not changed; extracts already written under inputs/ are unreferenced and safe to delete");
   } finally {
     await adapter.close().catch(() => undefined);
   }

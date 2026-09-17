@@ -42,8 +42,15 @@ connection:
                                       # `aftergrid setup --adapter …` PRINTS this block for an Instance that
                                       # already has an aftergrid.yaml; setup never overwrites this file.
   # secrets are referenced, never stored
-  duckdb: { path: data/warehouse.duckdb, read_only: true }
+  duckdb: { path: data/warehouse.duckdb, read_only: true, estimate_cap: 5000000 }
   postgres: { url_env: AFTERGRID_PG_URL, statement_timeout_ms: 30000, estimate_cap: 1000000 }
+                                      # estimate_cap (both backends, optional, default 5000000): the largest
+                                      # planned scan any read may make. It bounds `capture` too, because a
+                                      # whole-table copy is a scan of the whole table; a table over it is refused
+                                      # with `admission` before anything is read or written, and the answer is the
+                                      # windowed-Instance pattern (docs/contracts/adapters.md), never a narrower
+                                      # capture. `aftergrid capture <finding-dir> --catalog` reports each table's
+                                      # scan rows, bytes and admissibility without copying anything.
 publication:
   repository: owner/repo               # where Finding PRs are opened
   trusted_approvers: [github-login]     # humans whose PR APPROVED review counts. Not editable by a Finding PR: CODEOWNERS or branch protection guards this file

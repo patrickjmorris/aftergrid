@@ -2,10 +2,11 @@
 // Sandbox settings and the single-SELECT/named-parameter policy mirror scripts/fixture-tool.mjs (code review
 // 2026-09-15) so the fixture build and the CLI execute SQL the same way.
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
 import { AdapterError } from "./contract.ts";
-import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe, RetainedInput, RetainedSession, ResourceLimits, SqlParams, CatalogTable, Admission } from "./contract.ts";
+import { admit, captureRefusal } from "./admission.ts";
+import type { Adapter, CapabilityMatrix, Estimate, ExecuteResult, PrivilegeProbe, RetainedInput, RetainedSession, ResourceLimits, SqlParams, CatalogTable, TableAdmission } from "./contract.ts";
 // @ts-ignore: shared path containment and SQL string quoting.
 import { safePath, sqlString, ContractError } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: the one SQL execution policy, shared with the fixture builder.
@@ -77,13 +78,6 @@ async function estimateOn(c: any, sql: string, params: SqlParams, timeoutMs: num
   } catch (e) {
     return { status: "unknown", reason: String((e as Error).message ?? e).split("\n")[0]! };
   } finally { clearTimeout(timer); p?.destroySync?.(); }
-}
-
-function admit(est: Estimate, cap: number, limits: ResourceLimits): Admission {
-  // A row LIMIT never bounds source work: admission looks at the largest planned scan, not the root row count.
-  if (est.status === "estimated") return est.scan_rows <= cap ? { decision: "admitted", basis: "estimate_under_cap", estimate: est, cap } : { decision: "rejected", reason: `planned scan of ${est.scan_rows} rows exceeds the cap of ${cap}`, estimate: est };
-  // Documented fallback: an unknown estimate is admitted only because memory, threads and a statement timeout are enforced by the engine.
-  return { decision: "admitted", basis: "unknown_estimate_with_enforced_limits", estimate: est, limits };
 }
 
 export class DuckDbAdapter implements Adapter {
@@ -190,12 +184,40 @@ export class DuckDbAdapter implements Adapter {
   async capture(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number } = {}): Promise<RetainedInput[]> {
     return this.serialize(() => this.captureNow(tables, destDir, opts));
   }
+  /** The planner's view of `select * from <table>` — the read capture performs — and the admission it earns. */
+  private async admissionOf(c: any, table: string, timeout: number): Promise<TableAdmission> {
+    const estimate = await estimateOn(c, `select * from ${identifier(table)}`, {}, timeout);
+    const bytes = this.sourceBytes(table);
+    return { table, estimate, ...(bytes === undefined ? {} : { bytes }), admission: admit(estimate, this.cap, this.limits) };
+  }
+  /** The source's own size, where the source has one file per table. A `.duckdb` file holds every table at once, so no per-table size is claimed. */
+  private sourceBytes(table: string): number | undefined {
+    if (this.opts.source.kind !== "csv_dir") return undefined;
+    try { return statSync(safePath(this.opts.source.path, `${table}.csv`) as string).size; } catch { return undefined; }
+  }
+  async tableAdmissions(tables: string[]): Promise<TableAdmission[]> {
+    return this.serialize(async () => {
+      const c = await this.open();
+      const out: TableAdmission[] = [];
+      for (const table of tables) {
+        if (!this.tables.includes(table)) throw new AdapterError("unresolved_reference", `table ${table} is not in the source catalog`, table);
+        out.push(await this.admissionOf(c, table, this.limits.statement_timeout_ms));
+      }
+      return out;
+    });
+  }
   private async captureNow(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number }): Promise<RetainedInput[]> {
     const c = await this.open();
-    mkdirSync(join(destDir, "inputs"), { recursive: true });
     const out: RetainedInput[] = [];
     const captured_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     for (const table of tables) if (!this.tables.includes(table)) throw new AdapterError("unresolved_reference", `table ${table} is not in the source catalog`, table);
+    // Admission first, for every table, before a directory is made or a byte is read: capture's read IS the whole
+    // table, so the cap that bounds `execute` bounds it too, and a refusal must leave the Finding untouched.
+    for (const table of tables) {
+      const { estimate, admission } = await this.admissionOf(c, table, opts.timeout_ms ?? this.limits.statement_timeout_ms);
+      if (admission.decision === "rejected") throw new AdapterError("admission", captureRefusal(table, estimate.status === "estimated" ? estimate.scan_rows : NaN, this.cap), table);
+    }
+    mkdirSync(join(destDir, "inputs"), { recursive: true });
     // One read transaction for every table, so the extracts are a single consistent view (DuckDB MVCC snapshot).
     await c.run("BEGIN TRANSACTION");
     try {

@@ -4,7 +4,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -543,4 +543,34 @@ test("a Postgres-captured snapshot reruns on Postgres, not through DuckDB's type
   const s = track(await retainedOpenerFor(inputs)(dest, inputs));
   assert.match(String((await s.execute("select version() as v", {})).rows[0]!.v), /PostgreSQL/);
   await s.close();
+});
+
+// The same rule as DuckDB (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern"): a
+// whole-table capture is a scan of the whole table, so the admission cap bounds `capture` too, and the refusal
+// arrives from the planner before the capture transaction opens.
+test("capture is refused for a table over the admission cap, before the transaction opens; tableAdmissions reports it first", { skip: SKIP }, async () => {
+  await warehouse();
+  const a = reader({ estimate_cap_rows: 10 });
+  const dest = scratch("ag-pg-cap-big-");
+
+  const [users, platforms] = await a.tableAdmissions(["users", "platforms"]);
+  assert.equal(users!.estimate.status, "estimated");
+  if (users!.estimate.status === "estimated") assert.equal(users!.estimate.unit, "planner_cost");
+  assert.ok(typeof users!.bytes === "number" && users!.bytes! > 0, "pg_table_size states the heap and its TOAST");
+  assert.equal(users!.admission.decision, "rejected");
+  assert.equal(platforms!.admission.decision, "admitted");
+
+  await assert.rejects(a.capture(["users"], dest), (e: any) =>
+    e.category === "admission" && e.location === "users"
+    && /whole-table scan of \d+ rows/.test(e.message) && /admission limit of 10 rows/.test(e.message)
+    && /nothing was read and nothing was written/.test(e.message));
+  assert.equal(existsSync(join(dest, "inputs")), false, "a refused capture does not even create inputs/");
+  // All-or-nothing across tables: the small one is not written because the large one is refused.
+  await assert.rejects(a.capture(["platforms", "users"], dest), (e: any) => e.category === "admission" && e.location === "users");
+  assert.equal(existsSync(join(dest, "inputs")), false);
+
+  // The session is not left in an aborted transaction by the refusal.
+  const ok = await a.execute("select count(*) as n from platforms", {});
+  assert.ok(Number(ok.rows[0]!.n) >= 0);
+  await a.close();
 });

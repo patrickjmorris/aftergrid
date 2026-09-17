@@ -88,7 +88,10 @@ Lifecycle:
                 live source) and reports any difference from what the manifest recorded. Nothing is modified.
   capture       copies the named source tables into the Finding as retained inputs with content hashes and
                 honest source metadata (docs/contracts/analysis-directory.md). --catalog reads the tables and
-                columns and writes nothing. It refuses a revision carrying attestations and never sets a Snapshot
+                columns, each table's planned scan rows, its bytes where the source states them and whether a
+                whole-table capture would be admitted, and writes nothing. It refuses a revision carrying
+                attestations, refuses a table over the Instance's admission limit before reading a byte (the
+                remedy is the windowed-Instance pattern, docs/contracts/adapters.md), and never sets a Snapshot
                 guarantee: a guarantee is established by running the analysis, not by capturing inputs.
   execute       runs every declared execution and Check against the retained inputs (never a live source),
                 writes results/*.json and pins SQL hashes, result hashes, Check outcomes and the content digest.

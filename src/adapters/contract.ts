@@ -47,6 +47,15 @@ export type RetainedInput = {
 };
 export type CatalogTable = { name: string; columns: { name: string; sql_type: string }[] };
 
+/**
+ * What a whole-table read of one table would cost, without reading it: the planner's estimate for
+ * `select * from <table>` and the admission that estimate earns. `bytes` is the source's own on-disk size where
+ * the backend can state one (a CSV file's length, `pg_table_size`), omitted where it cannot — it is never
+ * inferred from the row estimate. This is what `capture --catalog` reports and what `capture` itself refuses on
+ * (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern").
+ */
+export type TableAdmission = { table: string; estimate: Estimate; bytes?: number; admission: Admission };
+
 export class AdapterError extends Error {
   category: string; location: string;
   constructor(category: string, message: string, location = "") { super(message); this.category = category; this.location = location; }
@@ -59,9 +68,20 @@ export interface Adapter {
   estimate(sql: string, params: SqlParams): Promise<Estimate>;
   /** Guarded execution against the connected source: single SELECT, admission by estimate, limits active throughout. */
   execute(sql: string, params: SqlParams, opts?: { timeout_ms?: number }): Promise<ExecuteResult>;
-  /** Capture whole-table extracts of the named tables (no row bound is applied; the analytical window lives in SQL) into destDir as retained inputs with content hashes. */
+  /**
+   * Capture whole-table extracts of the named tables (no row bound is applied; the analytical window lives in SQL)
+   * into destDir as retained inputs with content hashes. Because the read is the whole table, every table is
+   * admitted against the same cap `execute` uses before anything is written; a table over the cap is refused with
+   * `admission` and nothing is read or written at all.
+   */
   capture(tables: string[], destDir: string, opts?: { description?: string }): Promise<RetainedInput[]>;
   catalog(): Promise<CatalogTable[]>;
+  /**
+   * Per-table planner estimate, source bytes where known, and whether a whole-table capture would be admitted —
+   * without executing or capturing anything. Optional and additive: an adapter that cannot plan a bare table read
+   * omits it, and `capture --catalog` then reports columns only.
+   */
+  tableAdmissions?(tables: string[]): Promise<TableAdmission[]>;
   close(): Promise<void>;
 }
 

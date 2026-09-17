@@ -51,12 +51,18 @@ owner:
 
 const READERS_MD = `# Readers\n\n## product_owner\n\nNon-technical product owner; reads on a phone.\n`;
 
-/** A throwaway Instance whose source is a copy of the synthetic warehouse, inside the Instance root. */
-function scratchInstance(tables = ["users", "events"]): string {
+/**
+ * A throwaway Instance whose source is a copy of the synthetic warehouse, inside the Instance root.
+ * `estimateCap` writes `connection.duckdb.estimate_cap`, the same input the postgres block takes: it is how a
+ * source too large to capture whole is exercised here without building one (docs/contracts/adapters.md,
+ * "Large sources: the windowed Instance pattern").
+ */
+function scratchInstance(tables = ["users", "events"], estimateCap?: number): string {
   const root = join(mkdtempSync(join(tmpdir(), "ag-analysis-")), "analytics");
   mkdirSync(join(root, "data"), { recursive: true });
   for (const t of tables) cpSync(join(WAREHOUSE, `${t}.csv`), join(root, "data", `${t}.csv`));
-  writeFileSync(join(root, "aftergrid.yaml"), AFTERGRID_YAML);
+  writeFileSync(join(root, "aftergrid.yaml"), estimateCap === undefined ? AFTERGRID_YAML
+    : AFTERGRID_YAML.replace("    read_only: true\n", `    read_only: true\n    estimate_cap: ${estimateCap}\n`));
   writeFileSync(join(root, "readers.md"), READERS_MD);
   mkdirSync(join(root, "definitions"), { recursive: true });
   return root;
@@ -168,6 +174,67 @@ test("capture --catalog reads the catalog and writes nothing", async () => {
   assert.ok(report.info.some((i) => /^table users: /.test(i) && /user_id/.test(i)), JSON.stringify(report.info));
   assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "--catalog writes nothing");
   assert.ok(!existsSync(join(dir, "inputs", "users.csv")));
+});
+
+// A source bigger than the Finding (docs/contracts/adapters.md, "Large sources: the windowed Instance pattern").
+// `capture` copies whole tables, so the cap that bounds `execute` bounds it too, and the refusal has to leave the
+// Finding exactly as it was and point at the pattern rather than at a narrower capture that does not exist.
+test("capture refuses a table over the Instance's admission limit, names the bounded-table pattern, and writes nothing", async () => {
+  const instanceRoot = scratchInstance(["users", "events"], 4);
+  newFinding({ slug: "too-big", ask: "Anything.", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  const dir = join(instanceRoot, "findings", "2026-07-20-too-big");
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const report = await capture({ dir, tables: ["users", "events"] });
+  const problem = report.errors.find((e) => e.category === "admission");
+  assert.ok(problem, JSON.stringify(report.errors));
+  assert.match(problem!.message, /whole-table scan of \d+ rows/, "the observed scan estimate is in the message");
+  assert.match(problem!.message, /admission limit of 4 rows/, "and so is the limit it crossed");
+  assert.match(problem!.message, /no window, predicate or row-bound flag/, "capture stays whole-table; there is no narrower flag to offer");
+  const remedy = problem!.remedy ?? "";
+  assert.match(remedy, /build a bounded table for this Question in the Instance's own DuckDB file/);
+  assert.match(remedy, /a daily\/zone aggregate or a windowed extract/);
+  assert.match(remedy, /outside aftergrid/);
+  assert.match(remedy, /provenance table naming source, bytes, hash and build time/);
+  assert.match(remedy, /then capture that table/);
+  assert.match(remedy, /The analytical window still lives in SQL/);
+  assert.match(remedy, /--catalog/, "the remedy names the way to see admissibility before copying anything");
+  assert.match(remedy, /manifest\.yaml was not changed and no extract was written/);
+
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "a refused capture rewrites nothing");
+  assert.equal(existsSync(join(dir, "inputs", "users.csv")), false, "nothing was written for the refused table");
+  assert.equal(existsSync(join(dir, "inputs", "events.csv")), false, "and nothing for the table named beside it");
+  assert.equal(report.sql_execution, "not_performed");
+});
+
+test("capture --catalog reports per-table scan rows, bytes and admissibility without capturing", async () => {
+  const instanceRoot = scratchInstance(["users", "platforms"], 4);
+  newFinding({ slug: "catalog-admission", ask: "Anything.", reader: "product_owner", instanceDir: instanceRoot, date: "2026-07-20" });
+  const dir = join(instanceRoot, "findings", "2026-07-20-catalog-admission");
+  const before = readFileSync(join(dir, "manifest.yaml"), "utf8");
+
+  const report = await capture({ dir, catalog: true });
+  assert.deepEqual(report.errors, [], JSON.stringify(report.errors));
+  const line = (table: string) => report.info.find((i) => i.startsWith(`admission ${table}: `));
+  const users = line("users");
+  assert.ok(users, JSON.stringify(report.info));
+  assert.match(users!, /\d+ scan rows \(estimated_rows\)/);
+  assert.match(users!, /\d+ bytes at the source/, "a CSV source states its own size");
+  assert.match(users!, /NOT admissible/);
+  const platforms = line("platforms");
+  assert.ok(platforms, JSON.stringify(report.info));
+  assert.match(platforms!, /admissible \(estimate_under_cap\)/);
+  assert.doesNotMatch(platforms!, /NOT admissible/);
+
+  // The over-cap table is a warning, not an error: reading the catalog is not a failed run, and `--catalog`
+  // exists precisely so this is seen before a capture is attempted.
+  const warning = report.warnings.find((w) => w.category === "admission" && w.location === "users");
+  assert.ok(warning, JSON.stringify(report.warnings));
+  assert.match(warning!.remedy ?? "", /build a bounded table for this Question/);
+  assert.match(warning!.remedy ?? "", /provenance table naming source, bytes, hash and build time/);
+
+  assert.equal(readFileSync(join(dir, "manifest.yaml"), "utf8"), before, "--catalog still writes nothing");
+  assert.equal(existsSync(join(dir, "inputs", "users.csv")), false);
 });
 
 test("execute refuses a Finding with no retained inputs and names capture, rather than reaching for the live source", async () => {

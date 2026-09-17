@@ -16,8 +16,8 @@ import { delimiter, isAbsolute, join } from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { AdapterError } from "./contract.ts";
-import type { Adapter, Admission, CapabilityMatrix, CatalogTable, ColumnMeta, Estimate, ExecuteResult, PrivilegeProbe, ResourceLimits, RetainedInput, RetainedRuntime, RetainedSession, SqlParams } from "./contract.ts";
-import { admit } from "./admission.ts";
+import type { Adapter, Admission, CapabilityMatrix, CatalogTable, ColumnMeta, Estimate, ExecuteResult, PrivilegeProbe, ResourceLimits, RetainedInput, RetainedRuntime, RetainedSession, SqlParams, TableAdmission } from "./contract.ts";
+import { admit, captureRefusal } from "./admission.ts";
 // @ts-ignore: shared path containment, SQL string quoting and the shared error type.
 import { ContractError, safePath, sqlString } from "../../scripts/fixture-safety.mjs";
 // @ts-ignore: shared limits, the identifier rule and the lossless CSV writer (one CSV policy for every adapter).
@@ -498,6 +498,31 @@ export class PostgresAdapter implements Adapter {
     return this.serialize(() => translate(() => this.captureNow(tables, destDir, opts)));
   }
 
+  /**
+   * The planner's view of `select * from <schema>.<table>` — the read capture performs — plus `pg_table_size`,
+   * which is the heap and its TOAST on disk (indexes excluded: capture copies rows, not indexes).
+   */
+  private async admissionOf(s: Session, table: string, timeout: number): Promise<TableAdmission> {
+    const text = `select * from ${ident(this.schema)}.${ident(table)}`;
+    const estimate = await estimateOn(s, bindNamed(text, guard(text), {}).text, [], timeout);
+    let bytes: number | undefined;
+    try {
+      const { rows } = await s.typed("select pg_table_size(($1 || '.' || $2)::regclass) as bytes", [this.schema, table], timeout, `sizing ${table}`);
+      const n = Number(rows[0]?.bytes);
+      if (Number.isFinite(n)) bytes = n;
+    } catch { /* no privilege on the size function, or no such relation: bytes stay unstated rather than guessed */ }
+    return { table, estimate, ...(bytes === undefined ? {} : { bytes }), admission: admit(estimate, this.cap, this.limits) };
+  }
+
+  async tableAdmissions(tables: string[]): Promise<TableAdmission[]> {
+    return this.serialize(() => translate(async () => {
+      const s = await this.open();
+      const out: TableAdmission[] = [];
+      for (const table of tables) out.push(await this.admissionOf(s, table, this.limits.statement_timeout_ms));
+      return out;
+    }));
+  }
+
   /** Column names, storage types and nullability from information_schema, in ordinal order. */
   private async columnsOf(s: Session, table: string, timeout: number): Promise<RetainedRuntime["columns"]> {
     const { rows } = await s.typed(
@@ -537,7 +562,6 @@ export class PostgresAdapter implements Adapter {
   private async captureNow(tables: string[], destDir: string, opts: { description?: string; timeout_ms?: number }): Promise<RetainedInput[]> {
     const s = await this.open();
     const timeout = opts.timeout_ms ?? this.limits.statement_timeout_ms;
-    mkdirSync(join(destDir, "inputs"), { recursive: true });
     const captured_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
     const version = String((await s.typed("select current_setting('server_version') as v", [], timeout, "reading the server version")).rows[0]!.v);
     const out: RetainedInput[] = [];
@@ -550,6 +574,15 @@ export class PostgresAdapter implements Adapter {
     await s.raw("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY", [], timeout, "opening the capture transaction");
     let committed = false;
     try {
+      // Admission for every table, before a directory is made or a row is read: capture's read IS the whole table,
+      // so the cap that bounds `execute` bounds it too, and a refusal rolls back having written nothing. It runs
+      // INSIDE the transaction on purpose — `EXPLAIN` takes an ACCESS SHARE lock, and doing it outside would let a
+      // lock wait on the last table move the snapshot past a commit the earlier extracts were meant to precede.
+      for (const table of tables) {
+        const { estimate, admission } = await this.admissionOf(s, table, timeout);
+        if (admission.decision === "rejected") throw new AdapterError("admission", captureRefusal(table, estimate.status === "estimated" ? estimate.scan_rows : NaN, this.cap), table);
+      }
+      mkdirSync(join(destDir, "inputs"), { recursive: true });
       for (const table of tables) {
         const columns = schemas.get(table)!;
         const rel = `inputs/${table}.csv`;
