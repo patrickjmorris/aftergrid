@@ -176,7 +176,8 @@ test("nothing under analytics/ claims an approval, a review or a Finding that do
     const manifest = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
     for (const r of manifest.reviews ?? []) assert.match(String(r.reviewer), /^agent:/, `${f} carries a review by ${r.reviewer}, which reads as a human review nobody gave`);
     assert.deepEqual(manifest.attestations ?? [], [], `${f} carries an attestation nobody recorded`);
-    assert.equal(manifest.finding.state, "draft", `${f} is not a draft`);
+    // A committed Finding is a draft or complete-but-unapproved; nothing here may claim publication.
+    assert.ok(["draft", "complete"].includes(manifest.finding.state), `${f} has state ${manifest.finding.state}`);
     if (manifest.finding.outcome === "pending") {
       const progress = parseYaml(readFileSync(join(dir, "analysis-progress.yaml"), "utf8"));
       assert.ok(["needs_attention", "needs_input", "permission_denied"].includes(progress.status), `${f} is pending but records no halt`);
