@@ -1,7 +1,12 @@
-# No demo data is ever committed: the build script rebuilds it from the public sources.
-demo.duckdb
-demo.duckdb.wal
+# No demo data is ever committed: the build script rebuilds it from the public sources. The patterns cover the
+# default output, the `--out` names a walkthrough or a CI job might pass, and the half-built file `build-data.mjs`
+# renames into place at the end of a successful run.
+*.duckdb
+*.duckdb.wal
+*.duckdb.building
+*.duckdb.building.wal
 data/raw/**
+data/
 *.parquet
 *.csv.zip
 

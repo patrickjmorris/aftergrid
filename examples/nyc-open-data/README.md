@@ -4,9 +4,9 @@ A public demo Instance built on three open datasets, so you can see what a Findi
 yourself — before pointing aftergrid at data you cannot share. Everything here is public: the data, the
 definitions, the golden Questions, and eventually the Findings and the pull request that approved one.
 
-**Status: scaffold.** This directory currently holds the layout, the data terms and the plan. The build script,
-the Instance and the Findings arrive in later beads, and every step below says which. Nothing in this file
-describes something you can run unless it says you can.
+**Status: scaffold, plus the data build.** This directory holds the layout, the data terms, the plan, and now
+`scripts/build-data.mjs`, which runs. The Instance and the Findings arrive in later beads, and every step below
+says which. Nothing in this file describes something you can run unless it says you can.
 
 ## The headline Question
 
@@ -32,9 +32,9 @@ Full attribution, the no-endorsement statements and the licence of the files in 
 [`NOTICE.md`](NOTICE.md).
 
 Verified on 2026-09-16: this repository's DuckDB binding reads
-`https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet` over HTTPS (3.48M rows).
-That is the only claim made here about the data pipeline; the build script that turns those files into a bounded
-database does not exist yet.
+`https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet` over HTTPS (3.48M rows). The
+build script that turns those files into a bounded database now exists, and step 1 below runs it; what it has
+been measured doing, and what is only extrapolated, is in [`scripts/README.md`](scripts/README.md).
 
 ## The walkthrough
 
@@ -42,8 +42,9 @@ In the order a new user will follow it. Steps marked *not yet available* are sca
 later bead; do not expect them to run today.
 
 1. **Build the data.** `node examples/nyc-open-data/scripts/build-data.mjs` fetches the three sources and writes
-   a bounded `demo.duckdb` with a provenance table. — *not yet available* (spec:
-   [`scripts/README.md`](scripts/README.md)).
+   a bounded `demo.duckdb` with a provenance table. — **this works today.** Start with one month
+   (`--from 2025-01 --to 2025-01`, about 90 seconds and 45 MB) before building the whole window; options,
+   tables, units, the sampling rule and the measured numbers are in [`scripts/README.md`](scripts/README.md).
 2. **Set up the Instance.** `aftergrid setup` against `examples/nyc-open-data/analytics`, with the DuckDB
    adapter pointed at the file step 1 built, then the definitions, Reader profiles and golden Questions.
    — *not yet available* (see [`analytics/README.md`](analytics/README.md) for why the directory is empty).
@@ -80,8 +81,10 @@ is for.
 ## Limitations
 
 - **TLC restates months.** The published trip files are revised after the fact, so a rebuild can produce
-  different numbers from the same script. The build records the source URL, byte count, SHA-256 and fetch time of
-  every file, and any Finding here states the fetch date its numbers rest on.
+  different numbers from the same script. The build records the source URL, byte count, `ETag` and fetch time of
+  every file, plus a SHA-256 for the files it downloads whole — the two largest sources are streamed and never
+  held, so they have a size and an `ETag` and no hash (`scripts/README.md`). Any Finding here states the fetch
+  date its numbers rest on.
 - **No user-level data.** These are trip records, not rider records. There is no identity, no repeat-rider link
   and no panel, so nothing here can say whether the *same* people changed behaviour — only whether the trips
   changed.
