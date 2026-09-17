@@ -215,3 +215,78 @@ test("every reference value is reproduced from the built database, when one is h
     }
   }
 });
+
+/* ------------------------------------------------- the walkthrough (ag-demo-open-data-qsl.8) */
+// `examples/nyc-open-data/README.md` is the new user's path, and a new user pastes it verbatim. So every
+// command it shows has to name a script and flags that exist today, and every relative link has to resolve.
+// Nothing here runs a command or fetches anything: it reads the README, the scripts it names and the CLI's own
+// usage text, and compares them.
+
+const WALKTHROUGH = join(EXAMPLE, "README.md");
+
+/** The contents of every ```bash fence, as single logical lines with `\`-continuations joined. */
+function bashCommands(markdown: string): string[] {
+  const out: string[] = [];
+  for (const block of markdown.matchAll(/```bash\n([\s\S]*?)```/g)) {
+    for (const line of block[1]!.replace(/\\\n\s*/g, " ").split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith("#")) out.push(trimmed);
+    }
+  }
+  return out;
+}
+
+/** The `Usage:` section of `src/cli.ts` — what `aftergrid --help` prints. */
+function cliUsage(): string {
+  const cli = readFileSync(join(ROOT, "src", "cli.ts"), "utf8");
+  const start = cli.indexOf("Usage:");
+  const end = cli.indexOf("Lifecycle:", start);
+  assert.ok(start !== -1 && end > start, "could not find the Usage: section of src/cli.ts");
+  return cli.slice(start, end);
+}
+
+test("every `node examples/…` command in the walkthrough names a script and flags that exist", () => {
+  const commands = bashCommands(readFileSync(WALKTHROUGH, "utf8")).filter((c) => c.startsWith("node examples/"));
+  assert.ok(commands.length >= 3, `the walkthrough must still show the build and the derivation, found ${commands.length} command(s)`);
+
+  for (const command of commands) {
+    const scriptPath = command.split(/\s+/)[1];
+    assert.ok(scriptPath && existsSync(join(ROOT, scriptPath)), `the walkthrough runs \`${scriptPath}\`, which is not in this repository`);
+    // The script itself, not its README: the flags its own parser names are the only ones that work.
+    const source = readFileSync(join(ROOT, scriptPath!), "utf8");
+    for (const flag of command.matchAll(/(?<=\s)--[a-z][a-z-]*/g)) {
+      assert.ok(source.includes(`"${flag[0]}"`), `the walkthrough passes \`${flag[0]}\` to ${scriptPath}, which does not parse it`);
+    }
+  }
+});
+
+test("every `aftergrid …` command in the walkthrough names a command and flags the CLI declares", () => {
+  const usage = cliUsage();
+  const commands = bashCommands(readFileSync(WALKTHROUGH, "utf8")).filter((c) => c.startsWith("aftergrid "));
+  assert.ok(commands.length >= 1, "the walkthrough must still show how an Operator points setup at their own data");
+
+  for (const command of commands) {
+    const [, name, next] = command.split(/\s+/);
+    assert.ok(usage.includes(`aftergrid ${name}`), `the walkthrough runs \`aftergrid ${name}\`, which is not in the CLI's usage`);
+    // A two-word command (`review status`, `eval nightly`, `new finding`) is named as a pair in the usage.
+    if (next && !next.startsWith("-")) {
+      assert.ok(usage.includes(`aftergrid ${name} ${next}`), `\`aftergrid ${name} ${next}\` is not in the CLI's usage`);
+    }
+    for (const flag of command.matchAll(/(?<=\s)--[a-z][a-z-]*/g)) {
+      assert.ok(usage.includes(flag[0]), `the walkthrough passes \`${flag[0]}\` to \`aftergrid ${name}\`, which the CLI's usage does not declare`);
+    }
+  }
+});
+
+test("every relative link in the walkthrough resolves to a file in this repository", () => {
+  let checked = 0;
+  for (const link of readFileSync(WALKTHROUGH, "utf8").matchAll(/\]\(([^)\s]+)\)/g)) {
+    const target = link[1]!;
+    if (/^(https?:|mailto:|#)/.test(target)) continue;
+    const path = target.split("#")[0]!;
+    if (!path) continue;
+    assert.ok(existsSync(join(EXAMPLE, path)), `the walkthrough links to ${target}, which does not exist`);
+    checked++;
+  }
+  assert.ok(checked >= 8, `expected the walkthrough to link to its own material, found ${checked} relative link(s)`);
+});

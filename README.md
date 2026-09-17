@@ -8,10 +8,15 @@ Pre-release. Nothing is published to npm yet, the repository is private, and the
 
 ## Try it on open data
 
-`examples/nyc-open-data/` is a public demo Instance on NYC TLC trip records, NOAA weather and Citi Bike data —
-somewhere to see the whole chain before pointing `setup` at data you cannot share. It is a scaffold today: the
-layout, the data terms and the plan are there, the build script and the Findings are not, and its README says
-which step is which.
+[`examples/nyc-open-data/`](examples/nyc-open-data/README.md) is a public demo Instance on NYC TLC trip records,
+NOAA weather and Citi Bike data, and its README is a walkthrough: rebuild the data from the publishers (two
+commands, 202.2 s + 87.0 s measured, 135.8 MB), derive the bounded per-Question table, run `/analyze`, read the
+rendered Finding, and see what the approval round trip needs. What exists today is the build, the Instance and
+**two draft Findings** — one `inconclusive` on trips into the Congestion Relief Zone (its pre-registered
+falsifier fired), one `answered` on member e-bike share — each on its own branch behind a draft pull request
+opened by the automation identity. **Neither is approved**: all eight definitions are `proposed`, no
+`publication_approval` attestation exists, and nothing there is `ready`. Six `/analyze` runs, dead ends
+included, are written up in `examples/nyc-open-data/docs/run-log.md`.
 
 ## Run the CLI from source
 
