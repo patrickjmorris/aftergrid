@@ -2,12 +2,40 @@
 
 Inspect and improve an analytical chart for truthful comparisons, visible denominators and uncertainty, readable labels, and agreement with its claim. Works with charts from any tool.
 
-## Portable use
+## What it does
 
-Start from the user's chart, image, notebook, spreadsheet, or chart code. Preserve its data and meaning. No chart library or CLI is required. For an aftergrid Finding chart, follow [the Engine procedure](../../skills/iterate-visual/references/engine-workflow.md), which supplies its renderer and revision rules.
+`iterate-visual` looks at the *rendered* chart — or says which properties it could not inspect from code alone — and makes the smallest changes that fix the problems that would mislead a reader.
 
+The defining constraint: a chart that scores well against the wrong comparison is still the wrong chart. The skill preserves data and meaning; a change that alters the population or aggregation is a calculation change, not a restyle.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+Ask in plain language. The agent reaches for it when a chart is about to be shown. Hidden from the Claude Code slash menu.
+
+Reach for it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use [write-finding](write-finding.md) if there is no answer yet. Use [revise-finding](revise-finding.md) to change a chart that has already been reviewed. Use [shape-narrative](shape-narrative.md) when the title and caveat in prose are the problem.
+
+## Inspect the image, then the claim
+
+Check denominators and units before aesthetics. Rate differences can be mix. Keep incomplete periods visible. Use zero baselines for length-encoded bars. Direct labels beat a legend the reader cannot use. The title states the defensible claim, including a null or inconclusive outcome. Stop once the important problems are gone; extra redesign is not evidence of quality.
+
+## Common questions
+
+**Can it judge clipping from Vega-Lite JSON?** Not honestly. If only code is supplied, say which visual properties remain uninspected.
+
+**Is a table allowed?** Yes, and often better for a handful of exact values.
+
+**Does a prettier chart make the analysis true?** No. Recolor is not identification.
+
+## It's working if
+
+- The title agrees with the claim and its material limitation.
+- The comparison the decision depends on is visible at the intended reading size.
+- Presentation changes are reported separately from interpretation or calculation changes.
+- Unresolved limits (uninspected contrast, unseen render) are named.
+
+## Where it fits
+
+Model-invoked Explain-stage craft, usually after [write-finding](write-finding.md) and before [shape-narrative](shape-narrative.md). The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

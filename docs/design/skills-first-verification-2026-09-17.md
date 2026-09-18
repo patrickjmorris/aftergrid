@@ -7,9 +7,9 @@ deployment are still pending. This record distinguishes observed checks from rel
 
 - Fourteen installable skills, including five new analytical workflows. Thirteen support portable work;
   `setup-aftergrid` is Engine-specific. Existing Engine procedures remain in skill-local references.
-- A deterministic 27-page production site: landing page, searchable catalog and fourteen skill pages,
-  quickstart, workflow guide, three worked examples, three fieldnotes and index pages, and the canonical
-  synthetic Finding. Thirty-one generated files include sitemap, robots and page inventory.
+- A deterministic production site: landing page, searchable catalog and fourteen skill pages, quickstart,
+  workflow guide, four worked examples (including lesson reuse), three fieldnotes and index pages, and the
+  canonical synthetic Finding.
 - Three synthetic situations and a fourth lesson-reuse exercise, committed CSVs, executable teaching
   arithmetic, and actual isolated-agent output. The source-backed NYC examples retain their draft status.
 - Primary-source research on Matt Pocock, Compound Engineering and pstack. No endorsement, adoption or
@@ -52,8 +52,20 @@ build uses the existing marked/yaml dependencies. No source credentials are requ
 
 ## Remaining release checks
 
-The repository's Argent instructions require a user choice before using alternative browser tooling when
-Argent is absent. That choice was requested and is pending. No browser launch or visual QA has been claimed.
-Once permitted, inspect desktop/tablet/phone layouts, keyboard navigation, copying, example selection,
-catalog filtering and empty results, then address any failures before public deployment. Verify the exact
-published commit and public routes after deployment. Keep this record and the release tracker current.
+Browser QA of the skills-first pages was run locally on 2026-09-18 (desktop plus a 390px phone viewport):
+home specimen tabs, catalog search and empty state, skill detail (portable docs visible, Engine reference
+collapsed), lesson-reuse example, and quickstart. Public GitHub Pages deployment still depends on pushing
+the generated `site/` to `main`. Verify the exact published commit and public routes after that deploy.
+Keep this record and the release tracker current. The 2026-09-17 site was 27 pages; the lesson-reuse example
+adds a 28th.
+
+## 2026-09-18 launch addendum
+
+Added after the 2026-09-17 record, still before public Pages deploy:
+
+- `ask-aftergrid`, a user-invoked router over the collection (Matt Pocock `ask-matt` analog). It names one next skill and stops; it does not nest user-invoked skills.
+- Worked example for the onboarding causal-overclaim case (`docs/examples/causal-claim.md`), already present in the skills lab and fieldnote.
+- Catalog, plugin, package, docs “Where it fits” map links, and generated site rebuilt from those sources.
+
+The 2026-09-17 installer copy check did not include `ask-aftergrid`. Plugin validate and site generation are the checks for that skill until a later installer copy is recorded. Owner gates (PR approvals, Reader study, entity, custom domain, headline pick) remain owner-owned.
+

@@ -1,11 +1,12 @@
 # Analytics skills
 
-Fourteen skills for analytical work: turn an ask into a useful question, inspect data, define a metric, plan comparisons, investigate a change, challenge an answer, and explain what the evidence supports. Use the skills with your own files, notebook, SQL client, or existing connector. Thirteen work without the aftergrid CLI; `setup-aftergrid` is specifically for the optional Engine.
+Fifteen skills for analytical work: choose the next procedure, turn an ask into a useful question, inspect data, define a metric, plan comparisons, investigate a change, challenge an answer, and explain what the evidence supports. Use the skills with your own files, notebook, SQL client, or existing connector. Fourteen work without the aftergrid CLI; `setup-aftergrid` is specifically for the optional Engine.
 
 ## Choose the work you need
 
 | Skill | Use it for |
 | --- | --- |
+| [ask-aftergrid](ask-aftergrid/SKILL.md) | Choose the next skill when you are not sure which procedure fits. |
 | [analyze](analyze/SKILL.md) | Take a question through analysis, challenge, and an evidence-linked answer. |
 | [grill-question](grill-question/SKILL.md) | Resolve ambiguity before doing the wrong calculation. |
 | [explore-data](explore-data/SKILL.md) | Establish grain, keys, joins, coverage, and answerable questions. |
@@ -30,9 +31,9 @@ npx skills add patrickjmorris/aftergrid --skill diagnose-change
 
 For a named harness, the installer supports `-a <agent>`. A Claude Code plugin uses `.claude-plugin/plugin.json`; the Engine package includes the same skills. Each skill carries `agents/openai.yaml` for Codex-style discovery. The repository is public; the npm CLI remains unpublished.
 
-Installer check on 2026-09-17: the local checkout was copied into isolated destinations with the skills installer: all fourteen for Codex, `grill-question` alone for Cursor, and `diagnose-change` alone for Claude Code. These checks establish installer discovery and copied files, not runtime behavior or harness parity. The separate NYC Claude Code runs establish the Engine workflow behavior they actually exercised.
+Installer check on 2026-09-17: the local checkout was copied into isolated destinations with the skills installer: all then-fourteen skills for Codex, `grill-question` alone for Cursor, and `diagnose-change` alone for Claude Code. `ask-aftergrid` was added afterward and is included in the plugin index; that later skill was not part of the 2026-09-17 copy check. These checks establish installer discovery and copied files, not runtime behavior or harness parity. The separate NYC Claude Code runs establish the Engine workflow behavior they actually exercised.
 
-New skills allow both explicit use and automatic discovery. Existing invocation policies are preserved: `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit; the five original craft skills are model-invoked. In Claude Code the model-invoked skills are hidden from the slash-command menu; describe the task naturally. A harness that supports explicit skill-file selection may also load their `SKILL.md`. Invocation availability is distinct from authorization to write externally or access a source.
+New skills allow both explicit use and automatic discovery. Existing invocation policies are preserved: `ask-aftergrid`, `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit; the five original craft skills are model-invoked. In Claude Code the model-invoked skills are hidden from the slash-command menu; describe the task naturally. A harness that supports explicit skill-file selection may also load their `SKILL.md`. Invocation availability is distinct from authorization to write externally or access a source.
 
 | Policy | SKILL.md | openai.yaml |
 | --- | --- | --- |

@@ -1,11 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>iterate-visual — Make the chart earn the space it takes. — aftergrid</title><meta name="description" content="Make the chart earn the space it takes."><meta property="og:title" content="iterate-visual — Make the chart earn the space it takes. — aftergrid"><meta property="og:description" content="Make the chart earn the space it takes."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/iterate-visual/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Explain / Portable skill</p><h1>iterate-visual</h1><p class="intro">Make the chart earn the space it takes.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Inspect and improve an analytical chart for truthful comparisons, visible denominators and uncertainty, readable labels, and agreement with its claim. Works with charts from any tool.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Start from the user&#39;s chart, image, notebook, spreadsheet, or chart code. Preserve its data and meaning. No chart library or CLI is required. For an aftergrid Finding chart, follow <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/iterate-visual/references/engine-workflow.md">the Engine procedure</a>, which supplies its renderer and revision rules.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>iterate-visual</code> looks at the <em>rendered</em> chart — or says which properties it could not inspect from code alone — and makes the smallest changes that fix the problems that would mislead a reader.</p>
+<p>The defining constraint: a chart that scores well against the wrong comparison is still the wrong chart. The skill preserves data and meaning; a change that alters the population or aggregation is a calculation change, not a restyle.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>Ask in plain language. The agent reaches for it when a chart is about to be shown. Hidden from the Claude Code slash menu.</p>
+<p>Reach for it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use <a href="../write-finding/">write-finding</a> if there is no answer yet. Use <a href="../revise-finding/">revise-finding</a> to change a chart that has already been reviewed. Use <a href="../shape-narrative/">shape-narrative</a> when the title and caveat in prose are the problem.</p>
+<h2 id="inspect-the-image-then-the-claim">Inspect the image, then the claim</h2>
+<p>Check denominators and units before aesthetics. Rate differences can be mix. Keep incomplete periods visible. Use zero baselines for length-encoded bars. Direct labels beat a legend the reader cannot use. The title states the defensible claim, including a null or inconclusive outcome. Stop once the important problems are gone; extra redesign is not evidence of quality.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Can it judge clipping from Vega-Lite JSON?</strong> Not honestly. If only code is supplied, say which visual properties remain uninspected.</p>
+<p><strong>Is a table allowed?</strong> Yes, and often better for a handful of exact values.</p>
+<p><strong>Does a prettier chart make the analysis true?</strong> No. Recolor is not identification.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The title agrees with the claim and its material limitation.</li>
+<li>The comparison the decision depends on is visible at the intended reading size.</li>
+<li>Presentation changes are reported separately from interpretation or calculation changes.</li>
+<li>Unresolved limits (uninspected contrast, unseen render) are named.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>Model-invoked Explain-stage craft, usually after <a href="../write-finding/">write-finding</a> and before <a href="../shape-narrative/">shape-narrative</a>. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/iterate-visual</code> renders each chart in a Finding to PNG, looks at the image, scores it against a seven-item
 rubric seeded from <em>Storytelling with Data</em>, and revises the spec. At most three passes. It stops the moment
 every item passes, and hands a chart that still fails one back to the Operator with the failing items and a
@@ -21,7 +39,7 @@ chart&#39;s <code>result_id</code>. Only charts without <code>variant_of</code> 
 evidence behind every candidate is the same pinned result set. With an Operator in the loop, the PNG previews
 go to them and the choice is theirs; in a background run the skill picks the highest score and says that is
 what it did.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>A chart spec has just been written or changed and nobody has looked at the image.</li>
 <li>A Finding is about to be rendered for a Reader.</li>
@@ -32,7 +50,7 @@ colour.</li>
 <p>Not for a chart that is <em>wrong</em> rather than unreadable. Rebinding a chart to a different field or narrowing a
 position axis changes what it asserts; that goes through <code>aftergrid revise</code>, which classifies it as an
 interpretation change.</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Is the score a gate?</strong> No. It is advisory, and it never substitutes for a Check, an evidence reference or a
 review. A chart scoring seven out of seven against the wrong result set is still the wrong chart.</p>
 <p><strong>Why three passes?</strong> Because a fourth is usually taste, not legibility, and taste is the Operator&#39;s. Three is
@@ -58,7 +76,7 @@ them can rot.</p>
 evidence tokens. Fixing <code>title_states_claim</code> is a manifest edit.</p>
 <p><strong>The PNG has no text in it.</strong> The WASM rasterizer found no TrueType font. Set <code>AFTERGRID_FONT</code> to a <code>.ttf</code> and
 render again — scoring an image with the text missing scores the wrong image.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li>Every rubric item has a verdict and a note naming what in the image decided it, and nothing in a note
 describes something the renderer cannot draw.</li>

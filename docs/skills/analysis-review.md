@@ -2,12 +2,44 @@
 
 Challenge an analysis, notebook, chart, or memo for calculation errors, unsupported conclusions, question drift, and reader misinterpretation. Review evidence adversarially without inventing objections.
 
-## Portable use
+## What it does
 
-Review the artifact supplied: SQL and results, notebook, chart, memo, or an Engine Finding. Do not require a manifest or CLI for ordinary work. For a Finding, preserve [the Engine review procedure](../../skills/analysis-review/references/engine-workflow.md), including current content digests and separate human publication approval.
+`analysis-review` tries to disprove an answer before someone acts on it. It reads through three lenses — **method**, **question**, and **reader** — then discards objections the artifact already refutes.
 
+The defining constraint: a review can change the verdict to “inconclusive.” Agreement among reviewers is evidence to weigh, not an automatic fix instruction. Agent review is never human approval.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+Ask in plain language, or type `/analysis-review` in hosts that expose it. In Claude Code it is hidden from the slash menu. The agent may reach for it when a draft is about to be trusted.
+
+Reach for it when a memo, notebook, or chart is about to inform a decision. Use [checked-analysis](checked-analysis.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
+
+## Three lenses, then refute yourself
+
+**Method** traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. **Question** compares the original ask with the answer actually given. **Reader** asks what a non-SQL audience could reasonably repeat wrongly.
+
+For every suspected error, look for the explanation that would make the author’s choice correct. Do not pad the review with generic best practices. Independent reviewers help when the work justifies them; serial self-review must be disclosed as such. Never invent reviewer identities.
+
+The [onboarding teaching case](../examples/causal-claim.md) is the cautionary draft: a real 20 percentage-point difference that does not identify an intervention effect.
+
+## Common questions
+
+**Does a blocking finding mean the analysis was wrong?** It means someone acting on the artifact as it stands would be misled. The fix is often a sentence, a denominator, or a caveat moved next to the answer.
+
+**What if I cannot rerun the SQL?** Report the specific unverified claim. Missing source access limits verification; it does not require refusing all useful review.
+
+**Can this approve a Finding?** No. Recording that three agent reviewers read the current content is not an attestation and not a Reader study.
+
+## It's working if
+
+- Material errors come first, each with location, evidence, consequence, and the narrow correction.
+- Cosmetic preferences are not classified as analytical failures.
+- Objections refuted by the artifact are dropped.
+- If no substantiated errors remain, the review says so — and does not call that proof that none exist.
+
+## Where it fits
+
+Model-invoked Improve-stage craft; the pstack analog in this set. [analyze](analyze.md) reaches for it before claiming the draft is reviewed. The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

@@ -1,6 +1,7 @@
 [
   "index.html",
   "skills/index.html",
+  "skills/ask-aftergrid/index.html",
   "skills/grill-question/index.html",
   "skills/explore-data/index.html",
   "skills/define-metric/index.html",
@@ -24,6 +25,8 @@
   "fieldnotes/analysis-that-compounds/index.html",
   "examples/conversion-mix/index.html",
   "examples/revenue-bridge/index.html",
+  "examples/lesson-reuse/index.html",
+  "examples/causal-claim/index.html",
   "examples/nyc-open-data/index.html",
   "example-finding/index.html"
 ]

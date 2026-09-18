@@ -20,7 +20,9 @@ Or start with one skill:
 npx skills add patrickjmorris/aftergrid --skill diagnose-change
 ```
 
-There are fourteen skills. Thirteen support portable analytical work; `setup-aftergrid` configures the optional Engine. Installing a skill gives your agent instructions. It does not grant access to a warehouse or install the Engine CLI.
+There are fifteen skills. Fourteen support portable analytical work; `setup-aftergrid` configures the optional Engine. Installing a skill gives your agent instructions. It does not grant access to a warehouse or install the Engine CLI.
+
+If you are not sure which skill to start with, install the collection and type `/ask-aftergrid` (in Codex, `$ask-aftergrid`). The router names one next skill and stops. It does not run the analysis for you.
 
 Examples on this site use `/skill-name`, the convention in slash-command harnesses. In Codex, use `$skill-name`, such as `$diagnose-change`. Use the invocation syntax your host exposes; restart or refresh the agent's skills if a newly installed skill is not yet visible.
 

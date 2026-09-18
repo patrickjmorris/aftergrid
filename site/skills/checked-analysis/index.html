@@ -1,11 +1,30 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>checked-analysis — Check the data and comparisons as you work. — aftergrid</title><meta name="description" content="Check the data and comparisons as you work."><meta property="og:title" content="checked-analysis — Check the data and comparisons as you work. — aftergrid"><meta property="og:description" content="Check the data and comparisons as you work."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/checked-analysis/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Analyze / Portable skill</p><h1>checked-analysis</h1><p class="intro">Check the data and comparisons as you work.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Analyze supplied data with explicit grain, comparisons, validity checks, and a record of what ran. Use for reproducible calculations or evidence a writer can inspect; optionally bind an Engine Finding.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Work with the user&#39;s files, notebook, SQL client, or existing connector. A checked analysis means naming and performing the relevant checks, not declaring the answer certified. For an existing aftergrid Finding or a requested Engine artifact, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/checked-analysis/references/engine-workflow.md">the Engine workflow</a>; do not apply its CLI requirements to ordinary analysis.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>checked-analysis</code> is the TDD analog for analytics: name the checks that would invalidate the result <strong>before</strong> the headline query, run them through the tools you already have, and hand over evidence someone else can inspect.</p>
+<p>The defining constraint: a checked analysis is not a certified analysis. Passing checks never by themselves make an answer trustworthy. A check written after the number is known is a check written to agree with it.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>Type <code>/checked-analysis</code>, or let the agent reach for it when calculations need a record. In Claude Code it is hidden from the slash menu (<code>user-invocable: false</code>); ask in plain language.</p>
+<p>Reach for it when a question is sharp and the evidence does not exist yet, or when a calculation must be rerun after a query changed. Use <a href="../grill-question/">grill-question</a> if the estimand is still open. Use <a href="../write-finding/">write-finding</a> when the numbers are pinned and the memo is missing. Use <a href="../diagnose-change/">diagnose-change</a> when the job is specifically “why did this metric move.”</p>
+<h2 id="checks-before-the-number">Checks before the number</h2>
+<p>Inspect grain and join cardinality before aggregating. Do not use <code>DISTINCT</code> to conceal multiplication. Compute pooled rates from summed numerators and denominators. Separate a failed validity check (duplicate events, wrong grain) from a substantive result (the pre-specified contrast did not support the hypothesis).</p>
+<p>If access is unavailable, deliver a runnable plan and mark every unexecuted result as unexecuted. Never fill a saved result with expected values.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Do I need an adapter?</strong> No. Portable work uses your notebook, SQL client, or existing connector. The Engine recorded path pins SQL, parameters, result, and the tool that ran them. An adapter adds retained inputs and mechanical rerun; its absence is not a halt.</p>
+<p><strong>What does a passing check mean on the recorded path?</strong> That the tool said it passed, and the evidence file is present. Agent-reported outcomes are a separate fact from Engine-executed ones.</p>
+<p><strong>What if a required invariant fails?</strong> The analysis does not establish what it asserts. A failing <em>falsifier</em>, by contrast, can be the honest answer: the pre-registered test of the claim did not go the expected way.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>Validity checks are named before the main query, with expected behavior derived from the question or policy, not from a convenient observed value.</li>
+<li>The handover includes units, population, windows, query or file references, checks and outcomes, and unsuccessful explanations.</li>
+<li>Another person can tell whether they can rerun the calculation, only inspect saved results, or neither.</li>
+<li>Exploratory cuts are labeled and cannot retroactively become pre-registration.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>Model-invoked Analyze-stage craft. <a href="../analyze/">analyze</a> reaches for it mid-run. Neighbors: <a href="../plan-analysis/">plan-analysis</a> before execution, <a href="../write-finding/">write-finding</a> after. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/checked-analysis</code> runs one Analysis and leaves behind evidence someone else can trust without rerunning it:
 Checks written before the numbers were seen, results pinned to the SQL that produced them and to the tool that
 ran it, and an <code>analysis.yaml</code> recording what was assumed, what was explored and what is still missing.</p>
@@ -22,7 +41,7 @@ for it mid-run. It is also where the shared clarification procedure lives — th
 points at — so the two reuse one interview without a user-invoked skill calling another.</p>
 <p>Contract for everything it writes: <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/analysis-directory.md"><code>docs/contracts/analysis-directory.md</code></a>;
 for the recorded path, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>A Question is sharpened and the evidence behind it does not exist yet.</li>
 <li>An Analysis must be run again after a query or a Check changed — against the same retained inputs where an
@@ -33,7 +52,7 @@ sign-off was never recorded.</li>
 </ul>
 <p>Reach for <code>/grill-question</code> instead when the ask is not yet a Question and you want to run the interview
 yourself. Reach for <code>/write-finding</code> when the evidence is pinned and the memo is what is missing.</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Do I need an adapter to run it?</strong> No. Without one it runs on the recorded path: your harness&#39;s tool — an MCP
 server, a CLI, <code>psql</code> — runs every query and every Check, and <code>aftergrid record --tool &quot;&lt;name&gt;&quot;</code> pins the SQL,
 the parameters, the result, the evidence and who ran it. An Instance (<code>aftergrid.yaml</code>) is still required; an
@@ -99,7 +118,7 @@ report says to bump the revision. Attestations and reviews are never written, re
 <p><strong>What does the writer get?</strong> <code>analysis.yaml</code>, <code>manifest.yaml</code> and <code>results/</code>. The writer sharpens sentences and
 writes the memo; it does not change a query, a result, a definition, or a Claim&#39;s type, comparison, population or
 window.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li><code>analysis.yaml#/execution_order</code> lists every Check before the first analysis query, and the Check files&#39; git
 history agrees with that order.</li>

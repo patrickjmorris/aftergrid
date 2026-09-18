@@ -48,7 +48,7 @@ Show where a future diagnosis will retrieve it.
 
 ## Retrieval is the other half
 
-A second task should visibly read the lesson before producing another result. The bundled [follow-up case](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/cases/learning.md) supplies a new extract with the same counting rules:
+A second task should visibly read the lesson before producing another result. The bundled [follow-up case](../examples/lesson-reuse.md) supplies a new extract with the same counting rules:
 
 ```text
 /plan-analysis Read examples/skills-lab/cases/learning.md and the lesson

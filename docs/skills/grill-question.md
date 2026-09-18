@@ -2,12 +2,44 @@
 
 Turn a vague analytics ask into an answerable question: decision or purpose, reader, metric, population, window, comparison, and evidence that could change the conclusion.
 
-## Portable use
+## What it does
 
-Use this before expensive analysis or when an apparently simple ask hides different possible calculations. The result can be a short question brief in the conversation or a user-chosen file. No CLI, manifest, or warehouse is required.
+`/grill-question` interviews you until a raw ask is a question another analyst could execute consistently: who will use the answer, what is being counted, among whom, over what window, against what baseline, and what observation would change the conclusion.
 
+The defining constraint: it asks only about choices that would change the work. Facts sitting in the supplied data are looked up, not turned into a meeting. Unresolved fields stay unresolved rather than being filled with something plausible.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+You invoke this by typing `/grill-question` — the agent will not start it on its own. In Codex, use `$grill-question`.
+
+Reach for it before an expensive analysis, or when words like active, retained, revenue, or improved hide several calculations. Reach for [analyze](analyze.md) when you want the interview and the investigation in one run. Reach for [revise-finding](revise-finding.md) when the artifact exists and it is the answer, not the question, that needs changing.
+
+## A falsifier is not a ritual field
+
+For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or say that no such check is available. Do not invent an arbitrary threshold after seeing the numbers. If the metric will be optimized, ask what could get worse while it improves.
+
+The [fieldnote on asking first](../fieldnotes/ask-before-query.md) is the teaching companion. The onboarding teaching case in the skills lab is the worked caution: 60% versus 40% week-four return does not establish what mandatory onboarding would do.
+
+## Common questions
+
+**Will it ask me the same things twice?** No. Settled answers are restated so you can correct them, then left alone.
+
+**What if I do not know the falsifier?** Then it is not written. An unresolved question with the missing parts named is a better artifact than a resolved-looking one with an invented bar.
+
+**Does it approve metric definitions?** No. Proposed definitions remain proposals. An agent does not sign organizational meaning.
+
+**Does a warehouse or CLI have to exist?** No. The default output is a short brief in the conversation or a file you choose.
+
+## It's working if
+
+- The original wording is preserved next to the sharpened question.
+- Each question in a round would change the metric, population, window, comparison, or decision if answered differently.
+- Unsettled parts are marked unresolved, not quietly completed.
+- Causal wording is challenged when the design only supplies an association.
+
+## Where it fits
+
+User-invoked Frame-stage entry. [analyze](analyze.md) reuses the same clarification procedure without calling this skill. Neighbors: [define-metric](define-metric.md) when the label is the dispute, [explore-data](explore-data.md) when the tables are the dispute. The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

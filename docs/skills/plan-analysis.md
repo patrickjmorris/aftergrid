@@ -2,17 +2,41 @@
 
 Plan an analysis from a question and available evidence: estimand, data grain, comparison, validity checks, rival explanations, and stopping conditions. Retrieve relevant prior lessons without treating them as universal rules.
 
-## Use it
+## What it does
 
-Ask for `$plan-analysis` with your question and relevant files, results, or existing data connection. No aftergrid CLI, configuration, or GitHub setup is required. It is available for explicit use and automatic discovery.
+`plan-analysis` produces an executable plan proportionate to the question. It recovers prior lessons, fixes the comparison, and orders tests by what they can settle — including a stopping condition — without pretending the queries have already run.
 
-## What you get
+The defining constraint: a retrieved lesson is a hypothesis to test. Retrieval that does not change a check, comparison, or stopping rule did not happen in any useful sense.
 
-Produce a plan the available data can execute, proportionate to the question. A small descriptive question may need one calculation and reconciliation; an explanatory question may need competing hypotheses and several discriminating comparisons. Do not require a manifest, CLI, or elaborate process for a simple ask.
+## When to reach for it
 
+Type `/plan-analysis`, or ask in plain language. Available for explicit use and automatic discovery.
 
-The [skill instructions](../../skills/plan-analysis/SKILL.md) describe its reasoning and output. They distinguish observed results from proposed checks and do not grant source access, definition approval, or publication permission.
+Reach for it when the question is sharp enough to plan but the work has not started, especially when several explanations could produce the same headline. Skip it for a one-number lookup with a known definition. Use [grill-question](grill-question.md) if the estimand is still mush. Use [learn-from-analysis](learn-from-analysis.md) after a completed run, not as a substitute for planning.
 
-## Validation boundary
+## Lessons in, then tests that can fail
 
-Packaging validation establishes discoverability and resource presence, not analytical quality. Behavior scenarios are in [the evaluation guide](../../skills/evaluation.md); planned scenarios are not represented as observed outcomes.
+Search the user-designated lesson directory when one exists. For each hit, inspect evidence, scope, and invalidating conditions. If no store exists, proceed and do not claim retrieval.
+
+Write the quantity to estimate before choosing cuts. For observational before/after data, distinguish describing movement from attributing it. First reproduce the headline and validate inputs; then name what each rival explanation predicts and the cheapest comparison that would weaken it. Post-hoc subgroup discovery is not confirmation.
+
+The [lesson-reuse example](../examples/lesson-reuse.md) shows a second period that must test the earlier mix explanation instead of repeating it.
+
+## Common questions
+
+**Does every question need a long plan?** No. A descriptive count may need one calculation and a reconciliation. An explanatory question may need competing hypotheses. Match the ceremony to the decision.
+
+**What if a prior lesson does not apply?** Say so, with the condition that fails. Do not force new data through an obsolete check to obtain a familiar answer.
+
+**Is the plan evidence?** No. It is a commitment about what will be calculated and when to stop. Results come from [checked-analysis](checked-analysis.md).
+
+## It's working if
+
+- The comparison (population, window, baseline) is written before the first explanatory cut.
+- Prior lessons are cited with an applicability judgment, or the plan states that none were found.
+- Each planned step names the decision it informs and a stopping condition exists.
+- Causal identification assumptions are listed only when the question is causal, and the plan says whether the data can test them.
+
+## Where it fits
+
+A Frame-stage standalone that [analyze](analyze.md) also performs internally. Neighbors: [diagnose-change](diagnose-change.md) for the movement playbook, [learn-from-analysis](learn-from-analysis.md) for the capture half of the loop. The map is [ask-aftergrid](ask-aftergrid.md). See [Analysis that compounds](../fieldnotes/analysis-that-compounds.md).

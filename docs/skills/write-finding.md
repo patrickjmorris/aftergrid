@@ -2,14 +2,40 @@
 
 Turn analysis results into an evidence-linked answer for a specific reader, with scope and caveats beside the conclusion. Works with ordinary files and optionally an Engine Finding.
 
-## Portable use
+## What it does
 
-Use supplied results and analysis notes to answer the reader's question. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. When writing an aftergrid Finding, use [the Engine procedure](../../skills/write-finding/references/engine-workflow.md) for its typed claims, bound values, and fixed artifact contract.
+`write-finding` turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision — in the first paragraph.
 
-Read the question, results, assumptions, checks, and intended reader before writing. Establish which conclusions were actually reached and which remain exploratory. A writer may clarify a conclusion; it may not invent a new calculation, promote a proposed definition to approved, or turn a correlation into a cause.
+The defining constraint: a writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.
 
+## When to reach for it
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+Ask in plain language. The agent reaches for it when numbers exist and the memo does not. In Claude Code it is hidden from the slash menu.
+
+Reach for it after [checked-analysis](checked-analysis.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives on a finished artifact.
+
+## The first paragraph has to be enough
+
+A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. An honest answer may be that the source does not support the comparison.
+
+## Common questions
+
+**Does every number need a chart?** No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.
+
+**Can it decide the outcome?** No. If the analysis recommended insufficient data, the memo says so in the first sentence. The writer does not upgrade a non-answer to look finished.
+
+**Does a well-written memo become verified?** No. Never call the draft approved, Engine-checked, or human-tested merely because it is clear.
+
+## It's working if
+
+- The first paragraph states the answer, population, comparison, period, and the decision-changing caveat.
+- Material numbers point at supplied cells, query results, or retained calculations.
+- Exploratory results do not sound pre-registered.
+- Recommendations match the claim type the design supports.
+
+## Where it fits
+
+Model-invoked Explain-stage craft. Neighbors: [shape-narrative](shape-narrative.md), [iterate-visual](iterate-visual.md), [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>Retention was 50% higher. Did onboarding cause it? — aftergrid</title><meta name="description" content="A precise 60% versus 40% comparison that does not identify what a mandatory checklist would do."><meta property="og:title" content="Retention was 50% higher. Did onboarding cause it? — aftergrid"><meta property="og:description" content="A precise 60% versus 40% comparison that does not identify what a mandatory checklist would do."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/examples/causal-claim/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../../skills/">Skills</a><a href="../" aria-current="page">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← Examples</a><p class="eyebrow">Worked example · Synthetic data · Review</p><h1>Retention was 50% higher. Did onboarding cause it?</h1><p class="intro">A precise 60% versus 40% comparison that does not identify what a mandatory checklist would do.</p></header><div class="reading-layout"><article class="reading article-lede"><p>A draft says onboarding lifts retention by 50%, so every new user should be required to finish it, and next month’s retained users will rise by half. The counts in the extract are correct. The claim, the mandate, and the forecast are not.</p>
+<p>This is a synthetic teaching case with two rows. It is the caution for <a href="../../skills/analysis-review/">analysis-review</a>: a review must be able to change the verdict to “inconclusive.” It is not a customer result.</p>
+<h2 id="the-draft-and-the-data">The draft and the data</h2>
+<p>Users in one signup cohort chose whether to complete onboarding in their first week. Retained means at least one qualifying activity in week four. Both groups have finished that window. There is no random assignment, prior engagement, channel, device, or experiment.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Completed onboarding</th>
+<th align="right">Eligible users</th>
+<th align="right">Retained in week 4</th>
+<th align="right">Retention</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Yes</td>
+<td align="right">100</td>
+<td align="right">60</td>
+<td align="right">60%</td>
+</tr>
+<tr>
+<td>No</td>
+<td align="right">100</td>
+<td align="right">40</td>
+<td align="right">40%</td>
+</tr>
+</tbody></table></div>
+<p>Completers retain at 60%, non-completers at 40%. The gap is 20 percentage points. Relative to the lower rate, that is a 50% difference. Pooled retention is 100 / 200 = 50%.</p>
+<h2 id="what-the-numbers-do-not-license">What the numbers do not license</h2>
+<p>Self-selection can produce the same table if people already likely to return are also more likely to finish onboarding. Completing voluntarily is not the same exposure as being required to complete. A mandate can add friction the extract never measures.</p>
+<p>The “next month, retained users up by half” forecast mixes those errors. Even a purely arithmetic world where all 200 users retained at the completer rate would be 120 versus 100 — a 20% increase in retained users, not 50%. That scenario is not an estimate. The data do not identify an intervention effect at all.</p>
+<p>A useful review keeps the 60% versus 40% description, places the self-selection limit next to it, and recommends evaluating an assigned policy before requiring the checklist. It does not “fix” the headline by inventing an experiment.</p>
+<h2 id="what-a-recorded-review-actually-did">What a recorded review actually did</h2>
+<p>An isolated Codex agent used <code>analysis-review</code> on this draft without the answer key. Its <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/outputs/review/review.md">review</a> separates the correct group arithmetic from the causal claim, the mandate, and the forecast. A coordinator rerun reproduced the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/outputs/review/calculate.py">saved calculation</a>. One successful synthetic case is not an accuracy benchmark.</p>
+<p>That is the pstack bar applied to analytics: inspect the claim against the artifact, calculate independently, and allow “inconclusive” as the answer. Passing arithmetic is not proof of a business decision.</p>
+<h2 id="run-it-yourself">Run it yourself</h2>
+<p>From a checkout of the repository:</p>
+<pre><code class="language-text">Use analysis-review on the draft in examples/skills-lab/cases/review.md
+with examples/skills-lab/data/onboarding.csv. Check the rates, then
+try to disprove the causal claim, the mandate, and the forecast.
+Save the code you ran and the minimum revision for each blocking issue.
+</code></pre>
+<p>In Codex, use <code>$analysis-review</code> if the host exposes it, or the same plain-language request. Independently:</p>
+<pre><code class="language-bash">node examples/skills-lab/verify.mjs
+</code></pre>
+<p>Inspect the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/data/onboarding.csv">input CSV</a>, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/cases/review.md">case brief</a>, and <a href="../../fieldnotes/ask-before-query/">Ask before you query</a>, which is the teaching companion.</p>
+<div class="article-footer"><a href="../../skills/"><span class="label">Find your next step</span>Browse the skills ↗</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/causal-claim.md"><span class="label">In the open</span>Read this page on GitHub ↗</a></div></article><aside class="aside"><div><span class="label">Put it into practice</span><h2>One question.<br>One useful next step.</h2><p>Install a skill and try it with the data, context, and tools you already have.</p><a class="aside-link" href="../../skills/">Browse the skills</a><a class="aside-link" href="../../guides/skill-workflows/">Choose a workflow</a><a class="aside-link" href="../../start/">Installation guide</a></div><div class="aside-section"><span class="label">Explore the examples</span><a class="aside-link" href="../conversion-mix/">Conversion &amp; mix</a><a class="aside-link" href="../revenue-bridge/">The revenue bridge</a><a class="aside-link" href="../lesson-reuse/">Lesson reuse</a><a class="aside-link" href="../nyc-open-data/">New York open data</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

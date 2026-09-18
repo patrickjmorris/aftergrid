@@ -1,11 +1,31 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>analyze — Carry a question through to a reviewed answer. — aftergrid</title><meta name="description" content="Carry a question through to a reviewed answer."><meta property="og:title" content="analyze — Carry a question through to a reviewed answer. — aftergrid"><meta property="og:description" content="Carry a question through to a reviewed answer."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/analyze/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Analyze / Portable skill</p><h1>analyze</h1><p class="intro">Carry a question through to a reviewed answer.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Analyze a question from the data you have. Clarify the decision, test explanations, and deliver an evidence-linked answer or an honest limit; optionally produce an Engine Finding.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Take the question through to an answer the intended reader can act on. Start with the user&#39;s files, pasted results, notebook, or existing data connector. A database connection, aftergrid CLI, GitHub repository, and publication approval are not prerequisites for ordinary analysis.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>/analyze</code> carries one question from a raw ask to a reviewed answer: clarify, inspect, plan, calculate under checks, write, challenge, and stop with a reason when the evidence runs out. Portable analysis is the default. An Engine Finding is a separate route you ask for.</p>
+<p>The defining constraint: it is the only orchestrator. It owns the order of stages and the decision to halt. Craft belongs to the specialist skills; <code>/analyze</code> does not redo their work, which is what keeps a three-pass visual loop from becoming a six-pass one.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>You invoke this by typing <code>/analyze</code> — the agent will not start it on its own.</p>
+<p>Reach for it when you have an ask and want the whole practice applied, including an honest “inconclusive” or “not enough data.” Use <a href="../grill-question/">grill-question</a> when you only want the interview. Use a single craft skill when you already have a query, a chart, or a draft. Use <a href="../revise-finding/">revise-finding</a> for feedback on a finished artifact.</p>
+<h2 id="follow-the-evidence-then-try-to-break-it">Follow the evidence, then try to break it</h2>
+<p>Read designated prior lessons before planning. Reproduce the headline before explaining it. For a rate, inspect numerator and denominator separately. For an aggregate change, separate mix from within-group change. Label cuts made after seeing results as exploratory. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or the next step needs something you do not have.</p>
+<p>The answer leads with what was observed, for whom and when, with the decision-changing caveat beside it. Three review lenses — method, question, reader — try to disprove the draft. Serial self-review is still self-review and must be described as such.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Do I need the aftergrid CLI?</strong> No. Start with a CSV, notebook, pasted results, or an existing connector. The Engine route needs the complete toolkit and keeps its evidence and approval contracts.</p>
+<p><strong>Why doesn’t it call /grill-question?</strong> User-invoked skills do not call each other. Both read the same clarification procedure, so the interview is the same one either way.</p>
+<p><strong>Is “inconclusive” a failed run?</strong> No. Insufficient data, inconclusive, and needs-reframing are valid completed answers. A check that <em>errored</em> is a run that did not happen; a check that <em>failed as pre-specified</em> can be the answer.</p>
+<p><strong>Does a clean run mean the finding is approved?</strong> No. Agent review is not human publication approval. Portable output has no Engine verification merely because this skill produced it.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The original ask is still visible next to the sharpened question.</li>
+<li>Material numbers point at a source, saved result, or calculation that actually ran.</li>
+<li>Dead ends that constrain the conclusion are kept.</li>
+<li>The closing recommendation matches the claim type the design earned — descriptive, associational, or causal — and names what would change it.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>User-invoked Analyze-stage orchestrator. Neighbors: <a href="../diagnose-change/">diagnose-change</a> for a movement-only job, <a href="../checked-analysis/">checked-analysis</a> for execute-and-record without the full loop, <a href="../analysis-review/">analysis-review</a> for a draft you already have. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/analyze</code> runs one Question from a raw ask to a reviewed Finding draft, and stops with a reason when any gate
 fails. It is the <strong>only</strong> orchestrator in the Engine: it owns the order of the stages and the decision to halt,
 and nothing else runs them.</p>
@@ -23,7 +43,7 @@ approved, not published. A human APPROVED review at the analyzed commit is a sep
 <p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>). It writes
 a Finding directory, reads a warehouse and spends real model time, so a human asks for it — and being the only
 orchestrator, a model reaching for it mid-task would nest one run inside another.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>You have a raw ask in plain words and want a Finding out of it. <code>/analyze</code> creates the Finding and clarifies
 the ask first; you are not required to already know the metric, population, window or falsifier.</li>
@@ -34,7 +54,7 @@ resumes from the stage that stopped.</li>
 </ul>
 <p>Not for: presentation feedback on a finished Finding (<code>/revise-finding</code>), sharpening a Question on its own
 (<code>/grill-question</code>), or recording a decision (<code>aftergrid decide</code>).</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Why does it not call <code>/grill-question</code> to clarify?</strong> Because <code>/grill-question</code> is user-invoked, and no
 user-invoked skill invokes another. Both read the same clarification procedure,
 <code>skills/checked-analysis/references/clarification.md</code>, so the interview is the same one either way.</p>
@@ -85,7 +105,7 @@ populations, windows, approvals and Claims: nothing is filled in to make a field
 <p><strong>Can I watch it?</strong> <code>analysis-progress.yaml</code> in the Finding directory carries the stage, the status, the reason
 and when it was last written. It is orchestration bookkeeping — outside the content digest, never referenced by
 a Claim, never shown to a Reader.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li>Given only a raw ask, it creates the Finding and asks its clarifying questions in one round rather than one
 at a time.</li>
