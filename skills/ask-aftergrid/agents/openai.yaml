@@ -1,0 +1,9 @@
+interface:
+  display_name: "Ask aftergrid"
+  short_description: "Choose which analytics skill or flow fits the current work, then stop"
+  default_prompt: "Use $ask-aftergrid to choose the next analytics skill for the work I describe. Name one skill, say why, and give me a prompt. Do not start that skill."
+policy:
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. Routing is a human decision about
+  # which procedure to start; a model reaching for the router mid-task would nest one user-invoked skill
+  # inside another.
+  allow_implicit_invocation: false

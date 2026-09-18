@@ -2,12 +2,42 @@
 
 Analyze supplied data with explicit grain, comparisons, validity checks, and a record of what ran. Use for reproducible calculations or evidence a writer can inspect; optionally bind an Engine Finding.
 
-## Portable use
+## What it does
 
-Work with the user's files, notebook, SQL client, or existing connector. A checked analysis means naming and performing the relevant checks, not declaring the answer certified. For an existing aftergrid Finding or a requested Engine artifact, use [the Engine workflow](../../skills/checked-analysis/references/engine-workflow.md); do not apply its CLI requirements to ordinary analysis.
+`checked-analysis` is the TDD analog for analytics: name the checks that would invalidate the result **before** the headline query, run them through the tools you already have, and hand over evidence someone else can inspect.
 
+The defining constraint: a checked analysis is not a certified analysis. Passing checks never by themselves make an answer trustworthy. A check written after the number is known is a check written to agree with it.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+Type `/checked-analysis`, or let the agent reach for it when calculations need a record. In Claude Code it is hidden from the slash menu (`user-invocable: false`); ask in plain language.
+
+Reach for it when a question is sharp and the evidence does not exist yet, or when a calculation must be rerun after a query changed. Use [grill-question](grill-question.md) if the estimand is still open. Use [write-finding](write-finding.md) when the numbers are pinned and the memo is missing. Use [diagnose-change](diagnose-change.md) when the job is specifically “why did this metric move.”
+
+## Checks before the number
+
+Inspect grain and join cardinality before aggregating. Do not use `DISTINCT` to conceal multiplication. Compute pooled rates from summed numerators and denominators. Separate a failed validity check (duplicate events, wrong grain) from a substantive result (the pre-specified contrast did not support the hypothesis).
+
+If access is unavailable, deliver a runnable plan and mark every unexecuted result as unexecuted. Never fill a saved result with expected values.
+
+## Common questions
+
+**Do I need an adapter?** No. Portable work uses your notebook, SQL client, or existing connector. The Engine recorded path pins SQL, parameters, result, and the tool that ran them. An adapter adds retained inputs and mechanical rerun; its absence is not a halt.
+
+**What does a passing check mean on the recorded path?** That the tool said it passed, and the evidence file is present. Agent-reported outcomes are a separate fact from Engine-executed ones.
+
+**What if a required invariant fails?** The analysis does not establish what it asserts. A failing *falsifier*, by contrast, can be the honest answer: the pre-registered test of the claim did not go the expected way.
+
+## It's working if
+
+- Validity checks are named before the main query, with expected behavior derived from the question or policy, not from a convenient observed value.
+- The handover includes units, population, windows, query or file references, checks and outcomes, and unsuccessful explanations.
+- Another person can tell whether they can rerun the calculation, only inspect saved results, or neither.
+- Exploratory cuts are labeled and cannot retroactively become pre-registration.
+
+## Where it fits
+
+Model-invoked Analyze-stage craft. [analyze](analyze.md) reaches for it mid-run. Neighbors: [plan-analysis](plan-analysis.md) before execution, [write-finding](write-finding.md) after. The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

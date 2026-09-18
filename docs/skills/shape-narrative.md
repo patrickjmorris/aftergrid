@@ -2,22 +2,40 @@
 
 Make an analytical memo understandable: answer first, one claim at a time, explicit comparison, and the decisive caveat beside the answer. Preserve evidence and meaning.
 
-## Portable use
+## What it does
 
-Edit the supplied memo, document, notebook summary, or presentation text for its intended reader. No Engine artifact is needed. For an aftergrid Finding, use [the Engine workflow](../../skills/shape-narrative/references/engine-workflow.md) to preserve binding markers and review currency.
+`shape-narrative` decides what a reader meets first, and in whose words. It puts the answer and its material caveat at the top, makes headings state claims rather than section labels, and rewrites toward the intended reader without changing what the evidence supports.
 
-Read the question and evidence before polishing the prose. Identify the answer-bearing claim, who is counted, its baseline/window, and the caveat that would change what a reader does. If those are missing, name the gap rather than manufacturing them.
+The defining constraint: it changes wording and order. A request that would change what the reader concludes is reported and stopped, not made.
 
-Put the answer first. A reader who stops after the first paragraph should retain the correct scope and uncertainty. Use one evidence-bearing claim per section, with a heading that states what was learned rather than a label such as “Analysis.” Separate observed facts, interpretations, and recommendations. Keep an exploratory result from sounding pre-planned.
+## When to reach for it
 
-Replace jargon with the reader's words where meaning survives. Explain necessary terms at first use. Pair rates with denominators; explain percentage points instead of silently swapping them for percent. Keep the baseline and time window with comparisons that might be quoted out of context.
+Ask in plain language. The agent reaches for it after a draft exists. Hidden from the Claude Code slash menu.
 
-Check that chart titles, captions, and emphasis tell the same story as the answer. A whole-month increase must not visually stand in for an inconclusive weather-adjusted comparison. Preserve source references and bound values. Do not remove a caveat merely because it interrupts a cleaner story.
+Reach for it when the analysis is right and the memo is still hard to use. Use [write-finding](write-finding.md) to create the draft. Use [analysis-review](analysis-review.md) to challenge whether the claim is earned. Use [revise-finding](revise-finding.md) when an owner’s feedback arrives on a finished artifact.
 
-After editing, compare each claim with its source version. If a change alters population, window, exclusions, statistical certainty, causal strength, or which comparison supports the answer, it is substantive: disclose it and return it for analytical review. Present the revised prose plus any unresolved evidence gaps, without claiming a reader study or approval.
+## Answer first, caveat adjacent
 
+A reader who stops after the first paragraph should retain the correct scope and uncertainty. Pair rates with denominators. Keep baseline and window with comparisons that might be quoted out of context. Chart titles must tell the same story as the prose, including inconclusive results. Do not remove a caveat because it interrupts a cleaner story.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## Common questions
+
+**Can it soften a discouraging caveat?** No. Dropping or hedging a material limitation changes the decision with every digit unchanged.
+
+**Can it upgrade “associated with” to “caused”?** No. That asserts a design the analysis did not have.
+
+**Can it reorder claims?** Yes, so the answer-bearing claim comes first, as long as each claim’s evidence is unchanged.
+
+## It's working if
+
+- The first section is the answer, with the decision-changing caveat directly under it.
+- Headings are sentences a reader could repeat.
+- Jargon the reader does not use is gone, or explained at first use.
+- A meaning-changing request came back as a report, with nothing edited.
+
+## Where it fits
+
+Model-invoked Explain-stage craft, after [write-finding](write-finding.md) and [iterate-visual](iterate-visual.md), before [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

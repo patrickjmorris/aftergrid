@@ -11,6 +11,7 @@
   "skills": [
     "./skills/analysis-review",
     "./skills/analyze",
+    "./skills/ask-aftergrid",
     "./skills/checked-analysis",
     "./skills/define-metric",
     "./skills/diagnose-change",

@@ -1,5 +1,7 @@
 # setup-aftergrid
 
+Configure the optional Engine: an Instance, connections, and publication identities. This is not required to use the portable skills.
+
 ## What it does
 
 `/setup-aftergrid` gets a repository to a working, resumable aftergrid Instance. The skill does not do the work
@@ -8,6 +10,14 @@ facts, none of them rounded up.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`). Setup writes
 files into a repository and installs a Claude Code hook, so a human asks for it; no agent reaches for it mid-task.
+
+The defining constraint: report only what the command reported. `unknown` stays `unknown`. The portable skills
+do not need this skill.
+
+## When to reach for it
+
+You invoke this by typing `/setup-aftergrid`. Reach for it when you want typed Findings, retained evidence, and
+publication controls. Do not run it to try `diagnose-change` on a CSV.
 
 ## Inputs
 
@@ -73,3 +83,9 @@ The full contract, including every limit: [`docs/contracts/setup.md`](../contrac
 - `unknown` survives into the summary as `unknown`.
 - The hook is described as protecting something only when the self-test line is in the output.
 - The next command it hands you is `/grill-question` and then `aftergrid new finding <slug>`.
+
+## Where it fits
+
+Run-once Engine setup, not part of ordinary analysis. The fourteen portable skills work without it. After a
+working Instance, start with [ask-aftergrid](ask-aftergrid.md), [grill-question](grill-question.md) or [analyze](analyze.md). See the repository
+[source installation notes](https://github.com/patrickjmorris/aftergrid#when-you-want-stronger-artifact-guarantees).

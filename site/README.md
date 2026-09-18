@@ -21,7 +21,7 @@ byte-stable and committed so GitHub Pages can serve it directly.
 - `docs/skills/<name>.md`: skill detail-page bodies. Invocation is read from each `skills/<name>/SKILL.md`.
 - `docs/guides/quickstart.md`: `/start/`.
 - `docs/guides/skill-workflows.md`: `/guides/skill-workflows/`.
-- `docs/examples/*.md`: the three worked example pages.
+- `docs/examples/*.md`: the five worked example pages.
 - `docs/fieldnotes/*.md`: the three essays.
 - `assets/site.css`, `assets/site.js`: shared presentation and progressive interactions.
 - `scripts/build-site.mjs`: page templates and route map.

@@ -10,7 +10,7 @@ Those questions can use the same table and still require different answers. The 
 
 ## A correct calculation can answer the wrong question
 
-The bundled [onboarding case](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/cases/review.md) is deliberately small and synthetic. Of 100 users who completed onboarding, 60 returned during week four. Of 100 who did not complete it, 40 returned. Both groups have finished the observation window.
+The bundled [onboarding case](../examples/causal-claim.md) is deliberately small and synthetic. Of 100 users who completed onboarding, 60 returned during week four. Of 100 who did not complete it, 40 returned. Both groups have finished the observation window.
 
 The arithmetic is straightforward: 60% against 40%, a difference of 20 percentage points, or 50% relative to the lower rate. None of those calculations tells us what would happen if we required everyone to finish onboarding.
 

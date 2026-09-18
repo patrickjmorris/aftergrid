@@ -1,11 +1,30 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>revise-finding — Revise the answer without losing what supported it. — aftergrid</title><meta name="description" content="Revise the answer without losing what supported it."><meta property="og:title" content="revise-finding — Revise the answer without losing what supported it. — aftergrid"><meta property="og:description" content="Revise the answer without losing what supported it."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/revise-finding/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Improve / Portable skill</p><h1>revise-finding</h1><p class="intro">Revise the answer without losing what supported it.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Apply feedback to an analytical answer while distinguishing presentation edits from changes to calculations, interpretation, and evidence. Works on ordinary memos or versioned Engine Findings.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Work on the artifact the user supplied: memo, notebook, chart, or analysis document. Preserve its evidence trail and follow the requested scope. For an aftergrid Finding, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/revise-finding/references/engine-workflow.md">the Engine revision procedure</a>; it classifies changes, pins revisions, and invalidates reviews as required.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>/revise-finding</code> classifies feedback by consequence before changing the artifact. Presentation keeps meaning. Interpretation changes what the reader would conclude. Calculation changes data, filters, metric, population, or window.</p>
+<p>The defining constraint: classify by what would change for the reader, not by how small the text edit looks. A request to make an inconclusive result “more confident” cannot be satisfied by hiding the caveat.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>You invoke this by typing <code>/revise-finding</code> — the agent will not start it on its own.</p>
+<p>Reach for it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use <a href="../iterate-visual/">iterate-visual</a> when the chart is merely hard to read. Use <a href="../checked-analysis/">checked-analysis</a> when the numbers have to be rerun. Use <a href="../analysis-review/">analysis-review</a> to produce the critique this skill applies.</p>
+<h2 id="three-classes">Three classes</h2>
+<p>A <strong>presentation</strong> edit retains exact values and source references, then compares revised claims with their originals. An <strong>interpretation</strong> edit re-evaluates evidence and caveats and needs a fresh analytical review. A <strong>calculation</strong> edit reruns affected computations; if access is unavailable, leave the affected conclusion unresolved.</p>
+<p>Preserve a change record: request, edits, checks rerun, whether the conclusion moved, remaining limits. Do not claim an old review covers new evidence.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Does previous approval survive?</strong> No. An approval binds one version of the content. The new revision is a draft again.</p>
+<p><strong>Why did a “harmless” edit come back as interpretation?</strong> The portable classifier is conservative. Rewording “came back more often than” to “came back because of” can keep every digit and still change the claim type.</p>
+<p><strong>Can I skip rerunning a numeric change?</strong> No. If the data cannot be rerun, the affected conclusion stays unresolved.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The class comes with a located reason, not “this looks cosmetic.”</li>
+<li>Presentation keeps numbers and source references byte-stable where it claims to.</li>
+<li>Interpretation names the review that must be redone.</li>
+<li>Calculation either reruns or leaves the conclusion explicitly unresolved.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>User-invoked Improve-stage entry after a finished artifact. Neighbors: <a href="../write-finding/">write-finding</a>, <a href="../shape-narrative/">shape-narrative</a>, <a href="../analysis-review/">analysis-review</a>. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/revise-finding</code> takes your feedback on a Finding that has already been checked — &quot;make it horizontal&quot;, &quot;lead
 with retention&quot;, &quot;say it more plainly&quot; — makes the edit, and runs <code>aftergrid revise</code> to classify what you just
 asked for:</p>
@@ -21,7 +40,7 @@ numeric and that the Analysis reopens — on the recorded path by your harness r
 a reviewed Finding bumps its revision and drops its publication approval, so a human asks for it.</p>
 <p>The full classification tables, and the limits of the classifier, are in
 <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/revise.md"><code>docs/contracts/revise.md</code></a>.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>A Finding has been checked, or reviewed, or approved, and you want something about it changed.</li>
 <li>You want to know whether an edit you are considering would reopen the analysis, before making it.</li>
@@ -29,7 +48,7 @@ a reviewed Finding bumps its revision and drops its publication approval, so a h
 </ul>
 <p>Not for a Finding still being written — nothing is pinned yet, so there is nothing to protect. Not for a chart
 that is merely hard to read: that is <code>/iterate-visual</code>, which this skill points at.</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Does my approval survive the revision?</strong> No. An approval binds one content digest; revision N+1 has a
 different one. The approval stays readable in <code>revisions/&lt;N&gt;/manifest.yaml</code>, the new revision renders as a
 draft, and the report says how many attestations were dropped. Nothing is re-dated to look current.</p>
@@ -64,7 +83,7 @@ different digest. Nothing is written either way.</p>
 only while the two charts say the same thing. The promoted chart&#39;s spec is compared with the spec of the chart
 it replaces, so a candidate whose axis is narrower, whose field binding differs or which shows less is an
 interpretation change at the moment it reaches the page — the same cost that edit would have had in place.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li>Your request is quoted back to you, and the class comes with a located reason — a file and a field, not &quot;this
 looks cosmetic&quot;.</li>

@@ -4,9 +4,19 @@ description: Practical routes from a vague question, an unfamiliar table, or a s
 kicker: Workflow guide
 ---
 
-You can use one skill where you are stuck or ask `analyze` to carry a question through the whole sequence. The smaller routes are useful when you already have a query, a metric definition, or a draft worth reviewing.
+You can use one skill where you are stuck or ask `analyze` to carry a question through the whole sequence. If you are not sure which of those is right, start with [ask-aftergrid](../skills/ask-aftergrid.md). The smaller routes are useful when you already have a query, a metric definition, or a draft worth reviewing.
 
 Most prompts below use slash syntax; in Codex, use `$skill-name`. The original craft skills, including analysis-review, are hidden from the Claude Code slash menu, so their examples use plain-language requests. The skill pages state invocation policy and explain the portable and optional Engine paths.
+
+## When you are not sure which skill fits
+
+```text
+/ask-aftergrid Conversion fell and someone wants to roll back signup.
+I have a four-row CSV. Which skill should I run first, and why not
+analyze the whole question in one go?
+```
+
+The useful output is one next skill, the sibling it rejected, and a prompt you can paste. [Ask-aftergrid](../skills/ask-aftergrid.md) does not start that skill. User-invoked skills do not call each other.
 
 ## When the question is still vague
 

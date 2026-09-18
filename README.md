@@ -4,9 +4,9 @@
 
 Ask a sharper question. Understand the data. Diagnose a change. Challenge the conclusion. Leave the next analysis better informed.
 
-Aftergrid is a collection of 14 open-source skills for analytical work: the decisions an experienced analyst makes between receiving a question and giving someone an answer they can act on. Use one skill on a CSV, notebook, SQL query or draft, or use `analyze` to carry a question through the whole workflow.
+Aftergrid is a collection of 15 open-source skills for analytical work: the decisions an experienced analyst makes between receiving a question and giving someone an answer they can act on. Use one skill on a CSV, notebook, SQL query or draft. If you are not sure which skill fits, start with `ask-aftergrid`. Use `analyze` to carry a question through the whole workflow.
 
-**Start with the skills.** They work with the files and data tools your agent already has. Thirteen have a portable workflow; `setup-aftergrid` configures the optional Engine. You do not need a warehouse connection, a GitHub review or the aftergrid CLI to try the portable skills.
+**Start with the skills.** They work with the files and data tools your agent already has. Fourteen have a portable workflow; `setup-aftergrid` configures the optional Engine. You do not need a warehouse connection, a GitHub review or the aftergrid CLI to try the portable skills.
 
 [Start here](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Try the examples](examples/skills-lab/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/)
 
@@ -39,6 +39,7 @@ In a slash-command host, select the installed skill from its skill menu. You can
 
 | Job | Skill | What you leave with |
 | --- | --- | --- |
+| Not sure which skill fits | [ask-aftergrid](skills/ask-aftergrid/SKILL.md) | One next skill, why not the tempting sibling, and a prompt to paste |
 | Turn an ask into an answerable question | [grill-question](skills/grill-question/SKILL.md) | Decision, population, comparison and a way the answer could be wrong |
 | Understand unfamiliar data | [explore-data](skills/explore-data/SKILL.md) | Grain, keys, coverage, join risks and a usable data map |
 | Resolve what a metric means | [define-metric](skills/define-metric/SKILL.md) | A proposed definition with denominator, exclusions and checks |
@@ -58,15 +59,16 @@ Use the smallest workflow that answers the task. Reviewing a chart does not requ
 
 ## Try it on data you can inspect
 
-The [skills lab](examples/skills-lab/README.md) has three small synthetic cases, their exact inputs and a dependency-free calculation check:
+The [skills lab](examples/skills-lab/README.md) has four small synthetic cases, their exact inputs and a dependency-free calculation check:
 
 ```bash
 node examples/skills-lab/verify.mjs
 ```
 
 - **Conversion fell while both channels improved.** The overall rate falls from 8.8% to 6.2%. The useful next question is about the acquisition mix, not an assumed broken signup experience.
+- **Conversion recovered. Was it the same mechanism?** The follow-up retrieves that mix lesson and finds mix plus a paid-rate change, not a reverse of the prior decline.
 - **MRR grew while existing-account revenue shrank.** The $430 → $440 headline hides $80 of churn. Reconcile new revenue, expansion, contraction and churn before choosing the next action.
-- **A precise retention number supports an imprecise claim.** 60% versus 40% is a real observed difference in the supplied data. Self-selection prevents it from identifying what mandatory onboarding would cause.
+- **A precise retention number supports an imprecise claim.** 60% versus 40% is a real observed difference in the supplied data. Self-selection prevents it from identifying what mandatory onboarding would cause. The [worked review](docs/examples/causal-claim.md) is on the site.
 
 These are teaching cases, not customer outcomes or an accuracy benchmark. An isolated Codex agent completed the three cases and a lesson-reuse follow-up without the answer key. Its [original outputs and run record](examples/skills-lab/runs/README.md) are retained; all four saved calculations reproduce exactly.
 
@@ -113,7 +115,7 @@ pnpm run check:skills-lab # Python 3 is needed to rerun the recorded calculation
 pnpm run smoke:pack
 ```
 
-The CLI's declared platform matrix is Ubuntu/macOS on Node 22.18 and 24. Installer discovery, model behavior, deterministic arithmetic and human Reader feedback are different forms of evidence; none substitutes for the others. Development is tracked in [beads](docs/agents/issue-tracker.md).
+The CLI's declared platform matrix is Ubuntu/macOS on Node 22.18 and 24. Installer discovery, model behavior, deterministic arithmetic and human Reader feedback are different forms of evidence; none substitutes for the others. Development is tracked in [beads](docs/agents/issue-tracker.md). Agents working on this repository should read [AGENTS.md](AGENTS.md).
 
 ## Influences and license
 

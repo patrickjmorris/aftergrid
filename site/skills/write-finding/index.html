@@ -1,12 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>write-finding — Turn the analysis into an answer someone can use. — aftergrid</title><meta name="description" content="Turn the analysis into an answer someone can use."><meta property="og:title" content="write-finding — Turn the analysis into an answer someone can use. — aftergrid"><meta property="og:description" content="Turn the analysis into an answer someone can use."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/write-finding/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Explain / Portable skill</p><h1>write-finding</h1><p class="intro">Turn the analysis into an answer someone can use.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Turn analysis results into an evidence-linked answer for a specific reader, with scope and caveats beside the conclusion. Works with ordinary files and optionally an Engine Finding.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Use supplied results and analysis notes to answer the reader&#39;s question. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. When writing an aftergrid Finding, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/write-finding/references/engine-workflow.md">the Engine procedure</a> for its typed claims, bound values, and fixed artifact contract.</p>
-<p>Read the question, results, assumptions, checks, and intended reader before writing. Establish which conclusions were actually reached and which remain exploratory. A writer may clarify a conclusion; it may not invent a new calculation, promote a proposed definition to approved, or turn a correlation into a cause.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>write-finding</code> turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision — in the first paragraph.</p>
+<p>The defining constraint: a writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>Ask in plain language. The agent reaches for it when numbers exist and the memo does not. In Claude Code it is hidden from the slash menu.</p>
+<p>Reach for it after <a href="../checked-analysis/">checked-analysis</a> or any run that produced inspectable results. Use <a href="../shape-narrative/">shape-narrative</a> to reorder and reword without changing meaning. Use <a href="../iterate-visual/">iterate-visual</a> for the chart. Use <a href="../revise-finding/">revise-finding</a> once feedback arrives on a finished artifact.</p>
+<h2 id="the-first-paragraph-has-to-be-enough">The first paragraph has to be enough</h2>
+<p>A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. An honest answer may be that the source does not support the comparison.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Does every number need a chart?</strong> No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.</p>
+<p><strong>Can it decide the outcome?</strong> No. If the analysis recommended insufficient data, the memo says so in the first sentence. The writer does not upgrade a non-answer to look finished.</p>
+<p><strong>Does a well-written memo become verified?</strong> No. Never call the draft approved, Engine-checked, or human-tested merely because it is clear.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The first paragraph states the answer, population, comparison, period, and the decision-changing caveat.</li>
+<li>Material numbers point at supplied cells, query results, or retained calculations.</li>
+<li>Exploratory results do not sound pre-registered.</li>
+<li>Recommendations match the claim type the design supports.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>Model-invoked Explain-stage craft. Neighbors: <a href="../shape-narrative/">shape-narrative</a>, <a href="../iterate-visual/">iterate-visual</a>, <a href="../analysis-review/">analysis-review</a>. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/write-finding</code> turns a checked Analysis directory into a Finding. It reads the evidence <code>/checked-analysis</code>
 pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
 results, the Checks, any retained inputs, and <code>analysis.yaml</code> —
@@ -24,7 +41,7 @@ skill byte-identical. <code>private_marker</code> matters most, because the memo
 refusal in <code>render</code> both run only when it is present.</p>
 <p>It finishes by running <code>aftergrid check</code> and <code>aftergrid render</code>, fixing what it introduced, and stopping with
 a <code>needs_attention</code> result after a third unsuccessful pass.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li><code>/checked-analysis</code> has pinned executions, results and Check outcomes, and written <code>analysis.yaml</code>.</li>
 <li>An Analysis reached <code>insufficient_data</code>, <code>inconclusive</code> or <code>needs_reframing</code> and the Reader is owed a
@@ -35,7 +52,7 @@ the new results.</li>
 <p>Not for: changing a number or a query (that reopens <code>/checked-analysis</code>), re-styling a chart
 (<code>/iterate-visual</code>), reordering or rewording finished prose (<code>/shape-narrative</code>), or acting on Operator
 feedback on a merged Finding (<code>/revise-finding</code>).</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Can it decide the Finding answers the question?</strong> No. <code>finding.outcome</code> is copied from
 <code>analysis.yaml#outcome_recommendation.outcome</code>. A non-answer stays a non-answer, and
 <code>skills/write-finding/references/outcomes.md</code> is how each one is written honestly.</p>
@@ -66,7 +83,7 @@ reports an approval nobody granted as an untrusted attestation, and publication 
 APPROVED review verified through the API (<code>docs/contracts/publication.md</code>).</p>
 <p><strong>What if a required Check failed?</strong> That is the Analysis, not the memo. The skill reports the category and
 location and stops rather than writing around it.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li><code>aftergrid check &lt;finding-dir&gt;</code> reports <code>evidence valid</code> with zero errors, and <code>aftergrid render</code> writes
 <code>render/finding.html</code> without a warning.</li>

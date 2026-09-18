@@ -2,12 +2,44 @@
 
 Analyze a question from the data you have. Clarify the decision, test explanations, and deliver an evidence-linked answer or an honest limit; optionally produce an Engine Finding.
 
-## Portable use
+## What it does
 
-Take the question through to an answer the intended reader can act on. Start with the user's files, pasted results, notebook, or existing data connector. A database connection, aftergrid CLI, GitHub repository, and publication approval are not prerequisites for ordinary analysis.
+`/analyze` carries one question from a raw ask to a reviewed answer: clarify, inspect, plan, calculate under checks, write, challenge, and stop with a reason when the evidence runs out. Portable analysis is the default. An Engine Finding is a separate route you ask for.
 
+The defining constraint: it is the only orchestrator. It owns the order of stages and the decision to halt. Craft belongs to the specialist skills; `/analyze` does not redo their work, which is what keeps a three-pass visual loop from becoming a six-pass one.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+You invoke this by typing `/analyze` — the agent will not start it on its own.
+
+Reach for it when you have an ask and want the whole practice applied, including an honest “inconclusive” or “not enough data.” Use [grill-question](grill-question.md) when you only want the interview. Use a single craft skill when you already have a query, a chart, or a draft. Use [revise-finding](revise-finding.md) for feedback on a finished artifact.
+
+## Follow the evidence, then try to break it
+
+Read designated prior lessons before planning. Reproduce the headline before explaining it. For a rate, inspect numerator and denominator separately. For an aggregate change, separate mix from within-group change. Label cuts made after seeing results as exploratory. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or the next step needs something you do not have.
+
+The answer leads with what was observed, for whom and when, with the decision-changing caveat beside it. Three review lenses — method, question, reader — try to disprove the draft. Serial self-review is still self-review and must be described as such.
+
+## Common questions
+
+**Do I need the aftergrid CLI?** No. Start with a CSV, notebook, pasted results, or an existing connector. The Engine route needs the complete toolkit and keeps its evidence and approval contracts.
+
+**Why doesn’t it call /grill-question?** User-invoked skills do not call each other. Both read the same clarification procedure, so the interview is the same one either way.
+
+**Is “inconclusive” a failed run?** No. Insufficient data, inconclusive, and needs-reframing are valid completed answers. A check that *errored* is a run that did not happen; a check that *failed as pre-specified* can be the answer.
+
+**Does a clean run mean the finding is approved?** No. Agent review is not human publication approval. Portable output has no Engine verification merely because this skill produced it.
+
+## It's working if
+
+- The original ask is still visible next to the sharpened question.
+- Material numbers point at a source, saved result, or calculation that actually ran.
+- Dead ends that constrain the conclusion are kept.
+- The closing recommendation matches the claim type the design earned — descriptive, associational, or causal — and names what would change it.
+
+## Where it fits
+
+User-invoked Analyze-stage orchestrator. Neighbors: [diagnose-change](diagnose-change.md) for a movement-only job, [checked-analysis](checked-analysis.md) for execute-and-record without the full loop, [analysis-review](analysis-review.md) for a draft you already have. The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 

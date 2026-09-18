@@ -1,16 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>shape-narrative — Put the answer first. Make every section carry it. — aftergrid</title><meta name="description" content="Put the answer first. Make every section carry it."><meta property="og:title" content="shape-narrative — Put the answer first. Make every section carry it. — aftergrid"><meta property="og:description" content="Put the answer first. Make every section carry it."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/shape-narrative/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
 <body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Explain / Portable skill</p><h1>shape-narrative</h1><p class="intro">Put the answer first. Make every section carry it.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Make an analytical memo understandable: answer first, one claim at a time, explicit comparison, and the decisive caveat beside the answer. Preserve evidence and meaning.</p>
-<h2 id="portable-use">Portable use</h2>
-<p>Edit the supplied memo, document, notebook summary, or presentation text for its intended reader. No Engine artifact is needed. For an aftergrid Finding, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/shape-narrative/references/engine-workflow.md">the Engine workflow</a> to preserve binding markers and review currency.</p>
-<p>Read the question and evidence before polishing the prose. Identify the answer-bearing claim, who is counted, its baseline/window, and the caveat that would change what a reader does. If those are missing, name the gap rather than manufacturing them.</p>
-<p>Put the answer first. A reader who stops after the first paragraph should retain the correct scope and uncertainty. Use one evidence-bearing claim per section, with a heading that states what was learned rather than a label such as “Analysis.” Separate observed facts, interpretations, and recommendations. Keep an exploratory result from sounding pre-planned.</p>
-<p>Replace jargon with the reader&#39;s words where meaning survives. Explain necessary terms at first use. Pair rates with denominators; explain percentage points instead of silently swapping them for percent. Keep the baseline and time window with comparisons that might be quoted out of context.</p>
-<p>Check that chart titles, captions, and emphasis tell the same story as the answer. A whole-month increase must not visually stand in for an inconclusive weather-adjusted comparison. Preserve source references and bound values. Do not remove a caveat merely because it interrupts a cleaner story.</p>
-<p>After editing, compare each claim with its source version. If a change alters population, window, exclusions, statistical certainty, causal strength, or which comparison supports the answer, it is substantive: disclose it and return it for analytical review. Present the revised prose plus any unresolved evidence gaps, without claiming a reader study or approval.</p>
-<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
-<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
 <h2 id="what-it-does">What it does</h2>
+<p><code>shape-narrative</code> decides what a reader meets first, and in whose words. It puts the answer and its material caveat at the top, makes headings state claims rather than section labels, and rewrites toward the intended reader without changing what the evidence supports.</p>
+<p>The defining constraint: it changes wording and order. A request that would change what the reader concludes is reported and stopped, not made.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<p>Ask in plain language. The agent reaches for it after a draft exists. Hidden from the Claude Code slash menu.</p>
+<p>Reach for it when the analysis is right and the memo is still hard to use. Use <a href="../write-finding/">write-finding</a> to create the draft. Use <a href="../analysis-review/">analysis-review</a> to challenge whether the claim is earned. Use <a href="../revise-finding/">revise-finding</a> when an owner’s feedback arrives on a finished artifact.</p>
+<h2 id="answer-first-caveat-adjacent">Answer first, caveat adjacent</h2>
+<p>A reader who stops after the first paragraph should retain the correct scope and uncertainty. Pair rates with denominators. Keep baseline and window with comparisons that might be quoted out of context. Chart titles must tell the same story as the prose, including inconclusive results. Do not remove a caveat because it interrupts a cleaner story.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Can it soften a discouraging caveat?</strong> No. Dropping or hedging a material limitation changes the decision with every digit unchanged.</p>
+<p><strong>Can it upgrade “associated with” to “caused”?</strong> No. That asserts a design the analysis did not have.</p>
+<p><strong>Can it reorder claims?</strong> Yes, so the answer-bearing claim comes first, as long as each claim’s evidence is unchanged.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The first section is the answer, with the decision-changing caveat directly under it.</li>
+<li>Headings are sentences a reader could repeat.</li>
+<li>Jargon the reader does not use is gone, or explained at first use.</li>
+<li>A meaning-changing request came back as a report, with nothing edited.</li>
+</ul>
+<h2 id="where-it-fits">Where it fits</h2>
+<p>Model-invoked Explain-stage craft, after <a href="../write-finding/">write-finding</a> and <a href="../iterate-visual/">iterate-visual</a>, before <a href="../analysis-review/">analysis-review</a>. The map is <a href="../ask-aftergrid/">ask-aftergrid</a>.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does-1">What it does</h2>
 <p><code>/shape-narrative</code> decides what a Reader meets first in a written Finding, and in whose words. It puts the
 Answer and its material caveat at the top, makes each Evidence subsection one Claim whose heading states the
 Claim, makes each chart and table title state the Claim rather than name an axis, and rewrites the prose
@@ -24,7 +37,7 @@ section lists the six shapes that takes.</p>
 <p>The judgements it applies live in <code>skills/shape-narrative/references/narrative-criteria.md</code>. The Reader
 reviewer in <code>/analysis-review</code> reads the same page, so writer and reviewer are never working from different
 rules.</p>
-<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>A Finding is written and its charts have settled, and it has not been reviewed yet.</li>
 <li>A Reader review came back with wording findings that do not change a number or an interpretation.</li>
@@ -33,7 +46,7 @@ rules.</p>
 <p>Not for: writing a Finding that does not exist yet (<code>/write-finding</code>), chart work (<code>/iterate-visual</code>), any
 change to a number or a query (that reopens the Analysis), or recording a review or an approval (a reviewer&#39;s
 and a human&#39;s, respectively).</p>
-<h2 id="common-questions">Common questions</h2>
+<h2 id="common-questions-1">Common questions</h2>
 <p><strong>Why is this separate from <code>/write-finding</code>?</strong> Ordering and language are judged after the charts settle, and
 they are judged against criteria a reviewer reads too. Keeping them separate means a chart change can be
 followed by a narrative pass without rewriting the Claims, and means the Reader reviewer and the writer cite
@@ -48,7 +61,7 @@ Analysis did not have, and it invalidates method review. Claim types are <code>/
 randomised assignment.</p>
 <p><strong>What does it do about a misreading it cannot fix with wording?</strong> Records it as a non-blocking note for the
 Reader reviewer, naming the <code>will_misread</code> item and the sentence that invites it.</p>
-<h2 id="its-working-if">It&#39;s working if</h2>
+<h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li><strong>Answer</strong> is the first section, its first sentence carries the outcome, and the <code>&lt;!-- material_caveat --&gt;</code>
 block sits directly under it.</li>

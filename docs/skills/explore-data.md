@@ -2,17 +2,39 @@
 
 Inspect unfamiliar tables, files, or query results before analysis. Establish grain, keys, joins, coverage, measurement limits, and answerable questions without inventing a business conclusion.
 
-## Use it
+## What it does
 
-Ask for `$explore-data` with your question and relevant files, results, or existing data connection. No aftergrid CLI, configuration, or GitHub setup is required. It is available for explicit use and automatic discovery.
+`explore-data` builds a map of what the supplied data can actually answer. It verifies grain against rows, tests joins instead of trusting column names, and records coverage, missingness, and maturity — then lists questions the extract can support and questions it cannot.
 
-## What you get
+The defining constraint: an inventory is not a finding. Exploratory correlations stay labeled. The map is proposed context, not an approved catalog.
 
-Build a useful map of what the supplied data can answer. Use local files, pasted samples, or the user's existing connector. Start with bounded reads and the stated question; do not configure a new platform or scan an entire warehouse because a catalog is available.
+## When to reach for it
 
+Type `/explore-data`, or ask in plain language. Available for explicit use and automatic discovery.
 
-The [skill instructions](../../skills/explore-data/SKILL.md) describe its reasoning and output. They distinguish observed results from proposed checks and do not grant source access, definition approval, or publication permission.
+Reach for it when the tables, export, or warehouse objects are new to this question. Skip it when grain, keys, and join risks are already established. Use [grill-question](grill-question.md) if the ask itself is still several questions. Use [plan-analysis](plan-analysis.md) once you know what the data can bear.
 
-## Validation boundary
+## Grain before joins, joins before conclusions
 
-Packaging validation establishes discoverability and resource presence, not analytical quality. Behavior scenarios are in [the evaluation guide](../../skills/evaluation.md); planned scenarios are not represented as observed outcomes.
+A column called `user_id` does not make a table one row per user. A timestamp does not establish event order without its timezone and whether it is event time or ingestion time. Candidate keys are tested for uniqueness at the intended grain.
+
+For a proposed join, compare row counts, distinct keys, and unmatched keys on both sides. Name the cardinality at the grain the analysis needs. An inner join that “mostly matches” can still drop one period or segment; say what is excluded. Do not repair a many-to-many join with unexplained `DISTINCT`.
+
+## Common questions
+
+**Should it scan the whole warehouse?** No. Start with bounded reads tied to the stated question. A catalog is not a reason to configure a new platform or pull every table.
+
+**What if I cannot run the probes?** Write the exact bounded queries needed and mark them unexecuted. Do not fill results with expected values.
+
+**Is a data map a metric definition?** No. Column names are not approved metrics. Candidate definitions belong to [define-metric](define-metric.md).
+
+## It's working if
+
+- Each relevant source has a stated grain, key, units, coverage, and known limit, with a file or query reference.
+- Join risks are evidenced (counts, unmatched keys), not inferred from names.
+- The closing section names questions answerable now versus the smallest additional information needed.
+- Observations are separated from inferred meanings.
+
+## Where it fits
+
+A Frame-stage standalone. It feeds [plan-analysis](plan-analysis.md) and [checked-analysis](checked-analysis.md). It does not replace [grill-question](grill-question.md): a precise question and a trustworthy extract are different jobs. The map is [ask-aftergrid](ask-aftergrid.md).

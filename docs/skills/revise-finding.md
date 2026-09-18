@@ -2,12 +2,42 @@
 
 Apply feedback to an analytical answer while distinguishing presentation edits from changes to calculations, interpretation, and evidence. Works on ordinary memos or versioned Engine Findings.
 
-## Portable use
+## What it does
 
-Work on the artifact the user supplied: memo, notebook, chart, or analysis document. Preserve its evidence trail and follow the requested scope. For an aftergrid Finding, use [the Engine revision procedure](../../skills/revise-finding/references/engine-workflow.md); it classifies changes, pins revisions, and invalidates reviews as required.
+`/revise-finding` classifies feedback by consequence before changing the artifact. Presentation keeps meaning. Interpretation changes what the reader would conclude. Calculation changes data, filters, metric, population, or window.
 
+The defining constraint: classify by what would change for the reader, not by how small the text edit looks. A request to make an inconclusive result “more confident” cannot be satisfied by hiding the caveat.
 
-Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+## When to reach for it
+
+You invoke this by typing `/revise-finding` — the agent will not start it on its own.
+
+Reach for it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use [iterate-visual](iterate-visual.md) when the chart is merely hard to read. Use [checked-analysis](checked-analysis.md) when the numbers have to be rerun. Use [analysis-review](analysis-review.md) to produce the critique this skill applies.
+
+## Three classes
+
+A **presentation** edit retains exact values and source references, then compares revised claims with their originals. An **interpretation** edit re-evaluates evidence and caveats and needs a fresh analytical review. A **calculation** edit reruns affected computations; if access is unavailable, leave the affected conclusion unresolved.
+
+Preserve a change record: request, edits, checks rerun, whether the conclusion moved, remaining limits. Do not claim an old review covers new evidence.
+
+## Common questions
+
+**Does previous approval survive?** No. An approval binds one version of the content. The new revision is a draft again.
+
+**Why did a “harmless” edit come back as interpretation?** The portable classifier is conservative. Rewording “came back more often than” to “came back because of” can keep every digit and still change the claim type.
+
+**Can I skip rerunning a numeric change?** No. If the data cannot be rerun, the affected conclusion stays unresolved.
+
+## It's working if
+
+- The class comes with a located reason, not “this looks cosmetic.”
+- Presentation keeps numbers and source references byte-stable where it claims to.
+- Interpretation names the review that must be redone.
+- Calculation either reruns or leaves the conclusion explicitly unresolved.
+
+## Where it fits
+
+User-invoked Improve-stage entry after a finished artifact. Neighbors: [write-finding](write-finding.md), [shape-narrative](shape-narrative.md), [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
 
 ## Engine Finding reference
 
