@@ -1,7 +1,7 @@
 interface:
   display_name: "Shape narrative"
   short_description: "Order and word a written Finding so a Reader gets the point without reading all of it"
-  default_prompt: "Shape this Finding's narrative: answer first with the material caveat beside it, one Claim per Evidence subsection with the heading stating the Claim, chart titles stating the Claim, and the Reader profile's words throughout. Change no value and no Claim type; re-pin the digest and run `aftergrid check` and `aftergrid render`."
+  default_prompt: "Use $shape-narrative on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. It is a craft pass inside /analyze, run after
   # /write-finding and /iterate-visual; an Operator asks for the Analysis or, later, for /revise-finding.

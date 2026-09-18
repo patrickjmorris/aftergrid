@@ -435,9 +435,9 @@ test("the skills ask the question, record a \"none\", and hand the reporting to 
   const says = (name: string, text: string, pattern: RegExp, what: string) =>
     assert.ok(pattern.test(text), `${name} must ${what} (no match for ${pattern})`);
   const clarification = readFileSync(join(REPO, "skills/checked-analysis/references/clarification.md"), "utf8");
-  const grill = readFileSync(join(REPO, "skills/grill-question/SKILL.md"), "utf8");
+  const grill = readFileSync(join(REPO, "skills/grill-question/references/engine-workflow.md"), "utf8");
   const grillDoc = readFileSync(join(REPO, "docs/skills/grill-question.md"), "utf8");
-  const writer = readFileSync(join(REPO, "skills/write-finding/SKILL.md"), "utf8");
+  const writer = readFileSync(join(REPO, "skills/write-finding/references/engine-workflow.md"), "utf8");
   const briefs = readFileSync(join(REPO, "skills/analysis-review/references/reviewer-briefs.md"), "utf8");
 
   says("clarification.md", clarification, /What would get worse if this metric were pushed hard\?/, "ask the question in those words");

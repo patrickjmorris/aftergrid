@@ -18,8 +18,8 @@ rides: rebuild its data from the publishers in about five minutes, then run `/an
 Question go from a plain-words ask to a Finding a non-data reader can inspect. Every number on the rendered page
 opens the chain behind it — the calculation, the saved result and its hash, the query, the retained data, the
 definition — and every Finding carries the test it wrote down in advance for what would show its own answer
-wrong. Two Findings have come out of it so far, and neither is approved: both are open draft pull requests
-waiting on a human, which is the only thing that makes a Finding publishable.
+wrong. Two Findings have come out of it so far, and neither is approved: both are merged, with human publication approval still missing. That approval is separate from
+completion, evidence checks and agent review.
 
 ## The two results, one line each
 
@@ -41,10 +41,10 @@ waiting on a human, which is the only thing that makes a Finding publishable.
 
 - **Do not soften "inconclusive".** It is the demo's strongest claim: the machinery caught a month-on-month rise
   that would otherwise have been published as an effect.
-- **Do not write "approved", "published" or "reviewed by a human"** anywhere near these two Findings. Both pull
-  requests are drafts with zero reviews; the reviews on the pages are agent reviews, which are not approvals.
+- **Do not write "approved", "published" or "reviewed by a human"** anywhere near these two Findings. Both merged pull
+  requests have zero human approval reviews; the reviews on the pages are agent reviews, which are not approvals.
 - The rendered pages are not hosted anywhere yet; the link above goes to the walkthrough, which says how to open
-  them from the two demo branches. If the site later hosts a rendered page, it must keep the page's own draft
+  them from the committed Finding directories on main. If the site later hosts a rendered page, it must keep the page's own draft
   banner.
 - All eight definitions in the Instance are `proposed`, so no number from this example may headline a metric
   claim on the site.

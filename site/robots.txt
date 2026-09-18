@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://patrickjmorris.github.io/aftergrid/sitemap.xml

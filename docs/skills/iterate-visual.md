@@ -1,5 +1,19 @@
 # iterate-visual
 
+Inspect and improve an analytical chart for truthful comparisons, visible denominators and uncertainty, readable labels, and agreement with its claim. Works with charts from any tool.
+
+## Portable use
+
+Start from the user's chart, image, notebook, spreadsheet, or chart code. Preserve its data and meaning. No chart library or CLI is required. For an aftergrid Finding chart, follow [the Engine procedure](../../skills/iterate-visual/references/engine-workflow.md), which supplies its renderer and revision rules.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/iterate-visual` renders each chart in a Finding to PNG, looks at the image, scores it against a seven-item

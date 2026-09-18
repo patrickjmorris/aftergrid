@@ -5,7 +5,7 @@ A public demo Instance on three open datasets. Rebuild its data from the publish
 aftergrid at data you cannot share. Everything here is public: the data, the definitions, the golden Questions,
 the Findings and the pull requests that carry them.
 
-**Nothing here is approved.** Both Findings sit on their own branch behind a draft pull request, all eight
+**Nothing here is approved.** Both Findings are merged on `main` through pull requests #2 and #3, all eight
 definitions are `proposed`, no `publication_approval` attestation exists anywhere in this Instance, and neither
 Finding is `ready`. That is the honest end of the demo, not a step somebody forgot.
 
@@ -31,8 +31,8 @@ beside the Answer rather than in a footnote.
 can catch. It did. A tool that answered either way would be no use here; what this shows is the machinery that
 stops a month-on-month rise from being published as an effect.
 
-`main` also holds the halt that came first: `analytics/findings/2026-09-17-crz-trips-after-pricing` at revision
-1, `outcome: pending`, `status: needs_attention`, committed unedited.
+The current congestion Finding on `main` is revision 2. The earlier revision-1 halt (`outcome: pending`,
+`status: needs_attention`) is retained in its revision history and documented in the run log.
 
 ## The data
 

@@ -1,0 +1,39 @@
+[
+  {
+    "agent": "codex",
+    "exit": 0,
+    "skills_count": 14,
+    "paths": [
+      ".agents/skills/setup-aftergrid/SKILL.md",
+      ".agents/skills/explore-data/SKILL.md",
+      ".agents/skills/checked-analysis/SKILL.md",
+      ".agents/skills/learn-from-analysis/SKILL.md",
+      ".agents/skills/write-finding/SKILL.md",
+      ".agents/skills/define-metric/SKILL.md",
+      ".agents/skills/iterate-visual/SKILL.md",
+      ".agents/skills/diagnose-change/SKILL.md",
+      ".agents/skills/shape-narrative/SKILL.md",
+      ".agents/skills/grill-question/SKILL.md",
+      ".agents/skills/analysis-review/SKILL.md",
+      ".agents/skills/plan-analysis/SKILL.md",
+      ".agents/skills/revise-finding/SKILL.md",
+      ".agents/skills/analyze/SKILL.md"
+    ]
+  },
+  {
+    "agent": "cursor",
+    "exit": 0,
+    "skills_count": 1,
+    "paths": [
+      ".agents/skills/grill-question/SKILL.md"
+    ]
+  },
+  {
+    "agent": "claude-code",
+    "exit": 0,
+    "skills_count": 1,
+    "paths": [
+      ".claude/skills/diagnose-change/SKILL.md"
+    ]
+  }
+]

@@ -1,94 +1,31 @@
 ---
 name: grill-question
-description: Grill a raw ask until it is a Question — decision, Reader, metric, population, window, primary comparison and a falsifier — and write it into a Finding. Use before any analysis runs, when an ask names no metric or window, when a definition is missing or only proposed, or to resume a Question left unresolved.
+description: "Turn a vague analytics ask into an answerable question: decision or purpose, reader, metric, population, window, comparison, and evidence that could change the conclusion."
 disable-model-invocation: true
 ---
 
-# Sharpen an ask into a Question
+# Sharpen the question
 
-An ask in plain words on one side; on the other, a Question a Finding can answer and a Revisit can later re-test.
-The interview is the work. Everything else here is where the answers land.
+Use this before expensive analysis or when an apparently simple ask hides different possible calculations. The result can be a short question brief in the conversation or a user-chosen file. No CLI, manifest, or warehouse is required.
 
-The procedure is in **[references/clarification.md](../checked-analysis/references/clarification.md)** — the
-rounds, the seven parts, the vocabulary challenge, how a definition is proposed, and what to write. Read it
-before round 1. `/checked-analysis` reads the same file, so an Operator gets the same interview whether they
-started here or the analysis started it.
+## Preserve the ask and find the ambiguity
 
-## 1. Find the Finding, or make one
+Keep the original wording. Read supplied definitions and prior decisions before questioning the user. Identify what decision the answer informs, or the purpose if it is purely descriptive, and who needs to understand it. Translate words such as active, retained, new, revenue, and improved into countable events and an eligible population.
 
-The Question lives in a Finding's `manifest.yaml`. There is nowhere else to put it.
+For a rate, name numerator and denominator; for a total, name unit and grain. Separate event time from ingestion time and timezone from reporting date. Establish the comparison window and baseline, including cohort maturity and seasonality where relevant. Challenge causal wording when the design only supplies an association.
 
-```bash
-aftergrid new finding <slug> --ask "<the ask, verbatim>" --reader <profile-id>
-```
+## Ask only what changes the work
 
-Reuse an existing directory when the Operator names one, or when a draft for this ask already exists — `new
-finding` refuses to overwrite, and a second directory for the same ask splits its history.
+Group unresolved consequential choices into one round. Give each a recommended interpretation and what an alternative would change. Look up facts in the supplied data rather than asking the user to describe columns you can inspect. Do not ask again for settled answers; state them so the user can correct them.
 
-Done when: you have a Finding directory holding `manifest.yaml`, and `question.raw_ask` is the ask in the
-Operator's own words.
+A falsifier is an observation that could change the proposed conclusion, not a ritual field. For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or state that no such check is available. Do not invent an arbitrary threshold or imply that an unavailable causal design exists.
 
-## 2. Read what is already settled
+If the metric will be optimized, ask what could get worse while it improves. Record a relevant counter-metric and why, or a concrete reason none is needed. Proposed definitions remain proposals; an agent does not approve organizational meaning.
 
-Follow *Read before you ask* in the reference. A part with a recorded value is settled, and a settled part is
-never asked again.
+## Return a question brief
 
-Done when: for each of decision, Reader, metric, population, window, primary comparison and falsifier, you can
-say either its value and the file you read it from, or that nothing records it.
+Include the original ask; sharpened question; reader and decision/purpose; metric and units; eligible population and exclusions; time window/timezone; comparison; evidence that would change the answer; available sources; and remaining assumptions or questions with their effect. Mark unresolved fields as unresolved rather than quietly filling them. If the ask cannot be answered as phrased, explain why and offer the nearest answerable question without pretending the user already accepted it.
 
-## 3. Run the rounds
+## Existing Engine Finding
 
-Follow *Ask in rounds*. Ask the whole frontier at once, numbered, each with your recommended answer. Wait.
-Recompute. Ask again.
-
-Show the Operator the settled parts as a list they can correct, rather than asking them again — including on a
-second pass over a Finding you left unresolved.
-
-Done when: the frontier is empty and the Operator has confirmed the shared understanding. Every part is either
-settled or explicitly recorded as unsettled with its reason.
-
-## 4. Write it down
-
-Follow *Writing the result*. `question` and `reader` in `manifest.yaml`; `stage: clarified`, `reader_profile`,
-`clarified_at` (the harness's clock at the moment the Question was settled — it is what lets `check` see whether
-capture followed clarification), `assumptions`, `pre_registered_comparison` and any `needs_input` in
-`analysis.yaml`. `stage: clarified` is what
-says this file is a seed: without it the Analysis file is read as a finished working record and `check` reports
-the probes, execution order, candidate Claims and outcome it is missing.
-
-A part that is not settled stays **absent** from the manifest and named in `question.unresolved`. A falsifier
-you cannot run is not written at all.
-
-New definitions go to `<instance>/definitions/<id>.md` as `lifecycle: proposed` with no approval block. An
-approved definition is read, never edited.
-
-When the definition you propose could be the **decision metric**, ask what would get worse if it were pushed
-hard, and write the answer down: `counter_metrics: [{ id, version?, why }]` naming another definition in this
-Instance, or — when the honest answer is none — `counter_metrics_none_because: "<sentence>"`. "None" is a
-recorded decision, never an omission, because the field is omitted when empty and silence would look identical
-to never having asked. Full procedure and the exact front matter: *Ask the counter-metric question* in the
-reference.
-
-Done when `aftergrid check <finding-dir>` runs clean of schema errors and reports the state you intended.
-Evidence is `valid` in every row below: nothing is wrong with the evidence, there is none yet.
-
-| What you settled | `question.state` | What `check` reports |
-| --- | --- | --- |
-| All seven parts, falsifier is a Check | `resolved` | content `incomplete` until the analysis runs; no schema error |
-| Some parts open | `unresolved` | content `incomplete`, warnings naming each unresolved part |
-| The ask cannot be answered as posed | `not_answerable` | content `incomplete`; the Finding's outcome will be `needs_reframing` |
-
-## 5. Hand it on
-
-Tell the Operator, in this order:
-
-1. The Question in their words: the decision, who is counted, over what window, compared with what.
-2. Which definitions it uses, each with its version and lifecycle. Name any that is `proposed`, and say plainly
-   that a proposed definition cannot be the published decision metric until they approve it. For the decision
-   metric, say what its counter-metrics are, or that it records why there are none — and, when nothing is
-   recorded either way, say that too rather than leave it unsaid.
-3. Anything unresolved, and who owns it. Do not round `unresolved` up to "ready".
-4. The next command: `/analyze <finding-dir>`, which runs the checked analysis, the writing and the review.
-
-`node src/cli.ts <command>` where aftergrid runs from a source checkout; `aftergrid <command>` where it is
-installed. Same flags, same report.
+Only when working in an existing aftergrid Instance or explicitly asked for a Finding, follow [the Engine procedure](references/engine-workflow.md). It records the brief in the manifest and preserves definition approval rules. It requires the complete toolkit. Portable use above is self-contained.

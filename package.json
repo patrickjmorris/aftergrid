@@ -2,7 +2,7 @@
   "name": "aftergrid",
   "version": "0.0.0",
   "private": true,
-  "description": "Open-source skills, Checks and a thin CLI for producing Findings. Pre-release; the CLI is not yet published.",
+  "description": "Open-source analytics skills for better questions, deeper investigations and evidence-linked answers, with an optional checked-Finding CLI.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -12,8 +12,13 @@
     "./skills/analysis-review",
     "./skills/analyze",
     "./skills/checked-analysis",
+    "./skills/define-metric",
+    "./skills/diagnose-change",
+    "./skills/explore-data",
     "./skills/grill-question",
     "./skills/iterate-visual",
+    "./skills/learn-from-analysis",
+    "./skills/plan-analysis",
     "./skills/revise-finding",
     "./skills/setup-aftergrid",
     "./skills/shape-narrative",
@@ -33,7 +38,9 @@
     "LICENSE",
     ".claude-plugin",
     "!src/**/*.test.ts",
-    "!src/negatives-build.ts"
+    "!src/negatives-build.ts",
+    "!scripts/build-site.mjs",
+    "!scripts/audit-site.mjs"
   ],
   "scripts": {
     "validate:fixtures": "node scripts/validate-fixtures.mjs",
@@ -42,7 +49,10 @@
     "test:cli": "node --test 'src/**/*.test.ts'",
     "cli": "node src/cli.ts",
     "gen:negatives": "node src/negatives-build.ts",
-    "smoke:pack": "node scripts/pack-smoke.mjs"
+    "smoke:pack": "node scripts/pack-smoke.mjs",
+    "build:site": "node scripts/build-site.mjs",
+    "check:site": "node scripts/build-site.mjs --check && node scripts/audit-site.mjs",
+    "check:skills-lab": "node examples/skills-lab/verify.mjs && node examples/skills-lab/verify-recording.mjs"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",

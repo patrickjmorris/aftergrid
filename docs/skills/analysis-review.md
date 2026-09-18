@@ -1,5 +1,19 @@
 # analysis-review
 
+Challenge an analysis, notebook, chart, or memo for calculation errors, unsupported conclusions, question drift, and reader misinterpretation. Review evidence adversarially without inventing objections.
+
+## Portable use
+
+Review the artifact supplied: SQL and results, notebook, chart, memo, or an Engine Finding. Do not require a manifest or CLI for ordinary work. For a Finding, preserve [the Engine review procedure](../../skills/analysis-review/references/engine-workflow.md), including current content digests and separate human publication approval.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 Reviews a complete Finding with three reviewers that judge different things and cannot see each other's work:

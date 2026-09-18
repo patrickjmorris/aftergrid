@@ -154,14 +154,16 @@ product surface; nothing in the shipped CLI was changed for the smoke.
 
 ## Not done here
 
-None of the following is part of this bead, and none of it has happened:
+The packaging smoke establishes only the behavior above. The skills-first release is a separate surface:
+the repository and site are public, and skills.sh installation is exercised independently (see
+`skills/README.md`). These boundaries remain:
 
 - **No `npm publish`.** The package is `"private": true` and version `0.0.0`.
 - **No repository visibility change.** The repository stays as the owner set it.
-- **No public activation** of any kind: no announcement, no install instructions published anywhere.
+- **No automatic release from a passing package check.** Public skills documentation does not publish the CLI.
 - **No marketplace listing.** There is no `.claude-plugin/marketplace.json` and no submission.
-- **No installer run.** Neither Claude Code's plugin installer nor skills.sh has installed this package; the
-  layout is validated, not exercised.
+- **No installer run inside this smoke.** This check validates the layout; separate skills.sh checks exercise
+  installation. A skills.sh install does not establish native Claude Code plugin loading.
 - **No live GitHub path.** Intake is exercised through fakes only.
 
 The follow-on external-release gate is `ag-external-release-readiness-4zn`.

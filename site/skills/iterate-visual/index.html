@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>iterate-visual — Make the chart earn the space it takes. — aftergrid</title><meta name="description" content="Make the chart earn the space it takes."><meta property="og:title" content="iterate-visual — Make the chart earn the space it takes. — aftergrid"><meta property="og:description" content="Make the chart earn the space it takes."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/iterate-visual/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Explain / Portable skill</p><h1>iterate-visual</h1><p class="intro">Make the chart earn the space it takes.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Inspect and improve an analytical chart for truthful comparisons, visible denominators and uncertainty, readable labels, and agreement with its claim. Works with charts from any tool.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Start from the user&#39;s chart, image, notebook, spreadsheet, or chart code. Preserve its data and meaning. No chart library or CLI is required. For an aftergrid Finding chart, follow <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/iterate-visual/references/engine-workflow.md">the Engine procedure</a>, which supplies its renderer and revision rules.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/iterate-visual</code> renders each chart in a Finding to PNG, looks at the image, scores it against a seven-item
+rubric seeded from <em>Storytelling with Data</em>, and revises the spec. At most three passes. It stops the moment
+every item passes, and hands a chart that still fails one back to the Operator with the failing items and a
+next step.</p>
+<p>It is <strong>model-invoked</strong> (<code>user-invocable: false</code>, <code>policy.allow_implicit_invocation: true</code>). The visual loop is
+craft inside writing a Finding, so an agent reaches for it mid-task. The human-facing entry point for changing
+a Finding that has already been reviewed is <code>/revise-finding</code>.</p>
+<p>The rubric is <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/iterate-visual/references/visual-rubric.md"><code>skills/iterate-visual/references/visual-rubric.md</code></a>:
+<code>declutter</code>, <code>one_message</code>, <code>title_states_claim</code>, <code>direct_labels</code>, <code>grey_plus_accent</code>, <code>colorblind_safe</code>,
+<code>axis_not_truncated</code>. Each is a yes/no question answerable from the image.</p>
+<p>Rejected candidates are kept as <strong>Variants</strong> — <code>charts[]</code> entries carrying <code>variant_of</code> and the surviving
+chart&#39;s <code>result_id</code>. Only charts without <code>variant_of</code> render, so a Variant costs the Reader nothing and the
+evidence behind every candidate is the same pinned result set. With an Operator in the loop, the PNG previews
+go to them and the choice is theirs; in a background run the skill picks the highest score and says that is
+what it did.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li>A chart spec has just been written or changed and nobody has looked at the image.</li>
+<li>A Finding is about to be rendered for a Reader.</li>
+<li>A chart is hard to read — values to estimate off an axis, a series nothing names, every category a different
+colour.</li>
+<li>You want the same chart tried two ways and the Operator to choose.</li>
+</ul>
+<p>Not for a chart that is <em>wrong</em> rather than unreadable. Rebinding a chart to a different field or narrowing a
+position axis changes what it asserts; that goes through <code>aftergrid revise</code>, which classifies it as an
+interpretation change.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Is the score a gate?</strong> No. It is advisory, and it never substitutes for a Check, an evidence reference or a
+review. A chart scoring seven out of seven against the wrong result set is still the wrong chart.</p>
+<p><strong>Why three passes?</strong> Because a fourth is usually taste, not legibility, and taste is the Operator&#39;s. Three is
+a maximum, not a quota: a chart that passes on the first look is done on the first look.</p>
+<p><strong>What if the third pass still fails?</strong> The chart goes back, by name, with the failing rubric ids, the notes
+from the last pass and one concrete next step. It is never recorded as passing.
+<code>fixtures/runs/kn3-visual/three-passes-still-failing/</code> is that ending, recorded.</p>
+<p><strong>Does a returned chart come off the page?</strong> Not by itself. Returning it is a report, not an edit: the Claim
+still lists it in <code>chart_ids</code>, the memo still carries its marker, and it still renders. Holding it back is the
+Operator&#39;s separate decision, and it takes two edits together — the id out of the Claim&#39;s <code>chart_ids</code> and the
+marker out of the memo. On a Finding that has been pinned, that is a revision, so it goes through
+<code>/revise-finding</code>.</p>
+<p><strong>Why is there no legend on my chart?</strong> Because the pinned house style disables legends
+(<code>src/render/charts.ts</code>). Nothing a <code>text</code> mark does not write is on the image, which is why <code>direct_labels</code> is
+the item that decides whether a Reader can name a series at all.</p>
+<p><strong>How do I add direct labels inside the validated subset?</strong> A layered <code>text</code> mark bound to a field the chart
+already shows, with <code>format</code> doing the formatting.
+<code>fixtures/runs/kn3-visual/first-pass-passes/pass-1.vl.json</code> is a working example. <code>src/revise.test.ts</code> renders
+every recorded spec through the real renderer and holds the recorded verdicts to the image it produces — the
+palette, the compiled axis domain and the absence of a legend — so neither the examples nor the notes about
+them can rot.</p>
+<p><strong>Where does the title live?</strong> In <code>charts[].title</code> in the manifest, not in the spec, and it may contain
+evidence tokens. Fixing <code>title_states_claim</code> is a manifest edit.</p>
+<p><strong>The PNG has no text in it.</strong> The WASM rasterizer found no TrueType font. Set <code>AFTERGRID_FONT</code> to a <code>.ttf</code> and
+render again — scoring an image with the text missing scores the wrong image.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>Every rubric item has a verdict and a note naming what in the image decided it, and nothing in a note
+describes something the renderer cannot draw.</li>
+<li>The recorded score is the count of <code>yes</code> verdicts, never higher.</li>
+<li>A chart that passes on pass 1 uses one pass.</li>
+<li>A chart still failing after pass 3 comes back with its failing item ids, a next step, and a true statement of
+whether it is still on the Reader&#39;s page — it is, unless the Operator asked for it to be held back.</li>
+<li>Rejected candidates are in <code>charts[]</code> with <code>variant_of</code> set and the survivor&#39;s <code>result_id</code>, and none of them
+appears in <code>render/finding.html</code>.</li>
+<li><code>aftergrid check</code> still reports <code>evidence valid</code> after the specs change.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>Use iterate-visual on this chart. Check that it supports the Claim, makes the comparison visible, and remains readable at a small size.</pre><button class="tiny-copy" data-copy="Use iterate-visual on this chart. Check that it supports the Claim, makes the comparison visible, and remains readable at a small size.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A clearer chart, checked against the actual question and data.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill iterate-visual</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill iterate-visual">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/iterate-visual/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

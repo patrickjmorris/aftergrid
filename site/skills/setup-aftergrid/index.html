@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>setup-aftergrid — Add the optional Engine for evidence and reproducibility. — aftergrid</title><meta name="description" content="Add the optional Engine for evidence and reproducibility."><meta property="og:title" content="setup-aftergrid — Add the optional Engine for evidence and reproducibility. — aftergrid"><meta property="og:description" content="Add the optional Engine for evidence and reproducibility."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/setup-aftergrid/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Engine / Optional Engine</p><h1>setup-aftergrid</h1><p class="intro">Add the optional Engine for evidence and reproducibility.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Engine required</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><h2 id="what-it-does">What it does</h2>
+<p><code>/setup-aftergrid</code> gets a repository to a working, resumable aftergrid Instance. The skill does not do the work
+itself: it collects the inputs, runs <code>aftergrid setup</code>, and then reports what the command reported — six separate
+facts, none of them rounded up.</p>
+<p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>). Setup writes
+files into a repository and installs a Claude Code hook, so a human asks for it; no agent reaches for it mid-task.</p>
+<h2 id="inputs">Inputs</h2>
+<p>Every input is a flag on the command; the skill&#39;s first job is to collect them in one round rather than guess.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Instance directory</td>
+<td>Defaults to <code>analytics/</code>.</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td><strong>Optional, and asked about only once.</strong> With no <code>--adapter</code>, the Instance is written for the recorded path: your harness runs the SQL and <code>aftergrid record</code> writes down what it ran. The skill asks one question — do you want aftergrid to be able to re-run these queries itself, for <code>check --mode rerun</code> and Revisit? — and only a yes turns into <code>duckdb</code> (a <code>.duckdb</code> file or a directory of <code>&lt;table&gt;.csv</code> files, inside the Instance root) or <code>postgres</code>.</td>
+</tr>
+<tr>
+<td>Postgres connection</td>
+<td>Only when the answer was Postgres. The <strong>name</strong> of the environment variable holding the connection string, never the string. A write-capable role is refused, and there is no flag that accepts one.</td>
+</tr>
+<tr>
+<td>Owner</td>
+<td>Name and contact — where a Reader&#39;s flag lands.</td>
+</tr>
+<tr>
+<td>Publication</td>
+<td><code>owner/repo</code>, the automation login that opens Finding pull requests, and one or more trusted approver logins. The automation login may not be a trusted approver.</td>
+</tr>
+<tr>
+<td>Hook settings</td>
+<td>Path to the Claude Code settings file, if not <code>&lt;repo&gt;/.claude/settings.json</code>.</td>
+</tr>
+</tbody></table></div>
+<p>Setup runs without the publication identities. The Instance still works and still renders drafts; the report then
+says publication is not configured.</p>
+<h2 id="what-it-verifies">What it verifies</h2>
+<p>Each of these is a separate step in the report, reported <code>completed</code>, <code>incomplete</code> or <code>skipped</code>:</p>
+<ul>
+<li><strong>scaffold</strong> — which files were created, which were kept unchanged, and which were kept <em>and differ</em> from what
+setup would have written. Nothing is ever overwritten.</li>
+<li><strong>dependencies</strong> — Node&#39;s version, the <code>mattpocock-skills</code> skills (<code>grilling</code> and <code>writing-for-agents</code>), and the
+prebuilt DuckDB binding. A missing one carries the exact install line.</li>
+<li><strong>connection</strong> — the source was really opened and its capability matrix was read from the adapter. For DuckDB,
+&quot;role probing unsupported&quot; is the correct answer, not a gap. With no adapter the step is <strong>skipped</strong> and the
+report says what the recorded path gives (<code>artifact_replay</code>, verified hashes, <code>aftergrid record</code>) and what it
+costs (<code>capture</code> and <code>execute</code> refuse, <code>check --mode rerun</code> is <code>rerun_unavailable</code>, Revisit and unattended
+intake are unavailable). A skipped connection does not make the setup incomplete. A source whose tables are
+larger than the Instance&#39;s admission cap still connects and still passes setup: <code>capture</code> refuses those tables
+with <code>admission</code> before reading a byte, and the report says so and names the windowed-Instance pattern
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/adapters.md"><code>docs/contracts/adapters.md</code></a>, &quot;Large sources&quot;) rather than a narrower capture.</li>
+<li><strong>hook</strong> — the guard is installed <strong>and</strong> its self-test just blocked a write and allowed a read. Installed
+without a passing self-test is reported as exactly that.</li>
+<li><strong>publication_preflight</strong> — whether the policy could ever produce a verified approval. Without a GitHub token
+this is <code>unknown</code>, and <code>unknown</code> is what it says.</li>
+<li><strong>smoke</strong> — a throwaway Finding ran <code>new</code> → <code>check</code> → draft <code>render</code> in a temporary copy. The Instance itself is
+left holding only the scaffold.</li>
+</ul>
+<p>Setup is safe to rerun: it never overwrites a file, never writes a credential, and records completed steps in
+<code>&lt;instance&gt;/.aftergrid-setup.json</code> so a rerun resumes. <code>--dry-run</code> writes nothing at all.</p>
+<h2 id="what-it-does-not-verify">What it does not verify</h2>
+<ul>
+<li>That the data is correct.</li>
+<li>That <code>aftergrid.yaml</code> is protected by CODEOWNERS and branch protection — that is repository configuration, and
+nothing in setup can check it.</li>
+<li>That any Finding has been approved, or that a trusted approver will ever read one.</li>
+<li>That the guard covers a query path it says it does not cover. The hook is not a shell sandbox; source
+permissions and runtime isolation remain the boundary (<code>docs/contracts/hook.md</code>).</li>
+</ul>
+<p>The full contract, including every limit: <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/setup.md"><code>docs/contracts/setup.md</code></a>.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>The skill asks for the inputs it does not have, in one round, and guesses no login, contact or warehouse path.</li>
+<li>It does not ask for a warehouse path or a connection variable at all until you have said you want rerun and
+Revisit. No answer, or &quot;not yet&quot;, sets the Instance up on the recorded path.</li>
+<li>On an adapterless Instance, the summary names <code>aftergrid record</code> as the route and lists what is unavailable,
+rather than reporting the missing adapter as something still to fix.</li>
+<li>The summary it gives back names each of the six steps with the word the command used for it.</li>
+<li><code>unknown</code> survives into the summary as <code>unknown</code>.</li>
+<li>The hook is described as protecting something only when the self-test line is in the output.</li>
+<li>The next command it hands you is <code>/grill-question</code> and then <code>aftergrid new finding &lt;slug&gt;</code>.</li>
+</ul>
+<div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>/setup-aftergrid Help me configure an aftergrid Instance, understand its prerequisites, and check which capabilities are actually ready.</pre><button class="tiny-copy" data-copy="/setup-aftergrid Help me configure an aftergrid Instance, understand its prerequisites, and check which capabilities are actually ready.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>An Instance setup report with the remaining prerequisites stated plainly.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill setup-aftergrid</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill setup-aftergrid">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/setup-aftergrid/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

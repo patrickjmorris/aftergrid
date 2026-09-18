@@ -1,5 +1,19 @@
 # checked-analysis
 
+Analyze supplied data with explicit grain, comparisons, validity checks, and a record of what ran. Use for reproducible calculations or evidence a writer can inspect; optionally bind an Engine Finding.
+
+## Portable use
+
+Work with the user's files, notebook, SQL client, or existing connector. A checked analysis means naming and performing the relevant checks, not declaring the answer certified. For an existing aftergrid Finding or a requested Engine artifact, use [the Engine workflow](../../skills/checked-analysis/references/engine-workflow.md); do not apply its CLI requirements to ordinary analysis.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/checked-analysis` runs one Analysis and leaves behind evidence someone else can trust without rerunning it:

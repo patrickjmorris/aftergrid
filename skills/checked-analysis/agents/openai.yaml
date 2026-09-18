@@ -1,7 +1,7 @@
 interface:
   display_name: "Checked analysis"
   short_description: "Run one Analysis, Checks first, and leave an Analysis directory the writer can consume"
-  default_prompt: "Run the checked analysis for this Finding: probe the catalog, write the applicable Checks before the analysis SQL, run each query and Check through this harness's own data tool and pin what ran with `aftergrid record` (agent-reported Check outcomes, each pass with its evidence file, artifact_replay only), and fill analysis.yaml. Record the middle of the analysis as you go in analysis.yaml#/probes: every look, dead end and reframe, each with `at` from this harness's clock at the time (never a time worked out afterwards) and a `kind` of exploratory, dead_end or reframe; dead ends are kept, not deleted, and a reframe says in `changed_plan` what the Question became. Where the Instance configures an adapter, capture the retained inputs and run `aftergrid execute` against them instead."
+  default_prompt: "Use $checked-analysis on my data and question. Preserve actual probes, including dead_end and reframe observations, as they happen. Use portable output unless I request an Engine Finding; in Engine mode preserve the probe at timestamp and kind fields."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. `/analyze` reaches for it mid-run, and it is
   # where the clarification procedure lives that `/grill-question` also points at, so no user-invoked skill has

@@ -1,6 +1,6 @@
 ---
 name: setup-aftergrid
-description: Set up an aftergrid Instance in this repository — scaffold the layout, check the dependencies, validate the warehouse connection when the team has asked for one, install the guardrail hook and report what is still missing. An adapter is optional; the recorded path is the default.
+description: "Set up an aftergrid Instance in this repository \u2014 scaffold the layout, check the dependencies, validate the warehouse connection when the team has asked for one, install the guardrail hook and report what is still missing. An adapter is optional; the recorded path is the default."
 disable-model-invocation: true
 ---
 

@@ -1,92 +1,122 @@
 # aftergrid
 
-Open-source skills, Checks and a thin CLI for producing **Findings**: analysis memos a non-data Reader can understand, inspect and act on, with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Vocabulary: `CONTEXT.md`. Decisions: `docs/adr/`. Spec: `docs/spec/`.
+**Analytics skills for the agent you already use.**
 
-Pre-release. The source repository is public. Nothing is published to npm yet, and the package is marked
-`"private": true` on purpose: packaging is verified, publishing is a separate owner action
-(`docs/contracts/distribution.md`).
+Ask a sharper question. Understand the data. Diagnose a change. Challenge the conclusion. Leave the next analysis better informed.
 
-## Try it on open data
+Aftergrid is a collection of 14 open-source skills for analytical work: the decisions an experienced analyst makes between receiving a question and giving someone an answer they can act on. Use one skill on a CSV, notebook, SQL query or draft, or use `analyze` to carry a question through the whole workflow.
 
-[`examples/nyc-open-data/`](examples/nyc-open-data/README.md) is a public demo Instance on NYC TLC trip records,
-NOAA weather and Citi Bike data, and its README is a walkthrough: rebuild the data from the publishers (two
-commands, 202.2 s + 87.0 s measured, 135.8 MB), derive the bounded per-Question table, run `/analyze`, read the
-rendered Finding, and see what the approval round trip needs. What exists today is the build, the Instance and
-**two draft Findings** — one `inconclusive` on trips into the Congestion Relief Zone (its pre-registered
-falsifier fired), one `answered` on member e-bike share — each on its own branch behind a draft pull request
-opened by the automation identity. **Neither is approved**: all eight definitions are `proposed`, no
-`publication_approval` attestation exists, and nothing there is `ready`. Six `/analyze` runs, dead ends
-included, are written up in `examples/nyc-open-data/docs/run-log.md`.
+**Start with the skills.** They work with the files and data tools your agent already has. Thirteen have a portable workflow; `setup-aftergrid` configures the optional Engine. You do not need a warehouse connection, a GitHub review or the aftergrid CLI to try the portable skills.
 
-## Run the CLI from source
+[Start here](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Try the examples](examples/skills-lab/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/)
 
-Requires Node 22.18 or newer, or Node 24 or newer (TypeScript type stripping is on by default from those versions), and pnpm. No native compiler: DuckDB ships prebuilt.
+## Install
 
 ```bash
+npx skills add patrickjmorris/aftergrid
+```
+
+Or start with one job:
+
+```bash
+npx skills add patrickjmorris/aftergrid --skill diagnose-change
+npx skills add patrickjmorris/aftergrid --skill analysis-review -a codex
+```
+
+The installer asks which skills and agents to use. Skill installation does not install the optional CLI or grant access to your data. Claude Code, Codex and Cursor use the same Markdown sources; command presentation and permission controls belong to the host. See the [installation and verification notes](skills/README.md) for what has actually been exercised.
+
+Then give your agent a concrete task. The bundled-data prompt below needs a repository checkout; skill installation copies the skills, not the examples. Follow the [quickstart cloning step](docs/guides/quickstart.md), then, in Codex:
+
+```text
+Use $diagnose-change on examples/skills-lab/data/conversion.csv.
+Conversion fell. Should we roll back signup? Reproduce the movement,
+test competing explanations, and show the calculations you ran.
+```
+
+In a slash-command host, select the installed skill from its skill menu. You can also ask in plain language and name the skill. Use your host's actual command names rather than assuming they are identical everywhere.
+
+## Pick the skill for the work
+
+| Job | Skill | What you leave with |
+| --- | --- | --- |
+| Turn an ask into an answerable question | [grill-question](skills/grill-question/SKILL.md) | Decision, population, comparison and a way the answer could be wrong |
+| Understand unfamiliar data | [explore-data](skills/explore-data/SKILL.md) | Grain, keys, coverage, join risks and a usable data map |
+| Resolve what a metric means | [define-metric](skills/define-metric/SKILL.md) | A proposed definition with denominator, exclusions and checks |
+| Choose the investigation before running it | [plan-analysis](skills/plan-analysis/SKILL.md) | Competing explanations, discriminating tests and stopping conditions |
+| Explain a movement | [diagnose-change](skills/diagnose-change/SKILL.md) | A reconciled decomposition and the uncertainty that remains |
+| Do the analytical work under checks | [checked-analysis](skills/checked-analysis/SKILL.md) | Executed calculations, evidence and an honest analysis log |
+| Run the full workflow | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, review and clear next step |
+| Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question and reader lenses |
+| Write the answer | [write-finding](skills/write-finding/SKILL.md) | A decision-oriented memo whose claims point to their evidence |
+| Make the chart explain the claim | [iterate-visual](skills/iterate-visual/SKILL.md) | An inspected visual with sound comparisons and readable labels |
+| Give the narrative a clear structure | [shape-narrative](skills/shape-narrative/SKILL.md) | An answer-first explanation with limitations where they matter |
+| Revise without losing what changed | [revise-finding](skills/revise-finding/SKILL.md) | A scoped revision and the checks or reviews it reopens |
+| Make a correction useful next time | [learn-from-analysis](skills/learn-from-analysis/SKILL.md) | A scoped, evidence-backed lesson for subsequent work |
+| Add the optional checked-artifact workflow | [setup-aftergrid](skills/setup-aftergrid/SKILL.md) | An Engine Instance with explicit capability and approval status |
+
+Use the smallest workflow that answers the task. Reviewing a chart does not require a full analysis run. A completed investigation can still conclude that the evidence is insufficient.
+
+## Try it on data you can inspect
+
+The [skills lab](examples/skills-lab/README.md) has three small synthetic cases, their exact inputs and a dependency-free calculation check:
+
+```bash
+node examples/skills-lab/verify.mjs
+```
+
+- **Conversion fell while both channels improved.** The overall rate falls from 8.8% to 6.2%. The useful next question is about the acquisition mix, not an assumed broken signup experience.
+- **MRR grew while existing-account revenue shrank.** The $430 → $440 headline hides $80 of churn. Reconcile new revenue, expansion, contraction and churn before choosing the next action.
+- **A precise retention number supports an imprecise claim.** 60% versus 40% is a real observed difference in the supplied data. Self-selection prevents it from identifying what mandatory onboarding would cause.
+
+These are teaching cases, not customer outcomes or an accuracy benchmark. An isolated Codex agent completed the three cases and a lesson-reuse follow-up without the answer key. Its [original outputs and run record](examples/skills-lab/runs/README.md) are retained; all four saved calculations reproduce exactly.
+
+For a larger example, [NYC open data](examples/nyc-open-data/README.md) contains two actual Claude Code analysis runs on public taxi, weather and bike data. One Finding is inconclusive; the other answers its descriptive question. Both are merged and agent-reviewed, **neither has human publication approval**. The [run log](examples/nyc-open-data/docs/run-log.md) preserves the false starts and corrections.
+
+## An analytical practice that accumulates
+
+Before writing SQL, establish the unit being counted. Before explaining a change, reproduce it and test the strongest alternative explanation. Before publishing a claim, try to break it. After resolving a non-obvious error, keep the evidence and the condition under which the lesson applies.
+
+`learn-from-analysis` captures a proposed lesson; `plan-analysis` and `analyze` look for relevant prior lessons before proceeding. A lesson can change the next check without becoming a universal rule or silently approved metric.
+
+Read the fieldnotes:
+
+- [Ask before you query](docs/fieldnotes/ask-before-query.md)
+- [The metric moved. What actually changed?](docs/fieldnotes/the-metric-moved.md)
+- [Make the next analysis better](docs/fieldnotes/analysis-that-compounds.md)
+
+## When you want stronger artifact guarantees
+
+The optional **Engine** adds a TypeScript CLI, typed evidence references, runnable Checks, retained inputs, versioned Findings and human publication controls. A team's definitions and data live in its private **Instance**. The skills have an explicit Engine path when you ask for it or supply a Finding directory.
+
+Portable work does not claim these guarantees automatically. On the recorded Engine path, the harness executes the queries and `aftergrid record` retains their results; this supports artifact replay, not independent source reruns. An adapter with retained inputs adds analysis reruns. Agent review and human approval remain different facts.
+
+The source is public. The CLI is pre-release, not published to npm, and `package.json` remains `private: true`.
+
+```bash
+# From a checkout, with Node 22.18+ or 24+ and pnpm
 pnpm install
 node src/cli.ts --help
-node src/cli.ts setup --instance analytics --adapter duckdb --duckdb-path data/warehouse.duckdb \
-  --owner-name "Your Name" --owner-contact you@example.com \
-  --repository owner/repo --automation-login your-bot --trusted-approver your-login
-node src/cli.ts new finding my-question --ask "Did the checklist help?" --instance fixtures/instance
+node src/cli.ts plugin validate --json
 node src/cli.ts check fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention
-node src/cli.ts render <copy-of-a-finding-dir> --png   # writes render/finding.html and chart SVG/PNG
-node src/cli.ts intake --repo owner/repo --once        # claim labelled Issues, dispatch, open one draft PR per run
-node src/cli.ts plugin validate --json                 # the package agrees with itself (manifest, skills, docs)
-pnpm test                 # fixture regressions + CLI tests
+```
+
+[Engine setup](docs/skills/setup-aftergrid.md) · [Evidence contract](docs/contracts/finding-manifest.md) · [Distribution](docs/contracts/distribution.md) · [Vocabulary](CONTEXT.md)
+
+## Development and verification
+
+```bash
+pnpm test
 pnpm run validate:fixtures
-pnpm run smoke:pack       # pack, audit the tarball, install it clean and run the whole CLI from it
+pnpm run build:site
+pnpm run check:site
+pnpm run check:skills-lab # Python 3 is needed to rerun the recorded calculations
+pnpm run smoke:pack
 ```
 
-## Install the skills into your agent
+The CLI's declared platform matrix is Ubuntu/macOS on Node 22.18 and 24. Installer discovery, model behavior, deterministic arithmetic and human Reader feedback are different forms of evidence; none substitutes for the others. Development is tracked in [beads](docs/agents/issue-tracker.md).
 
-```bash
-npx skills add patrickjmorris/aftergrid            # all nine skills, into the agent skills.sh detects or you name with -a
-npx skills add patrickjmorris/aftergrid --skill analyze -a cursor
-```
+## Influences and license
 
-The skills are plain `SKILL.md` files; skills.sh discovers them from `skills/` with no registration. Verified on this repository 2026-09-17 (`skills/README.md`).
+[Matt Pocock's skills](https://github.com/mattpocock/skills) shaped the original skill format, questioning and domain language. [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin) provides the model of capturing lessons that subsequent work actually retrieves. [Poteto's pstack](https://github.com/cursor/plugins/tree/main/pstack) sharpens the bar for adversarial review and observable proof. Aftergrid applies these practices to analytical judgment. These projects do not endorse aftergrid; see the [source comparison](docs/design/skills-reference-benchmark-2026-09-17.md).
 
-## Install from a local tarball
-
-```bash
-pnpm pack                                              # -> aftergrid-0.0.0.tgz
-npm install --ignore-scripts /path/to/aftergrid-0.0.0.tgz
-npx aftergrid --help
-```
-
-The package ships TypeScript sources and has no build step: Node 22.18+/24+ run them, and the `aftergrid` bin
-registers a load hook for the package's own `.ts` files because Node will not strip types under `node_modules`.
-Supported platforms are exactly what CI runs — Ubuntu and macOS on Node 22.18 and 24; Windows is not tested.
-`npm install --ignore-scripts` is also the evidence for the no-compile claim: DuckDB and the rasterizer load from
-prebuilt artifacts with no compiler involved. Details, and the explicit list of what has *not* been done (no npm
-publish, no visibility change, no marketplace listing): `docs/contracts/distribution.md`.
-
-The Claude Code plugin manifest is `.claude-plugin/plugin.json`; buckets, the user-/model-invoked split and the
-skills.sh layout are in `skills/README.md`, with a docs page per promoted skill under `docs/skills/`.
-
-`setup` scaffolds the Instance (`docs/contracts/instance-layout.md`) and reports six separate facts: what it created or kept, which hard dependencies are present, what the configured source's capabilities actually are, whether the guardrail hook is installed **and** self-tests clean, whether the publication policy could ever produce a verified approval, and whether a throwaway Finding runs `new` -> `check` -> draft `render`. It never overwrites a file, never writes a credential (Postgres is named by environment variable), and records completed steps in `<instance>/.aftergrid-setup.json` so a rerun resumes. `--dry-run` writes nothing. Contract and the full list of what it cannot verify: `docs/contracts/setup.md`.
-
-`check` reports separate facts: syntax, content completeness, evidence validity, whether SQL was executed, and publication readiness. It never reports readiness from the manifest alone. `check --mode rerun` re-executes the saved SQL and Checks on the retained inputs and reports any drift from the saved evidence.
-
-`record` is the default data path: the Operator's harness runs the SQL with whatever tool it already has, and aftergrid writes down what it ran — the SQL, the parameters, the result, who ran it, and every hash. It executes nothing, so a recorded Finding guarantees `artifact_replay` and never `analysis_rerun`, Check outcomes on it are agent-reported (a reported `pass` needs the tool output it rests on), and `check --mode rerun` refuses it by name. `capture` and `execute` through an adapter are the **upgrade** the same Finding gains when an Instance configures one. Contract: `docs/contracts/record.md` (ADR 0010).
-
-`intake` runs Issue requests in the background: it claims an Issue labelled `ready-for-agent` at a stable revision (`intake_<issue>_<hash>`), **refuses to dispatch** unless the guardrail hook is installed *and* self-tests clean, the Instance policy is present and the source's limits are declared — there is no bypass flag — hands the request to an analysis harness, runs `check` on what comes back, and opens **one** draft pull request per run. It pauses with `needs-info` instead of guessing, never removes a label, and never reports a Finding as approved: publication still needs a human APPROVED review. Duplicate triggers, restarts and edited Issues do not duplicate pull requests or lose work. Contract: `docs/contracts/intake.md`. The analysis harness itself is a stub until its own bead lands, and no test runs it; the GitHub path is exercised only through fakes, so treat the live API path as untested.
-
-## Layout
-
-- `schema/` canonical JSON Schemas (Finding manifest, Decision record, Reader profile)
-- `docs/contracts/` the contracts those schemas cannot express
-- `src/` the CLI (`setup`, `new finding`, `check`, `record`, `render`, `decide`, `hook`, `intake`, `plugin validate`), the adapters (DuckDB, Postgres) and the publication readiness check
-- `scripts/` fixture tooling and the shared validation library (`scripts/lib/`)
-- `hooks/claude-code/` the PreToolUse guardrail hook (`aftergrid hook install`; contract and non-coverage in `docs/contracts/hook.md`)
-- `skills/` the Claude Code skills, each with an `agents/openai.yaml` beside it (`setup-aftergrid` is user-invoked); buckets and the invocation split: `skills/README.md`
-- `.claude-plugin/plugin.json` the Claude Code plugin manifest; `bin/` the `aftergrid` launcher; `docs/skills/` a page per promoted skill
-- `fixtures/instance/` a synthetic Instance with reviewed exemplar Findings (`fixtures/README.md`); `fixtures/negatives/` seam-1 failure cases, one defect each
-- `hooks/claude-code/` the PreToolUse guard installed by `aftergrid hook install`
-
-## Credits
-
-The Engine's shape is adapted from [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT): the skill format and buckets, the user- versus model-invoked split, the CLAUDE.md conventions, and the `grilling` and `writing-for-agents` disciplines that `/grill-question` and every SKILL.md here depend on. Install `mattpocock-skills` alongside aftergrid; `aftergrid setup` checks for it. The full notice is in `LICENSE`.
-
-Development is tracked in beads (`.beads/`, see `docs/agents/issue-tracker.md`).
+MIT. Existing attribution is preserved in [LICENSE](LICENSE).
