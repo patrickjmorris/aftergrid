@@ -2,7 +2,7 @@
 
 Open-source skills, Checks and a thin CLI for producing **Findings**: analysis memos a non-data Reader can understand, inspect and act on, with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Vocabulary: `CONTEXT.md`. Decisions: `docs/adr/`. Spec: `docs/spec/`.
 
-Pre-release. Nothing is published to npm yet, the repository is private, and the package is marked
+Pre-release. The source repository is public. Nothing is published to npm yet, and the package is marked
 `"private": true` on purpose: packaging is verified, publishing is a separate owner action
 (`docs/contracts/distribution.md`).
 
