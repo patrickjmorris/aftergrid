@@ -1,0 +1,72 @@
+{
+  "sources": [
+    {
+      "path": "data/conversion.csv",
+      "sha256": "200c05879fdfc0d8a8175c64332d79b517c6e0d81acd790bb0d2c806949f573b",
+      "rows": 4
+    },
+    {
+      "path": "data/conversion-followup.csv",
+      "sha256": "55a6fb986f590178be6c32d83058d5c84c7f923f5b2f7706d605a4812a21d679",
+      "rows": 4
+    }
+  ],
+  "checks": {
+    "unique_period_channel_keys": true,
+    "positive_integer_denominators": true,
+    "bounded_integer_numerators": true,
+    "common_channels": true,
+    "baseline_matches_previous_current": true,
+    "exact_decomposition": true,
+    "joins": 0,
+    "exclusions": 0
+  },
+  "totals": {
+    "baseline": {
+      "sessions": 10000,
+      "signups": 620
+    },
+    "current": {
+      "sessions": 10000,
+      "signups": 800
+    }
+  },
+  "pooled_rates": {
+    "baseline": 0.062,
+    "current": 0.08
+  },
+  "change_pp": 1.8,
+  "relative_change": 0.2903225806451613,
+  "segments": [
+    {
+      "channel": "direct",
+      "baseline_sessions": 2000,
+      "current_sessions": 4000,
+      "baseline_signups": 220,
+      "current_signups": 440,
+      "baseline_rate": 0.11,
+      "current_rate": 0.11,
+      "baseline_weight": 0.2,
+      "current_weight": 0.4,
+      "within_pp": 0.0,
+      "mix_pp": 2.2
+    },
+    {
+      "channel": "paid",
+      "baseline_sessions": 8000,
+      "current_sessions": 6000,
+      "baseline_signups": 400,
+      "current_signups": 360,
+      "baseline_rate": 0.05,
+      "current_rate": 0.06,
+      "baseline_weight": 0.8,
+      "current_weight": 0.6,
+      "within_pp": 0.8,
+      "mix_pp": -1.2
+    }
+  ],
+  "baseline_weighted_current_rate": 0.07,
+  "within_pp": 0.8,
+  "mix_pp": 1.0,
+  "difference_from_original_baseline_pp": -0.8
+}

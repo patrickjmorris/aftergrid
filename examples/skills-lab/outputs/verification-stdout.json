@@ -1,0 +1,18 @@
+{
+  "local_markdown_links_resolve": true,
+  "link_count": 17,
+  "python_syntax_valid": [
+    "outputs/verify_artifacts.py",
+    "outputs/learning/calculate.py",
+    "outputs/review/calculate.py",
+    "outputs/conversion/calculate.py",
+    "outputs/revenue/calculate.py"
+  ],
+  "saved_stdout_parsed": 4,
+  "source_hashes_still_match_calculation_inputs": [
+    "data/conversion-followup.csv",
+    "data/conversion.csv",
+    "data/onboarding.csv",
+    "data/recurring-revenue.csv"
+  ]
+}

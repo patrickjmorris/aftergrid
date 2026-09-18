@@ -1,75 +1,53 @@
-# Skills
+# Analytics skills
 
-The Engine's skills, laid out the way `mattpocock-skills` lays its own out, because Operators install both and
-the two should read the same way.
+Fourteen skills for analytical work: turn an ask into a useful question, inspect data, define a metric, plan comparisons, investigate a change, challenge an answer, and explain what the evidence supports. Use the skills with your own files, notebook, SQL client, or existing connector. Thirteen work without the aftergrid CLI; `setup-aftergrid` is specifically for the optional Engine.
 
-## Buckets
+## Choose the work you need
 
-| Bucket | Path | What it means |
-| --- | --- | --- |
-| Promoted | `skills/<name>/` | Shipped. Listed in `.claude-plugin/plugin.json`, has a docs page under `docs/skills/`, and is covered by `aftergrid plugin validate`. |
-| In progress | `skills/in-progress/<name>/` | Public on purpose, not shipped. Excluded from the plugin manifest and from the docs, and free to change or disappear. |
-| Deprecated | `skills/deprecated/<name>/` | Retired but still readable, with the replacement named in the skill itself. |
+| Skill | Use it for |
+| --- | --- |
+| [analyze](analyze/SKILL.md) | Take a question through analysis, challenge, and an evidence-linked answer. |
+| [grill-question](grill-question/SKILL.md) | Resolve ambiguity before doing the wrong calculation. |
+| [explore-data](explore-data/SKILL.md) | Establish grain, keys, joins, coverage, and answerable questions. |
+| [define-metric](define-metric/SKILL.md) | Specify numerator, denominator, eligibility, time rules, and counter-metrics. |
+| [plan-analysis](plan-analysis/SKILL.md) | Retrieve applicable lessons and select comparisons that can distinguish explanations. |
+| [checked-analysis](checked-analysis/SKILL.md) | Execute calculations with explicit checks and a record of what actually ran. |
+| [diagnose-change](diagnose-change/SKILL.md) | Reproduce a shift, separate mix from within-group effects, and test rival explanations. |
+| [analysis-review](analysis-review/SKILL.md) | Challenge method, question alignment, and reader interpretation; refute weak objections. |
+| [write-finding](write-finding/SKILL.md) | Write an answer with traceable evidence and its decisive caveat. |
+| [shape-narrative](shape-narrative/SKILL.md) | Make the analysis understandable without changing its meaning. |
+| [iterate-visual](iterate-visual/SKILL.md) | Inspect and improve charts for truthful, readable comparisons. |
+| [revise-finding](revise-finding/SKILL.md) | Apply feedback while separating presentation, interpretation, and calculation changes. |
+| [learn-from-analysis](learn-from-analysis/SKILL.md) | Save scoped, evidence-backed proposed lessons and test applicability on later work. |
+| [setup-aftergrid](setup-aftergrid/SKILL.md) | Configure the optional Engine's Instance, connections, and publication identities. |
 
-Only the promoted bucket exists today. The other two are the destination for work that has not landed, not empty
-directories kept for symmetry: `skills/in-progress/` and `skills/deprecated/` are created by the first skill that
-belongs in them.
+## Install and invoke
 
-## Each promoted skill
-
+```bash
+npx skills add patrickjmorris/aftergrid
+npx skills add patrickjmorris/aftergrid --skill diagnose-change
 ```
-skills/<name>/
-  SKILL.md              # frontmatter + the procedure
-  agents/openai.yaml    # the same skill for Codex-style agents
-```
 
-and a page at `docs/skills/<name>.md`. `aftergrid plugin validate` fails if any of those three is missing, or if
-the manifest names a skill that is not there.
+For a named harness, the installer supports `-a <agent>`. A Claude Code plugin uses `.claude-plugin/plugin.json`; the Engine package includes the same skills. Each skill carries `agents/openai.yaml` for Codex-style discovery. The repository is public; the npm CLI remains unpublished.
 
-## User-invoked or model-invoked, stated twice
+Installer check on 2026-09-17: the local checkout was copied into isolated destinations with the skills installer: all fourteen for Codex, `grill-question` alone for Cursor, and `diagnose-change` alone for Claude Code. These checks establish installer discovery and copied files, not runtime behavior or harness parity. The separate NYC Claude Code runs establish the Engine workflow behavior they actually exercised.
 
-Every promoted skill declares who may start it, in **both** files, and the two must agree. Nothing is left to a
-default: a reader of either file can tell which kind of skill this is without knowing what the default is.
+New skills allow both explicit use and automatic discovery. Existing invocation policies are preserved: `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit; the five original craft skills are model-invoked. In Claude Code the model-invoked skills are hidden from the slash-command menu; describe the task naturally. A harness that supports explicit skill-file selection may also load their `SKILL.md`. Invocation availability is distinct from authorization to write externally or access a source.
 
-| Kind | `SKILL.md` frontmatter | `agents/openai.yaml` |
+| Policy | SKILL.md | openai.yaml |
 | --- | --- | --- |
-| User-invoked — a human types `/<name>` | `disable-model-invocation: true` | `policy.allow_implicit_invocation: false` |
-| Model-invoked — the agent reaches for it mid-task | `user-invocable: false` | `policy.allow_implicit_invocation: true` |
+| Explicit only | `disable-model-invocation: true` | `allow_implicit_invocation: false` |
+| Original model-invoked craft skill | `user-invocable: false` | `allow_implicit_invocation: true` |
+| Normal discovery | `disable-model-invocation: false`, `user-invocable: true` | `allow_implicit_invocation: true` |
 
-A skill that writes files, installs a hook or spends real money is user-invoked. The invocation rule from the
-design holds: no user-invoked skill calls another user-invoked skill.
+## Portable analysis and Engine Findings
 
-## What is here, and what is not yet
+Portable analysis uses the supplied artifacts and tools. It does not claim Engine verification, publication approval, or a human Reader study. An existing Finding or an explicit request for Engine artifacts routes to the skill's `references/engine-workflow.md`. Those preserved procedures require the complete toolkit and retain its evidence binding, checks, revision rules, and approval gates; copying a skill alone does not install the Engine.
 
-Promoted:
+Entry points and portable references live inside each skill so an individual installation has what it needs. Full Engine contracts are in the toolkit; they are not silently required to start ordinary work. The catalog and plugin/package skills arrays agree, and `aftergrid plugin validate` checks metadata and entrypoint references. It does not prove analytical quality or live harness behavior.
 
-- **[setup-aftergrid](./setup-aftergrid/SKILL.md)** — user-invoked. Collect the inputs, run `aftergrid setup`,
-  read the report, name what is still missing. Docs: [docs/skills/setup-aftergrid.md](../docs/skills/setup-aftergrid.md).
-- **[analyze](./analyze/SKILL.md)** — user-invoked. The only orchestrator: raw ask to reviewed Finding draft, halting with a precise reason. Docs: [docs/skills/analyze.md](../docs/skills/analyze.md).
-- **[grill-question](./grill-question/SKILL.md)** — user-invoked. Interview the Operator in rounds until a raw ask is a Question, and write it into a Finding. Docs: [docs/skills/grill-question.md](../docs/skills/grill-question.md).
-- **[revise-finding](./revise-finding/SKILL.md)** — user-invoked. Classify Operator feedback with `aftergrid revise`, apply presentation changes as a new revision, say what a numeric or interpretation change reopens. Docs: [docs/skills/revise-finding.md](../docs/skills/revise-finding.md).
-- **[analysis-review](./analysis-review/SKILL.md)** — model-invoked. Method, Question and Reader reviewers over a complete Finding, recorded in the manifest. Docs: [docs/skills/analysis-review.md](../docs/skills/analysis-review.md).
-- **[checked-analysis](./checked-analysis/SKILL.md)** — model-invoked. Probe the catalog, capture the retained inputs, write the applicable Checks before the analysis SQL, execute on the retained inputs, fill `analysis.yaml`. Docs: [docs/skills/checked-analysis.md](../docs/skills/checked-analysis.md).
-- **[iterate-visual](./iterate-visual/SKILL.md)** — model-invoked. Render each chart, look at the PNG, score it against the visual rubric, revise up to three times, hand back what still fails. Docs: [docs/skills/iterate-visual.md](../docs/skills/iterate-visual.md).
-- **[shape-narrative](./shape-narrative/SKILL.md)** — model-invoked. Answer first, each Evidence heading states its Claim, each chart title states its Claim, the Reader's words. Docs: [docs/skills/shape-narrative.md](../docs/skills/shape-narrative.md).
-- **[write-finding](./write-finding/SKILL.md)** — model-invoked. Turn a checked Analysis directory into a Finding: memo.md in the six fixed sections, typed Claims, charts and tables, every value bound. Docs: [docs/skills/write-finding.md](../docs/skills/write-finding.md).
+## Evidence and development
 
-All nine v0 skills are promoted. The manual-Finding gate (`ag-manual-real-finding-db2`) was relaxed by the owner on
-2026-09-16 so the chain could be authored on synthetic fixtures; the real Finding with real Reader feedback stays an
-open owner gate for the milestone, and every skill's recorded runs say plainly that no model was in the loop.
+The [skills lab](../examples/skills-lab/runs/README.md) records one isolated Codex agent using five skills on four synthetic tasks without the answer key, with original outputs and reproducible calculations. The NYC example records real Claude Code runs on public-source data. The original hand-authored Engine regression fixtures are not model runs. None substitutes for real human Reader feedback. See [behavioral evaluation scenarios](evaluation.md) for additional planned tests and the distinction between a scenario and an observed result.
 
-## Installing these skills
-
-**As a Claude Code plugin.** The manifest is `.claude-plugin/plugin.json` at the repository root and the skills
-are discovered from the paths it lists. There is no marketplace entry: the plugin is installed from a local
-checkout or a local tarball while the repository is private.
-
-**With skills.sh.** `npx skills add patrickjmorris/aftergrid` installs all nine skills; `--skill <name>` picks one
-and `-a <agent>` names the harness (`claude-code`, `cursor`, `codex`, and the rest skills.sh supports). The
-installer discovers skills from `skills/<name>/SKILL.md` by their frontmatter `name` and `description`, so no
-index file and no registration are needed. Verified 2026-09-17 on this repository: all nine copied into
-`.claude/skills/` for Claude Code, and a single skill into Cursor. The `skills` array in `package.json` mirrors
-the plugin manifest and `aftergrid plugin validate` fails if the two disagree.
-
-**For Codex-style agents.** `agents/openai.yaml` sits beside each `SKILL.md` with the display name, the short
-description and the invocation policy (spec story 48).
+Promoted skills live directly under `skills/` with a docs page in `docs/skills/`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets merely for symmetry.

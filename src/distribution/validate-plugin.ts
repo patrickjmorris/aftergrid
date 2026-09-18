@@ -2,9 +2,9 @@
 //
 // The Engine ships its skills three ways at once — as a Claude Code plugin, as directories a skills.sh install
 // copies, and as `agents/openai.yaml` files a Codex-style agent reads — and the same fact has to be true in all
-// three. The one that matters most is who may start a skill: a skill that writes files and installs a hook is
-// started by a human, and if `SKILL.md` says so while `openai.yaml` disagrees, one of the two audiences is
-// wrong. Nothing here infers that fact from a default; each file states it, and this checks the statements
+// three. Invocation policy must agree: existing explicit-only workflows retain their policy, while portable new
+// skills permit normal discovery by users and models. If `SKILL.md` and `openai.yaml` disagree, one audience
+// sees the wrong availability. Authorization for an action is separate from skill discovery. Nothing here infers that fact from a default; each file states it, and this checks the statements
 // against each other.
 //
 // What it does NOT establish: that a skill works, that Claude Code or skills.sh accepts the layout (neither
@@ -19,7 +19,7 @@ import { safePath } from "../../scripts/fixture-safety.mjs";
 /** Subdirectories of `skills/` that hold buckets rather than a skill. Nothing here is shipped in the plugin. */
 export const BUCKETS = new Set(["in-progress", "deprecated", "misc"]);
 
-export type Invocation = "user" | "model";
+export type Invocation = "user" | "model" | "both";
 
 export type SkillPolicy = {
   name: string;
@@ -184,8 +184,8 @@ function checkSkill(rootDir: string, name: string, err: (p: Problem) => void): S
     err({ category: "incomplete", location: `${dirRel}/SKILL.md#description`, message: "frontmatter has no description", remedy: "describe when to use the skill; this is the line an agent routes on" });
   }
 
-  // Exactly one of the two policy keys. Absent is not "the default is fine": it is unstated, and unstated is an
-  // error, because the openai.yaml on the other side has a different default.
+  // Preserve the legacy explicit-only policies; normal discovery explicitly permits both users and agents.
+  // An unstated policy remains an error so accidental policy deletion cannot broaden invocation.
   const disablesModel = fm["disable-model-invocation"] === true;
   const hidesFromUser = fm["user-invocable"] === false;
   if (disablesModel && hidesFromUser) {
@@ -194,8 +194,25 @@ function checkSkill(rootDir: string, name: string, err: (p: Problem) => void): S
     result.invocation = "user";
   } else if (hidesFromUser) {
     result.invocation = "model";
+  } else if (fm["disable-model-invocation"] === false && fm["user-invocable"] === true) {
+    result.invocation = "both";
   } else {
-    err({ category: "invocation_policy", location: `${dirRel}/SKILL.md`, message: "frontmatter states no invocation policy", remedy: "add disable-model-invocation: true (user-invoked) or user-invocable: false (model-invoked); see skills/README.md" });
+    err({ category: "invocation_policy", location: `${dirRel}/SKILL.md`, message: "frontmatter states no invocation policy", remedy: "state disable-model-invocation: true (user-only), user-invocable: false (model-only), or normal discovery (disable-model-invocation: false and user-invocable: true); see skills/README.md" });
+  }
+
+  // A standalone installation copies only this skill directory. Its entrypoint must never require a
+  // sibling skill or repository document merely to begin. Engine references explicitly declare the full
+  // toolkit dependency; this check does not claim that the optional Engine itself is standalone.
+  const entrySource = readFileSync(skillPath, "utf8");
+  for (const match of entrySource.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+    const target = match[1]!.split("#")[0]!;
+    if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+    const local = inside(join(rootDir, dirRel), target);
+    if (!local) {
+      err({ category: "unsafe_path", location: `${dirRel}/SKILL.md`, message: `required reference ${target} escapes the installed skill`, remedy: "bundle the entrypoint reference inside this skill; optional Engine dependencies belong in its clearly labeled Engine reference" });
+    } else if (!existsSync(local)) {
+      err({ category: "missing_file", location: `${dirRel}/SKILL.md`, message: `required reference ${target} is missing from the installed skill`, remedy: "include the referenced resource in this skill directory" });
+    }
   }
 
   const openaiRel = `${dirRel}/agents/openai.yaml`;
@@ -212,8 +229,8 @@ function checkSkill(rootDir: string, name: string, err: (p: Problem) => void): S
     if (doc && typeof doc === "object") {
       const allow = doc?.policy?.allow_implicit_invocation;
       if (typeof allow !== "boolean") {
-        err({ category: "invocation_policy", location: `${openaiRel}#policy.allow_implicit_invocation`, message: "the invocation policy is not stated", remedy: `state it: false for a user-invoked skill, true for a model-invoked one (SKILL.md says ${result.invocation}-invoked)` });
-      } else if (result.invocation !== "unstated" && allow !== (result.invocation === "model")) {
+        err({ category: "invocation_policy", location: `${openaiRel}#policy.allow_implicit_invocation`, message: "the invocation policy is not stated", remedy: `state it: false for a user-invoked skill, true for a model-invoked or normally discoverable one (SKILL.md says ${result.invocation}-invoked)` });
+      } else if (result.invocation !== "unstated" && allow !== (result.invocation === "model" || result.invocation === "both")) {
         err({
           category: "invocation_policy",
           location: `${openaiRel}#policy.allow_implicit_invocation`,

@@ -502,7 +502,7 @@ test("the hold-back /iterate-visual step 6 documents keeps a returned chart off 
 });
 
 test("/iterate-visual documents the two steps its own loop cannot finish without, and claims no outcome it has no step for", () => {
-  const skill = readFileSync(join(REPO, "skills", "iterate-visual", "SKILL.md"), "utf8");
+  const skill = readFileSync(join(REPO, "skills", "iterate-visual", "references", "engine-workflow.md"), "utf8");
   const doc = readFileSync(join(REPO, "docs", "skills", "iterate-visual.md"), "utf8");
   // Step 2: an edited spec leaves the digest stale, and the remedy `check` prints names a flag that does not exist.
   assert.match(skill, /digestOf/, "the skill says how to re-pin content_digest after a spec edit");

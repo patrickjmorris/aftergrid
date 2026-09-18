@@ -1,5 +1,19 @@
 # grill-question
 
+Turn a vague analytics ask into an answerable question: decision or purpose, reader, metric, population, window, comparison, and evidence that could change the conclusion.
+
+## Portable use
+
+Use this before expensive analysis or when an apparently simple ask hides different possible calculations. The result can be a short question brief in the conversation or a user-chosen file. No CLI, manifest, or warehouse is required.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/grill-question` interviews you until a raw ask is a **Question**: a decision, a Reader, a Metric definition at

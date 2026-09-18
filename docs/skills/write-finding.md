@@ -1,5 +1,21 @@
 # write-finding
 
+Turn analysis results into an evidence-linked answer for a specific reader, with scope and caveats beside the conclusion. Works with ordinary files and optionally an Engine Finding.
+
+## Portable use
+
+Use supplied results and analysis notes to answer the reader's question. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. When writing an aftergrid Finding, use [the Engine procedure](../../skills/write-finding/references/engine-workflow.md) for its typed claims, bound values, and fixed artifact contract.
+
+Read the question, results, assumptions, checks, and intended reader before writing. Establish which conclusions were actually reached and which remain exploratory. A writer may clarify a conclusion; it may not invent a new calculation, promote a proposed definition to approved, or turn a correlation into a cause.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence `/checked-analysis`

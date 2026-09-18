@@ -1,0 +1,52 @@
+{
+  "source": "data/conversion.csv",
+  "sha256": "200c05879fdfc0d8a8175c64332d79b517c6e0d81acd790bb0d2c806949f573b",
+  "checks": {
+    "unique_keys": true,
+    "same_channels": true,
+    "range_checks": true,
+    "exact_decomposition": true,
+    "rows": 4,
+    "joins": 0,
+    "exclusions": 0
+  },
+  "totals": {
+    "baseline": {
+      "sessions": 10000,
+      "signups": 880
+    },
+    "current": {
+      "sessions": 10000,
+      "signups": 620
+    }
+  },
+  "pooled_rates": {
+    "baseline": 0.088,
+    "current": 0.062
+  },
+  "change_pp": -2.6,
+  "relative_change": -0.29545454545454547,
+  "segments": [
+    {
+      "channel": "direct",
+      "baseline_rate": 0.1,
+      "current_rate": 0.11,
+      "baseline_weight": 0.8,
+      "current_weight": 0.2,
+      "rate_contribution_pp": 0.8,
+      "mix_contribution_pp": -6.6
+    },
+    {
+      "channel": "paid",
+      "baseline_rate": 0.04,
+      "current_rate": 0.05,
+      "baseline_weight": 0.2,
+      "current_weight": 0.8,
+      "rate_contribution_pp": 0.2,
+      "mix_contribution_pp": 3.0
+    }
+  ],
+  "baseline_weighted_current_rate": 0.098,
+  "within_pp": 1.0,
+  "mix_pp": -3.6
+}

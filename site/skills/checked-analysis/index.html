@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>checked-analysis — Check the data and comparisons as you work. — aftergrid</title><meta name="description" content="Check the data and comparisons as you work."><meta property="og:title" content="checked-analysis — Check the data and comparisons as you work. — aftergrid"><meta property="og:description" content="Check the data and comparisons as you work."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/checked-analysis/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Analyze / Portable skill</p><h1>checked-analysis</h1><p class="intro">Check the data and comparisons as you work.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Analyze supplied data with explicit grain, comparisons, validity checks, and a record of what ran. Use for reproducible calculations or evidence a writer can inspect; optionally bind an Engine Finding.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Work with the user&#39;s files, notebook, SQL client, or existing connector. A checked analysis means naming and performing the relevant checks, not declaring the answer certified. For an existing aftergrid Finding or a requested Engine artifact, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/checked-analysis/references/engine-workflow.md">the Engine workflow</a>; do not apply its CLI requirements to ordinary analysis.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/checked-analysis</code> runs one Analysis and leaves behind evidence someone else can trust without rerunning it:
+Checks written before the numbers were seen, results pinned to the SQL that produced them and to the tool that
+ran it, and an <code>analysis.yaml</code> recording what was assumed, what was explored and what is still missing.</p>
+<p>The order is the point. It probes the catalog before committing to a plan, writes the applicable Checks —
+invariant, reconciliation, minimum-data, falsifier — <strong>before</strong> the final analysis queries, runs each query and
+Check through the harness&#39;s own data tool, pins what ran with <code>aftergrid record</code>, and records the execution order
+as it happened. A Check written after the number is known is a Check written to agree with it.</p>
+<p>That recorded path is the default (ADR 0010, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>). Where the
+Instance configures an adapter, the skill captures the tables it will read and runs everything against those
+retained inputs with <code>aftergrid execute</code> instead — the same Analysis, with retained inputs, mechanically observed
+Check outcomes, <code>check --mode rerun</code> and Revisit on top.</p>
+<p>It is <strong>model-invoked</strong> (<code>user-invocable: false</code>, <code>policy.allow_implicit_invocation: true</code>): <code>/analyze</code> reaches
+for it mid-run. It is also where the shared clarification procedure lives — the same file <code>/grill-question</code>
+points at — so the two reuse one interview without a user-invoked skill calling another.</p>
+<p>Contract for everything it writes: <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/analysis-directory.md"><code>docs/contracts/analysis-directory.md</code></a>;
+for the recorded path, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li>A Question is sharpened and the evidence behind it does not exist yet.</li>
+<li>An Analysis must be run again after a query or a Check changed — against the same retained inputs where an
+adapter exists, and otherwise re-run by the harness and recorded again.</li>
+<li><code>/revise-finding</code> classified a request as numeric or query, which reopens the analysis here.</li>
+<li>A run has to stop: a definition is only proposed, a clarification is unanswered, or a provisional-access
+sign-off was never recorded.</li>
+</ul>
+<p>Reach for <code>/grill-question</code> instead when the ask is not yet a Question and you want to run the interview
+yourself. Reach for <code>/write-finding</code> when the evidence is pinned and the memo is what is missing.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Do I need an adapter to run it?</strong> No. Without one it runs on the recorded path: your harness&#39;s tool — an MCP
+server, a CLI, <code>psql</code> — runs every query and every Check, and <code>aftergrid record --tool &quot;&lt;name&gt;&quot;</code> pins the SQL,
+the parameters, the result, the evidence and who ran it. An Instance (<code>aftergrid.yaml</code>) is still required; an
+adapter is not, and its absence is not a halt. What you do not get: retained inputs, so <code>snapshot.guarantees</code> is
+exactly <code>[artifact_replay]</code>, <code>aftergrid check --mode rerun</code> is refused with <code>rerun_unavailable</code>, and the Finding
+cannot be revisited until inputs are captured.</p>
+<p><strong>If aftergrid did not run the Checks, what does a passing Check mean?</strong> That the tool said it passed. On the
+recorded path a Check outcome is agent-reported: <code>record</code> refuses a <code>pass</code> with no evidence file, <code>check</code>
+verifies that the file is present and still hashes to what was pinned, and the report carries
+<code>checks_reported_by_agent: true</code> as its own fact. An agent-reported outcome can lower publication readiness and
+never raises it — <code>unknown</code> at most. The guardrail hook inspects shell commands in Claude Code, so a query run
+through an MCP server or an in-process client never passed a shell and the guard never saw it; that
+non-coverage is stated on the Finding rather than left to be inferred.</p>
+<p><strong>Can it read my warehouse during the analysis?</strong> On the recorded path your tool reads it every time a query
+runs, and nothing is copied into the Finding but the SQL, the parameters and the result. On the adapter path it
+reads the source in two places, and both are reads: the catalog probe, and the capture that copies the declared
+tables into the Finding. After that, <code>aftergrid execute</code> opens the retained extracts, verifies every hash, and
+reports <code>missing_file</code> or <code>hash_mismatch</code> rather than fall back to the source. There is no flag that changes
+this.</p>
+<p><strong>Does the capture only take the rows my window needs?</strong> On the adapter path, no — it copies whole tables, and
+the recorded <code>source.method</code> says so. The window is applied in the analysis SQL, which converts to the
+analytical timezone explicitly, so nothing depends on how wide the extract is. A <code>--description</code> claiming the
+extract was bounded or filtered is refused, because provenance inside the content digest may not describe a read
+that did not happen.</p>
+<p><strong>What if a table is too big to copy whole?</strong> Because the read <em>is</em> the whole table, a table the planner puts
+over the Instance&#39;s admission limit is refused with <code>admission</code> before anything is read or written, and there is
+no narrower flag to reach for: build the bounded table for this Question yourself — into the Instance&#39;s DuckDB
+file, or as a table in the schema a Postgres Instance reads — with a provenance table beside it, and capture
+that, the analytical window still living in the SQL
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/adapters.md"><code>docs/contracts/adapters.md</code></a>, &quot;Large sources: the windowed Instance pattern&quot;).
+<code>aftergrid capture &lt;finding-dir&gt; --catalog</code> reports each table&#39;s scan rows, its bytes where the source states
+them, and its admissibility before anything is copied.</p>
+<p><strong>What happens when a Check fails?</strong> It depends on which Check, and the distinction is deliberate. A failing
+<code>minimum_data</code> Check is a business result: the Finding&#39;s outcome becomes <code>insufficient_data</code> and the memo says
+what is missing. A failing <code>required</code> invariant or reconciliation Check means the Analysis does not establish
+what it asserts, and it is reported as an error. A Check that <em>errors</em> is never a business result.</p>
+<p>A failing <strong>falsifier</strong> is a third thing, and the most important one. A falsifier is never <code>required: true</code> —
+<code>required</code> asks whether the numbers stand, a falsifier asks whether the <em>Answer</em> does — so a falsifier that
+records the outcome it did not expect makes the Finding <code>inconclusive</code> (or <code>needs_reframing</code>) and the run
+carries straight on to <code>/write-finding</code>. <code>check</code> reports it as a <code>falsifier_failed</code> warning, not an error, and
+<code>render</code> writes the page with the falsifier on it. The one thing the skill will not do is loosen the threshold,
+drop <code>required</code>, flip <code>expected_outcome</code> or rewrite the SQL after seeing the result; <code>checks_preregistered</code>
+records each Check&#39;s hash when it was written so a reviewer can check that mechanically.</p>
+<p><strong>What if no approved definition fits?</strong> It proposes one — <code>lifecycle: proposed</code>, no approval block — and that
+definition may back a supporting or diagnostic Claim with its status shown. It can never be the published
+decision metric. If the Question&#39;s decision metric is the one that is only proposed, the run stops with a
+<code>needs_input</code> item of kind <code>definition_approval</code> naming you.</p>
+<p><strong>Where does the middle of the analysis go — the dead ends, the days that went nowhere?</strong> Into
+<code>analysis.yaml#/probes</code>, in place, as it happens. Each entry carries <code>at</code> (the harness&#39;s clock at the time,
+never a time reconstructed afterwards) and a <code>kind</code>: <code>exploratory</code> for a look that informed the plan,
+<code>dead_end</code> for a path tried or considered and abandoned, <code>reframe</code> for a look that changed the Question, which
+must then say what changed. Dead ends are kept, not deleted, and the list is read in <code>at</code> order as the timeline
+of the run — <code>check</code> warns when it is out of order rather than refusing it, because the honest repair is the
+times and not the sort. The writer may cite a dead end in a Finding&#39;s Limitations; it may never turn one into a
+number.</p>
+<p><strong>How are exploratory cuts kept from becoming the headline?</strong> The primary comparison is registered in
+<code>analysis.yaml</code> before any cut is explored, with <code>registered_before_cuts</code> telling the truth about when. A cut
+decided afterwards is marked <code>exploratory: true</code> in <code>execution_order</code>, and its Claim carries
+<code>comparison.pre_registered: false</code> all the way into the Finding.</p>
+<p><strong>Will it rewrite an approved Finding?</strong> No. <code>aftergrid execute</code> and <code>aftergrid record</code> both refuse a revision
+carrying attestations when the run would change the content digest they bind to: nothing is written, and the
+report says to bump the revision. Attestations and reviews are never written, refreshed or dropped.</p>
+<p><strong>What does the writer get?</strong> <code>analysis.yaml</code>, <code>manifest.yaml</code> and <code>results/</code>. The writer sharpens sentences and
+writes the memo; it does not change a query, a result, a definition, or a Claim&#39;s type, comparison, population or
+window.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li><code>analysis.yaml#/execution_order</code> lists every Check before the first analysis query, and the Check files&#39; git
+history agrees with that order.</li>
+<li>Every exploratory cut is labelled in <code>execution_order</code> and in the Claim resting on it.</li>
+<li>Each probe records what it asked <em>and</em> what it observed, and at least one of them changed the plan.</li>
+<li>Every probe carries <code>at</code> and <code>kind</code>, the entries are in <code>at</code> order, and the dead ends are still there. The
+middle of the analysis is legible from the list alone: where it went, what it abandoned, what it reframed.</li>
+<li>On the recorded path: every declared execution and Check has been recorded with the tool that ran it,
+<code>aftergrid check</code> reports evidence <code>valid</code> with no <code>recorded_path</code> warning left, and the handover says the
+Check outcomes were reported rather than executed.</li>
+<li>On the adapter path: <code>aftergrid execute</code> reports <code>sql performed</code> with no errors, and <code>aftergrid check --mode rerun</code> reports evidence <code>valid</code> with no <code>rerun_mismatch</code>.</li>
+<li><code>snapshot.guarantees</code> was set by a run that actually happened, not by capturing the inputs — and it is empty
+when the run saved no result, because there is then nothing to replay. A recorded Finding carries
+<code>artifact_replay</code> and never claims <code>analysis_rerun</code>.</li>
+<li>Every Check names the execution it runs against, so on the adapter path <code>check --mode rerun</code> resolves it to the
+same retained inputs <code>execute</code> used; a Check that resolves to no execution is refused instead of quietly
+passing.</li>
+<li>Every evidence reference names a cell that exists, and a causal Claim records <code>causal_basis</code>.</li>
+<li>Every assumption the Question did not settle has an entry with an honest <code>basis</code> — including <code>unverified</code>.</li>
+<li>A halted run names each <code>needs_input</code> item with an owner, and neither the state nor the outcome is rounded up.</li>
+<li>A non-answer carries <code>what_would_be_needed</code>, so <code>insufficient_data</code> is usable rather than a shrug.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>Use checked-analysis on this plan. Check the grain, joins and denominators before interpreting the results, and keep the evidence for each Check.</pre><button class="tiny-copy" data-copy="Use checked-analysis on this plan. Check the grain, joins and denominators before interpreting the results, and keep the evidence for each Check.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>An analysis with recorded Checks, evidence, and limitations.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill checked-analysis</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill checked-analysis">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/checked-analysis/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

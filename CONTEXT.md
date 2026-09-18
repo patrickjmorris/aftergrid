@@ -1,6 +1,6 @@
 # aftergrid
 
-Open-source skills, checks and a thin CLI for producing Findings: analysis memos a non-data reader can understand, inspect and act on, with every number traced to its evidence. The engine is public; each team's context lives in a private Instance.
+Open-source analytics skills for sharpening questions, investigating data, challenging conclusions and retaining useful lessons. Skills work with the agent's existing tools; the optional Engine adds Checks and a thin CLI for producing Findings with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Portable skill outputs are not automatically Engine Findings or approved definitions.
 
 This glossary governs Engine and Instance docs and skill prose. Reader-facing copy may use plain words (analyst, decision maker, workspace, "a finding").
 

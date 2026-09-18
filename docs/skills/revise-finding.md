@@ -1,5 +1,19 @@
 # revise-finding
 
+Apply feedback to an analytical answer while distinguishing presentation edits from changes to calculations, interpretation, and evidence. Works on ordinary memos or versioned Engine Findings.
+
+## Portable use
+
+Work on the artifact the user supplied: memo, notebook, chart, or analysis document. Preserve its evidence trail and follow the requested scope. For an aftergrid Finding, use [the Engine revision procedure](../../skills/revise-finding/references/engine-workflow.md); it classifies changes, pins revisions, and invalidates reviews as required.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/revise-finding` takes your feedback on a Finding that has already been checked — "make it horizontal", "lead

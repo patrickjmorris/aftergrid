@@ -1,0 +1,19 @@
+# Pre-execution follow-up plan
+
+Order: saved after the completed first conversion analysis and proposed lesson, before reading or calculating the follow-up extract. This order is preserved in `execution-log.md`; the plan is not an executed result.
+
+Question: did session-to-signup conversion recover through a reversal of the previous channel mix change, or through different arithmetic components? Estimand: total signups / total eligible sessions over the two supplied comparable periods, with baseline equal to the first extract's current week; report counts, percentage-point and relative change. Period dates/timezone remain unknown. Channel assignment, attribution and eligibility are unchanged per supplied context, and the row grain is period/channel. No joins are needed.
+
+Retrieved proposed lesson: `lessons/conversion-mix.md`, supported by first case code/stdout and report. It changes this plan by requiring a direct test of current denominator shares and fixed-weight rates, rather than carrying forward the old mix explanation. Scope matches by case context but numeric continuity/common support must still be checked. Lesson status remains proposed. Applying its diagnostic practice is appropriate; applying its old explanation is unresolved before execution.
+
+Planned steps in order:
+
+1. Read the follow-up schema and rows, require unique (period, channel), exactly baseline/current periods, positive integer session counts, signups within [0, sessions], matching channel support. Compare the follow-up baseline channel counts exactly with the first extract's current counts, using keyed dictionaries. No joins, dropped rows or zero-fill. If a check fails, stop substantive interpretation and report the discrepancy.
+2. Sum numerators and denominators; compute baseline/current pooled rates, percentage-point and baseline-relative change. Recovery requires a positive change; a failure to reproduce recovery changes the question to reconciling the headline. Upstream completeness, late events and instrumentation are untestable here; comparability is case context.
+3. Compute rates and denominator weights for each channel. Rival A, reverse of previous mix: direct share rises/paid share falls, and mix contribution is positive. Unchanged shares reject that descriptive reversal. Rival B, within-channel improvement: baseline-weighted current rate rises. Unchanged/falling standardized rate weakens that explanation. Both may occur; use exact decomposition, not binary storytelling.
+4. Calculate sum(w_before × delta rate) and sum(delta weight × current rate), assigning interaction to mix. Reconcile their sum exactly to pooled delta. Report common baseline-weighted current rate and channel contributions. Check whether total sessions changed; separate volume from rate and never call extra sessions better conversion.
+5. Compare observed results with lesson applicability: applied diagnostic practice, old mechanism supported/rejected/narrowed as evidence dictates. Preserve contrary evidence in answer and log.
+
+Causal identification would require exchangeable exposed/comparison populations, stable measurement and no unaccounted concurrent change (or randomized assignment); aggregate periods cannot test these conditions. No intervention is supplied. Do not infer product, acquisition-spend or user-level causal effects. Do not use fabricated confidence intervals or universal thresholds. Counts describe the supplied population and session unit; dependence between sessions is unobserved.
+
+Stop after exact decomposition and rival update: the available source can discriminate arithmetic mechanisms, not why rates or weights changed. Deliver runnable Python, actual stdout, concise observed answer, completed check log and preserved proposed lesson. No external action or human approval is required or claimed.

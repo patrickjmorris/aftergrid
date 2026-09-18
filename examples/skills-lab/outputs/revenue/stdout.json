@@ -1,0 +1,70 @@
+{
+  "source": "data/recurring-revenue.csv",
+  "sha256": "d15678e25e5ce2d3dc921472e7dcdabc0daed6e4c4145179607a57621bbfe14d",
+  "checks": {
+    "unique_accounts": true,
+    "finite_nonnegative": true,
+    "bridge_exact": true,
+    "rows": 5,
+    "joins": 0,
+    "exclusions": 0
+  },
+  "baseline_mrr": 430.0,
+  "current_mrr": 440.0,
+  "delta": 10.0,
+  "relative_growth": 0.023255813953488372,
+  "bridge": {
+    "entry": 90.0,
+    "churn": -80.0,
+    "expansion": 20.0,
+    "contraction": -20.0,
+    "unchanged": 0.0
+  },
+  "accounts": [
+    {
+      "account": "A",
+      "baseline": 100.0,
+      "current": 120.0,
+      "category": "expansion",
+      "delta": 20.0
+    },
+    {
+      "account": "B",
+      "baseline": 80.0,
+      "current": 0.0,
+      "category": "churn",
+      "delta": -80.0
+    },
+    {
+      "account": "C",
+      "baseline": 50.0,
+      "current": 30.0,
+      "category": "contraction",
+      "delta": -20.0
+    },
+    {
+      "account": "D",
+      "baseline": 0.0,
+      "current": 90.0,
+      "category": "entry",
+      "delta": 90.0
+    },
+    {
+      "account": "E",
+      "baseline": 200.0,
+      "current": 200.0,
+      "category": "unchanged",
+      "delta": 0.0
+    }
+  ],
+  "existing_current_mrr": 350.0,
+  "existing_change": -80.0,
+  "gross_mrr_retention": 0.7674418604651163,
+  "net_mrr_retention": 0.813953488372093,
+  "baseline_active": 4,
+  "current_active": 4,
+  "baseline_accounts_lost": 1,
+  "account_loss_fraction": 0.25,
+  "average_mrr_per_active_baseline": 107.5,
+  "average_mrr_per_active_current": 110.0
+}

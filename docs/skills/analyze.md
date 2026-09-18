@@ -1,5 +1,19 @@
 # analyze
 
+Analyze a question from the data you have. Clarify the decision, test explanations, and deliver an evidence-linked answer or an honest limit; optionally produce an Engine Finding.
+
+## Portable use
+
+Take the question through to an answer the intended reader can act on. Start with the user's files, pasted results, notebook, or existing data connector. A database connection, aftergrid CLI, GitHub repository, and publication approval are not prerequisites for ordinary analysis.
+
+
+Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.
+
+## Engine Finding reference
+
+The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+
+
 ## What it does
 
 `/analyze` runs one Question from a raw ask to a reviewed Finding draft, and stops with a reason when any gate

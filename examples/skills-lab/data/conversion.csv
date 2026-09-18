@@ -1,0 +1,5 @@
+period,channel,eligible_sessions,signups
+baseline,direct,8000,800
+baseline,paid,2000,80
+current,direct,2000,220
+current,paid,8000,400

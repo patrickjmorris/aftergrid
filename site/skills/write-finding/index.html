@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>write-finding — Turn the analysis into an answer someone can use. — aftergrid</title><meta name="description" content="Turn the analysis into an answer someone can use."><meta property="og:title" content="write-finding — Turn the analysis into an answer someone can use. — aftergrid"><meta property="og:description" content="Turn the analysis into an answer someone can use."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/write-finding/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Explain / Portable skill</p><h1>write-finding</h1><p class="intro">Turn the analysis into an answer someone can use.</p><div class="meta"><span class="tag blue">Your agent uses it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Turn analysis results into an evidence-linked answer for a specific reader, with scope and caveats beside the conclusion. Works with ordinary files and optionally an Engine Finding.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Use supplied results and analysis notes to answer the reader&#39;s question. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. When writing an aftergrid Finding, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/write-finding/references/engine-workflow.md">the Engine procedure</a> for its typed claims, bound values, and fixed artifact contract.</p>
+<p>Read the question, results, assumptions, checks, and intended reader before writing. Establish which conclusions were actually reached and which remain exploratory. A writer may clarify a conclusion; it may not invent a new calculation, promote a proposed definition to approved, or turn a correlation into a cause.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/write-finding</code> turns a checked Analysis directory into a Finding. It reads the evidence <code>/checked-analysis</code>
+pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+results, the Checks, any retained inputs, and <code>analysis.yaml</code> —
+and writes the half a Reader meets: <code>memo.md</code> in the six fixed sections, typed Claims, a chart or a table
+behind every number, and the export policy, coverage and Reader profile the render needs.</p>
+<p>It is <strong>model-invoked</strong> (<code>user-invocable: false</code>, <code>policy.allow_implicit_invocation: true</code>). It is a step
+inside <code>/analyze</code>, reached once the numbers are settled; an Operator asks for the Analysis, not for the memo.</p>
+<p>The skill owns a fixed set of fields and nothing else: <code>memo.md</code>, <code>claims</code>, <code>charts</code>, <code>tables</code>, <code>derived</code>,
+<code>external_sources</code>, <code>coverage</code>, <code>export_policy.allowed_fields</code>, <code>reader.profile</code>, <code>finding.title</code>,
+<code>finding.state</code>, <code>finding.outcome</code>, <code>finding.generated_at</code> and <code>content_digest</code>. Queries, Checks, results,
+retained inputs, executions and definitions are read-only to it, and so are <code>reviews</code> and <code>attestations</code>.
+The ownership is field-level, not block-level: <code>export_policy.recipient_scope</code>, <code>granularity</code>, <code>delivery</code>
+and <code>private_marker</code>, and everything in <code>reader</code> other than <code>profile</code>, are the Instance&#39;s and survive the
+skill byte-identical. <code>private_marker</code> matters most, because the memo scan in <code>check</code> and the output-byte
+refusal in <code>render</code> both run only when it is present.</p>
+<p>It finishes by running <code>aftergrid check</code> and <code>aftergrid render</code>, fixing what it introduced, and stopping with
+a <code>needs_attention</code> result after a third unsuccessful pass.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li><code>/checked-analysis</code> has pinned executions, results and Check outcomes, and written <code>analysis.yaml</code>.</li>
+<li>An Analysis reached <code>insufficient_data</code>, <code>inconclusive</code> or <code>needs_reframing</code> and the Reader is owed a
+Finding that says so.</li>
+<li>A Finding was reopened for a numeric change, the Analysis reran, and the memo has to be rewritten against
+the new results.</li>
+</ul>
+<p>Not for: changing a number or a query (that reopens <code>/checked-analysis</code>), re-styling a chart
+(<code>/iterate-visual</code>), reordering or rewording finished prose (<code>/shape-narrative</code>), or acting on Operator
+feedback on a merged Finding (<code>/revise-finding</code>).</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Can it decide the Finding answers the question?</strong> No. <code>finding.outcome</code> is copied from
+<code>analysis.yaml#outcome_recommendation.outcome</code>. A non-answer stays a non-answer, and
+<code>skills/write-finding/references/outcomes.md</code> is how each one is written honestly.</p>
+<p><strong>What makes a Claim causal?</strong> Randomised assignment, recorded by the Analysis, and nothing else in v0. No
+sample size, effect size or set of controls promotes an associational Claim. The Analysis records the basis
+in <code>candidate_claims[].comparison.description</code>, which its schema requires on every <code>associational</code> and
+<code>causal</code> candidate. <code>skills/write-finding/references/claim-typing.md</code> has the four questions that settle a
+type.</p>
+<p><strong>Where do the coverage dates come from when nothing was retained?</strong> From the recorded parameters. On the
+recorded path — the default (ADR 0010), where the harness ran the queries and <code>aftergrid record</code> wrote them
+down — <code>coverage.data_from</code> and <code>coverage.data_to</code> are read off the executions&#39; own parameters, with
+<code>data_to</code> coming from the recorded <code>executed_at</code> where the SQL read up to the moment it ran. On the adapter
+path they come from the retained inputs, which may run wider or narrower than the Question&#39;s window. A date
+that is in neither place is a <code>needs_input</code> item, never a choice the skill makes. The Appendix says which of
+the two it was: on the recorded path it names the tool that ran each query and states that no copy of the data
+was kept.</p>
+<p><strong>Where does a threshold or a target come from?</strong> From the Analysis, or from nowhere. A typed external
+source carries the value <code>analysis.yaml</code> recorded for it; where the Analysis recorded none, the skill writes
+a <code>needs_input</code> item naming the owner and stops instead of choosing one.</p>
+<p><strong>Where do numbers in prose come from?</strong> A token — <code>{{ref:…}}</code>, <code>{{derived:…}}</code> or <code>{{ext:…}}</code> — that
+resolves from the pinned manifest. A bare digit in <code>memo.md</code> fails <code>check</code> with <code>untraced_numeral</code> unless it
+is a date, an id, a section number, a definition version, a file path or an explicit <code>{{literal:…}}</code>.
+<code>skills/write-finding/references/evidence-binding.md</code> is the working guide.</p>
+<p><strong>Does a numeric Claim always need a chart?</strong> It needs a chart <em>or</em> a table. On a phone a table is often the
+better answer; the chart earns its place when the shape of the comparison is the point.</p>
+<p><strong>Can it mark a Finding reviewed or approved?</strong> No. It writes no <code>reviews</code> and no <code>attestations</code>; <code>check</code>
+reports an approval nobody granted as an untrusted attestation, and publication readiness is a human&#39;s
+APPROVED review verified through the API (<code>docs/contracts/publication.md</code>).</p>
+<p><strong>What if a required Check failed?</strong> That is the Analysis, not the memo. The skill reports the category and
+location and stops rather than writing around it.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li><code>aftergrid check &lt;finding-dir&gt;</code> reports <code>evidence valid</code> with zero errors, and <code>aftergrid render</code> writes
+<code>render/finding.html</code> without a warning.</li>
+<li>The diff against the Analysis directory touches only the fields listed above: no query, Check, result,
+retained input, execution or definition changed.</li>
+<li>Every number on the rendered page can be traced, by clicking into the calculation, back to a saved result.</li>
+<li>A Finding that could not answer says so in its first sentence and contains no invented threshold, falsifier
+or number. Where the pre-registered falsifier fired, the outcome is <code>inconclusive</code> (or <code>needs_reframing</code>) and
+the Answer names what the falsifier asked and what the data showed — the numbers stay, the Answer does not.</li>
+<li>Where the published decision metric&#39;s definition names counter-metrics, every one of them is reported:
+<code>counter_metrics_reported</code> carries either a value traced to a result over the Question&#39;s own window or a
+stated reason it could not be computed, the memo says the same in words under <em>How we checked</em>, and the
+rendered page shows each as its own fact beside the decision metric. A counter-metric that moved the wrong
+way is reported in the same words a good one would be.</li>
+<li><code>reviews</code> and <code>attestations</code> are as empty as they were before the skill ran.</li>
+<li>Recorded runs: <code>fixtures/runs/kpc-numeric</code> (a named Reader profile, <code>answered</code>, a causal Claim earned by
+randomised assignment) and <code>fixtures/runs/kpc-insufficient</code> (the generic profile, <code>insufficient_data</code>, no
+causal wording anywhere). <code>src/writer.test.ts</code> holds them to the mechanical half of the above: evidence
+validity, the field boundary down to <code>export_policy</code> and <code>reader</code> keys, answer-first structure, bound
+values and allowed columns, figure titles that state their Claim, Reader vocabulary and the absence of
+causal verbs in a non-answer. Whether a caveat is the one that matters, and whether a sentence a linter
+accepts reads honestly, is <code>skills/shape-narrative/references/narrative-criteria.md</code> and the Reader
+reviewer&#39;s, not the suite&#39;s.</li>
+<li>A recorded run is evidence of a contract, not of a model: both runs were written by hand, <code>run.yaml</code> says
+so, and neither reports a corrections count, because <code>input/</code> was cut out of an already-reviewed
+<code>output/</code> and nothing was produced and then corrected. The corrections number the bead asks for needs a
+model in the loop and the nightly Golden Questions, not this fixture.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>Use write-finding to explain this analysis to the person making the decision. Lead with the answer, attach its evidence, and say what we cannot establish.</pre><button class="tiny-copy" data-copy="Use write-finding to explain this analysis to the person making the decision. Lead with the answer, attach its evidence, and say what we cannot establish.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A readable Finding with the answer, evidence, limits, and next step.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill write-finding</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill write-finding">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/write-finding/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

@@ -1,0 +1,21 @@
+{
+  "source": "data/onboarding.csv",
+  "sha256": "02100ca32724c2a699035eb0a591fc8f971d671613f391f3d53f7ac1c9de0cea",
+  "checks": {
+    "unique_groups": true,
+    "range_checks": true,
+    "all_rows_included": true,
+    "joins": 0
+  },
+  "rates": {
+    "yes": 0.6,
+    "no": 0.4
+  },
+  "observed_gap_pp": 20.0,
+  "relative_group_difference": 0.5,
+  "pooled_rate": 0.5,
+  "total_users": 200,
+  "total_retained": 100,
+  "illustrative_retained_if_everyone_had_observed_completer_rate": 120.0,
+  "illustrative_relative_total_increase": 0.2
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>grill-question — Turn a vague ask into a question worth answering. — aftergrid</title><meta name="description" content="Turn a vague ask into a question worth answering."><meta property="og:title" content="grill-question — Turn a vague ask into a question worth answering. — aftergrid"><meta property="og:description" content="Turn a vague ask into a question worth answering."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/grill-question/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Frame / Portable skill</p><h1>grill-question</h1><p class="intro">Turn a vague ask into a question worth answering.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Turn a vague analytics ask into an answerable question: decision or purpose, reader, metric, population, window, comparison, and evidence that could change the conclusion.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Use this before expensive analysis or when an apparently simple ask hides different possible calculations. The result can be a short question brief in the conversation or a user-chosen file. No CLI, manifest, or warehouse is required.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/grill-question</code> interviews you until a raw ask is a <strong>Question</strong>: a decision, a Reader, a Metric definition at
+a pinned version, a population, a window with its analytical timezone, a primary comparison registered before
+any cut, and a falsifier a Check can evaluate — or an explicit record that a falsifier cannot be written yet.</p>
+<p>It works the way <code>grilling</code> does: a frontier of decisions, asked a whole round at a time, each question carrying
+the recommended answer so you can correct rather than compose. It asks only about what changes the analysis, and
+it finds facts about your data itself instead of asking you for them.</p>
+<p>The result lands in a Finding&#39;s <code>manifest.yaml</code> (<code>question</code>, <code>reader</code>) and in the <code>analysis.yaml</code> beside it, as a
+seed marked <code>stage: clarified</code> (<code>reader_profile</code>, <code>assumptions</code>, <code>pre_registered_comparison</code>, <code>needs_input</code>). New
+Metric definitions are written to <code>&lt;instance&gt;/definitions/&lt;id&gt;.md</code> as <code>lifecycle: proposed</code> with no approval
+block, and a definition that could be the decision metric carries the answer to one more question: what would
+get worse if this metric were pushed hard.</p>
+<p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>): it creates
+a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
+mid-task is <code>/checked-analysis</code>, which reads the same reference file this skill reads — so no user-invoked skill
+ever calls another one.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li>You have an ask in plain words and no metric, window, population or falsifier behind it yet.</li>
+<li>The ask uses a word your Instance defines differently, or a causal word (&quot;helped&quot;, &quot;drove&quot;) whose design you
+have not confirmed.</li>
+<li>No approved Metric definition fits, and you want the new one written down as a proposal before anyone runs it.</li>
+<li>A Finding you started is sitting at <code>question.state: unresolved</code> and the missing part is now settled.</li>
+<li>Someone filed the ask as an Issue and you want it sharp before the background run picks it up.</li>
+</ul>
+<p>Reach for <code>/analyze</code> instead when the Question is already <code>resolved</code> and you want the whole chain run. Reach for
+<code>/revise-finding</code> when the Finding exists and it is the memo, not the Question, that needs changing.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Will it ask me the same things twice?</strong> No. Everything already recorded is settled, and a settled part is
+never asked again. On a second pass it restates the settled parts as a list you can correct, and asks only about
+what is in <code>question.unresolved</code> or waiting on a <code>needs_input</code> owner.</p>
+<p><strong>What if I do not know the falsifier?</strong> Then it is not written. The Question ends <code>unresolved</code> with <code>falsifier</code>
+in the list, the field is absent rather than filled with something plausible, and a <code>needs_input</code> item records
+who sets the bar and before what. A threshold picked after seeing the numbers is a bar set to fit its own
+result, and the skill will not write one.</p>
+<p><strong>Does it approve the definitions it proposes?</strong> No, and it cannot. A proposal is written with
+<code>lifecycle: proposed</code> and no <code>approval:</code> block. Approval is your attestation bound to the definition file&#39;s
+content hash, recorded separately (<code>docs/contracts/instance-layout.md</code>). A proposed definition may back a
+supporting or diagnostic Claim with its status shown; it can never be the published decision metric.</p>
+<p><strong>What is the &quot;what would get worse&quot; question for?</strong> Goodhart&#39;s Law: a metric that becomes a target stops
+measuring the thing it stood for, and no Check can see that happening. So the answer becomes part of the
+definition — <code>counter_metrics: [{ id, version?, why }]</code>, each naming another definition in your Instance and one
+sentence saying the mechanism — and a Finding that later publishes this metric as its decision metric has to
+report those counter-metrics beside it, over the same population and window, or say why it could not
+(<code>counter_metric_missing</code>). A counter-metric never needs approving: it is not the published decision metric.</p>
+<p><strong>What if nothing would get worse?</strong> Then that is the answer, and it is written down:
+<code>counter_metrics_none_because: &quot;&lt;one sentence&gt;&quot;</code>. The list is omitted when empty — that is what keeps every
+definition you already approved byte-identical — so &quot;none&quot; needs its own place, or an Operator who thought about
+it would look exactly like one who was never asked.</p>
+<p><strong>Will it edit a definition I already approved?</strong> No. An approved file is read and never written. A Question
+that needs a change to one becomes a <code>needs_input</code> item of kind <code>definition_approval</code> naming you, and the
+analysis stops there for that metric.</p>
+<p><strong>Does it run any SQL against my source?</strong> Only reads, and only to answer its own questions rather than yours:
+the catalog, and bounded probes on data the Instance&#39;s connection already allows. It never writes.</p>
+<p><strong>Will <code>aftergrid check</code> say my evidence is invalid before any analysis has run?</strong> No. The file this skill
+leaves is marked <code>stage: clarified</code>, which is a complete artifact for where it is: <code>check</code> reports evidence
+<code>valid</code> and content <code>incomplete</code>, and the sections <code>/checked-analysis</code> fills are required only once the run has
+happened. &quot;Invalid evidence&quot; means something is wrong with evidence, never that there is none yet.</p>
+<p><strong>It says my Question is <code>unresolved</code>. Is that a failure?</strong> No. An unresolved Question with its missing parts
+named is a better artifact than a resolved-looking one with an invented falsifier, and <code>insufficient_data</code> and
+<code>needs_reframing</code> are valid Findings.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>Your ask survives verbatim in <code>question.raw_ask</code>, whatever the rounds settle.</li>
+<li>Each round arrives numbered, with a recommended answer you can accept or correct in a line.</li>
+<li>No round asks about something an earlier round settled, and a second session over the same Finding asks only
+about what was left open.</li>
+<li>Every question it asks would change the metric, the population, the window, the comparison, the falsifier or
+the Reader if you answered it differently.</li>
+<li>It looks up facts about your data rather than asking you for them.</li>
+<li>Unsettled parts are absent from the manifest and listed in <code>question.unresolved</code> — never filled in.</li>
+<li>Any definition it wrote reads <code>lifecycle: proposed</code> and carries no approval block, and any approved definition
+file is byte-for-byte as you left it.</li>
+<li>Every metric it proposes as a candidate decision metric either names counter-metrics with a mechanism each, or
+records in one sentence why it names none. Neither is left blank.</li>
+<li>The hand-off names the definitions with their versions and lifecycles, and does not round <code>unresolved</code> up to
+&quot;ready&quot;.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>/grill-question Our trial conversion fell this month. Help me decide what we actually need to know before we query anything.</pre><button class="tiny-copy" data-copy="/grill-question Our trial conversion fell this month. Help me decide what we actually need to know before we query anything.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A precise question, a decision owner, and what would change the answer.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill grill-question</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill grill-question">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/grill-question/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

@@ -1,7 +1,7 @@
 interface:
   display_name: "Grill a Question"
   short_description: "Interview the Operator until a raw ask is a Question, and write it into a Finding"
-  default_prompt: "Sharpen this ask into a Question: interview me in rounds about the decision, the Reader, the metric, the population, the window, the primary comparison and the falsifier, then write it into a Finding."
+  default_prompt: "Use $grill-question on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The interview is the Operator's
   # decisions, and the skill creates a Finding directory and proposes definition files: a human asks for it.

@@ -1,6 +1,6 @@
 {
   "name": "aftergrid",
-  "description": "Open-source skills, Checks and a thin CLI for producing Findings: analysis memos a non-data Reader can understand, inspect and act on, with every number traced to its evidence.",
+  "description": "Analytics skills for better questions, deeper investigations and evidence-linked answers, with an optional Engine for checked Findings.",
   "version": "0.0.0",
   "author": {
     "name": "Patrick Morris",
@@ -10,8 +10,13 @@
     "./skills/analysis-review",
     "./skills/analyze",
     "./skills/checked-analysis",
+    "./skills/define-metric",
+    "./skills/diagnose-change",
+    "./skills/explore-data",
     "./skills/grill-question",
     "./skills/iterate-visual",
+    "./skills/learn-from-analysis",
+    "./skills/plan-analysis",
     "./skills/revise-finding",
     "./skills/setup-aftergrid",
     "./skills/shape-narrative",

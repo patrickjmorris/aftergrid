@@ -195,6 +195,16 @@ test("the bin is a plain-JavaScript launcher, so an unsupported Node gets a mess
   assert.match(launcher, /await import\("\.\/strip-types\.mjs"\)/, "the launcher registers the type-stripping hook before importing any .ts");
 });
 
+// Engine procedures are progressively disclosed from portable skill entrypoints. These legacy assertions
+// continue to check the same Engine behavior in its new location.
+function readDistributedText(path: string): string {
+  const engine = path.replace(/SKILL\.md$/, "references/engine-workflow.md");
+  return readFileSync(engine !== path && existsSync(engine) ? engine : path, "utf8");
+}
+function readEngineSkill(name: string): string {
+  return readDistributedText(join(REPO, "skills", name, "SKILL.md"));
+}
+
 /* ------------------------------------------------------------------ the skills and the CLI agree (ag-olp) */
 //
 // The skills are prose, so what can be asserted about them is that they still say what the shipped CLI does.
@@ -212,7 +222,7 @@ function step(markdown: string, n: number): string {
 }
 
 test("checked-analysis steps 3 and 6 write the recorded path before the adapter path (ADR 0010)", () => {
-  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("checked-analysis");
 
   for (const [n, adapterCommand] of [[3, "aftergrid capture"], [6, "aftergrid execute"]] as const) {
     const body = step(skill, n);
@@ -240,7 +250,7 @@ test("checked-analysis steps 3 and 6 write the recorded path before the adapter 
 // ag-falsifier-outcome-cov. The skill told a model to mark the falsifier `required: true`, `check` then read a
 // failing falsifier as an evidence error, and the honest inconclusive Finding could not be written at all.
 test("checked-analysis writes the falsifier as required: false, and calls a failing one the inconclusive path", () => {
-  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("checked-analysis");
   const four = step(skill, 4);
 
   const row = four.split("\n").find((l) => /^\|\s*`falsifier`\s*\|/.test(l));
@@ -267,7 +277,7 @@ test("checked-analysis writes the falsifier as required: false, and calls a fail
 });
 
 test("the /analyze halt conditions do not name a missing adapter", () => {
-  const skill = readFileSync(join(REPO, "skills", "analyze", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("analyze");
   const halts = step(skill, 4);
 
   const bullets = halts.split("\n").filter((l) => l.startsWith("- "));
@@ -294,7 +304,7 @@ test("the /analyze halt conditions do not name a missing adapter", () => {
 // re-reviews that `review record` would have deduped away. The three sentences below are what the skill has to
 // keep saying, and the CLI has to keep implementing.
 test("the /analyze chain ends with review status, quotes its verdict line, and separates stale from superseded", () => {
-  const skill = readFileSync(join(REPO, "skills", "analyze", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("analyze");
   const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
   const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
 
@@ -365,7 +375,7 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
 
   let invocations = 0;
   for (const page of pages) {
-    const text = readFileSync(join(REPO, page), "utf8").replace(/\\\n\s*/g, " ");
+    const text = readDistributedText(join(REPO, page)).replace(/\\\n\s*/g, " ");
     for (const line of text.matchAll(/aftergrid record\b[^\n`]*/g)) {
       invocations += 1;
       for (const flag of line[0].matchAll(/--([a-z][a-z-]*)/g)) {
@@ -385,7 +395,7 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
 // retained one, and that the recorded re-run is named.
 
 test("the setup skill says the adapter is optional and shows the command without one", () => {
-  const skill = readFileSync(join(REPO, "skills", "setup-aftergrid", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("setup-aftergrid");
   const doc = readFileSync(join(REPO, "docs", "skills", "setup-aftergrid.md"), "utf8");
   const openai = readFileSync(join(REPO, "skills", "setup-aftergrid", "agents", "openai.yaml"), "utf8");
 
@@ -425,7 +435,7 @@ test("every `aftergrid setup` flag the skills name is one the CLI parses", () =>
     join("skills", "write-finding", "SKILL.md"),
   ];
   for (const page of pages) {
-    const text = readFileSync(join(REPO, page), "utf8").replace(/\\\n\s*/g, " ");
+    const text = readDistributedText(join(REPO, page)).replace(/\\\n\s*/g, " ");
     for (const line of text.matchAll(/(?:aftergrid|cli\.ts) setup\b[^\n`]*/g)) {
       for (const flag of line[0].matchAll(/--([a-z][a-z-]*)/g)) {
         assert.ok(declared.has(flag[1]!), `${page} tells a model to run \`aftergrid setup --${flag[1]}\`, which the CLI does not parse`);
@@ -435,7 +445,7 @@ test("every `aftergrid setup` flag the skills name is one the CLI parses", () =>
 });
 
 test("write-finding step 7 takes coverage from the recorded parameters before the retained inputs", () => {
-  const skill = readFileSync(join(REPO, "skills", "write-finding", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("write-finding");
   const seven = step(skill, 7);
 
   const recorded = seven.indexOf("recorded parameters");
@@ -462,7 +472,7 @@ test("write-finding step 7 takes coverage from the recorded parameters before th
 });
 
 test("revise-finding sends a numeric revision on the recorded path to `aftergrid record`", () => {
-  const skill = readFileSync(join(REPO, "skills", "revise-finding", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("revise-finding");
   const start = skill.search(/^### `numeric`$/m);
   assert.notEqual(start, -1, "no `numeric` branch heading");
   const rest = skill.slice(start);
@@ -488,7 +498,7 @@ test("revise-finding sends a numeric revision on the recorded path to `aftergrid
 
 // ag-3ce: the middle of an analysis is recorded in place, so the skill a harness ships has to say how.
 test("checked-analysis step 2 records each probe with its time, its kind, and the dead ends kept", () => {
-  const skill = readFileSync(join(REPO, "skills", "checked-analysis", "SKILL.md"), "utf8");
+  const skill = readEngineSkill("checked-analysis");
   const two = step(skill, 2);
 
   assert.match(two, /`at`/, "step 2 must name the `at` field a probe carries");
@@ -552,7 +562,7 @@ test("`record` is documented as refusing any attestation, not only an approval",
   assert.doesNotMatch(refusal, /approval/i, "and reads no approval off them");
 
   for (const page of [join(REPO, "skills", "revise-finding", "SKILL.md"), join(REPO, "docs", "skills", "revise-finding.md")]) {
-    const text = readFileSync(page, "utf8");
+    const text = readDistributedText(page);
     const line = text.split(/\n\n/).find((p) => /stale_attestation/.test(p));
     assert.ok(line, `${page} must say what record refuses`);
     assert.match(line!, /any attestation/i, `${page} narrows the refusal to an approval: ${line}`);
@@ -573,4 +583,55 @@ test("the packed tarball carries no examples/ path, and there is an example to l
   const audit = readFileSync(join(REPO, "scripts", "pack-smoke.mjs"), "utf8");
   const forbidden = audit.slice(audit.indexOf("const FORBIDDEN_PREFIXES"), audit.indexOf("const REQUIRED_ENTRIES"));
   assert.match(forbidden, /"examples\/"/, "scripts/pack-smoke.mjs must reject an examples/ entry in the tarball");
+});
+
+
+test("normal discovery allows both explicit and implicit use with matching metadata", () => {
+  const report = validatePlugin(REPO);
+  for (const name of ["explore-data", "define-metric", "plan-analysis", "diagnose-change", "learn-from-analysis"]) {
+    assert.equal(report.skills.find((skill) => skill.name === name)?.invocation, "both");
+  }
+  assert.equal(report.skills.find((skill) => skill.name === "analyze")?.invocation, "user");
+});
+
+test("single-skill installation fails validation for a missing or sibling entrypoint dependency", () => {
+  const root = packageCopy();
+  const file = skillFile(root, "grill-question");
+  writeFileSync(file, readFileSync(file, "utf8") + "\nRead [missing](references/not-installed.md).\n");
+  assert.ok(validatePlugin(root).errors.some((e) => e.category === "missing_file" && e.message.includes("not-installed")));
+  writeFileSync(file, readFileSync(file, "utf8") + "\nRead [sibling](../checked-analysis/references/clarification.md).\n");
+  assert.ok(validatePlugin(root).errors.some((e) => e.category === "unsafe_path" && e.message.includes("sibling") === false && e.message.includes("../checked-analysis")));
+});
+
+test("an individually copied skill includes each resource linked by its entrypoint", () => {
+  const manifest = JSON.parse(readFileSync(join(REPO, ".claude-plugin", "plugin.json"), "utf8"));
+  for (const entry of manifest.skills) {
+    const source = join(REPO, String(entry).replace(/^\.\//, ""));
+    const root = mkdtempSync(join(tmpdir(), "ag-single-skill-"));
+    cleanup.push(root);
+    const copy = join(root, "installed");
+    cpSync(source, copy, { recursive: true });
+    const text = readFileSync(join(copy, "SKILL.md"), "utf8");
+    for (const match of text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+      const target = match[1]!.split("#")[0]!;
+      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+      const resolved = resolve(copy, target);
+      assert.ok(resolved.startsWith(copy + "/"), `${entry}: ${target} must stay in the installed skill`);
+      assert.ok(existsSync(resolved), `${entry}: ${target} exists with only that skill installed`);
+    }
+  }
+});
+
+test("moved Engine procedures keep their linked resources resolvable in the complete toolkit", () => {
+  const manifest = JSON.parse(readFileSync(join(REPO, ".claude-plugin", "plugin.json"), "utf8"));
+  for (const entry of manifest.skills) {
+    const referenceDir = join(REPO, String(entry).replace(/^\.\//, ""), "references");
+    const workflow = join(referenceDir, "engine-workflow.md");
+    if (!existsSync(workflow)) continue;
+    for (const match of readFileSync(workflow, "utf8").matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+      const target = match[1]!.split("#")[0]!;
+      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+      assert.ok(existsSync(resolve(referenceDir, target)), `${entry}: moved Engine reference ${target} resolves`);
+    }
+  }
 });

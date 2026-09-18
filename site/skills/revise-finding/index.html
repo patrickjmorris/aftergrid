@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>revise-finding — Revise the answer without losing what supported it. — aftergrid</title><meta name="description" content="Revise the answer without losing what supported it."><meta property="og:title" content="revise-finding — Revise the answer without losing what supported it. — aftergrid"><meta property="og:description" content="Revise the answer without losing what supported it."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/revise-finding/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Improve / Portable skill</p><h1>revise-finding</h1><p class="intro">Revise the answer without losing what supported it.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Apply feedback to an analytical answer while distinguishing presentation edits from changes to calculations, interpretation, and evidence. Works on ordinary memos or versioned Engine Findings.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Work on the artifact the user supplied: memo, notebook, chart, or analysis document. Preserve its evidence trail and follow the requested scope. For an aftergrid Finding, use <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/revise-finding/references/engine-workflow.md">the Engine revision procedure</a>; it classifies changes, pins revisions, and invalidates reviews as required.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/revise-finding</code> takes your feedback on a Finding that has already been checked — &quot;make it horizontal&quot;, &quot;lead
+with retention&quot;, &quot;say it more plainly&quot; — makes the edit, and runs <code>aftergrid revise</code> to classify what you just
+asked for:</p>
+<ul>
+<li><strong>presentation</strong> — the same evidence reading differently. Applied as a new revision, re-rendered, re-checked.</li>
+<li><strong>interpretation</strong> — the same numbers saying something else. Put to you first; applied on your say-so; Method
+and Question review are then required.</li>
+<li><strong>numeric</strong> — a different number. Refused. Nothing is written, and you are told which file or field made it
+numeric and that the Analysis reopens — on the recorded path by your harness re-running the query and
+<code>aftergrid record</code> writing it down, on the adapter path by <code>aftergrid execute</code>.</li>
+</ul>
+<p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>). Revising
+a reviewed Finding bumps its revision and drops its publication approval, so a human asks for it.</p>
+<p>The full classification tables, and the limits of the classifier, are in
+<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/revise.md"><code>docs/contracts/revise.md</code></a>.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li>A Finding has been checked, or reviewed, or approved, and you want something about it changed.</li>
+<li>You want to know whether an edit you are considering would reopen the analysis, before making it.</li>
+<li>You want to pick between two Variants of a chart.</li>
+</ul>
+<p>Not for a Finding still being written — nothing is pinned yet, so there is nothing to protect. Not for a chart
+that is merely hard to read: that is <code>/iterate-visual</code>, which this skill points at.</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Does my approval survive the revision?</strong> No. An approval binds one content digest; revision N+1 has a
+different one. The approval stays readable in <code>revisions/&lt;N&gt;/manifest.yaml</code>, the new revision renders as a
+draft, and the report says how many attestations were dropped. Nothing is re-dated to look current.</p>
+<p><strong>What happens to the reviews?</strong> They are left exactly as they were, bound to the previous digest, and
+<code>aftergrid check</code> reports each one as stale. That is the honest record: a Method review of revision 1 is not a
+Method review of revision 2.</p>
+<p><strong>Can I get revision 1 back?</strong> Yes. <code>--pin</code> and <code>--apply</code> archive it under <code>revisions/&lt;N&gt;/</code> with its manifest,
+memo, chart specs and the render it produced. Evidence files are shared across revisions and unchanged — a
+change to one would have been refused — so the archive plus the Finding&#39;s <code>queries/</code>, <code>checks/</code>, <code>results/</code> and
+<code>inputs/</code> reconstruct it.</p>
+<p><strong>Why did it call my harmless edit &quot;interpretation&quot;?</strong> The classifier is conservative: what it does not
+recognise it calls interpretation. It costs you a review you may not have needed, which is the error it is
+allowed to make. The <code>differences</code> list names the field that forced the class.</p>
+<p><strong>Could it call something &quot;presentation&quot; that actually changed the meaning?</strong> Yes. It reads field paths and
+evidence tokens, not English: rewording a Claim from &quot;came back more often than&quot; to &quot;came back because of&quot;
+keeps every token. Method review is what catches that, and this skill never claims to have reviewed anything.</p>
+<p><strong>How do I re-run a numeric change when nothing was retained?</strong> Your harness re-runs the query with the tool
+that ran it before, and <code>aftergrid record &lt;dir&gt; --tool &quot;&lt;name&gt;&quot; --execution &lt;id&gt; --result &lt;file&gt;</code> writes the new
+run down. <code>record</code> re-pins the SQL, the parameters, the result and the content digest; it does <strong>not</strong> archive
+anything and does <strong>not</strong> bump <code>finding.revision</code>. Archiving is <code>aftergrid revise --pin</code> or <code>--apply</code>, and it
+belongs <strong>before</strong> the re-record: afterwards a <code>--pin</code> at the same revision number reports <code>exists</code>, because
+<code>revisions/&lt;N&gt;/</code> already holds the digest somebody reviewed. If the revision carries <strong>any attestation</strong> — an
+approval, and equally any other kind — <code>record</code> refuses outright (<code>stale_attestation</code>) and tells you to bump
+<code>finding.revision</code> and record into the new one.</p>
+<p><strong>It says <code>unknown</code>.</strong> There is no baseline to compare against. Run <code>aftergrid revise &lt;dir&gt; --pin</code> on the
+Finding as it was reviewed, or pass <code>--baseline &lt;dir&gt;</code> naming a copy of it.</p>
+<p><strong>It refused my <code>--baseline</code> on apply.</strong> Applying archives the baseline as revision N, so a copy that is not the
+reviewed state would replace the archive with something nobody approved. It is refused when the copy does not
+hash to its own pinned digest, when it is a different revision, or when <code>revisions/&lt;N&gt;/</code> already holds a
+different digest. Nothing is written either way.</p>
+<p><strong>I picked the other Variant and it came back as interpretation.</strong> Choosing between Variants is a taste decision
+only while the two charts say the same thing. The promoted chart&#39;s spec is compared with the spec of the chart
+it replaces, so a candidate whose axis is narrower, whose field binding differs or which shows less is an
+interpretation change at the moment it reaches the page — the same cost that edit would have had in place.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>Your request is quoted back to you, and the class comes with a located reason — a file and a field, not &quot;this
+looks cosmetic&quot;.</li>
+<li>A presentation change lands as revision N+1 with <code>revisions/&lt;N&gt;/</code> archived, and the summary says the approval
+did not carry.</li>
+<li>An interpretation change is put to you <strong>before</strong> it is applied, and afterwards you are told Method and
+Question review are required.</li>
+<li>A numeric request is refused, the Finding on disk is untouched, and you are given the command that reopens
+the Analysis on the path your Instance is actually on: <code>aftergrid record</code> where nothing was retained,
+<code>aftergrid execute</code> where it was.</li>
+<li>Nothing in the summary claims a revision is reviewed or approved.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>/revise-finding The decision owner wants to see this by customer segment. Explain what changes the presentation and what requires new analysis.</pre><button class="tiny-copy" data-copy="/revise-finding The decision owner wants to see this by customer segment. Explain what changes the presentation and what requires new analysis.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A revised Finding with a clear account of what was reopened.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill revise-finding</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill revise-finding">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/revise-finding/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

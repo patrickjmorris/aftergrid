@@ -1,7 +1,7 @@
 interface:
   display_name: "Review a Finding"
   short_description: "Method, Question and Reader reviewers over a complete Finding, recorded in the manifest"
-  default_prompt: "Review this Finding: dispatch the Method, Question and Reader reviewers, record each result against the current content digest, and tell me whether anything blocks."
+  default_prompt: "Use $analysis-review on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. `/analyze` reaches for this between writing
   # the draft and checking it; it records agent reviews and never an approval.

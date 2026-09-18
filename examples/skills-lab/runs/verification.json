@@ -1,0 +1,54 @@
+{
+  "verified_at_utc": "2026-09-18T02:40:08.366590+00:00",
+  "method": "Coordinator reran every saved computation from the copied artifact and compared parsed JSON to original stdout; no answer edits.",
+  "python": "3.14.4",
+  "evaluated_skills": [
+    "diagnose-change",
+    "analysis-review",
+    "learn-from-analysis",
+    "plan-analysis",
+    "checked-analysis"
+  ],
+  "used_skill_entrypoints_match_current_source": true,
+  "reruns": [
+    {
+      "case": "conversion",
+      "exit_code": 0,
+      "saved_output_matches_rerun": true
+    },
+    {
+      "case": "revenue",
+      "exit_code": 0,
+      "saved_output_matches_rerun": true
+    },
+    {
+      "case": "review",
+      "exit_code": 0,
+      "saved_output_matches_rerun": true
+    },
+    {
+      "case": "learning",
+      "exit_code": 0,
+      "saved_output_matches_rerun": true
+    }
+  ],
+  "artifact_checks": {
+    "local_markdown_links_resolve": true,
+    "link_count": 17,
+    "python_syntax_valid": [
+      "outputs/verify_artifacts.py",
+      "outputs/learning/calculate.py",
+      "outputs/review/calculate.py",
+      "outputs/conversion/calculate.py",
+      "outputs/revenue/calculate.py"
+    ],
+    "saved_stdout_parsed": 4,
+    "source_hashes_still_match_calculation_inputs": [
+      "data/conversion-followup.csv",
+      "data/conversion.csv",
+      "data/onboarding.csv",
+      "data/recurring-revenue.csv"
+    ]
+  },
+  "review_scope": "One isolated Codex agent performed four serial tasks without answer key; coordinator inspected calculations and conclusions. Not a multi-model benchmark or a human Reader study."
+}

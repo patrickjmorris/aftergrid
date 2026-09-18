@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>analyze — Carry a question through to a reviewed answer. — aftergrid</title><meta name="description" content="Carry a question through to a reviewed answer."><meta property="og:title" content="analyze — Carry a question through to a reviewed answer. — aftergrid"><meta property="og:description" content="Carry a question through to a reviewed answer."><meta property="og:type" content="website"><link rel="canonical" href="https://patrickjmorris.github.io/aftergrid/skills/analyze/"><link rel="icon" href="../../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../../assets/site.css"><script src="../../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../" aria-current="page">Skills</a><a href="../../examples/">Examples</a><a href="../../fieldnotes/">Fieldnotes</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><a class="breadcrumb" href="../">← All skills</a><p class="eyebrow">Analyze / Portable skill</p><h1>analyze</h1><p class="intro">Carry a question through to a reviewed answer.</p><div class="meta"><span class="tag blue">You start it</span><span class="tag">Your existing data tools</span><span class="tag">Open source · MIT</span></div></header><div class="reading-layout"><article class="reading article-lede"><p>Analyze a question from the data you have. Clarify the decision, test explanations, and deliver an evidence-linked answer or an honest limit; optionally produce an Engine Finding.</p>
+<h2 id="portable-use">Portable use</h2>
+<p>Take the question through to an answer the intended reader can act on. Start with the user&#39;s files, pasted results, notebook, or existing data connector. A database connection, aftergrid CLI, GitHub repository, and publication approval are not prerequisites for ordinary analysis.</p>
+<p>Use the skill with the artifact or question you already have. It does not install the CLI, configure GitHub, or create an Instance unless you request Engine artifacts. The existing invocation policy is preserved.</p>
+<details class="engine-details"><summary>Optional Engine reference</summary><p>The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.</p>
+<h2 id="what-it-does">What it does</h2>
+<p><code>/analyze</code> runs one Question from a raw ask to a reviewed Finding draft, and stops with a reason when any gate
+fails. It is the <strong>only</strong> orchestrator in the Engine: it owns the order of the stages and the decision to halt,
+and nothing else runs them.</p>
+<p>The order is fixed: clarify → <code>/checked-analysis</code> → <code>/write-finding</code> → <code>/iterate-visual</code> → <code>/shape-narrative</code> →
+<code>/analysis-review</code> → <code>aftergrid check</code> → <code>aftergrid review status</code>. Each stage&#39;s craft belongs to the skill
+that owns it; <code>/analyze</code> does not redo that work, which is what keeps a three-pass visual loop from quietly
+becoming a six-pass one.</p>
+<p><strong>The last two commands of every run are <code>aftergrid check</code> and then <code>aftergrid review status</code></strong>, and nothing
+runs after them. A review binds to a content digest, so an edit made after a review leaves the reviews
+describing content nobody read; an edit after <code>review status</code> sends the run back to <code>/analysis-review</code> and
+both commands run again before the run may report the Finding as reviewed.</p>
+<p>Normal completion is <strong>an evidence-valid draft reviewed by agents, awaiting human publication readiness</strong>. Not
+approved, not published. A human APPROVED review at the analyzed commit is a separate gate
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/publication.md"><code>docs/contracts/publication.md</code></a>).</p>
+<p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>). It writes
+a Finding directory, reads a warehouse and spends real model time, so a human asks for it — and being the only
+orchestrator, a model reaching for it mid-task would nest one run inside another.</p>
+<h2 id="when-to-reach-for-it">When to reach for it</h2>
+<ul>
+<li>You have a raw ask in plain words and want a Finding out of it. <code>/analyze</code> creates the Finding and clarifies
+the ask first; you are not required to already know the metric, population, window or falsifier.</li>
+<li>You have a Finding directory whose <code>question.state</code> is already <code>resolved</code> and want the analysis run against
+it.</li>
+<li>A previous run halted and you have supplied what it asked for. <code>/analyze</code> reads <code>analysis-progress.yaml</code> and
+resumes from the stage that stopped.</li>
+</ul>
+<p>Not for: presentation feedback on a finished Finding (<code>/revise-finding</code>), sharpening a Question on its own
+(<code>/grill-question</code>), or recording a decision (<code>aftergrid decide</code>).</p>
+<h2 id="common-questions">Common questions</h2>
+<p><strong>Why does it not call <code>/grill-question</code> to clarify?</strong> Because <code>/grill-question</code> is user-invoked, and no
+user-invoked skill invokes another. Both read the same clarification procedure,
+<code>skills/checked-analysis/references/clarification.md</code>, so the interview is the same one either way.</p>
+<p><strong>What is the difference between the three halts?</strong> <code>needs_input</code> means a person owes the run something — a
+clarification, an approved Metric definition for a published decision metric, a provisional-read sign-off.
+<code>needs_attention</code> means the run produced something a person must look at — a blocking review finding, an error
+from <code>aftergrid check</code>, or a chart <code>/iterate-visual</code> handed back after its third pass. <code>permission_denied</code>
+means the harness refused a write inside the Finding directory: not the data, not the method, not the Operator,
+but the tooling. All three leave every artifact in place and all three are resumable. Those three lists are the
+whole set; anything not on them, a missing adapter included, is reported rather than halted on.</p>
+<p><strong>What happens when the harness refuses a write?</strong> The run stops at the refusal and does not route around it —
+no shell redirect, no copy through <code>/tmp</code>, no second tool that happens not to be refused. It writes
+<code>analysis-progress.yaml</code> with <code>status: permission_denied</code> <strong>only if that file is writable</strong>, which it often is
+not, because it lives in the directory that just refused a write. So the halt is also printed as the last line
+of the final message, as one JSON object: <code>{&quot;aftergrid&quot;: &quot;halt&quot;, &quot;status&quot;: &quot;permission_denied&quot;, &quot;stage&quot;: …, &quot;paths&quot;: [… every refused path …], &quot;reason&quot;: &quot;… the harness&#39;s denial text …&quot;}</code>. A headless harness reads that
+line from stdout when no file could be written; the nightly eval records it as <strong>infrastructure</strong> with the
+cause <code>harness_permission_denied</code> — zero assertions, never an analytical failure
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/eval.md"><code>docs/contracts/eval.md</code></a>).</p>
+<p><strong>Is a missing adapter a halt?</strong> No, and it never was one. The default data path is the recorded one (ADR 0010,
+<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>): your harness runs the SQL and <code>aftergrid record</code> writes
+down what it ran. The orchestration continues unchanged, the draft carries <code>snapshot.guarantees: [artifact_replay]</code> only, its Check outcomes are agent-reported, and <code>check --mode rerun</code> and Revisit are
+unavailable until inputs are captured. The run reports all of that; it does not stop for it.</p>
+<p><strong>Is &quot;insufficient data&quot; a halt?</strong> No. <code>insufficient_data</code>, <code>inconclusive</code> and <code>needs_reframing</code> are outcomes a
+completed Analysis reaches, and they run all the way through review and <code>check</code> like any other. The line that
+matters: a <code>minimum_data</code> Check that <strong>failed</strong> is the answer; a Check that <strong>errored</strong> is a run that did not
+happen, and that is a halt.</p>
+<p><strong>Is a failed falsifier a halt?</strong> No. A pre-registered falsifier that records the outcome it did not expect is
+the Analysis working: it said in advance what would show the Answer wrong, and that happened. The outcome
+becomes <code>inconclusive</code> (or <code>needs_reframing</code>) and the run writes the Finding, reviews it and renders it like
+any other. <code>check</code> reports a <code>falsifier_failed</code> warning, not an error. Halting there would leave the honest
+Finding unwritten, which is the failure the rule exists to prevent.</p>
+<p><strong>What does the run report about the reviews?</strong> The two lines <code>aftergrid review status</code> printed, quoted
+verbatim — its counts line (<code>reviews: 3 current, 3 superseded, 0 stale</code>) and its verdict line
+(<code>verdict: continue (…)</code>) — plus the exit code, never a summary in the run&#39;s own words and never the
+reviewers&#39; text in place of the verdict. <code>review status</code> exits <strong>1</strong> when a required kind&#39;s newest review is
+stale or missing, so a headless run cannot report a Finding as reviewed over reviews nobody redid
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/analysis-directory.md"><code>docs/contracts/analysis-directory.md</code></a>).</p>
+<p><strong>Is a stale review the same thing as a superseded one?</strong> No, and conflating them costs a run. A
+<strong><code>stale</code></strong> count means the <em>newest</em> review of some kind is bound to other content: re-run that review and
+record it at the current digest — never re-pin a review, which would make a reviewer say they read bytes they
+never saw. A <strong><code>superseded</code></strong> count means an earlier review of a kind that <em>is</em> reviewed at the current
+digest: history, not staleness, and no reason to review anything again (<code>aftergrid review record</code> dedupes on (kind, reviewer,
+digest), so the re-review would write nothing). Citi Bike runs 2 and 3 in
+<code>examples/nyc-open-data/docs/run-log.md</code> are the case that put this rule here.</p>
+<p><strong>What stops it from inventing a falsifier to finish clarifying?</strong> The halt. Where the Operator cannot answer,
+the Question stays <code>unresolved</code> with the missing parts listed, and the run stops. The same rule covers metrics,
+populations, windows, approvals and Claims: nothing is filled in to make a field non-empty.</p>
+<p><strong>Can I watch it?</strong> <code>analysis-progress.yaml</code> in the Finding directory carries the stage, the status, the reason
+and when it was last written. It is orchestration bookkeeping — outside the content digest, never referenced by
+a Claim, never shown to a Reader.</p>
+<h2 id="its-working-if">It&#39;s working if</h2>
+<ul>
+<li>Given only a raw ask, it creates the Finding and asks its clarifying questions in one round rather than one
+at a time.</li>
+<li>Every stage appears in <code>analysis-progress.yaml</code> before it starts and again when it ends.</li>
+<li>A run stopped for missing input, restarted after the answer arrives, picks up at the stage that stopped
+instead of starting over.</li>
+<li>A blocking review finding stops the run at <code>analysis_review</code>, and the reason names the reviewer and the
+finding.</li>
+<li>A write the harness refuses stops the run where it happened, with the refused paths and the denial text in
+the last line of its output — and nothing was written around the refusal.</li>
+<li>A Finding it completes carries three current reviews and no attestation, and the summary reports publication
+readiness in the word <code>aftergrid check</code> used — including <code>unknown</code>.</li>
+<li>Its last two commands are <code>aftergrid check</code> and then <code>aftergrid review status</code>, and nothing it did after
+them changed a file: a memo edited after the reviews sends it back to <code>/analysis-review</code> instead.</li>
+<li>The summary quotes <code>review status</code>&#39;s counts line and verdict line verbatim, and a superseded review is
+reported as superseded rather than as a review to redo.</li>
+<li>On the recorded path the reviewers were told the Check outcomes were agent-reported
+(<code>checks_reported_by_agent</code>), and the summary names the tool that ran them and the <code>artifact_replay</code>-only
+guarantee.</li>
+<li>It never runs a fourth visual pass, a second narrative shaping, or <code>/analysis-review</code> twice on the same
+content.</li>
+</ul>
+</details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>/analyze Did the change in our acquisition mix explain the drop in trial conversion? Use the attached data, keep competing explanations visible, and review the answer.</pre><button class="tiny-copy" data-copy="/analyze Did the change in our acquisition mix explain the drop in trial conversion? Use the attached data, keep competing explanations visible, and review the answer.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A reviewed analysis, its evidence, and the questions that remain.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill analyze</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill analyze">Copy install command ↗</button><p>Installation does not grant data access. Skills use the tools and permissions available in your agent.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/analyze/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · A practice for better analysis.</p></div><div class="footer-links"><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>
