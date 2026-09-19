@@ -8,7 +8,7 @@ Three values, never a boolean:
 | --- | --- |
 | `ready` | A `publication_approval` attestation bound to the Finding's **current** digest was verified through the GitHub API: an APPROVED, undismissed review at the exact analyzed commit, by a login on the Instance allowlist, on a pull request opened by the Instance's automation identity. |
 | `not_ready` | Something is definitely wrong or missing: no attestation, a stale one, an untrusted source, a wrong commit, an unauthorized or dismissed reviewer, an impossible author/approver split, an untrusted policy, or a Finding that is not `complete`. |
-| `unknown` | The question could not be answered: no token, no client, the API could not be read, or a later objection carries a timestamp that cannot be ordered against the approval. Only a labelled draft may be produced. `unknown` is never rounded up to `ready` and never down to a silent pass. A pointer the *Finding* wrote badly is not `unknown`: it is a defect, and therefore `not_ready`. |
+| `unknown` | The question could not be answered: no token, no client, the API could not be read, or a later objection carries a timestamp that cannot be ordered against the approval. Only a labeled draft may be produced. `unknown` is never rounded up to `ready` and never down to a silent pass. A pointer the *Finding* wrote badly is not `unknown`: it is a defect, and therefore `not_ready`. |
 
 ## The trust boundary
 
@@ -108,7 +108,7 @@ One person, one bot, no reviewer credentials on the runner.
 
 1. **Create the bot identity once.** A second GitHub account (or a GitHub App installation) that is *not* the human. Give it write access to the Instance repository so it can open pull requests. Put its login in `publication.automation_login`. Put the human's login in `publication.trusted_approvers`. Commit `aftergrid.yaml` and protect it with CODEOWNERS + branch protection so only the human can change it.
 2. **The bot opens the pull request.** The agent (running as the bot) commits the Finding directory to a branch and opens a pull request in `publication.repository`. Record the branch head sha.
-3. **The human reviews and approves at that exact sha.** Open the pull request, read the Finding, and submit an **Approve** review. GitHub records it against the current head commit. If anything is pushed afterwards, the approval no longer sits at the head and readiness drops back to `not_ready`; ask for a fresh review.
+3. **The human reviews and approves at that exact sha.** Open the pull request, read the Finding, and submit an **Approve** review. GitHub records it against the current head commit. If anything is pushed afterward, the approval no longer sits at the head and readiness drops back to `not_ready`; ask for a fresh review.
 4. **Write the attestation.** Add to `manifest.yaml`:
    ```yaml
    attestations:
@@ -122,7 +122,7 @@ One person, one bot, no reviewer credentials on the runner.
 5. **The runner verifies with a read-only token.** Export `GITHUB_TOKEN` (or `GH_TOKEN`) holding a token with read access to the repository — a fine-grained token with *Pull requests: read* is enough. It must not be the human reviewer's session or anything that could submit a review. Run `aftergrid check <finding-dir>`; readiness becomes `ready` only if every rule above holds.
 6. **Regenerate before publishing.** Run `aftergrid render <finding-dir>` (or `verifyGeneratedOutputs`) so the published HTML and SVG are the ones the validated source produces, not whatever is cached beside it.
 
-The agent never approves, never holds reviewer credentials and never writes to the API. If the human is unavailable, the honest outcome is a labelled draft.
+The agent never approves, never holds reviewer credentials and never writes to the API. If the human is unavailable, the honest outcome is a labeled draft.
 
 ## Not verified in this repo
 

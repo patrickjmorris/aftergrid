@@ -39,7 +39,7 @@ jobs:
       - name: Install the guardrail hook, and stop if it does not self-test clean
         run: node "$RUNNER_TEMP/aftergrid/src/cli.ts" hook install
 
-      - name: Run the labelled requests once
+      - name: Run the labeled requests once
         env:
           # A token for the automation identity, never a reviewer's. Read from the environment only.
           GITHUB_TOKEN: ${{ secrets.AFTERGRID_BOT_TOKEN }}

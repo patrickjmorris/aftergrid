@@ -85,7 +85,7 @@ Tell the Operator, in this order:
    that a proposed definition cannot be the published decision metric until they approve it. For the decision
    metric, say what its counter-metrics are, or that it records why there are none — and, when nothing is
    recorded either way, say that too rather than leave it unsaid.
-3. Anything unresolved, and who owns it. Do not round `unresolved` up to "ready".
+3. Anything unresolved, and who owns it. Do not round `unresolved` up to "ready."
 4. The next command: `/analyze <finding-dir>`, which runs the checked analysis, the writing and the review.
 
 `node src/cli.ts <command>` where aftergrid runs from a source checkout; `aftergrid <command>` where it is

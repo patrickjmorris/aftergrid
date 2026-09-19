@@ -29,7 +29,7 @@ Later: 6 enterprise support subscription · 29 consultancy referral channel.
 
 Reject: 4 fractional Head of Data · 7 paid independent Finding review (conflicts with the PR-review trust source)
 · 10 grants · 11 bounties · 14 podcast · 15 video/affiliate · 16 job board · 21 marketplace of "verified"
-definitions (contradicts ADR 0007/0002) · 22 open core / dual licence · 24 white-label render licence (MIT
+definitions (contradicts ADR 0007/0002) · 22 open core / dual license · 24 white-label render license (MIT
 already permits) · 25 paid GitHub App · 30 Operator certification.
 
 ## Pressure test (2026-09-17): what the brief gets wrong
@@ -120,7 +120,7 @@ content in Findings · sponsor placements only on site/docs chrome.
 
 1. Fix the README visibility line.
 2. Formative study with existing renders (fixture onboarding-checklist Finding = correct; NYC congestion Finding
-   = inconclusive; a negatives fixture rendered as a labelled draft = controlled-misleading). ~15h, unpaid,
+   = inconclusive; a negatives fixture rendered as a labeled draft = controlled-misleading). ~15h, unpaid,
    5–8 people. Sanitized observations per `docs/design/reader-session-a2f.md`.
 3. Entity, terms, DPA template decided by the owner.
 4. Publish npm + plugin marketplace listing (owner's release instruction).

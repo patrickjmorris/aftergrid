@@ -1,6 +1,6 @@
 # Narrative criteria
 
-The judgements about a Finding's prose that no linter can make. `/shape-narrative` applies them while
+The judgments about a Finding's prose that no linter can make. `/shape-narrative` applies them while
 writing; the Reader reviewer in `/analysis-review` applies the same list while reading, and reports where
 the memo fails one. Two audiences, one page, so a writer and a reviewer are never working from different
 rules.
@@ -16,8 +16,8 @@ silently.
 
 - The first sentence answers the Question asked, in the Reader's words, and is true of the evidence.
 - A non-answer says so in the first clause. "We cannot tell yet" before the reason, never after it.
-- It states what was found, not what was done: "New users who saw the checklist came back more often", not
-  "We compared 7-day retention across arms".
+- It states what was found, not what was done: "New users who saw the checklist came back more often," not
+  "We compared 7-day retention across arms."
 - Reading the Answer and the caveat alone leaves a Reader with a conclusion they would not have to retract
   after reading the rest.
 
@@ -25,25 +25,25 @@ silently.
 
 - It is the caveat that would change the conclusion, not the most technically interesting one.
 - It is legible to the profile: a Reader with no data training can tell what it rules out.
-- On a `causal` Claim it names the randomisation the conclusion rests on. On `associational`, the most
+- On a `causal` Claim it names the randomization the conclusion rests on. On `associational`, the most
   plausible other explanation. On a non-answer, that the absence of a finding is not a finding of absence.
 - It does not hide behind a hedge. "Results may vary" tells a Reader nothing; name the thing that varies.
 
 ## 3. Every quantity word is earned
 
-- "doubled", "halved", "most", "nearly all", "sharply" assert a measured quantity. Either a bound token
+- "doubled," "halved," "most," "nearly all," "sharply" assert a measured quantity. Either a bound token
   supports the word or the word goes.
 - "significant" is either a bound statistical result the Analysis produced or it is deleted. In casual use
   it reads as "large" to a Reader and as a test result to anyone else.
 - A rounded number in prose matches what the render will display, because display formatting is applied once
   at render.
-- Direction words ("up", "better", "improved") name what they are relative to in the same sentence.
+- Direction words ("up," "better," "improved") name what they are relative to in the same sentence.
 
 ## 4. The comparison is visible
 
 - The sentence says what the number is compared with. A rate with no denominator in sight is the misreading
   on almost every profile's list.
-- An exploratory cut is labelled as decided after the fact, in the subsection, not only in the manifest.
+- An exploratory cut is labeled as decided after the fact, in the subsection, not only in the manifest.
 - Where no comparison was made, the memo says so and says why, rather than leaving a bare number to be read
   against whatever the Reader last saw.
 

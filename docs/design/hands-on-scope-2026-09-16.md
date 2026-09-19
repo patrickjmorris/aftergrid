@@ -6,7 +6,7 @@ Scope for the first real Analysis run with the skills, in the Operator's own har
 
 Test two things at once:
 
-1. **The positioning.** "Go deeper when the agent can't." The self-serve agent answers a question shallowly; the skills take the same question to a Finding a Reader can act on. Vera's tier 3 failure ("stop early and optimistically") is the behaviour we're trying to beat.
+1. **The positioning.** "Go deeper when the agent can't." The self-serve agent answers a question shallowly; the skills take the same question to a Finding a Reader can act on. Vera's tier 3 failure ("stop early and optimistically") is the behavior we're trying to beat.
 2. **The recorded path** (ADR 0010). The harness runs every query. aftergrid never touches the source. Does the Finding contract hold, and does a Reader trust the result, when nothing was captured or rerun?
 
 Secondary: find where the skills assume aftergrid owns the SQL and fix those assumptions, and find what the middle of a days-long analysis needs that the skills don't provide (the gap named in the 2026-09-16 review).
@@ -21,7 +21,7 @@ Why this one: it is associational by construction, so the Claim-type discipline 
 
 **The Reader is a podcaster, and the Finding is public.** It will be published and shared with podcasters, not read by an internal product owner. That sets the Reader profile (a `podcaster` profile the Instance does not have yet), the decision the Finding informs (the podcaster's: whether to invest in video for their show), and the export policy (public; reader-safe projection only; nothing about Spot Sports internals, ranking pipeline mechanics or unpublished product bets in the rendered Finding). Publication needs the human APPROVED attestation path in `docs/contracts/publication.md`, which this run exercises for real for the first time. The Reader session is therefore with an actual podcaster, and the contact route on the Finding is live public exposure.
 
-Candidate decisions `/grill-question` should surface (the Operator settles, not this doc): for the podcaster Reader, whether adding video is associated with ranking well enough to be worth the cost; for Spot Sports internally, whether to weight video availability in discovery ranking or prioritise linking for highly ranked shows. One Finding has one Reader, so the internal decision, if it survives the grill, is a second Finding on the same Question, not a section in this one. Candidate outcome: `needs_reframing` is a valid and likely result for an ask phrased as "correlate", and an associational Claim published to podcasters must not read as causal.
+Candidate decisions `/grill-question` should surface (the Operator settles, not this doc): for the podcaster Reader, whether adding video is associated with ranking well enough to be worth the cost; for Spot Sports internally, whether to weight video availability in discovery ranking or prioritize linking for highly ranked shows. One Finding has one Reader, so the internal decision, if it survives the grill, is a second Finding on the same Question, not a section in this one. Candidate outcome: `needs_reframing` is a valid and likely result for an ask phrased as "correlate", and an associational Claim published to podcasters must not read as causal.
 
 ## Harnesses, in order
 
@@ -36,7 +36,7 @@ All four have a shell, so `aftergrid check` and `render` run everywhere. What di
 
 ## The comparison
 
-1. **Baseline.** Three plain sessions in harness 1 with the same data tools and no aftergrid skills. Ask the verbatim question each time. Save all three as-is and take the best one forward by the Operator's judgement, recording why. This is the self-serve answer.
+1. **Baseline.** Three plain sessions in harness 1 with the same data tools and no aftergrid skills. Ask the verbatim question each time. Save all three as-is and take the best one forward by the Operator's judgment, recording why. This is the self-serve answer.
 2. **Skills.** `/grill-question` on the same ask, then `/analyze` through to a reviewed draft, on the recorded path. Save the Finding.
 3. **Reader session.** `docs/design/reader-session-a2f.md` protocol, both artifacts, one podcaster who does not write SQL. Baseline first, then the Finding. Add one question to the protocol: "Would you share this with another podcaster? What would you say it shows?" because the artifact is meant to travel.
 

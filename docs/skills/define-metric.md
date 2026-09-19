@@ -1,18 +1,16 @@
 # define-metric
 
-Specify an ambiguous analytical metric with numerator, denominator, grain, eligibility, time semantics, examples, and counter-metrics. Use before comparing or optimizing a number; definitions stay proposed until the owner approves.
-
 ## What it does
 
-`define-metric` turns a business label into a counting contract two analysts would apply the same way: numerator membership, denominator eligibility, time rules, edge cases, checks, and what could get worse if the number became a target.
+Turns a business label into a counting contract two analysts would apply the same way: numerator membership, denominator eligibility, time rules, edge cases, checks, and what could get worse if the number became a target.
 
-The defining constraint: the skill proposes. An agent does not approve organizational meaning, and it does not silently edit an already approved definition.
+The skill proposes. An agent does not approve organizational meaning, and it does not silently edit an already approved definition.
 
 ## When to reach for it
 
-Type `/define-metric`, or ask in plain language. Available for explicit use and automatic discovery.
+Type `/define-metric`, or ask in plain language.
 
-Reach for it when “activation,” “active,” “revenue,” or “retained” would produce different SQL in two reasonable readings, or before anyone starts optimizing the number. Use [grill-question](grill-question.md) when the decision and comparison are still unset. Use [checked-analysis](checked-analysis.md) to compute a definition that is already agreed.
+Use it when “activation,” “active,” “revenue,” or “retained” would produce different SQL in two reasonable readings, or before anyone starts optimizing the number. Use [grill-question](grill-question.md) when the decision and comparison are still unset. Use [checked-analysis](checked-analysis.md) to compute a definition that is already agreed.
 
 ## The counting contract
 
@@ -37,4 +35,4 @@ Name event time versus processing time, timezone, interval boundaries, cohort as
 
 ## Where it fits
 
-A Frame-stage standalone, often after [grill-question](grill-question.md) and before [plan-analysis](plan-analysis.md). Neighbors: [explore-data](explore-data.md) for source grain, [learn-from-analysis](learn-from-analysis.md) when a later correction should become a proposed definition rather than folklore. The map is [ask-aftergrid](ask-aftergrid.md).
+A Frame-stage standalone, often after [grill-question](grill-question.md) and before [plan-analysis](plan-analysis.md). Neighbors: [explore-data](explore-data.md) for source grain, [learn-from-analysis](learn-from-analysis.md) when a later correction should become a proposed definition rather than folklore.

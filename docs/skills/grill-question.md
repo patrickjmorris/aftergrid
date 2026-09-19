@@ -1,32 +1,30 @@
 # grill-question
 
-Turn a vague analytics ask into an answerable question: decision or purpose, reader, metric, population, window, comparison, and evidence that could change the conclusion.
-
 ## What it does
 
-`/grill-question` interviews you until a raw ask is a question another analyst could execute consistently: who will use the answer, what is being counted, among whom, over what window, against what baseline, and what observation would change the conclusion.
+Interviews you until a raw ask is a question another analyst could execute: who uses the answer, what is counted, among whom, over what window, against what baseline, and what would change the conclusion.
 
-The defining constraint: it asks only about choices that would change the work. Facts sitting in the supplied data are looked up, not turned into a meeting. Unresolved fields stay unresolved rather than being filled with something plausible.
+It asks only about choices that would change the work. Facts in the supplied data are looked up, not turned into a meeting. Unresolved fields stay unresolved.
 
 ## When to reach for it
 
-You invoke this by typing `/grill-question` — the agent will not start it on its own. In Codex, use `$grill-question`.
+You start it: `/grill-question`, or `$grill-question` in Codex.
 
-Reach for it before an expensive analysis, or when words like active, retained, revenue, or improved hide several calculations. Reach for [analyze](analyze.md) when you want the interview and the investigation in one run. Reach for [revise-finding](revise-finding.md) when the artifact exists and it is the answer, not the question, that needs changing.
+Use it before an expensive analysis, or when words like active, retained, revenue, or improved hide several calculations. Use [analyze](analyze.md) for the interview and the investigation in one run. Use [revise-finding](revise-finding.md) when the artifact exists and the answer, not the question, needs changing.
 
 ## A falsifier is not a ritual field
 
-For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or say that no such check is available. Do not invent an arbitrary threshold after seeing the numbers. If the metric will be optimized, ask what could get worse while it improves.
+For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or say no such check is available. Do not invent a threshold after seeing the numbers. If the metric will be optimized, ask what could get worse while it improves.
 
-The [fieldnote on asking first](../fieldnotes/ask-before-query.md) is the teaching companion. The onboarding teaching case in the skills lab is the worked caution: 60% versus 40% week-four return does not establish what mandatory onboarding would do.
+The [fieldnote on asking first](../fieldnotes/ask-before-query.md) is the teaching companion. The onboarding lab case is the caution: 60% versus 40% week-four return does not establish what mandatory onboarding would do.
 
 ## Common questions
 
-**Will it ask me the same things twice?** No. Settled answers are restated so you can correct them, then left alone.
+**Will it ask the same things twice?** No. Settled answers are restated so you can correct them, then left alone.
 
-**What if I do not know the falsifier?** Then it is not written. An unresolved question with the missing parts named is a better artifact than a resolved-looking one with an invented bar.
+**What if I do not know the falsifier?** Then it is not written. An unresolved question with the missing parts named beats a resolved-looking one with an invented bar.
 
-**Does it approve metric definitions?** No. Proposed definitions remain proposals. An agent does not sign organizational meaning.
+**Does it approve metric definitions?** No. Proposed definitions remain proposals.
 
 **Does a warehouse or CLI have to exist?** No. The default output is a short brief in the conversation or a file you choose.
 
@@ -39,11 +37,11 @@ The [fieldnote on asking first](../fieldnotes/ask-before-query.md) is the teachi
 
 ## Where it fits
 
-User-invoked Frame-stage entry. [analyze](analyze.md) reuses the same clarification procedure without calling this skill. Neighbors: [define-metric](define-metric.md) when the label is the dispute, [explore-data](explore-data.md) when the tables are the dispute. The map is [ask-aftergrid](ask-aftergrid.md).
+User-invoked Frame-stage entry. [analyze](analyze.md) reuses the same clarification procedure without calling this skill. Neighbors: [define-metric](define-metric.md) when the label is the dispute, [explore-data](explore-data.md) when the tables are the dispute.
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -70,7 +68,7 @@ ever calls another one.
 ## When to reach for it
 
 - You have an ask in plain words and no metric, window, population or falsifier behind it yet.
-- The ask uses a word your Instance defines differently, or a causal word ("helped", "drove") whose design you
+- The ask uses a word your Instance defines differently, or a causal word ("helped," "drove") whose design you
   have not confirmed.
 - No approved Metric definition fits, and you want the new one written down as a proposal before anyone runs it.
 - A Finding you started is sitting at `question.state: unresolved` and the missing part is now settled.
@@ -138,4 +136,4 @@ named is a better artifact than a resolved-looking one with an invented falsifie
 - Every metric it proposes as a candidate decision metric either names counter-metrics with a mechanism each, or
   records in one sentence why it names none. Neither is left blank.
 - The hand-off names the definitions with their versions and lifecycles, and does not round `unresolved` up to
-  "ready".
+  "ready."

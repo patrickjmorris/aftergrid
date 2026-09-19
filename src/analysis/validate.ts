@@ -359,7 +359,7 @@ export function validateAnalysisFile(dir: string, manifest?: any): Problem[] {
       return;
     }
     // A named pair declares a direction, and only the three operations whose sign depends on operand order
-    // have one to declare — and each accepts only the vocabularies whose reading it can honour. The same
+    // have one to declare — and each accepts only the vocabularies whose reading it can honor. The same
     // refusals, with the same category, as `manifest.derived` (fixture-safety.mjs).
     const allowed = vocabulariesFor(d.operation) as { keys: string[] }[];
     if (!allowed.length) {

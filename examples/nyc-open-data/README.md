@@ -138,7 +138,7 @@ open /tmp/finding.html
 What to look at, in order:
 
 - **The banner**, *"Draft. Publication approval has not been verified."*, then **the Answer** — one sentence,
-  for a named Reader profile, here a non-data transport programme lead who is a composite and not a person.
+  for a named Reader profile, here a non-data transport program lead who is a composite and not a person.
 - **The provenance popovers.** Every number in the prose opens the chain behind it: the calculation, the saved
   result file with its row, column and hash, the query with its SQL hash, the retained input it ran on, and the
   definition it uses with its lifecycle (`proposed`, on all of them). No number asks to be taken on trust.
@@ -148,7 +148,7 @@ What to look at, in order:
   honest Finding unwritten.
 - **Review status.** Three agent reviews at the current content digest, no blocking findings, and *"Publication
   approval: None verified. This is a draft."* An agent review is not an approval and the page says so. The Citi
-  Bike page also quotes three earlier reviews from before a sign fix, labelled as being for older content.
+  Bike page also quotes three earlier reviews from before a sign fix, labeled as being for older content.
 
 ## 5. The approval round trip
 
@@ -171,7 +171,7 @@ requests #2 and #3 exist and are authored by `github-actions[bot]`, so it is on 
 From there the trusted human submits an **Approve** review at the head commit; the Finding records a
 `publication_approval` attestation naming that repository, pull request, review id and commit sha; and
 `aftergrid check` with a read-only `GITHUB_TOKEN` re-verifies the whole chain through the API before it will say
-`ready`. Push anything afterwards and the approval no longer sits at the head, so readiness drops back.
+`ready`. Push anything afterward and the approval no longer sits at the head, so readiness drops back.
 
 **Nothing here is `ready`.** Both pull requests are open **drafts**, both carry **zero reviews**, both manifests
 record `attestations: []`, and the workflow writes no review of its own — it opens a draft and stops. Approval
@@ -208,7 +208,7 @@ reports what it could *not* verify rather than rounding it up:
   names the fetch date its numbers rest on; `build_provenance` records the URL, size, `ETag` and hash of
   everything read, or the absence of a hash for a file streamed and never held.
 - **No user-level data**: trip and ride records, not rider records, so nothing here can say whether the *same*
-  people changed behaviour. And **weather is a Check, not a control** — a passing Check does not make a
+  people changed behavior. And **weather is a Check, not a control** — a passing Check does not make a
   comparison causal.
 - **The middle of every run is written down** — the permission wall, a capture that ran before the
   clarification it was meant to follow, a percent-change operand order the arithmetic could not catch and a

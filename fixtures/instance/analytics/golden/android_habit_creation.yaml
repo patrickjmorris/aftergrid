@@ -1,4 +1,4 @@
-# Golden Question with an expected abstention: an instrumentation break, not a behaviour change.
+# Golden Question with an expected abstention: an instrumentation break, not a behavior change.
 schema_version: 0.1.0
 id: android_habit_creation
 raw_ask: Did Android users stop creating habits after the August 24 release?
@@ -20,7 +20,7 @@ expected:
   must_not:
     - conclude that Android users stopped creating habits
     - report a causal effect of the release
-  reasoning: A rate that falls to exactly zero on one platform on a release date, while the other platforms hold, is the signature of a missing event, not of behaviour. The data cannot distinguish the two, so the Question needs reframing (verify instrumentation first). No mechanical Check can establish that the zeros are wrong; this is a review concern routed to the owner.
+  reasoning: A rate that falls to exactly zero on one platform on a release date, while the other platforms hold, is the signature of a missing event, not of behavior. The data cannot distinguish the two, so the Question needs reframing (verify instrumentation first). No mechanical Check can establish that the zeros are wrong; this is a review concern routed to the owner.
 constraints:
   window: { start: "2026-08-01", end: "2026-09-07", timezone: America/New_York }
   population: signups from August 1, by platform, before and after 2026-08-24

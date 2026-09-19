@@ -1,7 +1,7 @@
 // The one SQL execution policy for aftergrid: used by the fixture builder (scripts/fixture-tool.mjs build),
 // the DuckDB adapter (src/adapters/duckdb.ts) and `check --mode rerun`. Keep security decisions here only.
 //  - a sandboxed in-memory DuckDB: no extension autoload/install, no temp spill, bounded memory and threads
-//  - declared inputs are materialised first, then external file access is disabled and the config locked
+//  - declared inputs are materialized first, then external file access is disabled and the config locked
 //  - authored SQL is exactly one statement, SELECT only; named parameters are bound only when the parser reports them
 //  - a statement past its timeout is interrupted; resources are released in finally
 //  - a Check result is exactly one row: boolean-or-null `pass`, optional text `detail`
@@ -21,7 +21,7 @@ export async function applyLimits(c, limits = DEFAULT_LIMITS) {
   await c.run("SET TimeZone='UTC'");
 }
 
-/** Lock the sandbox after every declared input has been materialised. */
+/** Lock the sandbox after every declared input has been materialized. */
 export async function sealConnection(c) {
   await c.run("SET enable_external_access=false");
   await c.run("SET lock_configuration=true");

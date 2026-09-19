@@ -33,7 +33,7 @@ port,url_env}` with a small YAML-subset reader, no dependency on the `yaml` pack
 through `safePath` against the Instance root. A `url_env` that is set is parsed for host and database only; the
 credential is never read into a verdict or a log.
 
-With **no `aftergrid.yaml` above `cwd`** the hook says so (`policy_source: "no instance policy found"`), recognises
+With **no `aftergrid.yaml` above `cwd`** the hook says so (`policy_source: "no instance policy found"`), recognizes
 no source as configured, and still blocks the built-in destructive-command list below.
 
 ## Supported paths

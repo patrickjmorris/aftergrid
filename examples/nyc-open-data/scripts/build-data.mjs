@@ -25,7 +25,7 @@
 // make its own `build_meta` untrue.
 //
 // A skipped month is not a success: every month a source does not serve is recorded in `build_meta`
-// (`months_built:<source>` and `months_skipped`), summarised in the log, and — when the window was stated with
+// (`months_built:<source>` and `months_skipped`), summarized in the log, and — when the window was stated with
 // an explicit `--to` — exits 1. That holds on the append path too: a month asked for and not served is a
 // shortfall whether the run built one month or thirty. A build (or append) whose result would hold no months at
 // all for a requested source refuses to replace an existing `--out`, rather than putting an empty database

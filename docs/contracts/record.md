@@ -87,7 +87,7 @@ so recording the same thing twice changes nothing the digest covers. The tool na
   other; only a trailing empty **line** is not a row.
 
 Whatever arrives, what is saved is the one canonical format. The Finding never depends on the file it was handed:
-the bytes are copied in, so deleting or editing the source afterwards changes nothing.
+the bytes are copied in, so deleting or editing the source afterward changes nothing.
 
 ## What is guaranteed, and what is not
 

@@ -1,6 +1,6 @@
 # aftergrid
 
-Open-source analytics skills for sharpening questions, investigating data, challenging conclusions and retaining useful lessons. Skills work with the agent's existing tools; the optional Engine adds Checks and a thin CLI for producing Findings with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Portable skill outputs are not automatically Engine Findings or approved definitions.
+Open-source analytics skills for sharpening questions, investigating data, challenging conclusions, and retaining useful lessons. Skills work with the agent's existing tools. The optional Engine adds Checks and a thin CLI for Findings with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Portable skill output is not an Engine Finding.
 
 This glossary governs Engine and Instance docs and skill prose. Reader-facing copy may use plain words (analyst, decision maker, workspace, "a finding").
 
@@ -17,7 +17,7 @@ One run that answers a Question and produces a Finding.
 _Avoid_: report, notebook, investigation
 
 **Finding**:
-The document an Analysis produces: Claims, tables and charts, with every number traced to the evidence behind it. "Inconclusive", "insufficient data" and "question needs reframing" are valid Findings.
+The document an Analysis produces: Claims, tables and charts, with every number traced to the evidence behind it. "Inconclusive," "insufficient data" and "question needs reframing" are valid Findings.
 _Avoid_: memo, report, result, insight, readout
 
 **Claim**:
@@ -63,7 +63,7 @@ An entry stating who decided, what action or deliberate inaction was taken, why,
 _Avoid_: outcome, verdict
 
 **Revisit**:
-The operation that refreshes a merged Finding's Snapshot as new retained inputs, reruns its Analysis, evaluates each Claim's Recheck policy and the Question's falsifier, and produces a new revision reporting each Claim as holds, contradicted, insufficient data or not comparable. Whether a Decision still holds is the decision owner's judgement, never inferred by the Engine.
+The operation that refreshes a merged Finding's Snapshot as new retained inputs, reruns its Analysis, evaluates each Claim's Recheck policy and the Question's falsifier, and produces a new revision reporting each Claim as holds, contradicted, insufficient data or not comparable. Whether a Decision still holds is the decision owner's judgment, never inferred by the Engine.
 _Avoid_: refresh (the data step only), re-run, monitor, alert
 
 **Decision log**:

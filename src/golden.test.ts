@@ -1,4 +1,4 @@
-// ag-synthetic-golden-nightly-5vm: Golden Questions and the planted-effects catalogue are checked, not trusted.
+// ag-synthetic-golden-nightly-5vm: Golden Questions and the planted-effects catalog are checked, not trusted.
 // Every reference value is recomputed from the synthetic warehouse through the DuckDB adapter.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -30,13 +30,13 @@ test("every Golden Question validates, names an existing Reader, definitions and
     for (const d of doc.expected.definition_ids) assert.ok(existsSync(join(INSTANCE, "analytics", "definitions", `${d}.md`)), `${file}: definition ${d}`);
     for (const t of doc.expected.tables_read) assert.ok(tables.has(t), `${file}: table ${t}`);
     for (const pid of doc.planted ?? []) assert.ok(planted.items.some((i: any) => i.id === pid), `${file}: planted ${pid}`);
-    if (doc.expected.claim_type === "causal") assert.ok(/random/i.test(doc.expected.reasoning), `${file}: a causal expectation must rest on randomised assignment`);
+    if (doc.expected.claim_type === "causal") assert.ok(/random/i.test(doc.expected.reasoning), `${file}: a causal expectation must rest on randomized assignment`);
   }
   assert.ok(goldens.some(({ doc }) => doc.expected.outcome === "insufficient_data" || doc.expected.outcome === "needs_reframing"), "at least one expected abstention");
   assert.ok(goldens.some(({ doc }) => /denominator|baseline/i.test(doc.expected.reasoning) && (doc.expected.values ?? []).length >= 2), "at least one Question tests denominator/baseline reasoning with reference values");
 });
 
-test("the planted-effects catalogue names a layer and an expectation for every item and every referenced golden exists", () => {
+test("the planted-effects catalog names a layer and an expectation for every item and every referenced golden exists", () => {
   assert.equal(planted.schema_version, "0.1.0");
   const ids = new Set(goldens.map((g) => g.doc.id));
   for (const item of planted.items) {

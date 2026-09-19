@@ -14,7 +14,7 @@
         { "id": "title_states_claim", "verdict": "yes", "note": "The title is the Claim sentence with both shares in it, not an axis label." },
         { "id": "direct_labels", "verdict": "yes", "note": "A layered text mark writes 34.8% and 28.5% beside their bars; no legend and no axis to trace." },
         { "id": "grey_plus_accent", "verdict": "yes", "note": "The control bar is grey; only the checklist bar carries the accent the Claim is about." },
-        { "id": "colorblind_safe", "verdict": "yes", "note": "Accent and grey differ in lightness as well as hue; the bars stay distinct rendered without colour." },
+        { "id": "colorblind_safe", "verdict": "yes", "note": "Accent and grey differ in lightness as well as hue; the bars stay distinct rendered without color." },
         { "id": "axis_not_truncated", "verdict": "yes", "note": "The value scale runs 0 to 0.5, so each bar's length is its share." }
       ],
       "score": 7

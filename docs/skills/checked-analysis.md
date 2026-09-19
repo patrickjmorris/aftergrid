@@ -1,18 +1,16 @@
 # checked-analysis
 
-Analyze supplied data with explicit grain, comparisons, validity checks, and a record of what ran. Use for reproducible calculations or evidence a writer can inspect; optionally bind an Engine Finding.
-
 ## What it does
 
-`checked-analysis` is the TDD analog for analytics: name the checks that would invalidate the result **before** the headline query, run them through the tools you already have, and hand over evidence someone else can inspect.
+The TDD analog for analytics: name the checks that would invalidate the result **before** the headline query, run them through the tools you already have, and hand over evidence someone else can inspect.
 
-The defining constraint: a checked analysis is not a certified analysis. Passing checks never by themselves make an answer trustworthy. A check written after the number is known is a check written to agree with it.
+A checked analysis is not a certified analysis. Passing checks never by themselves make an answer trustworthy. A check written after the number is known is a check written to agree with it.
 
 ## When to reach for it
 
 Type `/checked-analysis`, or let the agent reach for it when calculations need a record. In Claude Code it is hidden from the slash menu (`user-invocable: false`); ask in plain language.
 
-Reach for it when a question is sharp and the evidence does not exist yet, or when a calculation must be rerun after a query changed. Use [grill-question](grill-question.md) if the estimand is still open. Use [write-finding](write-finding.md) when the numbers are pinned and the memo is missing. Use [diagnose-change](diagnose-change.md) when the job is specifically “why did this metric move.”
+Use it when a question is sharp and the evidence does not exist yet, or when a calculation must be rerun after a query changed. Use [grill-question](grill-question.md) if the estimand is still open. Use [write-finding](write-finding.md) when the numbers are pinned and the memo is missing. Use [diagnose-change](diagnose-change.md) when the job is “why did this metric move.”
 
 ## Checks before the number
 
@@ -37,11 +35,11 @@ If access is unavailable, deliver a runnable plan and mark every unexecuted resu
 
 ## Where it fits
 
-Model-invoked Analyze-stage craft. [analyze](analyze.md) reaches for it mid-run. Neighbors: [plan-analysis](plan-analysis.md) before execution, [write-finding](write-finding.md) after. The map is [ask-aftergrid](ask-aftergrid.md).
+Model-invoked Analyze-stage craft. [analyze](analyze.md) reaches for it mid-run. Neighbors: [plan-analysis](plan-analysis.md) before execution, [write-finding](write-finding.md) after.
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -138,7 +136,7 @@ decision metric. If the Question's decision metric is the one that is only propo
 
 **Where does the middle of the analysis go — the dead ends, the days that went nowhere?** Into
 `analysis.yaml#/probes`, in place, as it happens. Each entry carries `at` (the harness's clock at the time,
-never a time reconstructed afterwards) and a `kind`: `exploratory` for a look that informed the plan,
+never a time reconstructed afterward) and a `kind`: `exploratory` for a look that informed the plan,
 `dead_end` for a path tried or considered and abandoned, `reframe` for a look that changed the Question, which
 must then say what changed. Dead ends are kept, not deleted, and the list is read in `at` order as the timeline
 of the run — `check` warns when it is out of order rather than refusing it, because the honest repair is the
@@ -147,7 +145,7 @@ number.
 
 **How are exploratory cuts kept from becoming the headline?** The primary comparison is registered in
 `analysis.yaml` before any cut is explored, with `registered_before_cuts` telling the truth about when. A cut
-decided afterwards is marked `exploratory: true` in `execution_order`, and its Claim carries
+decided afterward is marked `exploratory: true` in `execution_order`, and its Claim carries
 `comparison.pre_registered: false` all the way into the Finding.
 
 **Will it rewrite an approved Finding?** No. `aftergrid execute` and `aftergrid record` both refuse a revision
@@ -162,7 +160,7 @@ window.
 
 - `analysis.yaml#/execution_order` lists every Check before the first analysis query, and the Check files' git
   history agrees with that order.
-- Every exploratory cut is labelled in `execution_order` and in the Claim resting on it.
+- Every exploratory cut is labeled in `execution_order` and in the Claim resting on it.
 - Each probe records what it asked *and* what it observed, and at least one of them changed the plan.
 - Every probe carries `at` and `kind`, the entries are in `at` order, and the dead ends are still there. The
   middle of the analysis is legible from the list alone: where it went, what it abandoned, what it reframed.

@@ -1,6 +1,6 @@
 // Pure Finding validation, shared by `aftergrid check` (src/commands/check.ts) and the fixture tooling
 // (scripts/fixture-tool.mjs). No console output, no process.exit: returns a report object.
-// Extracted from fixture-tool.mjs after the 2026-09-15 code review; behaviour and categories unchanged.
+// Extracted from fixture-tool.mjs after the 2026-09-15 code review; behavior and categories unchanged.
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { safePath, validateStructure, validateResult, calculate, operandRefs, counterMetricProblems, DIRECTIONAL_OPERATIONS, ContractError } from "../fixture-safety.mjs";

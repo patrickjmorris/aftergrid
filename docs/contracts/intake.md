@@ -3,12 +3,12 @@
 Running an Issue request in the background, with pause and retry states a human can act on (spec stories 8 and
 35–37). Implementation: `src/commands/intake.ts` and `src/intake/`. Tests: `src/intake.test.ts`.
 
-The runner analyses nothing. It claims a request at a stable revision, **refuses to dispatch when enforcement is
+The runner analyzes nothing. It claims a request at a stable revision, **refuses to dispatch when enforcement is
 absent**, hands the request to a harness, `check`s what comes back rather than believing it, and reports one of a
 small set of honest states on the Issue and in one pull request per run.
 
 ```bash
-aftergrid intake --repo loop-example/analytics --once            # process what is labelled now, then exit
+aftergrid intake --repo loop-example/analytics --once            # process what is labeled now, then exit
 aftergrid intake --repo loop-example/analytics --poll-seconds 60 # the local poller
 aftergrid intake --repo loop-example/analytics --resume intake_7_9f2c1ab30d41 --provided definition_approval
 ```
@@ -18,7 +18,7 @@ aftergrid intake --repo loop-example/analytics --resume intake_7_9f2c1ab30d41 --
 | `--repo owner/repo` | Where the Issues are. Defaults to `publication.repository` in `aftergrid.yaml`. |
 | `--label <name>` | The trigger label. Default `ready-for-agent`. |
 | `--instance <dir>` | Instance root. Default: walk up from the working directory for `aftergrid.yaml`. |
-| `--once` | Process the Issues labelled right now, then exit. The default. |
+| `--once` | Process the Issues labeled right now, then exit. The default. |
 | `--poll-seconds N` | Loop instead, sleeping N seconds between passes. Uses the injected clock, so tests never wait. |
 | `--harness fixture\|command` | Which harness to dispatch to. `command` shells out to `--harness-command`. |
 | `--harness-command "<template>"` | Whitespace-separated template; `{run_id} {instance} {run_dir} {scratch} {findings} {request}` are substituted **per token**, so a path with spaces stays one argument. No shell is involved. |
@@ -65,9 +65,9 @@ Everything a run needs to survive a restart is on disk under the Instance root, 
 | `claimed` | The claim file exists. Nothing has been dispatched. | Preflight, then dispatch. |
 | `blocked` | Preflight refused: enforcement or policy is absent. **Nothing was dispatched and nothing was written under `findings/`.** | Fix the named problem and rerun. |
 | `running` | Handed to the harness. | The harness's answer, or a rerun taking over an interrupted run. |
-| `needs_input` | Named things are missing and guessing is not allowed. The Issue is labelled `needs-info`. | `--resume` once every need is provided. |
+| `needs_input` | Named things are missing and guessing is not allowed. The Issue is labeled `needs-info`. | `--resume` once every need is provided. |
 | `needs_attention` | Something came back that a human must look at: `check` reported invalid evidence, or the produced Finding was out of scope. **No pull request is opened.** | A human reads the Finding. |
-| `complete` | A Finding was produced, `check` reported its evidence valid, and one draft pull request exists. The Issue is labelled `ready-for-human`. | A human review. |
+| `complete` | A Finding was produced, `check` reported its evidence valid, and one draft pull request exists. The Issue is labeled `ready-for-human`. | A human review. |
 | `failed` | A technical failure, with a recoverable reason and the attempt count. | Rerun. |
 | `superseded` | The Issue changed; a newer revision owns the request. Artifacts kept. | Nothing: it is history. |
 
@@ -90,7 +90,7 @@ Checked before every dispatch, including a `--resume` dispatch, and reported fac
 **There is no bypass.** No `--allow-no-hook`, no environment variable, no "warn and continue". A flag that let an
 unattended run proceed without the guard would be exactly the rule-with-no-enforcement ADR 0006 exists to refuse,
 and "we warned you" is not enforcement. A preflight failure puts every run in `blocked` with the reason, writes
-nothing under `findings/`, and exits non-zero. It still *reads* the labelled Issues, so the report can name which
+nothing under `findings/`, and exits non-zero. It still *reads* the labeled Issues, so the report can name which
 requests are blocked; it writes nothing to GitHub — no label, no comment, no pull request — and dispatches nothing.
 
 ## Label semantics
@@ -105,7 +105,7 @@ Per `docs/agents/issue-tracker.md`. The runner adds exactly two labels, each onl
 
 The runner **never removes a label** — not even the trigger — and **never adds any other one**. Removing the
 trigger would be the runner editing its own queue; the claim file is what stops a second run instead, so an Issue
-that keeps its `ready-for-agent` label is reported as `already_claimed` on the next pass, not re-analysed.
+that keeps its `ready-for-agent` label is reported as `already_claimed` on the next pass, not re-analyzed.
 
 This is the one place aftergrid **writes** to the GitHub API: labels, comments and its own pull request. It never
 writes to a data source, and it never submits a review. Publication's own client (`src/publication/github.ts`) is
@@ -144,7 +144,7 @@ its error class, never as a pull request that exists.
   reproducible — and it is only ever input. Nothing in an Issue can relax preflight, change the Instance policy,
   add a label the runner does not add on its own, name a credential or reach a URL. The test
   "Issue text asking for the controls to be relaxed changes nothing" asserts the policy file and the hook settings
-  are byte-identical afterwards.
+  are byte-identical afterward.
 
 ## Timeouts
 
@@ -179,7 +179,7 @@ provided — and the report says so in those words. Resume reuses the same run i
 ## What intake does **not** enforce or verify
 
 - **That the guard covers a path it says it does not cover.** `docs/contracts/hook.md` lists the uncovered paths.
-- **That the declared source limits are honoured.** Preflight checks they are written down; the adapters enforce.
+- **That the declared source limits are honored.** Preflight checks they are written down; the adapters enforce.
 - **That a Finding is right, or that the harness did what it was asked.** Only that `aftergrid check` reports its
   evidence valid — which is a fact about references, hashes and structure, not about truth.
 - **Publication.** Readiness is never `ready` here, and `intake` never approves anything.

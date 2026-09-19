@@ -61,7 +61,7 @@ analytical regressions out of a broken orchestrator.
 | `analyzer_wrote_nothing` | it exited 0 and left the draft exactly as `new finding` wrote it | yes |
 | `harness_permission_denied` | the run halted because the harness refused a write inside the Finding directory | no — not until the harness is configured to allow it |
 
-An analyzer that prints `{"status":"declined", ...}` has made a judgement rather than crashed: that case stays
+An analyzer that prints `{"status":"declined", ...}` has made a judgment rather than crashed: that case stays
 `not_run`.
 
 ### A harness that refused the write
@@ -134,7 +134,7 @@ compare against, and the assertion is `not_evaluated` with category `infrastruct
 fails. A memo that does not has established nothing, and is recorded `not_evaluated` rather than `pass`: the
 shipped goldens' entries are prose descriptions of a forbidden conclusion ("recommend keeping or rolling back
 the price"), which no memo reproduces verbatim, so counting their absence as a held assertion would inflate
-what the record says the run checked. The judgement belongs to the Question and Method reviewers.
+what the record says the run checked. The judgment belongs to the Question and Method reviewers.
 `expected.must_state` is not asserted here for the same reason — a reviewer judges it, in words. The id carries
 the entry's ordinal, so two entries sharing a 40-character prefix stay two assertions.
 
@@ -284,7 +284,7 @@ which the workflow claims a model ran when none did. The run directory is upload
 is posted to the job summary.
 
 `budget_minutes` and `max_cost_usd` are free-text dispatch inputs and are validated in the shell before they
-reach arithmetic or a flag. The baseline for the comparison is the most recent completed, non-cancelled run of
+reach arithmetic or a flag. The baseline for the comparison is the most recent completed, non-canceled run of
 this workflow **on the default branch**, and the chosen run id is printed into the job summary. Issue filing
 runs on the schedule as well as on a dispatch that asked for it: `inputs` is null on a schedule, so gating on
 `inputs.report_issues` alone would mean the nightly that actually runs every night never filed what it found.

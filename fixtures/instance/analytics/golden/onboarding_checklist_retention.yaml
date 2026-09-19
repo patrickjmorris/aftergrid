@@ -1,4 +1,4 @@
-# Golden Question: a randomised experiment; the one case where a causal Claim is expected.
+# Golden Question: a randomized experiment; the one case where a causal Claim is expected.
 schema_version: 0.1.0
 id: onboarding_checklist_retention
 raw_ask: Did the onboarding checklist help new users come back?
@@ -19,7 +19,7 @@ expected:
     - that the 3 pp bar was agreed before the experiment and is a decision rule, not a guaranteed effect size
   must_not:
     - present the platform split as a settled fact (it was not pre-registered)
-  reasoning: Assignment was randomised by user inside the experiment window, so the difference in retained_7d between arms is attributable to the checklist. The planted effect is on mobile only; the web split is small and exploratory.
+  reasoning: Assignment was randomized by user inside the experiment window, so the difference in retained_7d between arms is attributable to the checklist. The planted effect is on mobile only; the web split is small and exploratory.
 constraints:
   window: { start: "2026-06-01", end: "2026-07-12", timezone: America/New_York }
   population: users who signed up inside the experiment window

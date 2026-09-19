@@ -36,7 +36,7 @@ next to its id; a file path; and `{{literal:…}}`. Everything else that looks l
 
 A durations-as-words rule follows from that: "seven days after signup" describes the definition and is
 fine; a *measured* count of days is a token. Spelling a measured quantity in words to get past `check`
-("doubled", "half", "most") is the violation method review is asked to look for, so bind the value instead.
+("doubled," "half," "most") is the violation method review is asked to look for, so bind the value instead.
 
 ## Derived values
 
@@ -100,7 +100,7 @@ presenting them as something the data showed.
   `percentage_points` (× 100 on a `ratio`, ` pp` suffix), `currency_usd`, `date`, `text`.
 - A difference of two `ratio` values is still `ratio`; display it as `percentage_points` so a Reader is not
   invited to read it as a percentage change.
-- `null` and a zero denominator both render as "not available". They are not zero, not blank and not a dash.
+- `null` and a zero denominator both render as "not available." They are not zero, not blank and not a dash.
 
 ## Export
 
