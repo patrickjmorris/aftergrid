@@ -20,7 +20,7 @@ import { sha256 } from "../digest.ts";
 import { check } from "./check.ts";
 import { render } from "./render.ts";
 import { diffValues, normalizeManifest } from "../revise/diff.ts";
-import { classifyChartSpec, classifyManifestDifference, classifyMemo, overall, promotions, type Judgement, type Level } from "../revise/classify.ts";
+import { classifyChartSpec, classifyManifestDifference, classifyMemo, overall, promotions, type Judgment, type Level } from "../revise/classify.ts";
 import { archive, archivedPaths, digestMatches, findBaseline, readManifest, revisionDir } from "../revise/baseline.ts";
 
 export type ReviseMode = "pin" | "classify" | "apply";
@@ -28,7 +28,7 @@ export type ReviseOptions = { dir: string; mode: ReviseMode; baseline?: string; 
 export type ReviseReport = Report & {
   command: "revise";
   classification: Level | "unchanged" | "unknown";
-  differences: Judgement[];
+  differences: Judgment[];
   revision?: number;
   archive?: string;
 };
@@ -67,13 +67,13 @@ export async function revise(opts: ReviseOptions): Promise<ReviseReport> {
   // Evidence drift is readable from the manifest's own recorded hashes, with or without a baseline: a Finding
   // whose queries, Checks, results or retained inputs have moved is already back in the Analysis.
   const drift = evidenceDrift(dir, manifest);
-  const judgements: Judgement[] = [...drift];
+  const judgments: Judgment[] = [...drift];
 
   const baseline = findBaseline(dir, manifest, opts.baseline);
   if (!baseline) {
-    report.differences = judgements;
+    report.differences = judgments;
     report.classification = drift.length ? "numeric" : "unknown";
-    if (drift.length) return refuseNumeric(report, judgements);
+    if (drift.length) return refuseNumeric(report, judgments);
     report.errors.push({
       category: "needs_input",
       location: `revisions/${manifest.finding.revision}`,
@@ -84,15 +84,15 @@ export async function revise(opts: ReviseOptions): Promise<ReviseReport> {
   }
   report.info.push(`baseline: ${baseline.source === "archive" ? `revisions/${manifest.finding.revision}` : opts.baseline}`);
 
-  try { judgements.push(...classifyAgainst(dir, baseline.dir, baseline.manifest, manifest)); }
+  try { judgments.push(...classifyAgainst(dir, baseline.dir, baseline.manifest, manifest)); }
   catch (e) {
     report.errors.push({ category: e instanceof ContractError ? (e as any).category : "invalid_artifact", location: e instanceof ContractError ? (e as any).location : dir, message: (e as Error).message, remedy: "fix the artifact, or restore it from the pinned revision" });
     report.syntax = "invalid";
-    report.differences = judgements;
+    report.differences = judgments;
     return report;
   }
-  report.differences = judgements;
-  const level = overall(judgements);
+  report.differences = judgments;
+  const level = overall(judgments);
   report.classification = level;
 
   if (level === "unchanged") {
@@ -100,8 +100,8 @@ export async function revise(opts: ReviseOptions): Promise<ReviseReport> {
     report.info.push("no difference from the pinned baseline; there is nothing to revise");
     return report;
   }
-  for (const j of judgements) report.info.push(`${j.level}: ${j.location} — ${j.message}`);
-  if (level === "numeric") return refuseNumeric(report, judgements);
+  for (const j of judgments) report.info.push(`${j.level}: ${j.location} — ${j.message}`);
+  if (level === "numeric") return refuseNumeric(report, judgments);
 
   if (opts.mode === "classify") {
     report.content = "complete";
@@ -148,9 +148,9 @@ function pin(dir: string, manifest: any, report: ReviseReport, force: boolean): 
   return report;
 }
 
-function refuseNumeric(report: ReviseReport, judgements: Judgement[]): ReviseReport {
+function refuseNumeric(report: ReviseReport, judgments: Judgment[]): ReviseReport {
   report.classification = "numeric";
-  for (const j of judgements.filter((x) => x.level === "numeric")) {
+  for (const j of judgments.filter((x) => x.level === "numeric")) {
     report.errors.push({ category: "reopens_analysis", location: j.location, message: j.message, remedy: "this is a change to a number, not to how it reads: reopen the Analysis with `aftergrid execute <finding-dir>` and take the Finding through review again. Nothing was written." });
   }
   return report;
@@ -243,8 +243,8 @@ function mergeInto(report: ReviseReport, other: Report, label: string) {
 /* ------------------------------------------------------------------ comparison */
 
 /** Every difference between the baseline and the working tree, classified. */
-export function classifyAgainst(dir: string, baselineDir: string, baseline: any, working: any): Judgement[] {
-  const out: Judgement[] = [];
+export function classifyAgainst(dir: string, baselineDir: string, baseline: any, working: any): Judgment[] {
+  const out: Judgment[] = [];
   const nb = normalizeManifest(baseline), nw = normalizeManifest(working);
   for (const d of diffValues(nb, nw)) out.push(classifyManifestDifference(d, nb, nw));
 
@@ -278,7 +278,7 @@ function parseSpec(dir: string, rel: string, text: string): unknown {
 
 /**
  * The files a revision compares that the manifest says exist. A missing one is reported here, because with
- * nothing to read the classifier produces no judgement at all and would otherwise call the Finding unchanged.
+ * nothing to read the classifier produces no judgment at all and would otherwise call the Finding unchanged.
  */
 export function missingArtifacts(dir: string, manifest: any): Problem[] {
   const out: Problem[] = [];
@@ -291,8 +291,8 @@ export function missingArtifacts(dir: string, manifest: any): Problem[] {
 }
 
 /** Evidence files that no longer hash to what the manifest recorded. Readable without a baseline. */
-export function evidenceDrift(dir: string, manifest: any): Judgement[] {
-  const out: Judgement[] = [];
+export function evidenceDrift(dir: string, manifest: any): Judgment[] {
+  const out: Judgment[] = [];
   const entries: [string, any[], string][] = [
     ["retained input", manifest.snapshot?.inputs ?? [], "snapshot/inputs"],
     ["query", manifest.queries ?? [], "queries"],

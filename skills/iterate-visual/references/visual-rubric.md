@@ -34,18 +34,18 @@ shows.
 
 There is no legend to fall back on: the pinned house style sets `legend: {disable: true}`
 (`src/render/charts.ts`), so a rendered chart never carries one. Anything a label does not say — a value, or
-which colour is which category — the image does not say at all, and that is a `no`.
+which color is which category — the image does not say at all, and that is a `no`.
 
 ### `grey_plus_accent`
 
-Is everything grey except the one thing the Claim is about? Colour is how the chart points; a palette that
-colours every category points at nothing. The house style's categorical range begins accent, grey, so a
+Is everything gray except the one thing the Claim is about? Color is how the chart points; a palette that
+colors every category points at nothing. The house style's categorical range begins accent, gray, so a
 two-category chart usually arrives this way already; pinning `scale.domain` and `scale.range` in the spec is
 what keeps the accent on the category the Claim is about whatever order the rows arrive in.
 
 ### `colorblind_safe`
 
-Do the colours stay distinguishable without hue? Check that the accent differs from the grey in lightness, not
+Do the colors stay distinguishable without hue? Check that the accent differs from the gray in lightness, not
 only in hue, and that no pair of red and green carries meaning on its own.
 
 ### `axis_not_truncated`

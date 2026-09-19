@@ -73,7 +73,7 @@ const largeSourceRemedy = (adapter: Adapter["name"]): string =>
   + "The analytical window still lives in SQL. See docs/contracts/adapters.md, \"Large sources: the windowed Instance pattern\", "
   + "and `aftergrid capture <finding-dir> --catalog` to see each table's scan rows and whether it is admissible before copying anything.";
 
-/** The manifest shape `snapshot.inputs` accepts: the adapter's `runtime` field is summarised in `description`. */
+/** The manifest shape `snapshot.inputs` accepts: the adapter's `runtime` field is summarized in `description`. */
 function toManifestInput(input: RetainedInput) {
   return {
     id: input.id, kind: input.kind, path: input.path,

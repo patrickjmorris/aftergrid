@@ -134,7 +134,7 @@ test("every Golden Question loads through the eval's own loader, validates, and 
       assert.ok(existsSync(join(INSTANCE, "definitions", `${d}.md`)), `${g.id}: definition ${d}`);
     }
     for (const t of g.expected.tables_read) assert.ok(DEMO_TABLES.has(t), `${g.id}: table ${t} is not one the build writes`);
-    // Nothing here was randomised: a policy that started on one date for everybody admits no causal Claim.
+    // Nothing here was randomized: a policy that started on one date for everybody admits no causal Claim.
     assert.notEqual(g.expected.claim_type, "causal", `${g.id}: an observational before/after supports no causal Claim`);
     // A case may list more than one acceptable outcome; every one of them counts toward the range below.
     for (const o of Array.isArray(g.expected.outcome) ? g.expected.outcome : [g.expected.outcome]) outcomes.add(o);

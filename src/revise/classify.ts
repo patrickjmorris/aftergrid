@@ -3,20 +3,20 @@
 // The classifier is deliberately conservative and is not a semantic classifier. It reads field paths, token
 // multisets and chart-spec structure; it cannot read a sentence. A rewrite that keeps every token and changes
 // what the sentence asserts lands in `presentation` here and is caught only by Method review. Anything it does
-// not recognise is `interpretation`, which costs a review the Operator may not have needed — the cheap mistake.
+// not recognize is `interpretation`, which costs a review the Operator may not have needed — the cheap mistake.
 import { canon } from "../digest.ts";
 import { diffValues, domainsIn, fieldsIn, sameTokens, type Difference } from "./diff.ts";
 
 /** Ordered by how much of the Analysis a change reopens. `numeric` is refused; `interpretation` needs review. */
 export type Level = "presentation" | "interpretation" | "numeric";
-export type Judgement = { level: Level; location: string; message: string };
+export type Judgment = { level: Level; location: string; message: string };
 
 const RANK: Record<Level, number> = { presentation: 0, interpretation: 1, numeric: 2 };
 
-/** The level of a set of judgements: the most disruptive one present. */
-export function overall(judgements: Judgement[]): Level | "unchanged" {
-  if (!judgements.length) return "unchanged";
-  return judgements.reduce<Level>((worst, j) => (RANK[j.level] > RANK[worst] ? j.level : worst), "presentation");
+/** The level of a set of judgments: the most disruptive one present. */
+export function overall(judgments: Judgment[]): Level | "unchanged" {
+  if (!judgments.length) return "unchanged";
+  return judgments.reduce<Level>((worst, j) => (RANK[j.level] > RANK[worst] ? j.level : worst), "presentation");
 }
 
 const head = (pointer: string) => pointer.split(".")[0] ?? "";
@@ -29,12 +29,12 @@ const EVIDENCE_ROOTS = new Set(["snapshot", "queries", "executions", "results", 
 const CLAIM_MEANING = new Set(["type", "comparison", "population", "window", "exclusions", "limitations", "material_caveat", "recheck", "answer_bearing", "numeric", "provisional", "baseline"]);
 
 /** Classify one manifest difference. `working` supplies the entries a pointer refers to. */
-export function classifyManifestDifference(d: Difference, baseline: any, working: any): Judgement {
+export function classifyManifestDifference(d: Difference, baseline: any, working: any): Judgment {
   const root = head(d.pointer);
   const field = at(d.pointer, 2);
-  const numeric = (message: string): Judgement => ({ level: "numeric", location: `manifest.yaml#${d.pointer}`, message });
-  const interpretation = (message: string): Judgement => ({ level: "interpretation", location: `manifest.yaml#${d.pointer}`, message });
-  const presentation = (message: string): Judgement => ({ level: "presentation", location: `manifest.yaml#${d.pointer}`, message });
+  const numeric = (message: string): Judgment => ({ level: "numeric", location: `manifest.yaml#${d.pointer}`, message });
+  const interpretation = (message: string): Judgment => ({ level: "interpretation", location: `manifest.yaml#${d.pointer}`, message });
+  const presentation = (message: string): Judgment => ({ level: "presentation", location: `manifest.yaml#${d.pointer}`, message });
   const wording = (what: string) => (sameTokens(d.before, d.after) ? presentation(`${what} was reworded and names the same evidence tokens`) : interpretation(`${what} names different evidence tokens`));
 
   if (EVIDENCE_ROOTS.has(root)) return numeric(`${root} is the evidence the Analysis produced`);
@@ -82,7 +82,7 @@ export function classifyManifestDifference(d: Difference, baseline: any, working
 }
 
 /** Swapping which of two Variants a Claim shows is a taste decision, not a change of meaning. */
-function figureSwap(d: Difference, baseline: any, working: any): Judgement | null {
+function figureSwap(d: Difference, baseline: any, working: any): Judgment | null {
   const claimId = d.pointer.split(".")[1]!;
   const kind = d.pointer.split(".")[2] === "chart_ids" ? "charts" : "tables";
   const ids = new Set([...(baseline?.claims?.[claimId]?.[`${kind.slice(0, -1)}_ids`] ?? []), ...(working?.claims?.[claimId]?.[`${kind.slice(0, -1)}_ids`] ?? [])].map(String));
@@ -114,7 +114,7 @@ function variantMismatch(id: string, entry: any, manifest: any): string | null {
  * change as adding or removing a chart — presentation only when another Variant of the same Claim and result set
  * trades places with it, and `classifyAgainst` then compares the two specs as the chart change they are.
  */
-function variantOfChange(d: Difference, id: string, baseline: any, working: any): Judgement {
+function variantOfChange(d: Difference, id: string, baseline: any, working: any): Judgment {
   const location = `manifest.yaml#${d.pointer}`;
   const before = baseline?.charts?.[id], after = working?.charts?.[id];
   const was = renders(before), now = renders(after);
@@ -167,10 +167,10 @@ const COSMETIC_LEAVES = new Set(["sort", "title", "format", "labelAngle", "align
 
 /**
  * Classify a change to one Vega-Lite spec. Direct labels — a layered `text` mark bound to a field the chart
- * already showed — are the expected presentation move and are recognised as one.
+ * already showed — are the expected presentation move and are recognized as one.
  */
-export function classifyChartSpec(chartId: string, specPath: string, before: unknown, after: unknown): Judgement[] {
-  const out: Judgement[] = [];
+export function classifyChartSpec(chartId: string, specPath: string, before: unknown, after: unknown): Judgment[] {
+  const out: Judgment[] = [];
   const beforeFields = fieldsIn(before);
   const beforeDomains = domainsIn(before), afterDomains = domainsIn(after);
   // Only a position channel has an axis a Reader reads lengths off. A `color` scale domain is a palette
@@ -181,7 +181,7 @@ export function classifyChartSpec(chartId: string, specPath: string, before: unk
     judged.push(`${key}.scale.domain`);
     const b = beforeDomains.get(key), a = afterDomains.get(key);
     if (canon(b) === canon(a)) continue;
-    out.push({ ...domainJudgement(key, b, a), location: `${specPath}#${key}.scale.domain` });
+    out.push({ ...domainJudgment(key, b, a), location: `${specPath}#${key}.scale.domain` });
   }
   for (const d of diffValues(before, after)) {
     const parts = d.pointer.split(".");
@@ -223,7 +223,7 @@ export function classifyChartSpec(chartId: string, specPath: string, before: unk
 }
 
 /** A new sub-spec (a layer, for instance) is presentation when it shows only evidence the chart already showed. */
-function addedSubtree(location: string, added: unknown, beforeFields: Set<string>): Judgement {
+function addedSubtree(location: string, added: unknown, beforeFields: Set<string>): Judgment {
   const added_ = JSON.stringify(added) ?? "";
   const fields = [...fieldsIn(added)];
   if (/"(data|transform|aggregate|bin|timeUnit|datum|expr|signal)"\s*:/.test(added_)) return { level: "interpretation", location, message: "the added sub-spec computes a value of its own" };
@@ -242,7 +242,7 @@ const isAxis = (path: string) => { const parts = path.split("."); return parts.i
  * or ends earlier cuts values off. Anything else — a domain appearing, disappearing, or a set of categories —
  * `revise` cannot compare, so it says that rather than asserting an effect on the image it did not establish.
  */
-function domainJudgement(key: string, before: unknown, after: unknown): Omit<Judgement, "location"> {
+function domainJudgment(key: string, before: unknown, after: unknown): Omit<Judgment, "location"> {
   const j = (level: Level, message: string) => ({ level, message });
   const pair = (v: unknown) => { if (!Array.isArray(v) || v.length !== 2) return null; const n = v.map(Number); return n.every((x) => Number.isFinite(x)) ? (n as number[]) : null; };
   const nb = pair(before), na = pair(after);
@@ -252,7 +252,7 @@ function domainJudgement(key: string, before: unknown, after: unknown): Omit<Jud
 }
 
 /** Classify a change to `memo.md`: the same tokens is a rewording, different tokens is different evidence on the page. */
-export function classifyMemo(before: string, after: string): Judgement {
+export function classifyMemo(before: string, after: string): Judgment {
   return sameTokens(before, after)
     ? { level: "presentation", location: "memo.md", message: "the memo was reworded and shows the same evidence tokens" }
     : { level: "interpretation", location: "memo.md", message: "the memo shows a different set of evidence tokens" };

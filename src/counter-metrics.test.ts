@@ -272,7 +272,7 @@ test("the subpopulation row is the hole the manifest cannot close, and the contr
   // `retention_by_platform_arm.retained_7d_rate` IS retained_7d's column, correctly declared. Its rows are one
   // platform's signups, so the cell is a subpopulation of the definition's population — and nothing in the
   // manifest says which population a row key denotes, so check accepts it. Asserted here so the limitation is
-  // recorded as behaviour rather than believed to be covered; the method reviewer is the one who confirms it
+  // recorded as behavior rather than believed to be covered; the method reviewer is the one who confirms it
   // (docs/contracts/finding-manifest.md, "What the manifest cannot settle: the row").
   const { report } = stageCase("counter-metric-reported", (m) => {
     m.counter_metrics_reported[0].ref = "ref:retention_by_platform_arm.mobile_checklist.retained_7d_rate";
@@ -309,7 +309,7 @@ test("a reported counter-metric whose definition the Finding does not pin is a n
 
 test("a reported counter-metric outside the export allowlist fails as an export failure, in its own category", () => {
   // The counter-metric goes through the same strict resolver render uses, so a value a Reader could never be
-  // shown is reported by the resolver's own category rather than mislabelled as a missing counter-metric.
+  // shown is reported by the resolver's own category rather than mislabeled as a missing counter-metric.
   const { report } = stageCase("counter-metric-reported", (m) => {
     m.export_policy.allowed_fields = m.export_policy.allowed_fields.filter((f: string) => f !== "retention_by_arm.retained_7d_rate");
   });

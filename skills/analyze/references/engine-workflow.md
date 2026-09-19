@@ -8,7 +8,7 @@ The one orchestrator. It owns the order of the stages and the decision to stop; 
 the skill that owns it, and this skill never redoes that work itself.
 
 **Normal completion is an evidence-valid draft reviewed by agents, awaiting human publication readiness.**
-Not "approved", not "published", not "verified". A human APPROVED review at the analyzed commit is a separate
+Not "approved," not "published," not "verified." A human APPROVED review at the analyzed commit is a separate
 gate that nothing here touches (`docs/contracts/publication.md`).
 
 ## The stages
@@ -194,7 +194,7 @@ Give the Operator, in this order:
    verdict: continue (reviewed by agents with no blocking findings; …)
    ```
 
-   Do **not** summarise the reviews in your own words, and do not retell what the reviewers said instead —
+   Do **not** summarize the reviews in your own words, and do not retell what the reviewers said instead —
    their text is in `reviews[]` and `review status` reprints the blocking ones. The verdict is the command's
    sentence, not yours. A run that writes "three current reviews, no blocking findings" from its own reading
    of the manifest is how a stale-review warning became an Operator's wasted run

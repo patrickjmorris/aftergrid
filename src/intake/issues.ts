@@ -49,7 +49,7 @@ const asIssue = (body: any): Issue => ({
 
 export type FetchIssueSourceOptions = ApiOptions & { api?: Api; withComments?: boolean };
 
-/** The real source: GET the labelled Issues, PUT labels, POST comments. No other write exists. */
+/** The real source: GET the labeled Issues, PUT labels, POST comments. No other write exists. */
 export function createFetchIssueSource(options: FetchIssueSourceOptions = {}): IssueSource {
   const api = options.api ?? createApi(options);
   const path = (repo: string, n: number) => `/repos/${assertRepo(repo)}/issues/${assertNumber(n, "issue number")}`;

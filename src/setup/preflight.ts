@@ -116,7 +116,7 @@ export async function publicationPreflight(input: PreflightInput): Promise<Prefl
     r.reasons.push("publication is not configured: no repository, no automation identity and no trusted approvers, so no Finding in this Instance can reach readiness `ready`");
     r.warnings.push({
       category: "incomplete", location: `${input.policyPath}#/publication`,
-      message: "the publication policy is empty; drafts still render and are labelled as drafts, but nothing here can ever be verified as approved",
+      message: "the publication policy is empty; drafts still render and are labeled as drafts, but nothing here can ever be verified as approved",
       remedy: `rerun setup with --repository owner/repo --automation-login <bot> --trusted-approver <human>, then read ${RUNBOOK}`,
     });
     return r;

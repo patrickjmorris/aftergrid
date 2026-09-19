@@ -23,7 +23,7 @@ import { newestByKind, REQUIRED_REVIEW_KINDS, type ReviewEntry } from "../comman
 import { redactCommand } from "./redact.ts";
 import { emptyReport, type Report } from "../report.ts";
 import {
-  collectSkillVersions, gitSha, packageVersion, pluginVersion, recordDir, summarise,
+  collectSkillVersions, gitSha, packageVersion, pluginVersion, recordDir, summarize,
   writeCaseRecord, writeSummary, type Assertion, type CaseOutcome, type CaseRecord, type EvalSummary,
 } from "./record.ts";
 
@@ -290,7 +290,7 @@ export function createCommandAnalyzer(opts: { command: string; timeoutMs?: numbe
           // The last stderr line names the failure for the record; a CLI that echoes its arguments back would
           // echo a credential too, so the line goes through the same redaction as the template.
           const tail = err.trim() ? `: ${redactCommand(err.trim().split("\n").slice(-1)[0]) ?? ""}` : "";
-          // An analyzer that says it declined has made a judgement, and that is not a crash.
+          // An analyzer that says it declined has made a judgment, and that is not a crash.
           if (parsed && parsed.status === "declined") {
             resolvePromise({ status: "declined", reason: String(parsed.reason ?? "the analyzer declined without a reason") });
             return;
@@ -391,7 +391,7 @@ function lastJsonLine(text: string): Record<string, unknown> | null {
 const CLAIM_STRENGTH: Record<string, number> = { descriptive: 0, associational: 1, causal: 2 };
 
 /** Lowercase, punctuation to spaces, whitespace collapsed: a crude lexical screen, and only that. */
-export function normalisePhrase(text: string): string {
+export function normalizePhrase(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
@@ -509,11 +509,11 @@ export function assertCase(opts: AssertOptions): Assertion[] {
   // conclusion ("recommend keeping or rolling back the price"), which no memo reproduces verbatim, so recording
   // the absence as a pass would count an assertion that can never fire as evidence the Finding held. It is
   // `not_evaluated`, and the Question and Method reviewers do the judging.
-  const memoNorm = normalisePhrase(memo);
+  const memoNorm = normalizePhrase(memo);
   (expected.must_not ?? []).forEach((phrase, i) => {
-    const id = `must_not:${i + 1}:${normalisePhrase(phrase).slice(0, 40).replace(/ /g, "_")}`;
+    const id = `must_not:${i + 1}:${normalizePhrase(phrase).slice(0, 40).replace(/ /g, "_")}`;
     const expectation = `the memo does not reproduce "${phrase}"`;
-    out.push(memoNorm.includes(normalisePhrase(phrase))
+    out.push(memoNorm.includes(normalizePhrase(phrase))
       ? fail(id, "analytical", expectation, "the memo reproduces that wording")
       : skip(id, "analytical", expectation, "the memo does not reproduce that wording, which is not evidence it avoided the conclusion: a substring screen cannot see the conclusion drawn in other words"));
   });
@@ -996,7 +996,7 @@ export async function runEval(opts: EvalOptions = {}): Promise<EvalReport> {
   }
 
   const finished = now().toISOString();
-  const summary = summarise(report.cases, {
+  const summary = summarize(report.cases, {
     schema_version: "0.1.0",
     git_sha: sha,
     aftergrid_version: aftergridVersion,

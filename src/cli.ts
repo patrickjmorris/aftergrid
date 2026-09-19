@@ -137,13 +137,13 @@ Lifecycle:
                 <instance>/decisions/, bound to that revision and its content digest. Retrying with the same --id and
                 identical input is a no-op; different content under the same id is refused. Merging, rendering or
                 checking a Finding never creates a record.
-  intake        runs Issue requests in the background: claims an Issue labelled ready-for-agent at a stable
+  intake        runs Issue requests in the background: claims an Issue labeled ready-for-agent at a stable
                 revision, refuses to dispatch unless the guardrail hook is installed AND self-tests clean, the
                 Instance policy is present and the source's limits are declared (there is no bypass flag), hands
                 the request to a harness, checks what comes back with the same validator as check, and opens
                 ONE draft pull request per run. It pauses with needs-info instead of guessing, never removes a label, and never reports a
                 Finding as approved: publication still requires a human APPROVED review
-                (docs/contracts/publication.md). --once processes the currently labelled Issues and exits;
+                (docs/contracts/publication.md). --once processes the currently labeled Issues and exits;
                 --poll-seconds N loops. Contract: docs/contracts/intake.md.
   plugin        validate checks that the shipped package agrees with itself: the Claude Code plugin manifest
                 names skills that exist, every promoted skill states who may invoke it in BOTH its SKILL.md

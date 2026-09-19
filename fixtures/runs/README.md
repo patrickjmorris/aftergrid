@@ -13,7 +13,7 @@ from `input/` lands on `output/`, and that `output/` is a Finding `aftergrid che
 
 | Run | Skill | Reader profile | Outcome | What it covers |
 | --- | --- | --- | --- | --- |
-| `kpc-numeric` | `/write-finding` | `product_owner` (named) | `answered` | A causal Claim earned by randomised assignment, an exploratory associational Claim, a chart, two tables, five derived values, a typed target. |
+| `kpc-numeric` | `/write-finding` | `product_owner` (named) | `answered` | A causal Claim earned by randomized assignment, an exploratory associational Claim, a chart, two tables, five derived values, a typed target. |
 | `kpc-insufficient` | `/write-finding` | `generic` (fallback) | `insufficient_data` | A non-answer written honestly: no invented number, no falsifier evaluated, a non-numeric Claim, two typed assumptions, and no causal wording anywhere. |
 
 ## This directory is an Instance root
@@ -53,7 +53,7 @@ renders into a temporary copy instead.
 
 ## Regenerating
 
-By hand, and deliberately. A recorded run exists to notice a change, so re-pinning it to match new behaviour
+By hand, and deliberately. A recorded run exists to notice a change, so re-pinning it to match new behavior
 is a decision, not a chore: change the files, re-pin `content_digest` with `digestOf` from
 `scripts/lib/validate-finding.mjs`, update both digests and the `verification` block in `run.yaml`, re-pin
 `analysis_yaml_sha256` on both sides when `analysis.yaml` changed (it sits outside the content digest), and say in

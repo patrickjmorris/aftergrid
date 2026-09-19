@@ -22,7 +22,7 @@ export type SmokeResult = {
   failures: string[];
 };
 
-const summarise = (r: Report): string =>
+const summarize = (r: Report): string =>
   `syntax ${r.syntax}, content ${r.content}, evidence ${r.evidence}, sql ${r.sql_execution}, publication ${r.readiness}` +
   (r.errors.length ? `; errors: ${r.errors.map((e) => `${e.category} at ${e.location}: ${e.message}`).join("; ")}` : "");
 
@@ -53,9 +53,9 @@ export async function runSmoke(instanceRoot: string, opts: { date?: string; now?
     const now = opts.now ?? (() => new Date());
     const date = opts.date ?? now().toISOString().slice(0, 10);
     const created = newFinding({ slug: SMOKE_SLUG, ask: "Smoke test written by `aftergrid setup`; this Finding lives in a temporary copy and is deleted.", instanceDir: root, date, now });
-    result.steps.push({ command: "new", ok: created.errors.length === 0, summary: summarise(created) });
+    result.steps.push({ command: "new", ok: created.errors.length === 0, summary: summarize(created) });
     if (created.errors.length) {
-      result.failures.push(`new finding failed: ${summarise(created)}`);
+      result.failures.push(`new finding failed: ${summarize(created)}`);
       return result;
     }
     const dir = join(root, "findings", `${date}-${SMOKE_SLUG}`);
@@ -63,16 +63,16 @@ export async function runSmoke(instanceRoot: string, opts: { date?: string; now?
     // github: null keeps the smoke offline: a scaffold check must not depend on the network, and readiness
     // therefore stays `unknown`, which is the honest answer for a Finding nobody has reviewed.
     const checked = await check({ dir, mode: "artifact", github: null });
-    result.steps.push({ command: "check", ok: checked.errors.length === 0, summary: summarise(checked) });
-    if (checked.errors.length) result.failures.push(`check failed: ${summarise(checked)}`);
+    result.steps.push({ command: "check", ok: checked.errors.length === 0, summary: summarize(checked) });
+    if (checked.errors.length) result.failures.push(`check failed: ${summarize(checked)}`);
 
     const rendered = await render({ dir });
-    result.steps.push({ command: "render", ok: rendered.errors.length === 0, summary: summarise(rendered) });
-    if (rendered.errors.length) result.failures.push(`render failed: ${summarise(rendered)}`);
+    result.steps.push({ command: "render", ok: rendered.errors.length === 0, summary: summarize(rendered) });
+    if (rendered.errors.length) result.failures.push(`render failed: ${summarize(rendered)}`);
 
     result.passed = result.failures.length === 0;
     if (result.passed) {
-      result.info.push(`smoke: \`new finding ${SMOKE_SLUG}\` -> \`check\` -> \`render\` all ran in a temporary copy of this scaffold. The draft checked as ${checked.content}/${checked.evidence} and rendered as a labelled draft (publication ${rendered.readiness}); the copy has been deleted and your Instance holds only the scaffold.`);
+      result.info.push(`smoke: \`new finding ${SMOKE_SLUG}\` -> \`check\` -> \`render\` all ran in a temporary copy of this scaffold. The draft checked as ${checked.content}/${checked.evidence} and rendered as a labeled draft (publication ${rendered.readiness}); the copy has been deleted and your Instance holds only the scaffold.`);
     }
   } catch (e) {
     result.failures.push(`the smoke run could not complete: ${(e as Error).message}`);

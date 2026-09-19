@@ -61,10 +61,10 @@ A record file that cannot be indexed is reported, never dropped in silence: a fi
 
 ## Not enforced
 
-- **Revisit conditions are never evaluated.** The schedule and the falsifier are stored as data. Nothing here runs a Check, compares a date against today, or reports whether a decision still holds; that is `aftergrid revisit` (v0.1) and, ultimately, the owner's judgement.
+- **Revisit conditions are never evaluated.** The schedule and the falsifier are stored as data. Nothing here runs a Check, compares a date against today, or reports whether a decision still holds; that is `aftergrid revisit` (v0.1) and, ultimately, the owner's judgment.
 - **The outcome is never inferred.** A missing outcome stays `pending` forever until someone records one. `decide` does not append an outcome to an existing record — a follow-up is a superseding record.
 - **No identity check on `owner`.** The string is recorded as given; it is not verified against git, GitHub or the Instance's allowlist, and it is not an approval or an attestation.
-- **No judgement of the decision.** `decide` does not check that the Claims support the action, that the rationale matches the evidence, or that the action is wise.
+- **No judgment of the decision.** `decide` does not check that the Claims support the action, that the rationale matches the evidence, or that the action is wise.
 - **Publication readiness is not required.** A Finding with no verified publication approval can still be decided on; the report says what the Finding's readiness was.
 - **Cross-process atomicity stops at the record file.** Record creation is atomic and lossless under concurrency. The generated index is best effort under a lock and can be regenerated at any time from the records.
 - **Nothing outside `decisions/` is touched.** The Finding directory, its manifest, its attestations and any superseded record are read-only to this command.

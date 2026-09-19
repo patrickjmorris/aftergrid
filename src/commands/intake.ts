@@ -1,7 +1,7 @@
 // `aftergrid intake`: run Issue requests in the background with states a human can act on (spec stories 8 and
 // 35-37, docs/contracts/intake.md).
 //
-// The runner is deliberately thin. It does not analyse anything: it claims a request at a stable revision,
+// The runner is deliberately thin. It does not analyze anything: it claims a request at a stable revision,
 // refuses to dispatch when enforcement is absent, hands the request to a harness, then **checks** what came
 // back rather than believing it, and reports one of a small set of honest states on the Issue and in one pull
 // request per run. Three rules shape almost every line below:
@@ -138,7 +138,7 @@ export async function intake(opts: IntakeOptions): Promise<IntakeReport> {
   try { harness = resolveHarness(opts); }
   catch (e) { err(report, "syntax", "--harness", (e as Error).message); report.syntax = "invalid"; return report; }
   if (!harness.exercised) {
-    report.info.push(`harness '${harness.name}': not exercised — no test in this repository runs it and no model runs in CI, so its real behaviour is untested`);
+    report.info.push(`harness '${harness.name}': not exercised — no test in this repository runs it and no model runs in CI, so its real behavior is untested`);
   }
 
   const ctx: Context = {
@@ -169,7 +169,7 @@ export async function intake(opts: IntakeOptions): Promise<IntakeReport> {
     err(report, "api_error", ctx.repo, `intake stopped: ${(e as Error).message} (${errorClassOf(e)})`, "the runs already claimed keep their state on disk; rerun to continue them");
   }
 
-  summarise(report);
+  summarize(report);
   return report;
 }
 
@@ -188,7 +188,7 @@ async function poll(ctx: Context, opts: IntakeOptions) {
   const passes = opts.pollSeconds && !opts.once ? (opts.maxPolls ?? Number.POSITIVE_INFINITY) : 1;
   for (let pass = 1; pass <= passes; pass++) {
     const issues = await ctx.source.listLabelled(ctx.repo, ctx.label);
-    ctx.report.info.push(`pass ${pass}: ${issues.length} Issue(s) labelled ${ctx.label} in ${ctx.repo}`);
+    ctx.report.info.push(`pass ${pass}: ${issues.length} Issue(s) labeled ${ctx.label} in ${ctx.repo}`);
     for (const issue of issues) await processIssue(ctx, issue);
     if (pass < passes) await ctx.clock.sleep(Math.max(1, opts.pollSeconds!) * 1000);
   }
@@ -453,7 +453,7 @@ async function notify(ctx: Context, state: RunState, label: string, body: string
   try {
     const issue = await withRetry(() => ctx.source.getIssue(ctx.repo, state.issue), retry);
     const added = await withRetry(() => addLabel(ctx.source, ctx.repo, issue, label), retry);
-    appendLog(ctx.instanceRoot, state.run_id, { ts: stamp(ctx.clock), event: added ? "labelled" : "label_already_present", ids: { run_id: state.run_id, issue: state.issue }, status: label });
+    appendLog(ctx.instanceRoot, state.run_id, { ts: stamp(ctx.clock), event: added ? "labeled" : "label_already_present", ids: { run_id: state.run_id, issue: state.issue }, status: label });
     await withRetry(() => ctx.source.comment(ctx.repo, state.issue, body), retry);
     appendLog(ctx.instanceRoot, state.run_id, { ts: stamp(ctx.clock), event: "commented", ids: { run_id: state.run_id, issue: state.issue }, status: state.status });
   } catch (e) {
@@ -533,7 +533,7 @@ function push(ctx: Context, summary: RunSummary) {
   if (at >= 0) ctx.report.runs[at] = summary; else ctx.report.runs.push(summary);
 }
 
-function summarise(report: IntakeReport) {
+function summarize(report: IntakeReport) {
   const runs = report.runs;
   const completed = runs.filter((r) => r.status === "complete");
   report.state = runs.length === 1 ? runs[0]!.status : `${runs.length} run(s)`;

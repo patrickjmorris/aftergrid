@@ -1,18 +1,16 @@
 # plan-analysis
 
-Plan an analysis from a question and available evidence: estimand, data grain, comparison, validity checks, rival explanations, and stopping conditions. Retrieve relevant prior lessons without treating them as universal rules.
-
 ## What it does
 
-`plan-analysis` produces an executable plan proportionate to the question. It recovers prior lessons, fixes the comparison, and orders tests by what they can settle — including a stopping condition — without pretending the queries have already run.
+Produces an executable plan proportionate to the question. It recovers prior lessons, fixes the comparison, and orders tests by what they can settle — including a stopping condition — without pretending the queries have already run.
 
-The defining constraint: a retrieved lesson is a hypothesis to test. Retrieval that does not change a check, comparison, or stopping rule did not happen in any useful sense.
+A retrieved lesson is a hypothesis to test. Retrieval that does not change a check, comparison, or stopping rule did not happen.
 
 ## When to reach for it
 
-Type `/plan-analysis`, or ask in plain language. Available for explicit use and automatic discovery.
+Type `/plan-analysis`, or ask in plain language.
 
-Reach for it when the question is sharp enough to plan but the work has not started, especially when several explanations could produce the same headline. Skip it for a one-number lookup with a known definition. Use [grill-question](grill-question.md) if the estimand is still mush. Use [learn-from-analysis](learn-from-analysis.md) after a completed run, not as a substitute for planning.
+Use it when the question is sharp enough to plan but the work has not started, especially when several explanations could produce the same headline. Skip it for a one-number lookup with a known definition. Use [grill-question](grill-question.md) if the estimand is still mush. Use [learn-from-analysis](learn-from-analysis.md) after a completed run.
 
 ## Lessons in, then tests that can fail
 
@@ -24,9 +22,9 @@ The [lesson-reuse example](../examples/lesson-reuse.md) shows a second period th
 
 ## Common questions
 
-**Does every question need a long plan?** No. A descriptive count may need one calculation and a reconciliation. An explanatory question may need competing hypotheses. Match the ceremony to the decision.
+**Does every question need a long plan?** No. A descriptive count may need one calculation and a reconciliation. Match the ceremony to the decision.
 
-**What if a prior lesson does not apply?** Say so, with the condition that fails. Do not force new data through an obsolete check to obtain a familiar answer.
+**What if a prior lesson does not apply?** Say so, with the condition that fails. Do not force new data through an obsolete check.
 
 **Is the plan evidence?** No. It is a commitment about what will be calculated and when to stop. Results come from [checked-analysis](checked-analysis.md).
 
@@ -39,4 +37,4 @@ The [lesson-reuse example](../examples/lesson-reuse.md) shows a second period th
 
 ## Where it fits
 
-A Frame-stage standalone that [analyze](analyze.md) also performs internally. Neighbors: [diagnose-change](diagnose-change.md) for the movement playbook, [learn-from-analysis](learn-from-analysis.md) for the capture half of the loop. The map is [ask-aftergrid](ask-aftergrid.md). See [Analysis that compounds](../fieldnotes/analysis-that-compounds.md).
+A Frame-stage standalone that [analyze](analyze.md) also performs internally. Neighbors: [diagnose-change](diagnose-change.md) for the movement playbook, [learn-from-analysis](learn-from-analysis.md) for the capture half of the loop. See [Analysis that compounds](../fieldnotes/analysis-that-compounds.md).

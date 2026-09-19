@@ -65,7 +65,7 @@ export function loadPolicy(cwd, env = process.env) {
     if (parent === cur) break;
     cur = parent;
   }
-  return { found: false, notes: ["no aftergrid.yaml above the working directory: only the built-in destructive-source-command list applies, and no source is recognised as configured"] };
+  return { found: false, notes: ["no aftergrid.yaml above the working directory: only the built-in destructive-source-command list applies, and no source is recognized as configured"] };
 }
 
 function policyFrom(configPath, env) {

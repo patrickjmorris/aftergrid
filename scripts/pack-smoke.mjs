@@ -385,7 +385,7 @@ function renderStep(bin, project) {
   must(!body.includes(FIXTURE_MARKER), "the private fixture marker reached the rendered HTML");
   const svgs = readdirSync(join(finding, "render")).filter((f) => f.endsWith(".svg"));
   must(svgs.length >= 1, "no chart SVG was rendered");
-  return { detail: `rendered ${relative(work, html)} as a labelled draft plus ${svgs.length} SVG chart(s), with no fixture marker in the output` };
+  return { detail: `rendered ${relative(work, html)} as a labeled draft plus ${svgs.length} SVG chart(s), with no fixture marker in the output` };
 }
 
 function decideStep(bin, project) {
@@ -479,7 +479,7 @@ process.stdout.write(JSON.stringify({
   must(out.resumed.join() === "complete", `--resume with the need provided should complete, got ${out.resumed.join()}`);
   must(out.pull_requests === 1, `exactly one draft pull request per run; got ${out.pull_requests}`);
   must(out.pr_title?.includes(out.run_id), "the pull request is not keyed to the run id");
-  return { detail: `needs_input pause labelled needs-info and opened nothing; resume with --provided completed and opened exactly one draft pull request (${out.run_id})` };
+  return { detail: `needs_input pause labeled needs-info and opened nothing; resume with --provided completed and opened exactly one draft pull request (${out.run_id})` };
 }
 
 /* ------------------------------------------------------------------ main */

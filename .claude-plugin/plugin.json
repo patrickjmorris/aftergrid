@@ -1,6 +1,6 @@
 {
   "name": "aftergrid",
-  "description": "Analytics skills for better questions, deeper investigations and evidence-linked answers, with an optional Engine for checked Findings.",
+  "description": "Analytics skills for the agent you already use, with an optional Engine for checked Findings.",
   "version": "0.0.0",
   "author": {
     "name": "Patrick Morris",

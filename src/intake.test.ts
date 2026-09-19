@@ -106,7 +106,7 @@ function writtenFiles(w: Workspace): { path: string; text: string }[] {
 
 /* ------------------------------------------------------------------ the happy path */
 
-test("a labelled Issue becomes one claimed run, a checked Finding and one draft pull request", async () => {
+test("a labeled Issue becomes one claimed run, a checked Finding and one draft pull request", async () => {
   const w = workspace();
   const issue = anIssue();
   const source = createFakeIssueSource({ repository: REPO, issues: [issue] });
@@ -138,7 +138,7 @@ test("a labelled Issue becomes one claimed run, a checked Finding and one draft 
   assert.match(pr.body, /human APPROVED review/);
   assert.match(pr.body, /docs\/contracts\/publication\.md/);
 
-  // The Issue is labelled ready-for-human, and no other label was touched — not even the trigger.
+  // The Issue is labeled ready-for-human, and no other label was touched — not even the trigger.
   const after = source.issues[0]!;
   assert.ok(after.labels.includes(READY_FOR_HUMAN_LABEL));
   assert.ok(after.labels.includes(TRIGGER_LABEL), "the runner never removes the trigger label");
@@ -165,7 +165,7 @@ test("a labelled Issue becomes one claimed run, a checked Finding and one draft 
   assert.deepEqual(request.labels, [TRIGGER_LABEL, "question"]);
 
   const log = readLog(w.instanceRoot, runId);
-  assert.deepEqual(log.map((l) => l.event), ["claimed", "dispatch", "harness_result", "check", "pull_request", "labelled", "commented"]);
+  assert.deepEqual(log.map((l) => l.event), ["claimed", "dispatch", "harness_result", "check", "pull_request", "labeled", "commented"]);
   for (const line of log) {
     assert.equal(typeof line.ts, "string");
     assert.equal(line.ids.run_id, runId);
