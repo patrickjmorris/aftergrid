@@ -1,6 +1,6 @@
 # Golden Questions and planted effects
 
-Schema: `schema/golden-question.schema.json`. Fixture set: `fixtures/instance/analytics/golden/*.yaml` on the synthetic warehouse `fixtures/instance/data/` (generator `scripts/gen-fixture-data.mjs`, fixed seed). Planted effects and failures are catalogued in `fixtures/instance/planted-effects.yaml`.
+Schema: `schema/golden-question.schema.json`. Fixture set: `fixtures/instance/analytics/golden/*.yaml` on the synthetic warehouse `fixtures/instance/data/` (generator `scripts/gen-fixture-data.mjs`, fixed seed). Planted effects and failures are cataloged in `fixtures/instance/planted-effects.yaml`.
 
 ## What a Golden Question is
 
@@ -14,7 +14,7 @@ Every planted item declares which layer it lives in. They are different kinds of
 | --- | --- | --- |
 | Engine category | `check` mechanically: `duplicate_row_key`, `check_failed`, `null_value`, `hash_mismatch`, a derived zero denominator rendering "not available" | duplicate event rows fail an `invariant` Check; a platform with no users yields "not available", never 0 |
 | Analytical outcome | the Analysis, honestly | too little data → `insufficient_data`; a metric that cannot be measured → `needs_reframing` |
-| Review concern | Method and Reader reviewers, in words | a mix shift explains a falling overall rate; an instrumentation break is not a behaviour change; a coverage gap must be stated |
+| Review concern | Method and Reader reviewers, in words | a mix shift explains a falling overall rate; an instrumentation break is not a behavior change; a coverage gap must be stated |
 
 A population mix shift does not by itself require a mechanical Check failure: the numbers are right, the interpretation is what needs care.
 
@@ -22,7 +22,7 @@ A population mix shift does not by itself require a mechanical Check failure: th
 
 `expected.outcome` is a single outcome, or a **list** of outcomes that would all be honest on the same data. A list is not a looser bar — every entry is reviewed and written down like any other expectation — and `assess()` passes when the Finding's outcome is any of them.
 
-The list exists for one situation: where the pre-registered falsifier decides between them. Two Analyses can read the same Question, the same tables and the same window, write different falsifiers before seeing any number, and honestly reach different outcomes — one `answered`, one `inconclusive`, because the stricter falsifier fired (`docs/contracts/checks-and-results.md`). Grading only the `answered` case would score the Engine down for writing the stricter falsifier, which is precisely the behaviour these fixtures exist to reward.
+The list exists for one situation: where the pre-registered falsifier decides between them. Two Analyses can read the same Question, the same tables and the same window, write different falsifiers before seeing any number, and honestly reach different outcomes — one `answered`, one `inconclusive`, because the stricter falsifier fired (`docs/contracts/checks-and-results.md`). Grading only the `answered` case would score the Engine down for writing the stricter falsifier, which is precisely the behavior these fixtures exist to reward.
 
 So a list carries `expected.falsifier_dependent: true` and an `expected.falsifier_note` saying which falsifier leads to which outcome, and the `reasoning` says it too. A case that lists several outcomes for any other reason — because the reviewer was unsure, or to stop a case failing — is a case that has stopped being a reference.
 
@@ -30,8 +30,8 @@ That is gated, not merely written down. `schema/golden-question.schema.json` req
 
 ## Reference values
 
-`expected.values[]` are produced by `reference.queries[]`, plain SQL over the warehouse tables with named parameters, keyed by `row_key`. `src/golden.test.ts` runs them through the DuckDB adapter and asserts each value within its tolerance, so the file is checked, not trusted. Tolerances are absolute in the value's unit. Causal conclusions are only expected where the data was generated with randomised assignment; everywhere else `claim_type` is descriptive or associational.
+`expected.values[]` are produced by `reference.queries[]`, plain SQL over the warehouse tables with named parameters, keyed by `row_key`. `src/golden.test.ts` runs them through the DuckDB adapter and asserts each value within its tolerance, so the file is checked, not trusted. Tolerances are absolute in the value's unit. Causal conclusions are only expected where the data was generated with randomized assignment; everywhere else `claim_type` is descriptive or associational.
 
 ## Determinism
 
-The generator is seeded; the same seed reproduces the same logical rows and CSV bytes (`tests/generator.test.mjs`). Hash expectations in fixtures commit to the CSV serialisation defined in `docs/contracts/checks-and-results.md`, not to incidental database bytes. Planted additions use a second random stream and only add rows, or remove rows outside both exemplar extracts, so the reviewed exemplar Findings keep their bytes.
+The generator is seeded; the same seed reproduces the same logical rows and CSV bytes (`tests/generator.test.mjs`). Hash expectations in fixtures commit to the CSV serialization defined in `docs/contracts/checks-and-results.md`, not to incidental database bytes. Planted additions use a second random stream and only add rows, or remove rows outside both exemplar extracts, so the reviewed exemplar Findings keep their bytes.

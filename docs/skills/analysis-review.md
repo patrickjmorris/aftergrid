@@ -1,18 +1,16 @@
 # analysis-review
 
-Challenge an analysis, notebook, chart, or memo for calculation errors, unsupported conclusions, question drift, and reader misinterpretation. Review evidence adversarially without inventing objections.
-
 ## What it does
 
-`analysis-review` tries to disprove an answer before someone acts on it. It reads through three lenses — **method**, **question**, and **reader** — then discards objections the artifact already refutes.
+Tries to disprove an answer before someone acts on it. It reads through three lenses — **method**, **question**, and **reader** — then discards objections the artifact already refutes.
 
-The defining constraint: a review can change the verdict to “inconclusive.” Agreement among reviewers is evidence to weigh, not an automatic fix instruction. Agent review is never human approval.
+A review can change the verdict to “inconclusive.” Agreement among reviewers is evidence to weigh, not an automatic fix instruction. Agent review is never human approval.
 
 ## When to reach for it
 
-Ask in plain language, or type `/analysis-review` in hosts that expose it. In Claude Code it is hidden from the slash menu. The agent may reach for it when a draft is about to be trusted.
+Ask in plain language, or type `/analysis-review` in hosts that expose it. Hidden from the Claude Code slash menu. The agent may reach for it when a draft is about to be trusted.
 
-Reach for it when a memo, notebook, or chart is about to inform a decision. Use [checked-analysis](checked-analysis.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
+Use it when a memo, notebook, or chart is about to inform a decision. Use [checked-analysis](checked-analysis.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
 
 ## Three lenses, then refute yourself
 
@@ -39,11 +37,11 @@ The [onboarding teaching case](../examples/causal-claim.md) is the cautionary dr
 
 ## Where it fits
 
-Model-invoked Improve-stage craft; the pstack analog in this set. [analyze](analyze.md) reaches for it before claiming the draft is reviewed. The map is [ask-aftergrid](ask-aftergrid.md).
+Model-invoked Improve-stage craft; the pstack analog in this set. [analyze](analyze.md) reaches for it before claiming the draft is reviewed.
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -51,13 +49,13 @@ The following documentation describes the optional Engine route, which retains i
 Reviews a complete Finding with three reviewers that judge different things and cannot see each other's work:
 **Method** (statistical hygiene, whether the design earns the Claim type, denominators and baselines, whether
 the Checks match the Claims), **Question** (whether this answers the Question that was asked, whether the
-pre-registered comparison was honoured, whether the outcome is honest) and **Reader** (adopting the Finding's
+pre-registered comparison was honored, whether the outcome is honest) and **Reader** (adopting the Finding's
 named Reader profile, judging understand / inspect / continue and every misreading the profile says that person
 makes).
 
 Each returns two lists: `blocking` and `non_blocking`. The skill records one review per reviewer into
 `manifest.yaml` through `aftergrid review record`, bound to the content digest the Finding's files currently
-hash to. Editing the Finding afterwards changes that digest, and the reviews become visibly stale rather than
+hash to. Editing the Finding afterward changes that digest, and the reviews become visibly stale rather than
 silently wrong. Reviewing it again does not: the earlier review of that kind becomes **superseded** history,
 which is not staleness and is nobody's work.
 
@@ -111,7 +109,7 @@ skill is installed, so the writer and the reviewer judge against the same list. 
 - `aftergrid review status <dir>` lists a current `method`, `question` and `reader` review after it runs.
 - Every recorded review's `content_digest` equals the Finding's `content_digest`, and `attestations` is
   untouched.
-- Editing the memo afterwards makes all three reviews report as stale, not as current. Recording three new
+- Editing the memo afterward makes all three reviews report as stale, not as current. Recording three new
   reviews over them makes the old three report as `superseded`, not as stale: `review status` exits 0 and the
   rendered page lists them once as earlier reviews rather than as three warnings.
 - A Finding whose `aftergrid check` reports a `check_error` gets no reviews at all, and a `needs_attention`

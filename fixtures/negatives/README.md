@@ -27,7 +27,7 @@ test proves the committed bytes are what the builder produces. Do not hand-edit 
   (`docs/contracts/record.md`, ADR 0010), where the Operator's own tool ran every query and Check and aftergrid
   wrote down what came back. `check --mode rerun` refuses them by name with `rerun_unavailable`.
 - **Nothing here was reviewed or approved.** The `reviews[]` entry names itself as a generated fixture, and no case
-  carries a verified publication approval. Every render is labelled a draft.
+  carries a verified publication approval. Every render is labeled a draft.
 - **No Decision records.** This Instance root (`fixtures/negatives/aftergrid.yaml`, `readers.md`, `definitions/`)
   deliberately has no `decisions/` directory: these cases are about evidence integrity, and a Decision record would
   add an unrelated failure mode.

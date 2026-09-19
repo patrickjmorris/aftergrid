@@ -38,7 +38,7 @@ human publication approvals still require real participants and cannot be marked
 3. Independent agents use skills on bounded datasets without the answer key; review their actual artifacts
    against numerical checks and analytical failure cases. Report scope and limitations, not a benchmark win.
 4. Examples contain real inputs, executable calculations, actual recorded skill outputs and honest caveats.
-   Synthetic teaching datasets are clearly labelled. NYC examples retain their unapproved status.
+   Synthetic teaching datasets are clearly labeled. NYC examples retain their unapproved status.
 5. The site and docs agree on names, invocation, prerequisites, installation and completion claims. Links,
    generated drift, keyboard/mobile behavior and content are checked.
 6. Existing Engine tests, fixture validity and packed distribution continue to pass. No npm publication,

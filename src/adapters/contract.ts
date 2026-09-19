@@ -37,7 +37,7 @@ export type Hash = { algorithm: "sha256"; value: string };
  * What a rerun needs to rebuild an extract's table faithfully on a disposable instance of the same engine.
  * Optional and additive: an adapter that cannot state it omits it, and a rerun then falls back to all-text
  * columns and says so. The Finding manifest schema does not carry this field, so the same facts are also
- * summarised in `description`, which it does carry.
+ * summarized in `description`, which it does carry.
  */
 export type RetainedRuntime = { engine: string; server_version: string; columns: { name: string; sql_type: string; nullable: boolean }[] };
 export type RetainedInput = {

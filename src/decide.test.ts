@@ -508,7 +508,7 @@ test("the rationale and a recorded outcome are stored verbatim, and an impossibl
   });
   assert.deepEqual(cats(r), []);
   const rec = parseYaml(readFileSync(join(decisions, "dec_lllllllllll1.yaml"), "utf8"));
-  assert.equal(rec.rationale, rationale, "the owner's words are stored as given, never summarised");
+  assert.equal(rec.rationale, rationale, "the owner's words are stored as given, never summarized");
   assert.deepEqual(rec.outcome, { state: "recorded", description: "Shipped to all new users.", recorded_on: "2026-10-01" });
 
   const impossible = await decide({

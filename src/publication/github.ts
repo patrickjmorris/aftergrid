@@ -114,7 +114,7 @@ export function createGitHubClient(options: GitHubClientOptions = {}): GitHubCli
             throw new GitHubError("malformed_response", `a review on ${repo}#${number} is missing id, user.login or state`);
           }
           const state = String(r.state).toUpperCase();
-          if (!STATES.has(state)) throw new GitHubError("malformed_response", `review ${r.id} has an unrecognised state '${r.state}'`);
+          if (!STATES.has(state)) throw new GitHubError("malformed_response", `review ${r.id} has an unrecognized state '${r.state}'`);
           // A submitted review always carries commit_id and submitted_at. Defaulting them to "" would make a review
           // unorderable against the approval it is meant to supersede, so a missing or non-string field is a
           // malformed_response (read as unknown) and never a value. PENDING is the one state the API legitimately

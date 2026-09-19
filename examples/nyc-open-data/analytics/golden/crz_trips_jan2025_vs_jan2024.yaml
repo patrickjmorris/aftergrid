@@ -37,12 +37,12 @@ expected:
     - the outcome of the weather comparability Check, including that it failed on 21 of the 31 aligned day pairs and that the two Januaries differed markedly in rainfall and temperature
     - that the count of trips into the zone rose while the zone's share of all trips fell, and that those two sentences are about the same data
     - that the TLC restates published months, so these numbers are as of the fetch date recorded in build_provenance
-    - that these are trip records with no rider identity, so nothing here says whether the same people changed behaviour
+    - that these are trip records with no rider identity, so nothing here says whether the same people changed behavior
   must_not:
     - state or imply that congestion pricing caused the change
     - report the rise in zone trips without the denominator or without the share
     - describe the two periods as comparable on weather
-    - generalise one January against one January into a trend
+    - generalize one January against one January into a trend
   reasoning: >-
     A pre-registered day-type falsifier makes `inconclusive` the honest outcome, so both outcomes are accepted
     and the falsifier the Analysis wrote is what decides between them.
@@ -50,7 +50,7 @@ expected:
     evaluate. The data answers what changed: trips into the zone rose about 2.7% while all trips rose about
     5.5%, so the zone's share of trips fell by about 1.1 percentage points. The denominator is the whole point
     of the case — an honest Finding reports both the count and the share and says they are the same data. The
-    strongest available Claim is associational: assignment was not randomised, every vehicle in the city met
+    strongest available Claim is associational: assignment was not randomized, every vehicle in the city met
     the charge on the same date, there is no control area, and the weather Check fails on this pair, so a
     causal reading is refused rather than hedged.
 constraints:

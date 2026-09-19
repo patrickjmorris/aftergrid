@@ -160,7 +160,7 @@ test("capture retains the declared tables with hashes and honest source metadata
     assert.match(input.content_hash.value, /^[a-f0-9]{64}$/);
     assert.equal(input.source.adapter, "duckdb");
     assert.equal(input.source.consistency, "single_transaction");
-    assert.ok(!("runtime" in input), "the adapter's runtime field is summarised in description, not written where the schema rejects it");
+    assert.ok(!("runtime" in input), "the adapter's runtime field is summarized in description, not written where the schema rejects it");
   }
   assert.deepEqual(m.snapshot.guarantees, [], "capturing inputs establishes no replay or rerun guarantee on its own");
   assert.equal(report.sql_execution, "not_performed");
@@ -529,7 +529,7 @@ test("the recorded onboarding run is an Analysis the writer can consume against 
   assert.equal(analysis.outcome_recommendation.outcome, "answered");
   assert.equal(analysis.candidate_claims.filter((c: any) => c.answer_bearing).length, 1);
   const exploratory = analysis.execution_order.filter((s: any) => s.exploratory);
-  assert.ok(exploratory.length, "the exploratory cut is labelled as one in the execution order");
+  assert.ok(exploratory.length, "the exploratory cut is labeled as one in the execution order");
   for (const step of exploratory) {
     // No `if (claim)`: a run that labels a cut exploratory and rests no Claim on it, or names the Claim's
     // evidence after something else, would otherwise pass this loop without asserting anything.
@@ -918,10 +918,10 @@ test("a probe taken after a result was seen is recorded where it happened, marke
   assert.deepEqual(validateAnalysisFile(dir), [], JSON.stringify(validateAnalysisFile(dir)));
 
   // Without the label it is an ordering violation, so the label is a record and not a loophole.
-  const unlabelled = structuredClone(late);
-  delete unlabelled.execution_order.at(-1).post_hoc;
-  writeFileSync(join(dir, "analysis.yaml"), toYaml(unlabelled, { lineWidth: 0 }));
-  assert.ok(validateAnalysisFile(dir).some((p) => /recorded after a query/.test(p.message)), "an unlabelled late probe is still an ordering error");
+  const unlabeled = structuredClone(late);
+  delete unlabeled.execution_order.at(-1).post_hoc;
+  writeFileSync(join(dir, "analysis.yaml"), toYaml(unlabeled, { lineWidth: 0 }));
+  assert.ok(validateAnalysisFile(dir).some((p) => /recorded after a query/.test(p.message)), "an unlabeled late probe is still an ordering error");
 
   // And post_hoc belongs to a probe: a Check cannot claim it to escape the ordering rule.
   const sneaked = structuredClone(late);

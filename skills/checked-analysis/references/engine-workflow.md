@@ -44,7 +44,7 @@ records; and a timestamp whose lateness would make the last cohort of the window
 Record each probe in `analysis.yaml#/probes`, **as it happens**, with:
 
 - `at` — the time from the harness's clock at that moment, RFC 3339 with an offset. Never a time worked out
-  afterwards: if a look was not written down when it was taken, say so in `observed` rather than invent one.
+  afterward: if a look was not written down when it was taken, say so in `observed` rather than invent one.
 - `kind` — `exploratory` for a look that informed the plan, `dead_end` for a path tried or considered and
   abandoned, `reframe` for a look that changed the Question itself.
 - `question`, `observed`, and `changed_plan`: what it asked, what it showed, and what the plan did about it.
@@ -194,7 +194,7 @@ The pre-registered comparison first, then anything else. Every date grouping con
 explicitly. Parameters bind as `$name`; the analytical timezone is one of them.
 
 An exploratory cut — a split decided after seeing a result — is marked `exploratory: true` in
-`execution_order`, and its Claim carries `comparison.pre_registered: false`. Labelling it costs one line and is
+`execution_order`, and its Claim carries `comparison.pre_registered: false`. Labeling it costs one line and is
 what keeps a slice from quietly becoming the headline.
 
 Done when: each query has a file under `queries/`, a manifest entry, a declared result set with column names,
@@ -304,7 +304,7 @@ Set `stage: analysed` and fill in everything the writer reads and cannot re-deri
   or `ext:<id>`. A requested `difference`, `ratio` or `percent_change` names its operands: their sign depends
   on which operand is which and both orders are valid arithmetic, so a positional pair written
   baseline-then-after reaches the memo as a real number with the opposite sign — one run rendered four of them
-  as "rose by −20.6%", and only the method reviewer saw it. Write `{ after: <ref>, baseline: <ref> }` for a
+  as "rose by −20.6%," and only the method reviewer saw it. Write `{ after: <ref>, baseline: <ref> }` for a
   before-and-after comparison, or `{ minuend, subtrahend }` on a difference and `{ numerator, denominator }`
   on a ratio when the value is not a comparison. Declare the direction here, where the value is first written
   down; a positional pair is the warning `direction_unstated`, and a named pair on an operation that does not

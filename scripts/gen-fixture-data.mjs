@@ -118,7 +118,7 @@ subs.push({ subscription_id: "s_" + hex(++sid), user_id: users[users.length - 1]
 const rnd2 = mulberry32(5150);
 const pick2 = (arr, weights) => { const r = rnd2(); let acc = 0; for (let i = 0; i < arr.length; i++) { acc += weights[i]; if (r < acc) return arr[i]; } return arr[arr.length - 1]; };
 const AUG = day("2026-08-01"), SEP = day("2026-09-01");
-const FUNNEL_BREAK = day("2026-08-24");   // first_habit_created stops firing on android (instrumentation, not behaviour)
+const FUNNEL_BREAK = day("2026-08-24");   // first_habit_created stops firing on android (instrumentation, not behavior)
 // New York calendar days start at 04:00Z in summer; planted day boundaries follow the analytical timezone.
 const NY = 4 * 3600000;
 const OUTAGE_FROM = day("2026-09-03") + NY, OUTAGE_TO = day("2026-09-06") + NY; // web events not ingested (coverage gap), exclusive end

@@ -24,7 +24,7 @@ You are reviewing statistical hygiene and whether the design earns what the Find
 
 Work through each of these against every Claim in `manifest.yaml` and its subsection in `memo.md`:
 
-- **Claim type earned by design.** `causal` needs randomised assignment (the only basis v0 accepts; `candidate_claims[].causal_basis: randomised_assignment` in analysis.yaml), stated in the
+- **Claim type earned by design.** `causal` needs randomized assignment (the only basis v0 accepts; `candidate_claims[].causal_basis: randomised_assignment` in analysis.yaml), stated in the
   Finding; observational data supports `associational` at most; a single series supports `descriptive`. A
   `causal` Claim whose design is not stated is blocking.
 - **Denominator and baseline.** Every rate names what it is a share of. Every comparison names what it is
@@ -37,7 +37,7 @@ Work through each of these against every Claim in `manifest.yaml` and its subsec
   `reconciliation` Check where a Claim cites an approved Metric definition, a `minimum_data` Check wherever the
   answer depends on having enough rows, and a `falsifier` Check when the Question is resolved. A Claim resting
   on a join that could duplicate rows, with no invariant on that grain, is blocking.
-- **Diagnostic calculations labelled.** A number from a `diagnostic` definition, or from no definition, is not
+- **Diagnostic calculations labeled.** A number from a `diagnostic` definition, or from no definition, is not
   presented as an approved metric.
 - **Counter-metrics honestly reported.** Where the decision metric's definition names counter-metrics, each
   reported value is the counter-metric's own calculation over the Question's population and window — and each
@@ -62,9 +62,9 @@ You are reviewing whether this Finding answers the Question that was asked.
 - **The ask and the answer.** Read `question.raw_ask`, then `question.decision`, `metric`, `population`,
   `window`. Then read the Answer sentence. An Answer about a different metric, population or window than the
   Question names is blocking.
-- **Pre-registered comparison honoured.** `question.primary_comparison` is what the Analysis committed to
+- **Pre-registered comparison honored.** `question.primary_comparison` is what the Analysis committed to
   before looking. A Finding whose Answer rests on a cut that is not the pre-registered comparison, without
-  saying that the cut is exploratory, is blocking. An exploratory cut clearly labelled as exploratory is fine.
+  saying that the cut is exploratory, is blocking. An exploratory cut clearly labeled as exploratory is fine.
 - **Outcome honest.** `finding.outcome` matches what the evidence supports: `answered` only where a Claim
   actually answers the Question; `insufficient_data` where a minimum was not met; `inconclusive` where the
   data cannot separate the possibilities; `needs_reframing` where the Question cannot be answered as asked.
@@ -75,7 +75,7 @@ You are reviewing whether this Finding answers the Question that was asked.
   fail, or that tests something other than the Question — is blocking. So is a falsifier declared
   `required: true`: `required` is an evidence-validity condition and a falsifier is not one, and `check`
   refuses that shape with `check_shape`.
-- **The falsifier was pre-registered, and was not edited afterwards.** This is the review's sharpest question,
+- **The falsifier was pre-registered, and was not edited afterward.** This is the review's sharpest question,
   because a falsifier decides the outcome. Establish it in this order:
   1. **If `analysis.yaml#/checks_preregistered` names the Check**, compare the `content_hash` it recorded with
      the Check's `content_hash` in `manifest.yaml`. Equal means the SQL that ran is the SQL that was written

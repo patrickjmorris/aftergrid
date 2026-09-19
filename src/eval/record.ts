@@ -141,7 +141,7 @@ export function writeSummary(outDir: string, sha: string | null, summary: EvalSu
   return path;
 }
 
-export function summarise(cases: CaseRecord[], head: Omit<EvalSummary, "totals" | "cases">): EvalSummary {
+export function summarize(cases: CaseRecord[], head: Omit<EvalSummary, "totals" | "cases">): EvalSummary {
   const totals = {
     cases: cases.length,
     pass: cases.filter((c) => c.outcome === "pass").length,

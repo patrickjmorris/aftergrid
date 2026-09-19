@@ -66,8 +66,8 @@ chart that already passes.
   formatting. That is the expected fix for `direct_labels`, and it is the only way a value reaches the image:
   the pinned house style sets `legend: {disable: true}`, so **no chart this renderer draws has a legend**, and a
   series nothing labels is a series the Reader cannot name.
-- Colour lives in the spec as a `scale` with an explicit `domain` and `range`: the one category the Claim is
-  about in the accent, everything else in grey. The house style's categorical range already starts accent, grey,
+- Color lives in the spec as a `scale` with an explicit `domain` and `range`: the one category the Claim is
+  about in the accent, everything else in gray. The house style's categorical range already starts accent, gray,
   so pinning the scale is what stops the accent depending on the order the categories arrive in.
 - The title belongs to `charts[].title` in the manifest, not to the spec. Fixing `title_states_claim` means
   editing the manifest entry to the Claim sentence, tokens included.
@@ -112,7 +112,7 @@ Give them, for this chart:
 - every failing item, by rubric id, with the note from the last pass;
 - what you tried across the three passes;
 - **a next step** — the specific thing you would do next and the decision you need from them ("with no legend
-  the two arms are never named, and the subset cannot label one bar only; either two labelled lines instead of
+  the two arms are never named, and the subset cannot label one bar only; either two labeled lines instead of
   twelve bars, or name the arms in the Claim's prose and carry the numbers in the table");
 - **where the chart is now**: returning it does not take it off the Reader's page. It still renders, and it
   still has to, because the Claim lists it in `chart_ids` and the memo carries its `<!-- chart: id -->` marker.
@@ -144,7 +144,7 @@ last edit.
 
 Done when `check` reports `evidence valid` and every chart you changed has a fresh SVG. Report what `check`
 actually said — a chart you returned in step 6 does not make the Finding invalid, and a Finding that is still
-invalid is not "done".
+invalid is not "done."
 
 ## What to report
 

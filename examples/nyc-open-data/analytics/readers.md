@@ -10,14 +10,14 @@ profile — a non-data decision maker, with nothing else known about them.
 real is described here, and neither profile has sat for a Reader session yet. They are written from the roles the
 two demo Questions are aimed at, and the `will_misread` lists are the misreadings the data itself invites — a
 zone-boundary policy read as a citywide effect, a share read without its denominator, a weather difference read
-as a behaviour change. When a real Reader does read a Finding here, what they actually misread belongs in these
+as a behavior change. When a real Reader does read a Finding here, what they actually misread belongs in these
 lists, replacing whatever was guessed.
 
 ## city_transport_analyst
 ```yaml
 id: city_transport_analyst
-label: Non-data transport programme lead
-role: Leads evaluation of a city transport programme; decides what to report upward about how congestion pricing is going and what to look at next. Does not write SQL and does not open a notebook.
+label: Non-data transport program lead
+role: Leads evaluation of a city transport program; decides what to report upward about how congestion pricing is going and what to look at next. Does not write SQL and does not open a notebook.
 data_literacy: reads_charts
 reads_on: [laptop, phone]
 time_budget_minutes: 10
@@ -42,7 +42,7 @@ vocabulary:
   avoid: [denominator, difference-in-differences, counterfactual, statistically significant, p-value, confounder]
 notes: >-
   Composite, not a person. The trip records carry no rider identity, so nothing written for this Reader can say
-  whether the same people changed behaviour — only whether the trips changed. Say that in the memo rather than
+  whether the same people changed behavior — only whether the trips changed. Say that in the memo rather than
   leaving it to be inferred.
 ```
 

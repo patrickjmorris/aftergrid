@@ -10,7 +10,7 @@ Get this repository to a working, resumable aftergrid Instance. The command does
 collect the inputs, run it, read the report and fix what it names.
 
 **Report only what the command reported.** Every claim below comes from a line the command printed. If a step
-says `unknown`, say `unknown` — do not round it up to "done", and do not describe the hook as protecting
+says `unknown`, say `unknown` — do not round it up to "done," and do not describe the hook as protecting
 anything until its self-test has passed in the output you are reading.
 
 ## 1. Collect the inputs
@@ -37,7 +37,7 @@ produced them. A Finding built that way is complete, checkable and renderable, a
 byte for byte. Nothing about setup, `/grill-question`, `/analyze` or a published Finding needs a backend.
 
 Ask **one** question about it, and only this one: *do you want aftergrid to be able to re-run these queries
-itself later — for `check --mode rerun` and for Revisit?* A "no", a "not yet" or an "I don't know" is `none`:
+itself later — for `check --mode rerun` and for Revisit?* A "no," a "not yet" or an "I don't know" is `none`:
 run setup with no `--adapter` and say what that means. Never ask for a warehouse path or a connection variable
 before that answer is yes.
 
@@ -103,7 +103,7 @@ Every error carries a remedy. Apply them and rerun the same command.
   *to produce a Finding on the recorded path*: no source is opened there. Say the rest too, because it is what
   the warning says: the binding is needed to configure the duckdb adapter, and to run `execute` or
   `check --mode rerun` on any Finding that already holds retained inputs — those open the extracts through it,
-  whatever `connection:` says. It is not a broken setup, and it is not "unused here".
+  whatever `connection:` says. It is not a broken setup, and it is not "unused here."
 - **`missing_credential`** — export the named environment variable and rerun.
 - **`write_capable_role`** — create a read-only role with the `GRANT` statements in the remedy and point the
   connection string at it. Do not look for a flag to accept the write-capable role; there is not one.
@@ -116,7 +116,7 @@ Every error carries a remedy. Apply them and rerun the same command.
 
 ## 5. Tell the user where they are
 
-Summarise the six steps as they were reported, name what is outstanding and give the next command:
+Summarize the six steps as they were reported, name what is outstanding and give the next command:
 `/grill-question` to sharpen a raw ask into a Question, then `aftergrid new finding <slug>`.
 
 Say which data path this Instance is on, in the report's own words:

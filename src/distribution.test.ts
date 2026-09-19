@@ -4,7 +4,7 @@
 //
 // The full clean-install smoke (`scripts/pack-smoke.mjs`) is NOT run here: it installs from the network and
 // drives the whole CLI, which belongs in the `pack-smoke` CI job. Its `--quick` mode is, because packing and
-// grepping the tarball is fast and the credential, marker and licence checks are the ones that must never go
+// grepping the tarball is fast and the credential, marker and license checks are the ones that must never go
 // unrun.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -330,7 +330,7 @@ test("the /analyze chain ends with review status, quotes its verdict line, and s
     says(name, text, /verdict: continue/, "show the verdict line as the command prints it");
   }
   says("SKILL.md", skill, /verbatim/, "say the final report quotes the verdict line verbatim");
-  says("SKILL.md", skill, /not\*{0,2}\s+summarise/i, "say the run does not retell it in its own words");
+  says("SKILL.md", skill, /not\*{0,2}\s+summarize/i, "say the run does not retell it in its own words");
   says("docs/skills/analyze.md", doc, /verbatim/, "answer it the same way");
 
   // The rule is not only prose: the command it describes exits non-zero, and the contract documents the code.

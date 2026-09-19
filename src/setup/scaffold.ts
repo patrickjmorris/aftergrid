@@ -124,7 +124,7 @@ function aftergridYaml(spec: ScaffoldSpec): string {
   } else {
     lines.push(
       "  # Not configured yet. Until all three are filled in, no Finding in this Instance can reach publication",
-      "  # readiness `ready`; drafts still render, labelled as drafts. Rerun `aftergrid setup` with",
+      "  # readiness `ready`; drafts still render, labeled as drafts. Rerun `aftergrid setup` with",
       "  # --repository, --automation-login and --trusted-approver, or fill these in by hand.",
       "  # repository: owner/repo",
       "  # trusted_approvers: [your-github-login]",
@@ -248,7 +248,7 @@ skill or definition change.
 values it must land on with their tolerances, what the Finding must state, and what it must not conclude.
 
 The Engine ships worked examples under \`fixtures/instance/analytics/golden/\`. Nothing is scaffolded here,
-because a golden Question is a judgement about your data that only you can make.
+because a golden Question is a judgment about your data that only you can make.
 `;
 
 const PROVISIONAL_README = `# Provisional sign-off records

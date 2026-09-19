@@ -33,7 +33,7 @@ test("both exemplars render: factual values agree across prose, tables and chart
   assert.ok(existsSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.svg")) && existsSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.png")));
   const svg = readFileSync(join(finding(root, NUMERIC), "render", "retention_by_arm_chart.svg"), "utf8");
   assert.ok(/<title id="chart-retention_by_arm_chart-title">Users who saw the checklist came back more often: 34\.8% vs 28\.5%<\/title>/.test(svg) && /<desc id=/.test(svg), "chart carries title and description");
-  assert.ok(/role="img" aria-labelledby=/.test(html), "inline chart is labelled");
+  assert.ok(/role="img" aria-labelledby=/.test(html), "inline chart is labeled");
   assert.ok(html.split("<details").length >= 6 && html.split('scope="col"').length >= 8 && html.split('scope="row"').length >= 3, "expandable sections and semantic tables");
   assert.ok(html.includes('name="viewport"') && html.includes("max-width: 30rem"), "phone rules present");
   // Every resolved value carries a provenance popover: result, query, retained inputs, definition. CSS only, no script.
@@ -46,7 +46,7 @@ test("both exemplars render: factual values agree across prose, tables and chart
   // which the reference. That, not the arithmetic, is what a reader cannot otherwise check: both operand
   // orders are valid and one of them renders the opposite sign (ag-derived-named-operands-kbk).
   assert.ok(/<span class="ref"[^>]*>6\.3 pp<span class="tip"[^>]*>[\s\S]*?The difference of after 34\.8%[\s\S]*?against baseline 28\.5%/.test(html), "derived value explains its calculation and names which operand is which");
-  assert.ok(/<span class="ref"[^>]*>3 pp<span class="tip"[^>]*>[\s\S]*?not a measurement/.test(html), "external target is labelled as not a measurement");
+  assert.ok(/<span class="ref"[^>]*>3 pp<span class="tip"[^>]*>[\s\S]*?not a measurement/.test(html), "external target is labeled as not a measurement");
   for (const svg of html.match(/<svg[\s\S]*?<\/svg>/g) ?? []) assert.ok(!svg.includes('class="ref"'), "no popover markup inside chart SVG");
   assert.ok(/<td class="num"><span class="ref"/.test(html), "numeric table cells carry popovers");
   assert.ok(/<li><span class="mk ok">✓<\/span><span><strong>Checks passed<\/strong>/.test(html) && /<span class="mk no">×<\/span><span><strong>Publication approval<\/strong>/.test(html), "facts carry separate marks");

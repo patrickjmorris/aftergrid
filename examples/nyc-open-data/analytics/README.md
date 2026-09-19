@@ -119,7 +119,7 @@ the new line. Everything except `trips_daily` is admissible; the headline Questi
 
 One month of `trips_daily` is about 1.3 million rows and is comfortably admissible; **four months are not.** The
 default `estimate_cap` is 5,000,000 and `capture` copies whole tables, so the whole-table read of `trips_daily`
-is refused with `admission` before a byte is written. This is the designed behaviour
+is refused with `admission` before a byte is written. This is the designed behavior
 (`docs/contracts/setup.md`, `docs/contracts/adapters.md`, "Large sources: the windowed Instance pattern"), not a
 defect, and the cap has deliberately **not** been raised here to make the number go away.
 
@@ -133,7 +133,7 @@ Question's table takes no network and a fraction of a second, and must not mean 
 
 Both are **composites, not people**, and neither has sat for a Reader session. `readers.md` says so in the file.
 
-- **`city_transport_analyst`** — a non-data transport programme lead who decides what to report upward about
+- **`city_transport_analyst`** — a non-data transport program lead who decides what to report upward about
   how the charge is going. Wants trips into the zone, the same month a year earlier, and whether the two periods
   were alike enough to compare. Will misread a before/after difference as an effect, and a zone change as a
   citywide one.

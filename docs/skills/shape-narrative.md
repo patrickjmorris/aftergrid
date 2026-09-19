@@ -1,18 +1,16 @@
 # shape-narrative
 
-Make an analytical memo understandable: answer first, one claim at a time, explicit comparison, and the decisive caveat beside the answer. Preserve evidence and meaning.
-
 ## What it does
 
-`shape-narrative` decides what a reader meets first, and in whose words. It puts the answer and its material caveat at the top, makes headings state claims rather than section labels, and rewrites toward the intended reader without changing what the evidence supports.
+Decides what a reader meets first, and in whose words. It puts the answer and its material caveat at the top, makes headings state claims rather than section labels, and rewrites toward the intended reader without changing what the evidence supports.
 
-The defining constraint: it changes wording and order. A request that would change what the reader concludes is reported and stopped, not made.
+It changes wording and order. A request that would change what the reader concludes is reported and stopped, not made.
 
 ## When to reach for it
 
 Ask in plain language. The agent reaches for it after a draft exists. Hidden from the Claude Code slash menu.
 
-Reach for it when the analysis is right and the memo is still hard to use. Use [write-finding](write-finding.md) to create the draft. Use [analysis-review](analysis-review.md) to challenge whether the claim is earned. Use [revise-finding](revise-finding.md) when an owner’s feedback arrives on a finished artifact.
+Use it when the analysis is right and the memo is still hard to use. Use [write-finding](write-finding.md) to create the draft. Use [analysis-review](analysis-review.md) to challenge whether the claim is earned. Use [revise-finding](revise-finding.md) when an owner’s feedback arrives.
 
 ## Answer first, caveat adjacent
 
@@ -35,11 +33,11 @@ A reader who stops after the first paragraph should retain the correct scope and
 
 ## Where it fits
 
-Model-invoked Explain-stage craft, after [write-finding](write-finding.md) and [iterate-visual](iterate-visual.md), before [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
+Model-invoked Explain-stage craft, after [write-finding](write-finding.md) and [iterate-visual](iterate-visual.md), before [analysis-review](analysis-review.md).
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -57,7 +55,7 @@ It changes wording and order. It changes no bound value, no Claim `type`, no `co
 request that would change what a Reader concludes is reported and stopped, not made: the skill's last
 section lists the six shapes that takes.
 
-The judgements it applies live in `skills/shape-narrative/references/narrative-criteria.md`. The Reader
+The judgments it applies live in `skills/shape-narrative/references/narrative-criteria.md`. The Reader
 reviewer in `/analysis-review` reads the same page, so writer and reviewer are never working from different
 rules.
 
@@ -87,7 +85,7 @@ and stops.
 
 **Can it change "was linked to" into "caused"?** No. A verb that upgrades a Claim's type asserts a design the
 Analysis did not have, and it invalidates method review. Claim types are `/write-finding`'s, earned by
-randomised assignment.
+randomized assignment.
 
 **What does it do about a misreading it cannot fix with wording?** Records it as a non-blocking note for the
 Reader reviewer, naming the `will_misread` item and the sentence that invites it.

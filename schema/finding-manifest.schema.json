@@ -278,7 +278,7 @@
         "primary_comparison": {
           "type": "string",
           "minLength": 1,
-          "description": "Pre-registered comparison, stated before any cuts. Exploratory cuts are labelled as such in Claims."
+          "description": "Pre-registered comparison, stated before any cuts. Exploratory cuts are labeled as such in Claims."
         },
         "falsifier": {
           "oneOf": [
@@ -1023,7 +1023,7 @@
             "enum": [
               "not_available"
             ],
-            "description": "Only defined behaviour: render as not available, never 0 or infinity."
+            "description": "Only defined behavior: render as not available, never 0 or infinity."
           },
           "on_null": {
             "type": "string",
@@ -2057,7 +2057,7 @@
             },
             "pre_registered": {
               "type": "boolean",
-              "description": "Whether this comparison was the Question's primary comparison. Exploratory comparisons are labelled as such in the render."
+              "description": "Whether this comparison was the Question's primary comparison. Exploratory comparisons are labeled as such in the render."
             }
           }
         },

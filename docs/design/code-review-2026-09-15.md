@@ -25,7 +25,7 @@ The earlier product-contract corrections remain intact: generic Reader fallback,
 
 ## Validation
 
-- `npm test`: 33 passing behavioural regression tests for corrupt/missing evidence, symlinks, result identity/type errors, HTML injection/export bypass, preserved approvals, malformed Checks, partial-build protection, SQL write/external-read restrictions, undeclared dependencies, named-parameter comments, cycles, exact decimals, nulls, overflow, deterministic generation and capture boundaries.
+- `npm test`: 33 passing behavioral regression tests for corrupt/missing evidence, symlinks, result identity/type errors, HTML injection/export bypass, preserved approvals, malformed Checks, partial-build protection, SQL write/external-read restrictions, undeclared dependencies, named-parameter comments, cycles, exact decimals, nulls, overflow, deterministic generation and capture boundaries.
 - `npm run validate:fixtures`: all four fixtures retain their intended outcomes; complete Findings are evidence-valid, the needs-input case remains incomplete, and publication readiness remains `not_ready`.
 - Both main exemplars were rerun against retained inputs and rendered successfully. The answered example remains 217/624 versus 186/653; the insufficient-data example remains seven days, 67 eligible cancellations and 887 subscriptions active at the change.
 - The insufficient-data method review is now correctly stale after the snapshot correction. Its recorded review was preserved, not silently rebound.
@@ -50,7 +50,7 @@ Six new regression tests failed against `d7aeb4d`. The root causes were context-
 - **P1 — evidence destruction:** a validated SQL file at `render/finding.html` was overwritten by rendering. Generated output now has a reserved directory, including protection for pinned definitions and case variants of the directory name.
 - **P2 — partial and stale exports:** an unsafe later SVG destination was discovered only after overwriting HTML. All destinations are now checked and staged first; recoverable replacement errors roll back. Successful renders remove obsolete chart files and PNG previews that otherwise could retain formerly exportable data. Authored templates remain untouched.
 - **P2 — validation divergence:** render now uses the same artifact/Decision checks as `check`, so a broken Decision binding cannot pass through rendering.
-- **P2 — misleading provenance:** mismatched renderer/style pins force a visibly labelled draft preview; review bindings remain unchanged. The draft banner reports unavailable publication verification and saved-evidence validation without denying recorded reviews or claiming SQL was rerun.
+- **P2 — misleading provenance:** mismatched renderer/style pins force a visibly labeled draft preview; review bindings remain unchanged. The draft banner reports unavailable publication verification and saved-evidence validation without denying recorded reviews or claiming SQL was rerun.
 - **P2 — external SVG resources:** a `fill: url(https://...)` passed the spec key restrictions and produced a remote paint reference in the supposedly self-contained export. Generated resource-bearing SVG attributes now permit only local fragment references.
 - **P2 — chart range and resource lifetime:** decimal-to-number overflow and underflow are rejected instead of producing an invalid chart. Vega views and WASM rasterizers/images are released on completion or error. Charts have a light background so their fixed dark text remains readable in dark mode.
 

@@ -181,9 +181,9 @@ test("render on the rendering cases: not available is written in words, private 
       const bytes = readFileSync(join(dir, "render", file));
       for (const needle of exp.render.must_not_contain ?? []) assert.ok(!bytes.includes(needle), `${where}: ${file} must not contain ${JSON.stringify(needle)}`);
     }
-    // A draft is labelled a draft: none of these fixtures carries a verified publication approval.
+    // A draft is labeled a draft: none of these fixtures carries a verified publication approval.
     assert.notEqual(report.readiness, "ready", `${where}: nothing here is approved for publication`);
-    assert.ok(/class="draft"/.test(html), `${where}: unapproved output is labelled`);
+    assert.ok(/class="draft"/.test(html), `${where}: unapproved output is labeled`);
   }
 });
 

@@ -1,18 +1,16 @@
 # revise-finding
 
-Apply feedback to an analytical answer while distinguishing presentation edits from changes to calculations, interpretation, and evidence. Works on ordinary memos or versioned Engine Findings.
-
 ## What it does
 
-`/revise-finding` classifies feedback by consequence before changing the artifact. Presentation keeps meaning. Interpretation changes what the reader would conclude. Calculation changes data, filters, metric, population, or window.
+Classifies feedback by consequence before changing the artifact. Presentation keeps meaning. Interpretation changes what the reader would conclude. Calculation changes data, filters, metric, population, or window.
 
-The defining constraint: classify by what would change for the reader, not by how small the text edit looks. A request to make an inconclusive result “more confident” cannot be satisfied by hiding the caveat.
+Classify by what would change for the reader, not by how small the text edit looks. A request to make an inconclusive result “more confident” cannot be satisfied by hiding the caveat.
 
 ## When to reach for it
 
-You invoke this by typing `/revise-finding` — the agent will not start it on its own.
+You start it: `/revise-finding`. The agent will not start it on its own.
 
-Reach for it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use [iterate-visual](iterate-visual.md) when the chart is merely hard to read. Use [checked-analysis](checked-analysis.md) when the numbers have to be rerun. Use [analysis-review](analysis-review.md) to produce the critique this skill applies.
+Use it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use [iterate-visual](iterate-visual.md) when the chart is merely hard to read. Use [checked-analysis](checked-analysis.md) when the numbers have to be rerun. Use [analysis-review](analysis-review.md) to produce the critique this skill applies.
 
 ## Three classes
 
@@ -37,16 +35,16 @@ Preserve a change record: request, edits, checks rerun, whether the conclusion m
 
 ## Where it fits
 
-User-invoked Improve-stage entry after a finished artifact. Neighbors: [write-finding](write-finding.md), [shape-narrative](shape-narrative.md), [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
+User-invoked Improve-stage entry after a finished artifact. Neighbors: [write-finding](write-finding.md), [shape-narrative](shape-narrative.md), [analysis-review](analysis-review.md).
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
 
-`/revise-finding` takes your feedback on a Finding that has already been checked — "make it horizontal", "lead
+`/revise-finding` takes your feedback on a Finding that has already been checked — "make it horizontal," "lead
 with retention", "say it more plainly" — makes the edit, and runs `aftergrid revise` to classify what you just
 asked for:
 
@@ -88,7 +86,7 @@ change to one would have been refused — so the archive plus the Finding's `que
 `inputs/` reconstruct it.
 
 **Why did it call my harmless edit "interpretation"?** The classifier is conservative: what it does not
-recognise it calls interpretation. It costs you a review you may not have needed, which is the error it is
+recognize it calls interpretation. It costs you a review you may not have needed, which is the error it is
 allowed to make. The `differences` list names the field that forced the class.
 
 **Could it call something "presentation" that actually changed the meaning?** Yes. It reads field paths and
@@ -99,7 +97,7 @@ keeps every token. Method review is what catches that, and this skill never clai
 that ran it before, and `aftergrid record <dir> --tool "<name>" --execution <id> --result <file>` writes the new
 run down. `record` re-pins the SQL, the parameters, the result and the content digest; it does **not** archive
 anything and does **not** bump `finding.revision`. Archiving is `aftergrid revise --pin` or `--apply`, and it
-belongs **before** the re-record: afterwards a `--pin` at the same revision number reports `exists`, because
+belongs **before** the re-record: afterward a `--pin` at the same revision number reports `exists`, because
 `revisions/<N>/` already holds the digest somebody reviewed. If the revision carries **any attestation** — an
 approval, and equally any other kind — `record` refuses outright (`stale_attestation`) and tells you to bump
 `finding.revision` and record into the new one.
@@ -123,7 +121,7 @@ interpretation change at the moment it reaches the page — the same cost that e
   looks cosmetic".
 - A presentation change lands as revision N+1 with `revisions/<N>/` archived, and the summary says the approval
   did not carry.
-- An interpretation change is put to you **before** it is applied, and afterwards you are told Method and
+- An interpretation change is put to you **before** it is applied, and afterward you are told Method and
   Question review are required.
 - A numeric request is refused, the Finding on disk is untouched, and you are given the command that reopens
   the Analysis on the path your Instance is actually on: `aftergrid record` where nothing was retained,

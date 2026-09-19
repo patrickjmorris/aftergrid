@@ -1,18 +1,16 @@
 # write-finding
 
-Turn analysis results into an evidence-linked answer for a specific reader, with scope and caveats beside the conclusion. Works with ordinary files and optionally an Engine Finding.
-
 ## What it does
 
-`write-finding` turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision — in the first paragraph.
+Turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision — in the first paragraph.
 
-The defining constraint: a writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.
+A writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.
 
 ## When to reach for it
 
-Ask in plain language. The agent reaches for it when numbers exist and the memo does not. In Claude Code it is hidden from the slash menu.
+Ask in plain language. The agent reaches for it when numbers exist and the memo does not. Hidden from the Claude Code slash menu.
 
-Reach for it after [checked-analysis](checked-analysis.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives on a finished artifact.
+Reach for it after [checked-analysis](checked-analysis.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives.
 
 ## The first paragraph has to be enough
 
@@ -22,7 +20,7 @@ A reader who stops after the opening should retain the correct scope and uncerta
 
 **Does every number need a chart?** No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.
 
-**Can it decide the outcome?** No. If the analysis recommended insufficient data, the memo says so in the first sentence. The writer does not upgrade a non-answer to look finished.
+**Can it decide the outcome?** No. If the analysis recommended insufficient data, the memo says so in the first sentence.
 
 **Does a well-written memo become verified?** No. Never call the draft approved, Engine-checked, or human-tested merely because it is clear.
 
@@ -35,11 +33,11 @@ A reader who stops after the opening should retain the correct scope and uncerta
 
 ## Where it fits
 
-Model-invoked Explain-stage craft. Neighbors: [shape-narrative](shape-narrative.md), [iterate-visual](iterate-visual.md), [analysis-review](analysis-review.md). The map is [ask-aftergrid](ask-aftergrid.md).
+Model-invoked Explain-stage craft. Neighbors: [shape-narrative](shape-narrative.md), [iterate-visual](iterate-visual.md), [analysis-review](analysis-review.md).
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -83,7 +81,7 @@ feedback on a merged Finding (`/revise-finding`).
 `analysis.yaml#outcome_recommendation.outcome`. A non-answer stays a non-answer, and
 `skills/write-finding/references/outcomes.md` is how each one is written honestly.
 
-**What makes a Claim causal?** Randomised assignment, recorded by the Analysis, and nothing else in v0. No
+**What makes a Claim causal?** Randomized assignment, recorded by the Analysis, and nothing else in v0. No
 sample size, effect size or set of controls promotes an associational Claim. The Analysis records the basis
 in `candidate_claims[].comparison.description`, which its schema requires on every `associational` and
 `causal` candidate. `skills/write-finding/references/claim-typing.md` has the four questions that settle a
@@ -134,7 +132,7 @@ location and stops rather than writing around it.
   way is reported in the same words a good one would be.
 - `reviews` and `attestations` are as empty as they were before the skill ran.
 - Recorded runs: `fixtures/runs/kpc-numeric` (a named Reader profile, `answered`, a causal Claim earned by
-  randomised assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no
+  randomized assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no
   causal wording anywhere). `src/writer.test.ts` holds them to the mechanical half of the above: evidence
   validity, the field boundary down to `export_policy` and `reader` keys, answer-first structure, bound
   values and allowed columns, figure titles that state their Claim, Reader vocabulary and the absence of

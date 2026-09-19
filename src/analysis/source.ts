@@ -71,7 +71,7 @@ export function openInstanceAdapter(instance: Instance): { adapter: Adapter; des
   return {
     adapter: new DuckDbAdapter({ source, ...(cap === undefined ? {} : { estimate_cap_rows: cap }) }),
     description: source.kind === "csv_dir"
-      ? `duckdb over the read-only CSV directory ${rel}; each <table>.csv is materialised into a sealed in-memory database and the directory is never written`
+      ? `duckdb over the read-only CSV directory ${rel}; each <table>.csv is materialized into a sealed in-memory database and the directory is never written`
       : `duckdb file ${rel}, opened with access_mode READ_ONLY, which the engine enforces for every statement`,
   };
 }

@@ -8,7 +8,7 @@ Three reviewers, dispatched at once, judging different things. They do not fix t
 approve it: each returns what it found, and the findings are recorded against the content digest so a later
 edit makes them visibly stale.
 
-**Blocking is the whole judgement.** A finding is **blocking** when a Reader acting on this Finding as it
+**Blocking is the whole judgment.** A finding is **blocking** when a Reader acting on this Finding as it
 stands would be misled: a sentence that does not mean what its number means, a Claim type the design does not
 earn, a rate with no stated denominator, a caveat that would change the decision and is not beside the Answer,
 an answer to a different question than the one asked. Everything else — wording, ordering, a chart that could
@@ -107,6 +107,6 @@ round-1 reviews stay in the manifest and are counted `superseded`; leave them th
 State, in this order: the halt decision from `review status`, every blocking finding with the reviewer that
 raised it, then the non-blocking ones. Use the words the reviewers used.
 
-Say "reviewed by three agent reviewers" only when three agents actually performed those reviews; otherwise say "three review lenses, performed serially by one agent". Do not say approved, verified, signed off or cleared: publication
+Say "reviewed by three agent reviewers" only when three agents actually performed those reviews; otherwise say "three review lenses, performed serially by one agent." Do not say approved, verified, signed off or cleared: publication
 still needs a human APPROVED review at the analyzed commit, which nothing here has read
 (`docs/contracts/publication.md`).

@@ -1,5 +1,5 @@
 // The analysis harness intake dispatches to, behind an interface so the runner can be built and tested before
-// the headless orchestrator exists (ag-review-analyze-golden-4ka). Intake never analyses anything itself: it
+// the headless orchestrator exists (ag-review-analyze-golden-4ka). Intake never analyzes anything itself: it
 // claims a request, refuses to dispatch when enforcement is absent, hands the request to a harness, and then
 // reports what came back — `check`ing the Finding rather than believing the harness's word for it.
 //
@@ -177,7 +177,7 @@ export function renderCommand(template: string, ctx: HarnessContext): string[] {
  * Shells out to a headless analysis command and reads a `HarnessResult` from the last JSON line it prints.
  *
  * **Not exercised.** No test in this repository runs this harness and no model runs in CI, so its real
- * behaviour — what the orchestrator prints, how it handles an abort, what it leaves behind on a crash — is
+ * behavior — what the orchestrator prints, how it handles an abort, what it leaves behind on a crash — is
  * untested. `exercised: false` travels into the intake report so that fact is visible where the run is.
  */
 export function createClaudeCodeHarness(opts: CommandHarnessOptions): Harness {
@@ -207,7 +207,7 @@ export function createClaudeCodeHarness(opts: CommandHarnessOptions): Harness {
         child.on("close", (code, signalName) => {
           if (signalName) { resolvePromise({ status: "failed", reason: `harness command was terminated (${signalName}); the run can be retried` }); return; }
           const parsed = lastJsonLine(out);
-          if (parsed) { resolvePromise(normalise(parsed, ctx)); return; }
+          if (parsed) { resolvePromise(normalize(parsed, ctx)); return; }
           resolvePromise({
             status: "failed",
             reason: code === 0
@@ -234,9 +234,9 @@ const STATUSES = new Set(["complete", "needs_input", "needs_attention", "failed"
 
 /** Nothing the harness prints is believed as-is: an unknown status is a failure, and a Finding outside the
  *  Instance's findings directory is refused here rather than being reported as produced. */
-function normalise(body: Record<string, unknown>, ctx: HarnessContext): HarnessResult {
+function normalize(body: Record<string, unknown>, ctx: HarnessContext): HarnessResult {
   const status = String(body.status ?? "");
-  if (!STATUSES.has(status)) return { status: "failed", reason: `harness returned an unrecognised status '${status}'` };
+  if (!STATUSES.has(status)) return { status: "failed", reason: `harness returned an unrecognized status '${status}'` };
   const result: HarnessResult = { status: status as HarnessResult["status"] };
   if (typeof body.reason === "string") result.reason = body.reason;
   if (Array.isArray(body.needs_input)) {

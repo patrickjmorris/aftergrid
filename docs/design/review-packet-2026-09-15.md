@@ -175,7 +175,7 @@ Every published data-agent system we studied (Ramp Research, Anthropic's self-se
 
 **Engine and Instance are separate repositories; nouns never live in skills**
 
-aftergrid (the Engine) is public and holds only verbs: skills, Checks, adapters, the CLI. Each team's nouns — Metric definitions, table docs, Decision log, golden Questions, Findings — live in a private Instance (for Spot Sports, `spot_sports/analytics/`, colocated with schema and CI). A skill count near 15, hard ceiling under 50, follows from this: Snap reached ~250 skills partly because table and domain facts became skills. A pattern enters the Engine only after it has worked in an Instance. The alternative, one repo with a `private/` folder, would leak Spot Sports schema into the open-source history and make "what is generic?" a per-commit judgement.
+aftergrid (the Engine) is public and holds only verbs: skills, Checks, adapters, the CLI. Each team's nouns — Metric definitions, table docs, Decision log, golden Questions, Findings — live in a private Instance (for Spot Sports, `spot_sports/analytics/`, colocated with schema and CI). A skill count near 15, hard ceiling under 50, follows from this: Snap reached ~250 skills partly because table and domain facts became skills. A pattern enters the Engine only after it has worked in an Instance. The alternative, one repo with a `private/` folder, would leak Spot Sports schema into the open-source history and make "what is generic?" a per-commit judgment.
 
 ## 0003-finding-is-markdown-plus-static-charts
 
@@ -213,10 +213,10 @@ A Metric definition carries plain-language meaning (grain, population, denominat
 
 
 ## Macomber — Post-AI Data Stack (iandmacomber.com)
-- Scarce resource shifted from access to **consensus**. Data team's job: "encode expert judgement into the infrastructure that allows agents to produce correct analysis."
+- Scarce resource shifted from access to **consensus**. Data team's job: "encode expert judgment into the infrastructure that allows agents to produce correct analysis."
 - Stack: harness (commodity) ← company context via progressive disclosure (semantic layer, lineage, domain docs, activity metadata) ← feedback loop (artifacts, decisions, usage, evals).
 - **Consensus divergence rate**: same board metric queried across every interface × model; count distinct answers.
-- Evals test answer *and* evidence path; normalise traces to steps (`READ_DOMAIN_DOC`, `EXECUTE_SQL`, `SYNTHESIZE_ANSWER`…); snapshot model/prompt/tools/knowledge per run.
+- Evals test answer *and* evidence path; normalize traces to steps (`READ_DOMAIN_DOC`, `EXECUTE_SQL`, `SYNTHESIZE_ANSWER`…); snapshot model/prompt/tools/knowledge per run.
 - Dashboards become "repository of facts, contracts, and explanations that agents can decompose" — per-data-product `llms.txt`.
 - Unsolved: speed vs consistency; vendor drift; keeping context quality compounding.
 

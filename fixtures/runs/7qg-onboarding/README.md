@@ -23,7 +23,7 @@ fixed input `src/analysis.test.ts` validates. A model-in-the-loop evaluation is 
   and a second pass over the resolved Question asks nothing at all — checked against
   `clarification-rounds.yaml`, with a mutated copy as the negative control.
 - Every Check is written and run before the first analysis query, and `execution_order` records it in that order.
-- The platform split is labelled exploratory in `execution_order` and in the Claim that rests on it.
+- The platform split is labeled exploratory in `execution_order` and in the Claim that rests on it.
 - The grouping the split needs is a Diagnostic calculation, proposed and not approved; the decision metric
   (`retained_7d` v2) was already approved and the run did not touch it. The proposal's canonical SQL is the
   expression the query actually ran, and both the definition and the Claim say that "web" means *not mobile*.

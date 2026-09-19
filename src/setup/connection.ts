@@ -79,11 +79,11 @@ async function validateDuckDb(path: string): Promise<ConnectionResult> {
     result.probe = await adapter.probePrivileges();
     result.info.push(
       isDir
-        ? `opened ${path} as a read-only CSV source: ${tables.length} table${tables.length === 1 ? "" : "s"} materialised into a sealed in-memory database; the directory itself is never written`
+        ? `opened ${path} as a read-only CSV source: ${tables.length} table${tables.length === 1 ? "" : "s"} materialized into a sealed in-memory database; the directory itself is never written`
         : `opened ${path} with access_mode READ_ONLY, which the engine enforces for every statement: ${tables.length} table${tables.length === 1 ? "" : "s"} visible`,
     );
     if (tables.length) result.info.push(`tables: ${tables.map((t) => t.name).slice(0, 12).join(", ")}${tables.length > 12 ? `, … (${tables.length} total)` : ""}`);
-    else result.warnings.push({ category: "incomplete", location: path, message: "the source opened but holds no tables", remedy: "check that --duckdb-path points at the warehouse you meant; an empty source is valid but nothing can be analysed from it" });
+    else result.warnings.push({ category: "incomplete", location: path, message: "the source opened but holds no tables", remedy: "check that --duckdb-path points at the warehouse you meant; an empty source is valid but nothing can be analyzed from it" });
     result.info.push(...matrixLines(result.capabilities));
     // The one sentence this module exists to get right.
     result.info.push(
@@ -137,7 +137,7 @@ async function validatePostgres(urlEnv: string): Promise<ConnectionResult> {
       result.warnings.push({
         category: "incomplete", location: urlEnv,
         message: `the privilege probe did not run: ${probe.reason}. Whether this role can write is unknown, so it is not recorded as read-only.`,
-        remedy: "grant the analysis role enough catalogue access to probe its own privileges, or use a role you know is read-only and say so in the Instance's own notes",
+        remedy: "grant the analysis role enough catalog access to probe its own privileges, or use a role you know is read-only and say so in the Instance's own notes",
       });
     } else if (probe.can_write || probe.can_ddl) {
       result.problems.push({

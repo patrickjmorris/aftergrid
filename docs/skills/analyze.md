@@ -1,18 +1,16 @@
 # analyze
 
-Analyze a question from the data you have. Clarify the decision, test explanations, and deliver an evidence-linked answer or an honest limit; optionally produce an Engine Finding.
-
 ## What it does
 
-`/analyze` carries one question from a raw ask to a reviewed answer: clarify, inspect, plan, calculate under checks, write, challenge, and stop with a reason when the evidence runs out. Portable analysis is the default. An Engine Finding is a separate route you ask for.
+Carries one question from a raw ask to a reviewed answer: clarify, inspect, plan, calculate under checks, write, challenge, and stop with a reason when the evidence runs out. Portable analysis is the default. An Engine Finding is a separate route you ask for.
 
-The defining constraint: it is the only orchestrator. It owns the order of stages and the decision to halt. Craft belongs to the specialist skills; `/analyze` does not redo their work, which is what keeps a three-pass visual loop from becoming a six-pass one.
+It is the only orchestrator. Craft belongs to the specialist skills; `/analyze` does not redo their work.
 
 ## When to reach for it
 
-You invoke this by typing `/analyze` — the agent will not start it on its own.
+You start it: `/analyze`. The agent will not start it on its own.
 
-Reach for it when you have an ask and want the whole practice applied, including an honest “inconclusive” or “not enough data.” Use [grill-question](grill-question.md) when you only want the interview. Use a single craft skill when you already have a query, a chart, or a draft. Use [revise-finding](revise-finding.md) for feedback on a finished artifact.
+Use it when you have an ask and want the whole practice applied, including an honest “inconclusive” or “not enough data.” Use [grill-question](grill-question.md) when you only want the interview. Use a single craft skill when you already have a query, a chart, or a draft. Use [revise-finding](revise-finding.md) for feedback on a finished artifact.
 
 ## Follow the evidence, then try to break it
 
@@ -22,9 +20,9 @@ The answer leads with what was observed, for whom and when, with the decision-ch
 
 ## Common questions
 
-**Do I need the aftergrid CLI?** No. Start with a CSV, notebook, pasted results, or an existing connector. The Engine route needs the complete toolkit and keeps its evidence and approval contracts.
+**Do I need the aftergrid CLI?** No. Start with a CSV, notebook, pasted results, or an existing connector. The Engine route needs the complete toolkit.
 
-**Why doesn’t it call /grill-question?** User-invoked skills do not call each other. Both read the same clarification procedure, so the interview is the same one either way.
+**Why doesn’t it call /grill-question?** User-invoked skills do not call each other. Both read the same clarification procedure.
 
 **Is “inconclusive” a failed run?** No. Insufficient data, inconclusive, and needs-reframing are valid completed answers. A check that *errored* is a run that did not happen; a check that *failed as pre-specified* can be the answer.
 
@@ -39,11 +37,11 @@ The answer leads with what was observed, for whom and when, with the decision-ch
 
 ## Where it fits
 
-User-invoked Analyze-stage orchestrator. Neighbors: [diagnose-change](diagnose-change.md) for a movement-only job, [checked-analysis](checked-analysis.md) for execute-and-record without the full loop, [analysis-review](analysis-review.md) for a draft you already have. The map is [ask-aftergrid](ask-aftergrid.md).
+User-invoked Analyze-stage orchestrator. Neighbors: [diagnose-change](diagnose-change.md) for a movement-only job, [checked-analysis](checked-analysis.md) for execute-and-record without the full loop, [analysis-review](analysis-review.md) for a draft you already have.
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does

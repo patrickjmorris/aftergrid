@@ -74,7 +74,7 @@ export type Scan = { firstWord: string; words: string[]; quoted: string[]; param
 const policy = (message: string): never => { throw new AdapterError("sql_policy", message, "SQL"); };
 const IDENT_CHAR = /[A-Za-z0-9_-￿]/;
 
-/** Tokenize far enough to split top-level statements and see bare keywords; refuse anything unrecognised. */
+/** Tokenize far enough to split top-level statements and see bare keywords; refuse anything unrecognized. */
 export function scan(sql: string): Scan {
   if (typeof sql !== "string" || !sql.trim()) policy("empty SQL");
   const words: string[] = []; const quoted: string[] = []; const params: ParamRef[] = [];
@@ -392,9 +392,9 @@ export class PostgresAdapter implements Adapter {
       execute: { status: "supported", note: "single SELECT, named parameters mapped to $1..$n, JSON-safe typed cells; timestamptz rendered in UTC" },
       capture: { status: "supported", note: "whole-table CSV extracts read inside one REPEATABLE READ READ ONLY transaction; content hashes, server version and column types recorded; rows ordered by every column, by its text rendering where the type has no ordering operator; a column whose name a rerun could not restore is refused at capture" },
       open_retained: { status: "partial", note: "extracts are restored into a disposable Postgres provisioned with initdb/pg_ctl; a column type the fresh instance does not have (an enum, domain or composite) is restored as text and the substitution is recorded in the admission; without those binaries rerun reports runtime_unavailable and never falls back to the live source" },
-      privilege_probe: { status: "supported", note: "effective privileges of the connected role: has_table_privilege for INSERT/UPDATE/DELETE/TRUNCATE on tables, views and materialised views (a writable view writes its base table), CREATE on schema and database, and pg_roles superuser/createdb; EXECUTE on SECURITY DEFINER routines is not probed" },
+      privilege_probe: { status: "supported", note: "effective privileges of the connected role: has_table_privilege for INSERT/UPDATE/DELETE/TRUNCATE on tables, views and materialized views (a writable view writes its base table), CREATE on schema and database, and pg_roles superuser/createdb; EXECUTE on SECURITY DEFINER routines is not probed" },
       cost_estimate: { status: "supported", note: "EXPLAIN (FORMAT JSON) without ANALYZE; unit planner_cost (plan rows plus the planner's abstract total cost); unknown when planning fails or reports no rows" },
-      resource_limits: { status: "partial", note: "statement_timeout, lock_timeout and idle_in_transaction_session_timeout are enforced by the server; memory_limit is applied as work_mem, which is per-operation tuning, not a total memory cap, and a value work_mem cannot take is refused rather than dropped; no hard memory or CPU bound is claimed unless the hosting runtime enforces one; calls on one adapter are serialised" },
+      resource_limits: { status: "partial", note: "statement_timeout, lock_timeout and idle_in_transaction_session_timeout are enforced by the server; memory_limit is applied as work_mem, which is per-operation tuning, not a total memory cap, and a value work_mem cannot take is refused rather than dropped; no hard memory or CPU bound is claimed unless the hosting runtime enforces one; calls on one adapter are serialized" },
       cancellation: { status: "supported", note: "statement_timeout cancels the statement server-side, with pg_cancel_backend from a second connection as a backstop; the session stays usable" },
       statement_guard: { status: "supported", note: "conservative single-SELECT token guard, applied to quoted identifiers as well as bare words, in front of the enforced boundary: a read-only role, default_transaction_read_only, and the extended protocol, which refuses multiple commands at the server" },
       catalog: { status: "supported", note: "information_schema.columns for the configured schema" },
@@ -434,7 +434,7 @@ export class PostgresAdapter implements Adapter {
   async probePrivileges(): Promise<PrivilegeProbe> {
     return this.serialize(() => translate(async () => {
       const s = await this.open();
-      // Views and materialised views count: an INSERT/UPDATE/DELETE grant on an auto-updatable or trigger-backed
+      // Views and materialized views count: an INSERT/UPDATE/DELETE grant on an auto-updatable or trigger-backed
       // view writes the base table, and a view that is not security_invoker does it with the owner's rights. A
       // probe that looked only at ('r','p','f') would report can_write:false for a role that can write the source.
       const sql = `select current_user::text as role,
@@ -453,7 +453,7 @@ export class PostgresAdapter implements Adapter {
       const r = rows[0]!;
       const can_write = r.can_write === true;
       const can_ddl = r.is_superuser === true || r.can_createdb === true || r.schema_create === true || r.database_create === true;
-      const detail = `role ${r.role}: INSERT/UPDATE/DELETE/TRUNCATE on at least one of ${r.tables} non-system tables, views or materialised views (a writable view writes its base table): ${can_write ? "yes" : "no"}; CREATE on a schema: ${r.schema_create ? "yes" : "no"}; CREATE in the database: ${r.database_create ? "yes" : "no"}; superuser: ${r.is_superuser ? "yes" : "no"}; createdb: ${r.can_createdb ? "yes" : "no"}. This session also runs with default_transaction_read_only=on and statement_timeout=${ms(this.limits.statement_timeout_ms)}ms, which bound the session but not the role. EXECUTE on a SECURITY DEFINER routine is not probed, so a 'no' here is about relation privileges only.`;
+      const detail = `role ${r.role}: INSERT/UPDATE/DELETE/TRUNCATE on at least one of ${r.tables} non-system tables, views or materialized views (a writable view writes its base table): ${can_write ? "yes" : "no"}; CREATE on a schema: ${r.schema_create ? "yes" : "no"}; CREATE in the database: ${r.database_create ? "yes" : "no"}; superuser: ${r.is_superuser ? "yes" : "no"}; createdb: ${r.can_createdb ? "yes" : "no"}. This session also runs with default_transaction_read_only=on and statement_timeout=${ms(this.limits.statement_timeout_ms)}ms, which bound the session but not the role. EXECUTE on a SECURITY DEFINER routine is not probed, so a 'no' here is about relation privileges only.`;
       return { status: "supported", can_write, can_ddl, detail };
     }));
   }

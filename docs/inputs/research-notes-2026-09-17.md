@@ -1,6 +1,6 @@
 # Research notes — Meta Analytics (two pieces) and Shopify (data and intuition), 2026-09-17
 
-Read for positioning: where aftergrid fits in the market. Summaries, not re-derivations. Companion to `research-notes-2026-09-15.md` and `-16.md`. Meta quotes are checked against owner-supplied PDFs of the originals; Shopify was read through a summarising fetch, so check its quotes against the page before public use.
+Read for positioning: where aftergrid fits in the market. Summaries, not re-derivations. Companion to `research-notes-2026-09-15.md` and `-16.md`. Meta quotes are checked against owner-supplied PDFs of the originals; Shopify was read through a summarizing fetch, so check its quotes against the page before public use.
 
 ## Meta — How data scientists lead and drive impact (Crystal Distin and Jason Wei, 2025-01-28)
 
@@ -30,7 +30,7 @@ Read for positioning: where aftergrid fits in the market. Summaries, not re-deri
 
 - Thesis: "data-driven" is not the goal. "Data does not replace intuition, it sharpens it." "You still have to have conviction": people decide, dashboards don't, and data must not become a way to deflect responsibility for the call.
 - Origin story: a published, elegant EKG finding that was produced by a Visual Basic bug scrambling row order. **"People tell very powerful stories with data. So you'd better make sure the story is true."**
-- Goodhart's Law taken seriously: targets get optimised instead of the thing they stood for. "If you want to build a 100-year company, you're not going to get there if you only care about hitting a quarterly target."
+- Goodhart's Law taken seriously: targets get optimized instead of the thing they stood for. "If you want to build a 100-year company, you're not going to get there if you only care about hitting a quarterly target."
 - Data team's role is foundations, not decisions: 13 PB/day, heavy investment in data quality and canonical sources of truth; "custodians of context."
 - Wide access: internal tools including an MCP for natural-language queries; 90% of non-data employees use data tools monthly, 40% daily. More users means more scrutiny of the data.
 - Example: half of new signups are repeat entrepreneurs; second-time merchants earn more than 2× average sales per shop.
@@ -44,13 +44,13 @@ Read for positioning: where aftergrid fits in the market. Summaries, not re-deri
 - **Recipes / Ingredients is the Engine / Instance split.** "Recipes define what to do, but not what the data means" is ADR 0002 (the Engine holds verbs, never a team's nouns) arrived at independently. 4,500 recipes used 150,000 times says a shareable analysis procedure is a unit people adopt and extend, which backs skills as the launch surface. Snap's 250 skills said the same.
 - **Their validations are judged; ours run.** Custom Validations are natural-language rules read by a second model. Checks are runnable assertions with results bound to evidence. Same instinct, different guarantee; worth saying plainly on the page. A Recipe-style natural-language rule is still a good authoring surface for an Operator who then gets a Check generated from it.
 - **Ungated context again.** Table descriptions generated from query history and Memories from user corrections go straight into context, like DANA's knowledge note. Anthropic reported that LLM-bootstrapped definitions "encoded the very ambiguities we were trying to eliminate." ADR 0007's Operator approval remains the differentiator; "clone a colleague" is the convenient version of the same risk.
-- **Accountability is the unclaimed artefact.** Meta gets it from org design. No agent product in any of the three note sets records whether an analysis moved a decision. Decision record plus outcome plus Revisit is that accountability in a form a small team can keep, and it is what lets single Findings accumulate toward something like Meta's months-long series. aftergrid should not claim the series itself; ecosystem scores and cluster experiments are beyond one Analysis.
+- **Accountability is the unclaimed artifact.** Meta gets it from org design. No agent product in any of the three note sets records whether an analysis moved a decision. Decision record plus outcome plus Revisit is that accountability in a form a small team can keep, and it is what lets single Findings accumulate toward something like Meta's months-long series. aftergrid should not claim the series itself; ecosystem scores and cluster experiments are beyond one Analysis.
 - **Shopify's line is the thesis in one sentence.** "Make sure the story is true" is evidence binding, Snapshot hashes and Checks. The row-order bug is the class of error an invariant Check exists for.
-- **"People decide" is already in the glossary.** Meta says data cannot be skipped at scale; Shopify says it cannot replace the call; both end with a person deciding. "Whether a Decision still holds is the decision owner's judgement, never inferred by the Engine" is that position. Copy should avoid "data-driven" and "automated insights."
+- **"People decide" is already in the glossary.** Meta says data cannot be skipped at scale; Shopify says it cannot replace the call; both end with a person deciding. "Whether a Decision still holds is the decision owner's judgment, never inferred by the Engine" is that position. Copy should avoid "data-driven" and "automated insights."
 - **The 2× repeat-entrepreneur number is a Claim-type case.** Associational, reads as causal. Declaring type per Claim is the mechanism.
 - **"Start with a falsifiable bet"** is Meta's own first lesson and the word the Question already uses. Useful shared vocabulary with exactly the audience that would be Operators.
 - **Goodhart is a gap.** Nothing in the Engine notices when an approved Metric definition has become a target. Decided below.
-- **Risk to the pitch.** All three pieces locate trust in a person with product context. aftergrid is pitched as making the Operator's judgement legible and re-checkable to a Reader, never as replacing the Operator. Meta's own phrasing, "doesn't replace the data scientist but scales them," is the safe register.
+- **Risk to the pitch.** All three pieces locate trust in a person with product context. aftergrid is pitched as making the Operator's judgment legible and re-checkable to a Reader, never as replacing the Operator. Meta's own phrasing, "doesn't replace the data scientist but scales them," is the safe register.
 
 ## Decided (owner, 2026-09-17)
 

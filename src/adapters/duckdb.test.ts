@@ -1,4 +1,4 @@
-// Seam-2 contract tests, DuckDB. The same behaviours are meant to run on Postgres (ag-postgres-adapter-dna).
+// Seam-2 contract tests, DuckDB. The same behaviors are meant to run on Postgres (ag-postgres-adapter-dna).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, readdirSync, cpSync, rmSync, existsSync, statSync } from "node:fs";
@@ -173,7 +173,7 @@ test("utcText floors before the epoch; scientific-notation decimals follow the s
   assert.throws(() => coerceCell("abc", "decimal", "x"), (e: any) => e.category === "value_type");
 });
 
-test("close during a first open leaves no connection behind, and overlapping calls are serialised rather than cross-cancelled", async () => {
+test("close during a first open leaves no connection behind, and overlapping calls are serialized rather than cross-cancelled", async () => {
   const a = adapter(scratchWarehouse());
   const pending = a.execute("select 1 as n", {});
   await a.close();
