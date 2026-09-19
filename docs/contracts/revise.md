@@ -28,7 +28,7 @@ the digest commits to them collectively, which proves *that* something changed a
 So a full classification needs the previous bytes. With no baseline and no evidence drift, `revise` reports
 `classification: unknown` and a `needs_input` error naming `--pin` and `--baseline`. It does not guess, and it
 does not fall back to calling everything interpretation: an Operator who is told "interpretation" acts on it,
-and a guess dressed as a judgement is the failure this whole command exists to prevent.
+and a guess dressed as a judgment is the failure this whole command exists to prevent.
 
 `--pin` refuses a directory whose content does not hash to its pinned digest, because a baseline is supposed to
 be the state somebody reviewed. Run `aftergrid check` first.
@@ -39,7 +39,7 @@ be the state somebody reviewed. Run `aftergrid check` first.
 
 | What | Where |
 | --- | --- |
-| Chart colours, marks, sizes, axis labels and formats, sort order, legends, layered text marks | `charts/*.vl.json`, anything under `mark`, `config`, `axis`, `legend`, `view`, or a non-position `scale` |
+| Chart colors, marks, sizes, axis labels and formats, sort order, legends, layered text marks | `charts/*.vl.json`, anything under `mark`, `config`, `axis`, `legend`, `view`, or a non-position `scale` |
 | A widened or unchanged position-axis `scale.domain`, and the spacing keys `padding`, `paddingInner`, `paddingOuter`, `round`, `align`, `bandPosition` on a position `scale` | `charts/*.vl.json` |
 | A sub-spec added that shows only fields the chart already showed — the direct-label move | `charts/*.vl.json` |
 | Chart and table titles and descriptions reworded with the same evidence tokens | `charts[].title`, `tables[].title`, `finding.title`, `claims[].sentence` |
@@ -64,7 +64,7 @@ be the state somebody reviewed. Run `aftergrid check` first.
 | An encoding's measurement type, `stack`, or a sub-spec that computes something | `charts/*.vl.json` |
 | The export policy, the Reader, the coverage, the outcome, the Question's wording | `export_policy`, `reader`, `coverage`, `finding.outcome`, `question` |
 | The pinned renderer or house-style version | `renderer` |
-| Anything `revise` does not recognise | everywhere |
+| Anything `revise` does not recognize | everywhere |
 
 **`numeric`** — a different number. Refused; nothing is written.
 
@@ -105,7 +105,7 @@ compared with anything, and the cost is charged at the moment it goes **on** the
 This is a contract, not a caveat. `revise` reads field paths, evidence-token multisets and chart-spec structure.
 It cannot read English.
 
-- **It over-calls.** Anything it does not recognise is `interpretation`, which costs a review that may not have
+- **It over-calls.** Anything it does not recognize is `interpretation`, which costs a review that may not have
   been needed. That is the direction the error is allowed to run in.
 - **It cannot catch a rewrite that keeps the tokens.** Changing "came back more often than" to "came back
   because of" keeps every token and lands in `presentation`. Nothing mechanical will catch that; the Method
@@ -176,4 +176,4 @@ or chart spec the manifest names is gone), `invalid_artifact` (a chart spec that
   `/revise-finding` is user-invoked.
 - It does not touch a Decision record. A Decision binds a Finding revision, so after a bump `check` warns
   `decision_binding` — the record cites revision N and the directory holds revision N+1, and whether the
-  decision still holds is the decision owner's judgement (`docs/contracts/decide.md`).
+  decision still holds is the decision owner's judgment (`docs/contracts/decide.md`).

@@ -114,7 +114,7 @@ what, plus `pre_registered`), `window`, `exclusions`, `limitations`, and the `re
 - Exactly one Claim is `answer_bearing: true`, and it carries a `material_caveat`: the one caveat that would
   change the conclusion, written so a Reader who reads only the Answer still meets it.
 
-`comparison.kind` is the Analysis's fact and never your judgement. Since 2026-09-16 the Analysis schema uses the
+`comparison.kind` is the Analysis's fact and never your judgment. Since 2026-09-16 the Analysis schema uses the
 manifest's spelling, so the value is carried across unchanged; the table is the identity and exists so a checker
 can prove nothing is renamed:
 
@@ -142,7 +142,7 @@ the point.
   `https://vega.github.io/schema/vega-lite/v5.json`, `"data": {"name": "result"}` and nothing else under
   `data`, encodings naming declared columns of the chart's `result_id`. The renderer binds the rows.
   Arithmetic lives in SQL or in a `derived` entry, so a spec that computes — `transform`, `aggregate`,
-  `bin`, `timeUnit`, a normalised `stack`, inline data, a URL — is refused by `check` with category
+  `bin`, `timeUnit`, a normalized `stack`, inline data, a URL — is refused by `check` with category
   `chart_subset`. The subset and the house style are `docs/contracts/render.md`.
 - `charts[].title` states the Claim with its values bound, not the axis. `charts[].description` is what a
   Reader who cannot see the chart is told.

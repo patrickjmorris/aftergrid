@@ -46,7 +46,7 @@ finding:
 ```
 
 `kind` is a stable word — `clarification`, `definition_approval`, `provisional_sign_off` — so intake and the
-Operator can both route it. `owner` names who can supply it, never "the user".
+Operator can both route it. `owner` names who can supply it, never "the user."
 
 Leave every artifact produced so far in place. A half-finished Analysis with three queries and two results is
 worth more than an empty directory, and `check` reports it as incomplete, which is accurate.
@@ -91,7 +91,7 @@ Two of those three counts are not problems, and telling them apart is the whole 
   older entry is the record of the round before. `aftergrid review record` dedupes on (kind, reviewer,
   digest), so a re-review ordered on account of a superseded entry writes nothing at all.
 - **`current`** — bound to the digest the Finding carries now. This is the count that decides whether the run
-  may say "reviewed".
+  may say "reviewed."
 
 This is not hypothetical. `examples/nyc-open-data/docs/run-log.md`, Citi Bike run 2: the Finding carried three
 current reviews at the final digest and three superseded round-1 reviews at the earlier one. `review status`

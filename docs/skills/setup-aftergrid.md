@@ -1,23 +1,16 @@
 # setup-aftergrid
 
-Configure the optional Engine: an Instance, connections, and publication identities. This is not required to use the portable skills.
+Optional Engine setup. Not required for the portable skills.
 
 ## What it does
 
-`/setup-aftergrid` gets a repository to a working, resumable aftergrid Instance. The skill does not do the work
-itself: it collects the inputs, runs `aftergrid setup`, and then reports what the command reported — six separate
-facts, none of them rounded up.
+Collects inputs, runs `aftergrid setup`, and reports what the command reported — six separate facts, none rounded up. `unknown` stays `unknown`.
 
-It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`). Setup writes
-files into a repository and installs a Claude Code hook, so a human asks for it; no agent reaches for it mid-task.
-
-The defining constraint: report only what the command reported. `unknown` stays `unknown`. The portable skills
-do not need this skill.
+It is **user-invoked**. Setup writes files and installs a Claude Code hook, so a human asks for it.
 
 ## When to reach for it
 
-You invoke this by typing `/setup-aftergrid`. Reach for it when you want typed Findings, retained evidence, and
-publication controls. Do not run it to try `diagnose-change` on a CSV.
+You start it: `/setup-aftergrid`. Use it for typed Findings, retained evidence, and publication controls. Do not run it to try `diagnose-change` on a CSV.
 
 ## Inputs
 
@@ -76,7 +69,7 @@ The full contract, including every limit: [`docs/contracts/setup.md`](../contrac
 
 - The skill asks for the inputs it does not have, in one round, and guesses no login, contact or warehouse path.
 - It does not ask for a warehouse path or a connection variable at all until you have said you want rerun and
-  Revisit. No answer, or "not yet", sets the Instance up on the recorded path.
+  Revisit. No answer, or "not yet," sets the Instance up on the recorded path.
 - On an adapterless Instance, the summary names `aftergrid record` as the route and lists what is unavailable,
   rather than reporting the missing adapter as something still to fix.
 - The summary it gives back names each of the six steps with the word the command used for it.
@@ -86,6 +79,4 @@ The full contract, including every limit: [`docs/contracts/setup.md`](../contrac
 
 ## Where it fits
 
-Run-once Engine setup, not part of ordinary analysis. The fourteen portable skills work without it. After a
-working Instance, start with [ask-aftergrid](ask-aftergrid.md), [grill-question](grill-question.md) or [analyze](analyze.md). See the repository
-[source installation notes](https://github.com/patrickjmorris/aftergrid#when-you-want-stronger-artifact-guarantees).
+Run-once Engine setup, not part of ordinary analysis. The fourteen portable skills work without it. After a working Instance, start with [ask-aftergrid](ask-aftergrid.md), [grill-question](grill-question.md), or [analyze](analyze.md).

@@ -3,10 +3,10 @@
 Read for the aftergrid grill. Summaries, not re-derivations.
 
 ## Macomber — Post-AI Data Stack (iandmacomber.com)
-- Scarce resource shifted from access to **consensus**. Data team's job: "encode expert judgement into the infrastructure that allows agents to produce correct analysis."
+- Scarce resource shifted from access to **consensus**. Data team's job: "encode expert judgment into the infrastructure that allows agents to produce correct analysis."
 - Stack: harness (commodity) ← company context via progressive disclosure (semantic layer, lineage, domain docs, activity metadata) ← feedback loop (artifacts, decisions, usage, evals).
 - **Consensus divergence rate**: same board metric queried across every interface × model; count distinct answers.
-- Evals test answer *and* evidence path; normalise traces to steps (`READ_DOMAIN_DOC`, `EXECUTE_SQL`, `SYNTHESIZE_ANSWER`…); snapshot model/prompt/tools/knowledge per run.
+- Evals test answer *and* evidence path; normalize traces to steps (`READ_DOMAIN_DOC`, `EXECUTE_SQL`, `SYNTHESIZE_ANSWER`…); snapshot model/prompt/tools/knowledge per run.
 - Dashboards become "repository of facts, contracts, and explanations that agents can decompose" — per-data-product `llms.txt`.
 - Unsolved: speed vs consistency; vendor drift; keeping context quality compounding.
 

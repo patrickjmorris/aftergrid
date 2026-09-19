@@ -46,7 +46,7 @@ inside that section, and the answer-bearing Claim is first in `claims[]`.
 
 Each `### ` heading under **Evidence** is a Claim's `sentence`, verbatim with its tokens, followed by
 `<!-- claim: <id> -->`. The heading is a sentence a Reader could repeat, not a label: "New users who saw the
-checklist came back more often" rather than "Retention by arm".
+checklist came back more often" rather than "Retention by arm."
 
 Inside a numeric Claim's subsection: the figure marker first, then who is counted, then compared with what,
 then what was left out, then the limits. A subsection that carries two ideas is two Claims or one Claim with
@@ -64,7 +64,7 @@ same numbers.
 `tables[].title` states its Claim too, in words and with **no token in it**: a table caption is rendered
 verbatim, so `{{ref:…}}` in a table title reaches the Reader as literal braces. The numbers are in the rows
 underneath, so the title's job is to say what those rows show: "New users who saw the checklist came back
-more often" rather than "Retention by arm" or "Who was counted, and how many came back".
+more often" rather than "Retention by arm" or "Who was counted, and how many came back."
 
 A title that opens by naming the artifact ("Retention by arm"), by asking ("Who was counted"), or by
 pointing back at something else ("The same comparison, phones and web separately") is a label. State the
@@ -76,7 +76,7 @@ with no token in it, and each chart description names the same values its title 
 ## 5. Use the Reader's words
 
 Read [`references/narrative-criteria.md`](narrative-criteria.md) and apply every criterion in it
-to every Claim. It holds the judgements a linter cannot make — whether a word is earned, whether the caveat
+to every Claim. It holds the judgments a linter cannot make — whether a word is earned, whether the caveat
 is the one that matters, whether a sentence invites a misreading on the profile's list — and the Reader
 reviewer in `/analysis-review` reads the same page.
 

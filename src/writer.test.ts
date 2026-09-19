@@ -5,7 +5,7 @@
 // skill is expected to produce from it (output/), both hand-authored, with run.yaml recording both digests
 // and the absence of a model. So the assertions here are mechanical ones — evidence validity, the writer's
 // field boundary, answer-first structure, bound values, figure titles, Reader vocabulary, causal wording —
-// and the judgements a lint cannot make (whether a caveat is the one that matters, whether "doubled" is
+// and the judgments a lint cannot make (whether a caveat is the one that matters, whether "doubled" is
 // earned) are deliberately absent: they live in skills/shape-narrative/references/narrative-criteria.md and
 // are the Reader reviewer's, not this file's.
 //
@@ -68,7 +68,7 @@ const CAUSAL_VERBS = [
 /**
  * A title that opens by asking, or by pointing back at another figure, names the artifact instead of
  * stating the Claim: "Who was counted, and how many came back", "The same comparison, phones and web
- * separately". A blunt proxy for a judgement that is the Reader reviewer's
+ * separately". A blunt proxy for a judgment that is the Reader reviewer's
  * (skills/shape-narrative/references/narrative-criteria.md, criterion 8); it reads the opening, not the
  * sentence, so a label it does not catch is still a review finding.
  */
@@ -200,7 +200,7 @@ test("every recorded output is evidence-valid, complete and rendered as a draft;
     const unexpected = r.warnings.filter((w) => !(w.category === "direction_unstated" && /^manifest\.yaml#\/derived\/\d+$/.test(w.location)));
     assert.deepEqual(unexpected, [], `${name}/output render: ${JSON.stringify(unexpected)}`);
     const html = readFileSync(join(root, name, "output", "render", "finding.html"), "utf8");
-    assert.ok(/class="draft"/.test(html), `${name}: a Finding with no verified approval renders labelled draft`);
+    assert.ok(/class="draft"/.test(html), `${name}: a Finding with no verified approval renders labeled draft`);
   }
 });
 
@@ -425,7 +425,7 @@ test("the insufficient-data Finding asserts no cause and invents no number", () 
   assert.ok(m.claims.some((c: any) => c.numeric === false && c.evidence.length === 0), "the withheld comparison is a non-numeric Claim");
 });
 
-test("the numeric Finding's causal Claim is earned by randomised assignment, and the exploratory cut is not", () => {
+test("the numeric Finding's causal Claim is earned by randomized assignment, and the exploratory cut is not", () => {
   const m = readManifest(join(RUNS, "kpc-numeric", "output"));
   const analysis = parseYaml(readFileSync(join(RUNS, "kpc-numeric", "input", "analysis.yaml"), "utf8"));
 
@@ -435,9 +435,9 @@ test("the numeric Finding's causal Claim is earned by randomised assignment, and
   assert.equal(c1.comparison.pre_registered, true);
   // The basis lives in comparison.description: analysis.schema.json sets additionalProperties:false on a
   // candidate Claim, so there is no `causal_basis` key to read.
-  assert.match(analysis.candidate_claims.find((c: any) => c.id === "c1").comparison.description, /randomis(ed|ing) assignment/i,
+  assert.match(analysis.candidate_claims.find((c: any) => c.id === "c1").comparison.description, /randomi[sz](ed|ing) assignment/i,
     "the Analysis recorded the only basis v0 accepts for a causal Claim");
-  assert.match(c1.material_caveat, /at random/i, "the caveat names the randomisation the conclusion rests on");
+  assert.match(c1.material_caveat, /at random/i, "the caveat names the randomization the conclusion rests on");
 
   const c2 = m.claims.find((c: any) => c.id === "c2");
   assert.equal(c2.type, "associational", "a split chosen after seeing the result is never causal");
@@ -513,7 +513,7 @@ test("the writer skill maps every Analysis comparison.kind onto a kind the manif
     const target = mapping.get(kind) ?? kind;
     assert.ok(manifestKinds.includes(target),
       `the Analysis spells comparison.kind ${kind}, which is not a manifest value and skills/write-finding/SKILL.md ` +
-      "gives no mapping for it: carrying it across fails the manifest schema, and translating it is a judgement no page backs");
+      "gives no mapping for it: carrying it across fails the manifest schema, and translating it is a judgment no page backs");
   }
   for (const [from, to] of mapping) {
     assert.ok(analysisKinds.includes(from), `SKILL.md maps comparison.kind ${from}, which the Analysis schema does not allow`);

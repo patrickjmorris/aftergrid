@@ -2,97 +2,95 @@
 
 **Analytics skills for the agent you already use.**
 
-Ask a sharper question. Understand the data. Diagnose a change. Challenge the conclusion. Leave the next analysis better informed.
+Conversion fell from 8.8% to 6.2%. Both channels improved. An agent that only pulls the total will recommend rolling back signup. `diagnose-change` will not.
 
-Aftergrid is a collection of 15 open-source skills for analytical work: the decisions an experienced analyst makes between receiving a question and giving someone an answer they can act on. Use one skill on a CSV, notebook, SQL query or draft. If you are not sure which skill fits, start with `ask-aftergrid`. Use `analyze` to carry a question through the whole workflow.
+Fifteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Fourteen work on a CSV, notebook, or SQL client. No warehouse, GitHub review, or CLI required.
 
-**Start with the skills.** They work with the files and data tools your agent already has. Fourteen have a portable workflow; `setup-aftergrid` configures the optional Engine. You do not need a warehouse connection, a GitHub review or the aftergrid CLI to try the portable skills.
+[Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/) · [Work with me](#work-with-me)
 
-[Start here](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Try the examples](examples/skills-lab/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/)
+## Install and run it
 
-## Install
+```bash
+npx skills add patrickjmorris/aftergrid --skill diagnose-change
+```
+
+Then paste this. No clone; the CSV is on GitHub:
+
+```text
+/diagnose-change Conversion fell from 8.8% to 6.2%. Should we roll
+back signup?
+
+Use https://raw.githubusercontent.com/patrickjmorris/aftergrid/main/examples/skills-lab/data/conversion.csv
+
+Reproduce the movement. Separate mix from within-channel change.
+Show the calculations. Do not recommend a rollback from the aggregate
+alone.
+```
+
+In Codex, write `$diagnose-change`. The whole collection:
 
 ```bash
 npx skills add patrickjmorris/aftergrid
 ```
 
-Or start with one job:
-
-```bash
-npx skills add patrickjmorris/aftergrid --skill diagnose-change
-npx skills add patrickjmorris/aftergrid --skill analysis-review -a codex
-```
-
-The installer asks which skills and agents to use. Skill installation does not install the optional CLI or grant access to your data. Claude Code, Codex and Cursor use the same Markdown sources; command presentation and permission controls belong to the host. See the [installation and verification notes](skills/README.md) for what has actually been exercised.
-
-Then give your agent a concrete task. The bundled-data prompt below needs a repository checkout; skill installation copies the skills, not the examples. Follow the [quickstart cloning step](docs/guides/quickstart.md), then, in Codex:
-
-```text
-Use $diagnose-change on examples/skills-lab/data/conversion.csv.
-Conversion fell. Should we roll back signup? Reproduce the movement,
-test competing explanations, and show the calculations you ran.
-```
-
-In a slash-command host, select the installed skill from its skill menu. You can also ask in plain language and name the skill. Use your host's actual command names rather than assuming they are identical everywhere.
+The installer asks which skills and agents to use. It copies Markdown; it does not grant data access. Unsure which skill? Start with `ask-aftergrid`.
 
 ## Pick the skill for the work
 
 | Job | Skill | What you leave with |
 | --- | --- | --- |
-| Not sure which skill fits | [ask-aftergrid](skills/ask-aftergrid/SKILL.md) | One next skill, why not the tempting sibling, and a prompt to paste |
-| Turn an ask into an answerable question | [grill-question](skills/grill-question/SKILL.md) | Decision, population, comparison and a way the answer could be wrong |
-| Understand unfamiliar data | [explore-data](skills/explore-data/SKILL.md) | Grain, keys, coverage, join risks and a usable data map |
-| Resolve what a metric means | [define-metric](skills/define-metric/SKILL.md) | A proposed definition with denominator, exclusions and checks |
-| Choose the investigation before running it | [plan-analysis](skills/plan-analysis/SKILL.md) | Competing explanations, discriminating tests and stopping conditions |
+| Unsure which skill fits | [ask-aftergrid](skills/ask-aftergrid/SKILL.md) | One next skill, why not the sibling, and a prompt to paste |
+| Turn an ask into a question | [grill-question](skills/grill-question/SKILL.md) | Decision, population, comparison, and a way the answer could be wrong |
+| Understand unfamiliar data | [explore-data](skills/explore-data/SKILL.md) | Grain, keys, coverage, join risks, and a usable data map |
+| Resolve what a metric means | [define-metric](skills/define-metric/SKILL.md) | A proposed definition with denominator, exclusions, and checks |
+| Choose the investigation first | [plan-analysis](skills/plan-analysis/SKILL.md) | Competing explanations, discriminating tests, and stopping conditions |
 | Explain a movement | [diagnose-change](skills/diagnose-change/SKILL.md) | A reconciled decomposition and the uncertainty that remains |
-| Do the analytical work under checks | [checked-analysis](skills/checked-analysis/SKILL.md) | Executed calculations, evidence and an honest analysis log |
-| Run the full workflow | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, review and clear next step |
-| Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question and reader lenses |
+| Do the work under checks | [checked-analysis](skills/checked-analysis/SKILL.md) | Executed calculations, evidence, and an honest analysis log |
+| Run the full workflow | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, review, and a clear next step |
+| Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question, and reader |
 | Write the answer | [write-finding](skills/write-finding/SKILL.md) | A decision-oriented memo whose claims point to their evidence |
 | Make the chart explain the claim | [iterate-visual](skills/iterate-visual/SKILL.md) | An inspected visual with sound comparisons and readable labels |
-| Give the narrative a clear structure | [shape-narrative](skills/shape-narrative/SKILL.md) | An answer-first explanation with limitations where they matter |
+| Give the narrative a structure | [shape-narrative](skills/shape-narrative/SKILL.md) | An answer-first explanation with limitations where they matter |
 | Revise without losing what changed | [revise-finding](skills/revise-finding/SKILL.md) | A scoped revision and the checks or reviews it reopens |
 | Make a correction useful next time | [learn-from-analysis](skills/learn-from-analysis/SKILL.md) | A scoped, evidence-backed lesson for subsequent work |
-| Add the optional checked-artifact workflow | [setup-aftergrid](skills/setup-aftergrid/SKILL.md) | An Engine Instance with explicit capability and approval status |
+| Add the optional checked-artifact path | [setup-aftergrid](skills/setup-aftergrid/SKILL.md) | An Engine Instance with explicit capability and approval status |
 
-Use the smallest workflow that answers the task. Reviewing a chart does not require a full analysis run. A completed investigation can still conclude that the evidence is insufficient.
+Use the smallest workflow that answers the task. Reviewing a chart does not require a full analysis. A completed investigation can still conclude the evidence is insufficient.
 
 ## Try it on data you can inspect
 
-The [skills lab](examples/skills-lab/README.md) has four small synthetic cases, their exact inputs and a dependency-free calculation check:
+The [skills lab](examples/skills-lab/README.md) has the conversion case plus three more, with exact inputs and a dependency-free check:
 
 ```bash
 node examples/skills-lab/verify.mjs
 ```
 
-- **Conversion fell while both channels improved.** The overall rate falls from 8.8% to 6.2%. The useful next question is about the acquisition mix, not an assumed broken signup experience.
-- **Conversion recovered. Was it the same mechanism?** The follow-up retrieves that mix lesson and finds mix plus a paid-rate change, not a reverse of the prior decline.
-- **MRR grew while existing-account revenue shrank.** The $430 → $440 headline hides $80 of churn. Reconcile new revenue, expansion, contraction and churn before choosing the next action.
-- **A precise retention number supports an imprecise claim.** 60% versus 40% is a real observed difference in the supplied data. Self-selection prevents it from identifying what mandatory onboarding would cause. The [worked review](docs/examples/causal-claim.md) is on the site.
+- **Conversion fell while both channels improved.** 8.8% → 6.2%. The next question is acquisition mix, not a broken signup. [Worked example](docs/examples/conversion-mix.md).
+- **Conversion recovered. Same mechanism?** Mix plus a paid-rate change, not the prior decline in reverse. [Lesson reuse](docs/examples/lesson-reuse.md).
+- **MRR grew while the starting customers shrank.** $430 → $440 hides $80 of churn. [Revenue bridge](docs/examples/revenue-bridge.md).
+- **A precise retention number, an imprecise claim.** 60% versus 40% is real. Self-selection means it cannot say what mandatory onboarding would cause. [Worked review](docs/examples/causal-claim.md).
 
-These are teaching cases, not customer outcomes or an accuracy benchmark. An isolated Codex agent completed the three cases and a lesson-reuse follow-up without the answer key. Its [original outputs and run record](examples/skills-lab/runs/README.md) are retained; all four saved calculations reproduce exactly.
+Teaching cases, not customer outcomes or a benchmark. An isolated Codex agent completed all four without the answer key; the saved calculations reproduce. [Outputs and run record](examples/skills-lab/runs/README.md).
 
-For a larger example, [NYC open data](examples/nyc-open-data/README.md) contains two actual Claude Code analysis runs on public taxi, weather and bike data. One Finding is inconclusive; the other answers its descriptive question. Both are merged and agent-reviewed, **neither has human publication approval**. The [run log](examples/nyc-open-data/docs/run-log.md) preserves the false starts and corrections.
+For a larger example, [NYC open data](examples/nyc-open-data/README.md) has two Claude Code runs on public taxi, weather, and bike data. One Finding is inconclusive; the other answers its descriptive question. Both are merged and agent-reviewed; **neither has human publication approval**. The [run log](examples/nyc-open-data/docs/run-log.md) keeps the false starts.
 
-## An analytical practice that accumulates
+## Lessons that get retrieved
 
-Before writing SQL, establish the unit being counted. Before explaining a change, reproduce it and test the strongest alternative explanation. Before publishing a claim, try to break it. After resolving a non-obvious error, keep the evidence and the condition under which the lesson applies.
+Before writing SQL, establish the unit. Before explaining a change, reproduce it and test the strongest alternative. Before publishing a claim, try to break it. After a non-obvious error, keep the evidence and the conditions where the lesson applies.
 
-`learn-from-analysis` captures a proposed lesson; `plan-analysis` and `analyze` look for relevant prior lessons before proceeding. A lesson can change the next check without becoming a universal rule or silently approved metric.
-
-Read the fieldnotes:
+`learn-from-analysis` captures a proposed lesson; `plan-analysis` and `analyze` look for matching lessons before proceeding. A lesson can change the next check without becoming a universal rule or an approved metric.
 
 - [Ask before you query](docs/fieldnotes/ask-before-query.md)
-- [The metric moved. What actually changed?](docs/fieldnotes/the-metric-moved.md)
-- [Make the next analysis better](docs/fieldnotes/analysis-that-compounds.md)
+- [The metric moved. Now what?](docs/fieldnotes/the-metric-moved.md)
+- [Analysis that compounds](docs/fieldnotes/analysis-that-compounds.md)
 
-## When you want stronger artifact guarantees
+## When you want stronger guarantees
 
-The optional **Engine** adds a TypeScript CLI, typed evidence references, runnable Checks, retained inputs, versioned Findings and human publication controls. A team's definitions and data live in its private **Instance**. The skills have an explicit Engine path when you ask for it or supply a Finding directory.
+The optional **Engine** adds a TypeScript CLI, typed evidence, runnable Checks, retained inputs, versioned Findings, and human publication controls. A team's definitions live in its private **Instance**. Skills take the Engine path when you ask for it or supply a Finding directory.
 
-Portable work does not claim these guarantees automatically. On the recorded Engine path, the harness executes the queries and `aftergrid record` retains their results; this supports artifact replay, not independent source reruns. An adapter with retained inputs adds analysis reruns. Agent review and human approval remain different facts.
+Portable work does not claim these guarantees. Agent review and human approval are different facts, and the Engine keeps them separate.
 
-The source is public. The CLI is pre-release, not published to npm, and `package.json` remains `private: true`.
+The source is public. The CLI is pre-release, not on npm, and `package.json` remains `private: true`.
 
 ```bash
 # From a checkout, with Node 22.18+ or 24+ and pnpm
@@ -115,10 +113,19 @@ pnpm run check:skills-lab # Python 3 is needed to rerun the recorded calculation
 pnpm run smoke:pack
 ```
 
-The CLI's declared platform matrix is Ubuntu/macOS on Node 22.18 and 24. Installer discovery, model behavior, deterministic arithmetic and human Reader feedback are different forms of evidence; none substitutes for the others. Development is tracked in [beads](docs/agents/issue-tracker.md). Agents working on this repository should read [AGENTS.md](AGENTS.md).
+CI runs on Ubuntu and macOS, Node 22.18 and 24. Installer checks, model runs, deterministic arithmetic, and human reader feedback are different kinds of evidence; none stands in for another. Development is tracked in [beads](docs/agents/issue-tracker.md). Agents working on this repository read [AGENTS.md](AGENTS.md).
+
+## Work with me
+
+I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because the agent answers reaching product and growth decisions were confident, fast, and often wrong in ways an experienced analyst would catch in a minute.
+
+- **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metric definitions a second analyst would apply the same way, a review step before numbers reach a decision, and lessons the next analysis retrieves. Your data stays in your repository.
+- **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
+
+Email [patrickjohnmorris@gmail.com](mailto:patrickjohnmorris@gmail.com?subject=aftergrid) with the meeting you're trying to get right.
 
 ## Influences and license
 
-[Matt Pocock's skills](https://github.com/mattpocock/skills) shaped the original skill format, questioning and domain language. [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin) provides the model of capturing lessons that subsequent work actually retrieves. [Poteto's pstack](https://github.com/cursor/plugins/tree/main/pstack) sharpens the bar for adversarial review and observable proof. Aftergrid applies these practices to analytical judgment. These projects do not endorse aftergrid; see the [source comparison](docs/design/skills-reference-benchmark-2026-09-17.md).
+[Matt Pocock's skills](https://github.com/mattpocock/skills) shaped the skill format, questioning, and domain language. [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin) is the model for capturing lessons that later work retrieves. [pstack](https://github.com/cursor/plugins/tree/main/pstack) is the bar for adversarial review and observable proof. Aftergrid applies those practices to analytical judgment. These projects do not endorse aftergrid; see the [source comparison](docs/design/skills-reference-benchmark-2026-09-17.md).
 
 MIT. Existing attribution is preserved in [LICENSE](LICENSE).

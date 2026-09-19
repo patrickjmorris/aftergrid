@@ -309,7 +309,7 @@ const readMeta = async (path: string) => {
   return Object.fromEntries(rows.map((r: any) => [String(r.key), String(r.value)]));
 };
 
-test("a skipped month is recorded in build_meta, summarised, and reflected in the exit status", async () => {
+test("a skipped month is recorded in build_meta, summarized, and reflected in the exit status", async () => {
   const { dir, clean } = scratch();
   try {
     const log: string[] = [];
@@ -320,7 +320,7 @@ test("a skipped month is recorded in build_meta, summarised, and reflected in th
     assert.deepEqual(result.monthsBuilt, { citibike: ["2024-01", "2024-03"] });
     assert.equal(result.incomplete, true, "a month inside an explicit --to window was skipped, so the build fell short");
     assert.ok(log.some((l) => /citibike: 2 of 3 months built/.test(l)), `no per-source summary in:\n${log.join("\n")}`);
-    assert.ok(log.some((l) => /1 month skipped/.test(l)), "the skips are summarised, not only mentioned in passing");
+    assert.ok(log.some((l) => /1 month skipped/.test(l)), "the skips are summarized, not only mentioned in passing");
     assert.ok(log.some((l) => /exit status 1/.test(l)));
 
     const meta = await readMeta(args.out);

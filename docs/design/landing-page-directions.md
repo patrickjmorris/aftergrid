@@ -1,6 +1,6 @@
 # Landing page directions (2026-09-15)
 
-Options for the aftergrid landing page, built to be chosen from, not shipped. Interactive explorer: `site/explorations/landing-directions.html` (six layouts, ten swappable component slots, a decision sheet that produces a paste-back summary). Research reports behind this file are summarised in "Research" below.
+Options for the aftergrid landing page, built to be chosen from, not shipped. Interactive explorer: `site/explorations/landing-directions.html` (six layouts, ten swappable component slots, a decision sheet that produces a paste-back summary). Research reports behind this file are summarized in "Research" below.
 
 Brand inputs: navy `#142440` on ice `#E9F0FA`, Geist ExtraBold wordmark, corner-bracket symbol. Vocabulary from `CONTEXT.md` (Finding, Claim, Check, Snapshot, Revisit, Operator, Reader; never report/memo/insight/KPI/dashboard-as-deliverable/refresh/monitor).
 
@@ -34,7 +34,7 @@ Default composition per layout is recorded in the explorer; every slot can be sw
 | Slot | Variants | Notes |
 |---|---|---|
 | Nav | minimal (Docs · Spec · GitHub · example) / install chip / bare + pre-release tag | Install chip only once npm publish exists |
-| Hero | Finding as hero (paper stack behind) / Finding full-width centred / collage + Finding / layered revisions / typographic (last word marked) / Operator → Reader split / before-after chain / terminal | Collage and chain show the problem; doc variants show the deliverable; layered revisions shows "re-checks itself" |
+| Hero | Finding as hero (paper stack behind) / Finding full-width centered / collage + Finding / layered revisions / typographic (last word marked) / Operator → Reader split / before-after chain / terminal | Collage and chain show the problem; doc variants show the deliverable; layered revisions shows "re-checks itself" |
 | Headline (9) | re-checks · SQL→Slack · still true? · read/inspect · not dashboards · plain · knows where · evidence · beyond sheet | Registers: mechanism, problem, outcome, contrarian, descriptive |
 | Problem | copy-paste chain (scene) / scattered artifacts collage / three gaps / forty dashboards / analysis rots / big lines (manifesto) | Scene copy beats slogan copy; the copy-paste framing is unowned in the market |
 | Finding anatomy | hover to trace / figure with leader-line labels / annotated six sections / source ↔ render / section list | Source ↔ render is the only variant that shows the `{{ref}}` mechanism |
@@ -82,11 +82,11 @@ One contrast worth a line in the Checks section: elsewhere a second model reads 
 
 ## Decision (2026-09-16), superseded above
 
-Chosen: **Collage** (now direction A in the explorer), plain surface, Geist for the Finding. Composition: minimal nav → collage hero with "Five tools. One number. No trail." → labelled figure → two lanes → Checks table → decision-log board → engine / instance → "Read the Finding" CTA. Built as a static page at `site/index.html` (no JavaScript except popover placement). The number popovers were redesigned as a light provenance card: value and its arithmetic, then saved result → query → snapshot → definition with a status per step, the SQL, and the memo token. `aftergrid render` itself now emits the same popover on every resolved token (CSS only, keyboard and touch reachable; see `docs/contracts/render.md`), and `site/example-finding/` is real renderer output rather than the hand-authored reference, so the linked Finding does what the page says it does. The example renders in Geist: the fixture Instance sets `render.font: { preset: geist }` and the renderer embeds the vendored variable font (`fonts/geist`, SIL OFL); any Instance can bring its own files the same way.
+Chosen: **Collage** (now direction A in the explorer), plain surface, Geist for the Finding. Composition: minimal nav → collage hero with "Five tools. One number. No trail." → labeled figure → two lanes → Checks table → decision-log board → engine / instance → "Read the Finding" CTA. Built as a static page at `site/index.html` (no JavaScript except popover placement). The number popovers were redesigned as a light provenance card: value and its arithmetic, then saved result → query → snapshot → definition with a status per step, the SQL, and the memo token. `aftergrid render` itself now emits the same popover on every resolved token (CSS only, keyboard and touch reachable; see `docs/contracts/render.md`), and `site/example-finding/` is real renderer output rather than the hand-authored reference, so the linked Finding does what the page says it does. The example renders in Geist: the fixture Instance sets `render.font: { preset: geist }` and the renderer embeds the vendored variable font (`fonts/geist`, SIL OFL); any Instance can bring its own files the same way.
 
 ## Recommendation (superseded by the decision above)
 
-Start from **A (Document)** or **B (Collage)**. A's default composition now is: pinned Finding hero → scattered-artifacts problem → hover-to-trace → two lanes → badge-vs-facts → stacked revisions → engine/instance → install CTA. B swaps the hero for the collage and the anatomy for the labelled figure. Both share the same component system. Headline: run the tested line ("The analysis that re-checks itself.") against the problem-led "Is that number still true?"; both are short and neither uses a banned word. Keep the page to six sections and roughly two and a half screens. Light theme only for the shipped site; dark reads as the dev-tool cliché and the Reader persona trusts light.
+Start from **A (Document)** or **B (Collage)**. A's default composition now is: pinned Finding hero → scattered-artifacts problem → hover-to-trace → two lanes → badge-vs-facts → stacked revisions → engine/instance → install CTA. B swaps the hero for the collage and the anatomy for the labeled figure. Both share the same component system. Headline: run the tested line ("The analysis that re-checks itself.") against the problem-led "Is that number still true?"; both are short and neither uses a banned word. Keep the page to six sections and roughly two and a half screens. Light theme only for the shipped site; dark reads as the dev-tool cliché and the Reader persona trusts light.
 
 Reasons: every source studied (Biome, Bun, PostHog, Quarto, Evidence) got the most credibility from showing the output rather than the UI; aftergrid's output is a document, so the document is the screenshot. A/B testing headlines is cheap; testing layouts is not.
 
@@ -117,7 +117,7 @@ Full reports (scratchpad, not committed): OSS dev-tool pages (24 sites), data/an
 Patterns worth reusing:
 - Output as product shot: Biome's rendered diagnostic, Bun/Vitest terminal, PostHog's Q&A transcript, Quarto's doc-as-hero. Fits aftergrid exactly.
 - Install command as hero CTA with one secondary link (Bun, Astro, tldraw, Effect). Only after npm publish.
-- GitHub as the secondary CTA; the button is the licence signal (Zed "Clone source", Biome, Vitest).
+- GitHub as the secondary CTA; the button is the license signal (Zed "Clone source", Biome, Vitest).
 - Quantified claim with its source per section (Oxc, Astro's HTTP Archive chart). Matches "every number traced".
 - Mental-model section naming the unit of value (Effect's type signature, Drizzle's schema flow). For aftergrid: "a Finding".
 - Honest caption on a real artifact (Elementary: "Yes, this is a real lineage graph").

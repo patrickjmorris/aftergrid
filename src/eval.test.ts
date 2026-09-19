@@ -16,7 +16,7 @@ import { checkArtifact } from "./commands/check.ts";
 import { decideHalt, newestByKind, recordReview, reviewStatus, type ReviewEntry } from "./commands/review.ts";
 import { emptyReport, exitCodeFor } from "./report.ts";
 import {
-  assertCase, createCommandAnalyzer, createFixtureAnalyzer, loadDefinitions, loadGoldens, normalisePhrase,
+  assertCase, createCommandAnalyzer, createFixtureAnalyzer, loadDefinitions, loadGoldens, normalizePhrase,
   resolveWarehouse, runEval, type Analyzer, type GoldenQuestion,
 } from "./eval/runner.ts";
 
@@ -175,7 +175,7 @@ test("a must_not screen that did not fire is not_evaluated, and two entries neve
     assert.match(s.observed, /not evidence it avoided the conclusion/);
   }
 
-  // Two entries sharing a 40-character normalised prefix used to truncate to the same id.
+  // Two entries sharing a 40-character normalized prefix used to truncate to the same id.
   const collide: GoldenQuestion = {
     ...goldenById("price_change_cancellations"),
     expected: {
@@ -301,7 +301,7 @@ test("the fixture Instance's warehouse resolves, so reference values are recompu
   const warehouse = resolveWarehouse(INSTANCE);
   assert.ok("path" in warehouse, JSON.stringify(warehouse));
   assert.ok(readdirSync(warehouse.path).some((f) => f.endsWith(".csv")));
-  assert.equal(normalisePhrase("Report 56 opens!"), "report 56 opens");
+  assert.equal(normalizePhrase("Report 56 opens!"), "report 56 opens");
 });
 
 /* ------------------------------------------------------------------ review record */
@@ -313,7 +313,7 @@ test("a review records against the digest the files hash to, writes no attestati
 
   const report = recordReview({
     dir, kind: "question", reviewer: "agent:claude-fable-5-1",
-    blocking: [], nonBlocking: ["the pre-registered comparison is honoured"], date: "2026-09-16",
+    blocking: [], nonBlocking: ["the pre-registered comparison is honored"], date: "2026-09-16",
   });
   assert.deepEqual(report.errors, [], JSON.stringify(report.errors));
   assert.equal(report.command, "review");

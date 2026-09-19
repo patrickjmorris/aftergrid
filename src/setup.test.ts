@@ -336,7 +336,7 @@ test("--dry-run writes nothing at all", async () => {
   assert.match(info(r2), /would create the Instance root/);
 });
 
-test("options that cannot be honoured are refused before anything is written", async () => {
+test("options that cannot be honored are refused before anything is written", async () => {
   const f = fixture();
   const noSource = await setup({ instanceDir: f.instance, adapter: "duckdb", skipHook: true, skillsSearchPaths: [f.skills] });
   assert.equal(noSource.syntax, "invalid");

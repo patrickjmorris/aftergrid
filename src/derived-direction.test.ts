@@ -99,7 +99,7 @@ test("named operands are refused on an operation with no direction, and only on 
   }
   for (const operation of DIRECTIONAL_OPERATIONS) {
     assert.deepEqual(operandList(operation, { after: "ref:r.k.c", baseline: "ref:r.k.d" }, "at"), ["ref:r.k.c", "ref:r.k.d"],
-      `${operation} normalises to [after, baseline]`);
+      `${operation} normalizes to [after, baseline]`);
     assert.throws(() => operandList(operation, { after: "ref:r.k.c" }, "at"), (e: any) => e.category === "derived_arity");
     assert.throws(() => operandList(operation, { after: "ref:r.k.c", baseline: "ref:r.k.d", extra: "ref:r.k.e" }, "at"), (e: any) => e.category === "derived_arity");
     assert.throws(() => operandList(operation, "ref:r.k.c", "at"), (e: any) => e.category === "derived_arity");

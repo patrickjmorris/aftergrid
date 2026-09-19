@@ -84,7 +84,7 @@ export type RecordReviewOptions = {
  * Append one review to `manifest.yaml`, bound to the digest the files currently hash to.
  *
  * Idempotent: recording the same kind, reviewer and digest twice leaves one entry. Comments and formatting in
- * the manifest survive, because the file is edited as a YAML document rather than reserialised from a plain
+ * the manifest survive, because the file is edited as a YAML document rather than reserialized from a plain
  * object.
  */
 export function recordReview(opts: RecordReviewOptions): Report {
@@ -144,7 +144,7 @@ export function recordReview(opts: RecordReviewOptions): Report {
   const already = existing.some((r) => r.kind === entry.kind && r.reviewer === entry.reviewer && r.content_digest?.value === entry.content_digest.value);
   if (already) {
     report.info.push(`a ${entry.kind} review by ${entry.reviewer} is already recorded against this digest; nothing was written`);
-    summarise(report, [...existing], current.value);
+    summarize(report, [...existing], current.value);
     return report;
   }
 
@@ -158,7 +158,7 @@ export function recordReview(opts: RecordReviewOptions): Report {
 
   if (opts.dryRun) {
     report.info.push(`dry run: would append a ${entry.kind} review by ${entry.reviewer} bound to ${current.value.slice(0, 12)}…; nothing was written`);
-    summarise(report, next.reviews, current.value);
+    summarize(report, next.reviews, current.value);
     return report;
   }
 
@@ -169,11 +169,11 @@ export function recordReview(opts: RecordReviewOptions): Report {
   writeFileSync(manifestPath, doc.toString({ lineWidth: 0 }));
   report.info.push(`recorded a ${entry.kind} review by ${entry.reviewer}, bound to ${current.value.slice(0, 12)}…`);
   report.info.push("attestations were not touched: an agent review is not approval");
-  summarise(report, next.reviews, current.value);
+  summarize(report, next.reviews, current.value);
   return report;
 }
 
-function summarise(report: Report, reviews: ReviewEntry[], currentDigest: string) {
+function summarize(report: Report, reviews: ReviewEntry[], currentDigest: string) {
   // No `checkErrors`: recording a review runs no check, and decideHalt says so rather than implying one passed.
   const decision = decideHalt({ reviews, currentDigest });
   for (const b of decision.blocking) {

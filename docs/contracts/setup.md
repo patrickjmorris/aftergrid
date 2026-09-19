@@ -65,7 +65,7 @@ What every consumer does with it:
 | `aftergrid execute` | Refused with `recorded_path` when the Finding has no retained inputs — which is every Finding on this route, because `capture` is what creates them. A Finding that already holds retained extracts still executes against them: `execute` reads the extracts and never the Instance connection, so refusing it over a config field that is not consulted would be a refusal with no reason behind it. |
 | `aftergrid render`, `decide`, `review`, `revise` | Unaffected. None of them opens a source. |
 | `aftergrid intake` (unattended) | Still refused, with its existing `source_limits_missing`, and the message now says why in the Instance's own terms: there is no adapter to enforce a statement timeout or a row cap on a query nobody is watching. Run the Analysis attended, or configure an adapter. |
-| The guardrail hook | Unaffected. `policyFrom` records `connection.adapter` and gates on none of it; with no adapter it simply has no configured source path to recognise, and every refusal it makes is the one it made before. |
+| The guardrail hook | Unaffected. `policyFrom` records `connection.adapter` and gates on none of it; with no adapter it simply has no configured source path to recognize, and every refusal it makes is the one it made before. |
 | Publication readiness | Unaffected. It is a fact about a Finding, verified per Finding, and no route to it runs through a connection. |
 
 ### Upgrading an Instance that already has an `aftergrid.yaml`
@@ -141,7 +141,7 @@ print the block, never as something that edits the file. A skipped connection st
 `incomplete`.
 
 **DuckDB.** The source is opened by `DuckDbAdapter` (a `.duckdb` file `READ_ONLY`, or a CSV directory
-materialised into a sealed in-memory database) and its catalogue is read, so the report is evidence that a
+materialized into a sealed in-memory database) and its catalog is read, so the report is evidence that a
 statement ran. The capability matrix is printed from `capabilities()`. `privilege_probe: unsupported` gets its
 own sentence: DuckDB has no roles, so there is no role to probe, and the safety is the read-only local-file
 policy the engine enforces on every statement. **An unsupported probe is never reported as a missing safety
@@ -154,7 +154,7 @@ optional `estimate_cap`: the largest planned scan any read may make. One default
 either. It bounds `capture` as well as `execute`, because a whole-table copy is a scan of the whole table, so an
 Instance pointed at a source with tens of millions of rows per table will connect, report its capability matrix
 and pass setup, and then have `capture` refuse that table with `admission` before reading a byte. That is the
-designed behaviour, and the answer is the windowed-Instance pattern in `docs/contracts/adapters.md`: the
+designed behavior, and the answer is the windowed-Instance pattern in `docs/contracts/adapters.md`: the
 Operator's own build script writes a bounded table (a daily or per-zone aggregate, a windowed extract) plus a
 provenance table — into the Instance's own DuckDB file on a DuckDB Instance, or into the schema the Instance
 reads on a Postgres one — and aftergrid captures those, the analytical window still living in the analysis SQL.
@@ -241,7 +241,7 @@ nothing is overwritten, so redoing all of them is safe.
 
 `Report` (`src/report.ts`) with `command: "setup"`. The axes mean:
 
-- `syntax` — `invalid` when the options cannot be honoured (no source, a literal URL where a variable name
+- `syntax` — `invalid` when the options cannot be honored (no source, a literal URL where a variable name
   belongs). Nothing is written in that case.
 - `content` — `complete` only when every hard dependency was found, the connection **settled** (validated, or
   skipped because no adapter was asked for), the hook is active, preflight is `ok`, the smoke passed and no

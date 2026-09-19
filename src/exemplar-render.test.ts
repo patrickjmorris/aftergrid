@@ -22,7 +22,7 @@
 //
 // Platform caveat for CI (ubuntu-latest and macos-latest, `.github/workflows/ci.yml`): HTML and chart SVG are
 // strings produced by this repo's code and the pinned Vega build from committed inputs, so they are expected to
-// be byte-identical on both. Nothing is normalised here to make that true — a difference is a real difference.
+// be byte-identical on both. Nothing is normalized here to make that true — a difference is a real difference.
 // PNG previews are deliberately NOT compared byte for byte: a PNG is rasterized by `@resvg/resvg-wasm`, whose
 // glyph rasterization and text layout depend on the font file handed to it (`AFTERGRID_FONT` or a system lookup
 // when the Instance embeds none), so identical bytes across machines are not something the renderer promises.

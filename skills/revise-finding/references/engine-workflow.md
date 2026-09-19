@@ -13,7 +13,7 @@ tell the Operator which one they just asked for **before** it lands in a Finding
 ## 1. Write down what they asked for
 
 Quote the request verbatim in your notes before touching anything. "Make it horizontal" and "lead with
-retention" are presentation. "Use the other definition", "drop the web users" and "say the checklist caused it"
+retention" are presentation. "Use the other definition," "drop the web users" and "say the checklist caused it"
 are not, and you will need the exact words when you explain why.
 
 Done when the request is written down in the Operator's words.
@@ -55,7 +55,7 @@ aftergrid revise <finding-dir> --classify --json
 ```
 
 Read `classification` and the `differences` list. Every difference carries its level, its location and the
-reason. The classifier is conservative: what it cannot recognise it calls `interpretation`, so a change it
+reason. The classifier is conservative: what it cannot recognize it calls `interpretation`, so a change it
 flags may still be harmless — and one it calls `presentation` may still have changed what a sentence means,
 because it reads tokens and field paths, never English. Full contract, including that limit:
 `docs/contracts/revise.md`.

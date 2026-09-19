@@ -1,22 +1,20 @@
 # iterate-visual
 
-Inspect and improve an analytical chart for truthful comparisons, visible denominators and uncertainty, readable labels, and agreement with its claim. Works with charts from any tool.
-
 ## What it does
 
-`iterate-visual` looks at the *rendered* chart — or says which properties it could not inspect from code alone — and makes the smallest changes that fix the problems that would mislead a reader.
+Looks at the *rendered* chart — or says which properties it could not inspect from code alone — and makes the smallest changes that would otherwise mislead a reader.
 
-The defining constraint: a chart that scores well against the wrong comparison is still the wrong chart. The skill preserves data and meaning; a change that alters the population or aggregation is a calculation change, not a restyle.
+A chart that scores well against the wrong comparison is still the wrong chart. The skill preserves data and meaning; a change that alters the population or aggregation is a calculation change, not a restyle.
 
 ## When to reach for it
 
 Ask in plain language. The agent reaches for it when a chart is about to be shown. Hidden from the Claude Code slash menu.
 
-Reach for it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use [write-finding](write-finding.md) if there is no answer yet. Use [revise-finding](revise-finding.md) to change a chart that has already been reviewed. Use [shape-narrative](shape-narrative.md) when the title and caveat in prose are the problem.
+Use it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use [write-finding](write-finding.md) if there is no answer yet. Use [revise-finding](revise-finding.md) to change a chart that has already been reviewed. Use [shape-narrative](shape-narrative.md) when the title and caveat in prose are the problem.
 
 ## Inspect the image, then the claim
 
-Check denominators and units before aesthetics. Rate differences can be mix. Keep incomplete periods visible. Use zero baselines for length-encoded bars. Direct labels beat a legend the reader cannot use. The title states the defensible claim, including a null or inconclusive outcome. Stop once the important problems are gone; extra redesign is not evidence of quality.
+Check denominators and units before aesthetics. Rate differences can be mix. Keep incomplete periods visible. Use zero baselines for length-encoded bars. Direct labels beat a legend the reader cannot use. The title states the defensible claim, including a null or inconclusive outcome. Stop once the important problems are gone.
 
 ## Common questions
 
@@ -35,11 +33,11 @@ Check denominators and units before aesthetics. Rate differences can be mix. Kee
 
 ## Where it fits
 
-Model-invoked Explain-stage craft, usually after [write-finding](write-finding.md) and before [shape-narrative](shape-narrative.md). The map is [ask-aftergrid](ask-aftergrid.md).
+Model-invoked Explain-stage craft, usually after [write-finding](write-finding.md) and before [shape-narrative](shape-narrative.md).
 
 ## Engine Finding reference
 
-The following documentation describes the optional Engine route, which retains its existing checks and approval requirements.
+Existing Engine checks and approval requirements still apply.
 
 
 ## What it does
@@ -68,7 +66,7 @@ what it did.
 - A chart spec has just been written or changed and nobody has looked at the image.
 - A Finding is about to be rendered for a Reader.
 - A chart is hard to read — values to estimate off an axis, a series nothing names, every category a different
-  colour.
+  color.
 - You want the same chart tried two ways and the Operator to choose.
 
 Not for a chart that is *wrong* rather than unreadable. Rebinding a chart to a different field or narrowing a

@@ -9,7 +9,7 @@ skill or definition change.
 values it must land on with their tolerances, what the Finding must state, and what it must not conclude.
 
 The Engine ships worked examples under `fixtures/instance/analytics/golden/`. Nothing is scaffolded here,
-because a golden Question is a judgement about your data that only you can make.
+because a golden Question is a judgment about your data that only you can make.
 
 ## Golden Questions, and the numbers behind them
 
@@ -53,7 +53,7 @@ baseline for ordinary variation, and the rate is diluted by a cash share this gr
 | Trips touching neither end of the zone | 13,591,354 | 14,603,295 |
 
 Three defects at once: the denominator is wrong (three trips in five never touch the zone and were never
-charged), "cause" is unavailable from an observational before/after with no randomisation and no control area,
+charged), "cause" is unavailable from an observational before/after with no randomization and no control area,
 and the premise is false — citywide rides rose. Reporting the true direction while keeping the causal frame
 would be the worse failure.
 

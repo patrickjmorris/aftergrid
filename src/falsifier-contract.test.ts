@@ -212,9 +212,9 @@ test("check reports the Analysis file's summary, including whether any Check was
   writeFileSync(join(dir, "analysis.yaml"), toYaml({
     schema_version: "0.1.0", stage: "clarified", reader_profile: "product_owner", assumptions: [],
   }, { lineWidth: 0 }));
-  const summarised = checkArtifact({ dir });
-  assert.ok(summarised.info.some((i) => /no Check pre-registration hashes recorded/.test(i)), JSON.stringify(summarised.info));
-  assert.ok(summarised.info.some((i) => /stage clarified/.test(i)), JSON.stringify(summarised.info));
+  const summarized = checkArtifact({ dir });
+  assert.ok(summarized.info.some((i) => /no Check pre-registration hashes recorded/.test(i)), JSON.stringify(summarized.info));
+  assert.ok(summarized.info.some((i) => /stage clarified/.test(i)), JSON.stringify(summarized.info));
 });
 
 /* ------------------------------------------------- S7: execute says what check says */

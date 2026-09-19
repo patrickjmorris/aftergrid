@@ -1,6 +1,6 @@
 interface:
   display_name: "Analyze"
-  short_description: "Raw ask to reviewed Finding draft: clarify, analyse under Checks, write, illustrate, shape, review, check"
+  short_description: "Raw ask to reviewed Finding draft: clarify, analyze under Checks, write, illustrate, shape, review, check"
   default_prompt: "Use $analyze on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The run writes a Finding directory,

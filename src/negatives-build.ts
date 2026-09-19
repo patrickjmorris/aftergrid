@@ -358,7 +358,7 @@ export const CASES: NegativeCase[] = [
     // `web_control_rate` divides a count of returners by a count of signups: a part over a whole, where
     // neither operand is an "after" or a "baseline". Which operand is the denominator still decides the
     // value, so the direction is declared as { numerator, denominator } — the vocabulary for a division that
-    // is not a comparison — rather than mislabelled after/baseline or left unstated.
+    // is not a comparison — rather than mislabeled after/baseline or left unstated.
     defect: "None. The web control arm has no signups, so a derived ratio divides by zero and a rate cell is null.",
     description: 'A zero denominator resolves to "not available" and is rendered with those words; it is never 0, blank or a dash.',
     render: { must_contain: ["the share of that group who came back is <span class=\"ref\"", ">not available<", "</span> on the web"], must_not_contain: [PRIVATE_MARKER] },

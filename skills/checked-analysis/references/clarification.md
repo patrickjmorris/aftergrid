@@ -64,12 +64,12 @@ at both ends, and the disagreement moves rows.
 
 Reader-facing copy uses plain words. The *structure* uses the glossary, and three collisions come up every time:
 
-- **A causal word in the ask** — "helped", "drove", "caused", "because". A causal Claim is earned by a design
+- **A causal word in the ask** — "helped," "drove," "caused," "because." A causal Claim is earned by a design
   that supports it, normally random assignment. Ask what the design was. When it was not random, the Claim is
   associational and the memo says so.
-- **A bare metric name** — "retention", "engagement", "active". Name the Metric definition and version, or
+- **A bare metric name** — "retention," "engagement," "active." Name the Metric definition and version, or
   propose one. A word with no definition behind it is the commonest way a number ends up plausible and wrong.
-- **A word the Instance already owns differently** — the ask says "signups", the definition counts "completed
+- **A word the Instance already owns differently** — the ask says "signups," the definition counts "completed
   signup". Put the difference to the Operator; do not quietly pick one.
 
 Completion criterion: every term in the Question either matches a definition in the Instance, matches the
@@ -112,7 +112,7 @@ counter_metrics:
   propose it too (`lifecycle: proposed` is fine — a counter-metric is not the published decision metric, so it
   never needs approval).
 - `why` names the mechanism. "Support load could rise" is not an answer; "holding cancellations down by making
-  cancelling hard pushes the work onto support contacts, which this counts" is.
+  canceling hard pushes the work onto support contacts, which this counts" is.
 - **"None, because …" is a real answer, and it is recorded.** The field is omitted when empty, so an Operator who
   thought about it and found nothing would look exactly like one who was never asked. Write the sentence into
   `counter_metrics_none_because` instead, and leave `counter_metrics` out entirely:
@@ -179,5 +179,5 @@ a correction is cheap and a re-interrogation is not.
 the metric cannot be computed, the population is not the one the decision needs, the ask turns out to be
 associational — record it in `analysis.yaml#/probes` as a `kind: reframe` entry with its `at`, what it asked,
 what it showed, and a `changed_plan` naming the Question before and after and pointing at this revisit if one
-was run. The probe is where the reframe is visible afterwards; `question.unresolved` and the manifest carry only
+was run. The probe is where the reframe is visible afterward; `question.unresolved` and the manifest carry only
 the Question as it ended up.

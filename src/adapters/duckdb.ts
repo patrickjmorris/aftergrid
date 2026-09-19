@@ -99,7 +99,7 @@ export class DuckDbAdapter implements Adapter {
       open_retained: { status: "supported", note: "extracts loaded into a fresh in-memory database with external access disabled" },
       privilege_probe: { status: "unsupported", note: "DuckDB has no roles; safety comes from READ_ONLY file access or read-only CSV views, not from a role probe" },
       cost_estimate: { status: "supported", note: "EXPLAIN (FORMAT JSON) without execution; unit estimated_rows; unknown when the planner reports none" },
-      resource_limits: { status: "partial", note: "memory_limit and threads are enforced by the engine; the statement timeout is an interrupt from this process and also bounds planning, capture and source materialisation; no CPU or disk quota; calls on one adapter are serialised" },
+      resource_limits: { status: "partial", note: "memory_limit and threads are enforced by the engine; the statement timeout is an interrupt from this process and also bounds planning, capture and source materialization; no CPU or disk quota; calls on one adapter are serialized" },
       cancellation: { status: "supported", note: "interrupt() on timeout; the connection is reusable afterwards" },
       statement_guard: { status: "supported", note: "one statement, SELECT only, external file access disabled after inputs load, declared inputs only in retained sessions" },
       catalog: { status: "supported", note: "information_schema.columns" },
@@ -110,7 +110,7 @@ export class DuckDbAdapter implements Adapter {
   private queue: Promise<unknown> = Promise.resolve();
   /**
    * Concurrency contract: one connection, one statement at a time. execute/capture/estimate/catalog calls are
-   * serialised in call order, because each statement's timeout interrupts the shared connection and capture runs a
+   * serialized in call order, because each statement's timeout interrupts the shared connection and capture runs a
    * transaction; overlapping callers therefore never cancel each other. Use separate adapters for parallelism.
    */
   private serialize<T>(fn: () => Promise<T>): Promise<T> {

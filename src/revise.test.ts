@@ -58,7 +58,7 @@ const levels = (r: Awaited<ReturnType<typeof revise>>) => r.differences.map((d) 
 
 /* ------------------------------------------------------------------ presentation */
 
-test("a chart colour change is presentation, and applying it makes revision 2 with revision 1 archived and still rendered", async () => {
+test("a chart color change is presentation, and applying it makes revision 2 with revision 1 archived and still rendered", async () => {
   const dir = await pinned();
   const before = readFileSync(join(dir, "render", "finding.html"), "utf8");
   const source = JSON.parse(readFileSync(spec(dir), "utf8"));
@@ -182,8 +182,8 @@ test("rebinding a chart to a different field is interpretation; adding a direct-
 
   writeFileSync(spec(dir), readFileSync(join(RUNS, "first-pass-passes", "pass-1.vl.json"), "utf8"));
   editManifest(dir, () => {});
-  const labelled = await revise({ dir, mode: "classify" });
-  assert.equal(labelled.classification, "presentation", JSON.stringify(labelled.differences, null, 2));
+  const labeled = await revise({ dir, mode: "classify" });
+  assert.equal(labeled.classification, "presentation", JSON.stringify(labeled.differences, null, 2));
 });
 
 /* ------------------------------------------------------------------ numeric */
@@ -359,7 +359,7 @@ test("an entry calling itself a Variant of a chart it shares no result set with 
 
 /* ------------------------------------------------------------------ what a position axis is */
 
-test("a position axis's scale is not cosmetic: zero, type, reverse and nice are interpretation, while a colour scale is not", async () => {
+test("a position axis's scale is not cosmetic: zero, type, reverse and nice are interpretation, while a color scale is not", async () => {
   const dir = await pinned();
   const original = JSON.parse(readFileSync(spec(dir), "utf8"));
   for (const [key, value] of [["zero", false], ["type", "sqrt"], ["reverse", true], ["nice", false]] as [string, unknown][]) {
@@ -372,9 +372,9 @@ test("a position axis's scale is not cosmetic: zero, type, reverse and nice are 
     assert.ok(r.differences.some((d) => d.level === "interpretation" && d.location.endsWith(`#encoding.x.scale.${key}`)), `${key}: ${JSON.stringify(r.differences)}`);
   }
   // Which category carries the accent is how the chart points, not what a length says.
-  const coloured = JSON.parse(JSON.stringify(original));
-  coloured.encoding.color.scale = { domain: ["checklist", "control"], range: ["#0b6e4f", "#b9b9b9"] };
-  writeFileSync(spec(dir), JSON.stringify(coloured, null, 2) + "\n");
+  const colored = JSON.parse(JSON.stringify(original));
+  colored.encoding.color.scale = { domain: ["checklist", "control"], range: ["#0b6e4f", "#b9b9b9"] };
+  writeFileSync(spec(dir), JSON.stringify(colored, null, 2) + "\n");
   editManifest(dir, () => {});
   assert.equal((await revise({ dir, mode: "classify" })).classification, "presentation");
 });
@@ -600,9 +600,9 @@ test("every recorded pass is scored against the image the pinned renderer actual
       for (const text of prose) assert.ok(!/\blegends?\b/i.test(text) || /no legend|without a legend|draws no legend|legends? (?:is|are) disabled/i.test(text), `${where}: this describes a legend the renderer never draws — ${text}`);
 
       // Grey plus one accent is what the palette does, not something a note may assert against the image.
-      const colours = new Set<string>();
-      try { for (const value of view.scale("color").domain()) colours.add(String(view.scale("color")(value))); } catch { /* no colour channel */ }
-      if (colours.size && [...colours].every((c) => c === accent || c === grey)) assert.equal(verdict("grey_plus_accent"), "yes", `${where}: the image is grey plus the accent (${[...colours].join(", ")})`);
+      const colors = new Set<string>();
+      try { for (const value of view.scale("color").domain()) colors.add(String(view.scale("color")(value))); } catch { /* no color channel */ }
+      if (colors.size && [...colors].every((c) => c === accent || c === grey)) assert.equal(verdict("grey_plus_accent"), "yes", `${where}: the image is grey plus the accent (${[...colors].join(", ")})`);
 
       // And whether the value axis starts at zero is readable off the compiled scale.
       for (const channel of ["x", "y"]) {

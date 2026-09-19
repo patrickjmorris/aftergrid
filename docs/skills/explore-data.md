@@ -1,18 +1,16 @@
 # explore-data
 
-Inspect unfamiliar tables, files, or query results before analysis. Establish grain, keys, joins, coverage, measurement limits, and answerable questions without inventing a business conclusion.
-
 ## What it does
 
-`explore-data` builds a map of what the supplied data can actually answer. It verifies grain against rows, tests joins instead of trusting column names, and records coverage, missingness, and maturity — then lists questions the extract can support and questions it cannot.
+Builds a map of what the supplied data can answer. It verifies grain against rows, tests joins instead of trusting column names, and records coverage, missingness, and maturity — then lists questions the extract can and cannot support.
 
-The defining constraint: an inventory is not a finding. Exploratory correlations stay labeled. The map is proposed context, not an approved catalog.
+An inventory is not a finding. Exploratory correlations stay labeled. The map is proposed context, not an approved catalog.
 
 ## When to reach for it
 
-Type `/explore-data`, or ask in plain language. Available for explicit use and automatic discovery.
+Type `/explore-data`, or ask in plain language.
 
-Reach for it when the tables, export, or warehouse objects are new to this question. Skip it when grain, keys, and join risks are already established. Use [grill-question](grill-question.md) if the ask itself is still several questions. Use [plan-analysis](plan-analysis.md) once you know what the data can bear.
+Use it when the tables, export, or warehouse objects are new to this question. Skip it when grain, keys, and join risks are already established. Use [grill-question](grill-question.md) if the ask itself is still several questions. Use [plan-analysis](plan-analysis.md) once you know what the data can bear.
 
 ## Grain before joins, joins before conclusions
 
@@ -22,7 +20,7 @@ For a proposed join, compare row counts, distinct keys, and unmatched keys on bo
 
 ## Common questions
 
-**Should it scan the whole warehouse?** No. Start with bounded reads tied to the stated question. A catalog is not a reason to configure a new platform or pull every table.
+**Should it scan the whole warehouse?** No. Start with bounded reads tied to the stated question.
 
 **What if I cannot run the probes?** Write the exact bounded queries needed and mark them unexecuted. Do not fill results with expected values.
 
@@ -37,4 +35,4 @@ For a proposed join, compare row counts, distinct keys, and unmatched keys on bo
 
 ## Where it fits
 
-A Frame-stage standalone. It feeds [plan-analysis](plan-analysis.md) and [checked-analysis](checked-analysis.md). It does not replace [grill-question](grill-question.md): a precise question and a trustworthy extract are different jobs. The map is [ask-aftergrid](ask-aftergrid.md).
+A Frame-stage standalone. It feeds [plan-analysis](plan-analysis.md) and [checked-analysis](checked-analysis.md). It does not replace [grill-question](grill-question.md): a precise question and a trustworthy extract are different jobs.

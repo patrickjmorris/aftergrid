@@ -1,4 +1,4 @@
-// Seam-2 contract tests, Postgres. Same behaviours as src/adapters/duckdb.test.ts, on a disposable instance the
+// Seam-2 contract tests, Postgres. Same behaviors as src/adapters/duckdb.test.ts, on a disposable instance the
 // test provisions itself with initdb/pg_ctl. Without those binaries every server-backed test is SKIPPED with the
 // reason printed; nothing here is faked, and the capability matrix in docs/contracts/adapters.md cites this file.
 import { test, after } from "node:test";
@@ -421,7 +421,7 @@ test("privilege probe: a role that can write the source through a view is not re
   assert.equal(p.status, "supported");
   if (p.status === "supported") {
     assert.equal(p.can_write, true, JSON.stringify(p));
-    assert.match(p.detail, /views or materialised views/);
+    assert.match(p.detail, /views or materialized views/);
   }
   await a.close();
   // The probe's answer is the truth about this role: it really does write the base table through the view.

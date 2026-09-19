@@ -86,7 +86,7 @@ has none.
 
 ```yaml
 schema_version: 0.1.0
-stage: clarified|analysed       # absent means analysed; see "The two stages" below
+stage: clarified|analyzed       # absent means analyzed; see "The two stages" below
 clarified_at: <RFC 3339>        # optional: when the Question was settled; capture is expected to follow it
 reader_profile: <reader profile id from readers.md, or generic>
 assumptions:                    # one per choice the Question did not settle
@@ -147,7 +147,7 @@ not a new file.
 Every entry carries:
 
 - **`at`** — when the look was taken, RFC 3339 with an offset, read from the harness's clock **at the time**.
-  It is required, on every entry, because a timestamp added afterwards from memory is a guess wearing the
+  It is required, on every entry, because a timestamp added afterward from memory is a guess wearing the
   clothes of a record. A look whose time was never noted says so in `observed` instead of carrying a plausible
   one.
 - **`kind`** — `exploratory` (a look that informed the plan), `dead_end` (a path tried or considered and
@@ -198,7 +198,7 @@ Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
   | Pinned | Read from | Why the SQL hash cannot cover it |
   | --- | --- | --- |
   | `content_hash` | the Check's `.sql` file | — it *is* the SQL hash |
-  | `required` | `manifest.checks[].required` | un-requiring a Check afterwards moves no file |
+  | `required` | `manifest.checks[].required` | un-requiring a Check afterward moves no file |
   | `expected_outcome` | `manifest.checks[].expected_outcome` | the verdict a falsifier was written to produce is a manifest field; flipping it after the result moves no file. Required on a `kind: falsifier` entry |
   | `statement_hash` | sha256 of the UTF-8 bytes of `manifest.question.falsifier.statement` | the plain-language bar lives in the Question. Required on the entry for the Check the Question names as its falsifier |
 

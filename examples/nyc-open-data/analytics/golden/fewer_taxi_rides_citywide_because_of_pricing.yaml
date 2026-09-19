@@ -22,7 +22,7 @@ expected:
   must_state:
     - 'that "citywide" is the wrong denominator for a policy that applies at a zone boundary, and why: three trips in five never touch the zone and were never charged, so they dilute whatever happened inside it'
     - that the premise is not what the data shows — citywide trips rose about 5.5% and yellow trips rose about 17.2%
-    - 'that "cause" is not available: nothing was randomised, every vehicle met the charge on the same date, there is no untreated comparison area, and January 2024 and January 2025 differed in weather'
+    - 'that "cause" is not available: nothing was randomized, every vehicle met the charge on the same date, there is no untreated comparison area, and January 2024 and January 2025 differed in weather'
     - 'the Question this Instance can answer instead, in one sentence: what happened to trips into the zone, and to the zone''s share of all trips, against the same month a year earlier'
     - that the sharpened Question is `crz_trips_jan2025_vs_jan2024`, and that its answer is still associational
   must_not:
@@ -33,7 +33,7 @@ expected:
   reasoning: >-
     Three defects, none of them fixable by running the query. The denominator is wrong: a zone-boundary policy
     against a citywide baseline puts 13.6 million untreated trips in January 2024 alone into the comparison.
-    The causal wording is unavailable: the charge started for everyone on one date with no randomisation and no
+    The causal wording is unavailable: the charge started for everyone on one date with no randomization and no
     control area, so an observational before/after supports an associational Claim at most. And the premise is
     false — citywide trips rose. Reporting the true direction while keeping the causal frame would be the worse
     failure, so the outcome is needs_reframing and the Finding hands back a Question that can be answered.
