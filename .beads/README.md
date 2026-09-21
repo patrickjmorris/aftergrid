@@ -1,6 +1,6 @@
 # Beads Issue Tracking
 
-Issue tracking for this repo via [Beads](https://github.com/steveyegge/beads) (`br` CLI). Issues live in `.beads/issues.jsonl` and are committed alongside code changes.
+Issue tracking for this repo via [Beads](https://github.com/steveyegge/beads) (`br` CLI). Issues live locally in `.beads/issues.jsonl`, which is ignored by Git. The tracker may contain private planning: never force-add it or mirror its contents wholesale to GitHub. Publish only individually reviewed, public-safe engineering issues.
 
 ## Commands
 
@@ -11,7 +11,7 @@ br list                           # List all issues
 br show <id>                      # View issue details
 br update <id> --status in_progress
 br close <id> --reason "Done"
-br sync                           # Sync with git remote
+br sync --flush-only              # Export the local tracker (ignored by Git)
 ```
 
 ## Graph-Aware Triage (bv)
@@ -39,7 +39,7 @@ bv --robot-plan       # Parallel execution tracks
 3. Trunk by default; branch only when the user requests a PR or a risky, schema, or architectural change needs isolation
 4. Implement + test
 5. `br close <id>` when done
-6. Commit `.beads/` in the same commit as code changes
+6. Keep tracker data local; commit only public-safe source and documentation changes
 
 ## Learn More
 

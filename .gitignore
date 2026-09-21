@@ -4,3 +4,10 @@ node_modules/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Private development tracker and business planning stay on this machine.
+.beads/issues.jsonl
+private/
+docs/private/
+docs/design/monetization*
+docs/design/revenue-plan*

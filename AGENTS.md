@@ -30,7 +30,7 @@ Ordinary skill use must not require the Engine, an Instance, GitHub approval, a 
 | `examples/skills-lab/` | Synthetic teaching cases, recorded agent outputs, verifiable arithmetic. |
 | `examples/nyc-open-data/` | Real public-data analyses. Merged Findings are **not** publication-approved. |
 | `site/` | Generated static site. Edit sources and rebuild; do not hand-edit production HTML. |
-| `.beads/` | Development tracker. GitHub Issues are the public mirror only. |
+| `.beads/` | Local development tracker. Its issue data is private and must not be committed or mirrored wholesale. |
 
 Fifteen promoted skills live directly under `skills/` and must appear in `skills/README.md`, `package.json#skills`, `.claude-plugin/plugin.json`, and `site/content/skills.json`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets for symmetry.
 
@@ -70,6 +70,7 @@ Do not claim browser QA, visual contrast, or live harness parity from the offlin
 
 - Stage commits by explicit path. Never `git add -A`.
 - Secrets never in tracked files.
+- Internal business plans, financial projections, pricing assumptions, personal circumstances, and revenue strategy stay outside the public repository. Do not commit the local tracker or mirror its private entries to GitHub. Public service descriptions and synthetic analytics examples are allowed.
 - `br` only in the main checkout, never in worktrees.
 - Do not touch private Instance data or Spot Sports schema, metrics, IDs, or credentials.
 - Owner gates stay owner gates: PR approvals, publication identities, real Reader sessions, selling entity, outreach.
