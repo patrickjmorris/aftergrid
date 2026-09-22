@@ -16,7 +16,7 @@ Take the question through to an answer the intended reader can act on. Start wit
 
 ## Resolve what changes the answer
 
-Read available context before asking. State the original ask, reader, decision, metric including numerator and denominator, population, time window/timezone, and comparison. Ask only about ambiguity that would change the calculation or decision. Group consequential unknowns into one round and suggest reasonable choices. Do not require a business decision for a purely descriptive request. Distinguish a descriptive question from an attribution question: a before/after observation cannot establish what caused it.
+Read available context before asking. State the original ask, reader, decision, metric including numerator and denominator, population, time window/timezone, and comparison. Ask only about ambiguity that would change the calculation or decision. Group consequential unknowns into one round and suggest reasonable choices. Ask them through the harness's structured question tool when it has one (`AskUserQuestion` in Claude Code, `request_user_input` in Codex), recommended choice first, each option saying what it would change; choices that others depend on go in the first call. Otherwise end with a numbered list. Do not require a business decision for a purely descriptive request. Distinguish a descriptive question from an attribution question: a before/after observation cannot establish what caused it.
 
 A missing source is a concrete limit, not a reason to invent a result. If enough is known for a bounded descriptive analysis, proceed with its assumptions clearly stated; pause only the dependent part.
 
