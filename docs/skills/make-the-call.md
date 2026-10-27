@@ -4,7 +4,7 @@
 
 Turns a checked result into a recommendation. It ties the metric to the goal it serves, judges whether the move is big enough to matter, drops true findings that do not change the decision, weighs the real options, and names the observation that would reverse the call.
 
-The other skills make sure the number is right. This one works out what the person deciding should do about it.
+The other skills make sure the number is right. This one turns it into a recommendation for the person deciding.
 
 ## When to reach for it
 

@@ -21,7 +21,7 @@ Completion: the decision, owner, options on the table, and goal are stated, or t
 
 ## 2. Translate the result into goal units
 
-Convert the movement into what the owner tracks. A rate change becomes the count it cost or gained over the data's own period ("−2.6pp on 10,000 sessions is 260 fewer signups"). Do not restate it per month or quarter unless the period length is supplied. A count becomes its share of the gap to target. When the move has parts, size each part, not only the net. A mix shift that cost 360 and rate gains that recovered 100 are two findings, not one loss of 260. Show the arithmetic. When a conversion needs a value the user did not supply (value per signup, margin, spend), state it as an assumption with its source, or leave that unit out. Do not invent a dollar figure.
+Convert the movement into what the owner tracks. A rate change becomes the count it cost or gained over the data's own period ("−1.5pp on 40,000 trials is 600 fewer paid accounts"). Do not restate it per month or quarter unless the period length is supplied. A count becomes its share of the gap to target. When the move has parts, size each part, not only the net. A price change that cost 450 renewals and a volume gain that recovered 150 are two findings, not one loss of 300. When segment rates moved by different amounts, the split depends on which period's weights or rates you hold fixed; say which. Show the arithmetic. When a conversion needs a value the user did not supply (value per signup, margin, spend), state it as an assumption with its source, or leave that unit out. Do not invent a dollar figure.
 
 Completion: the headline result appears in at least one unit the owner manages, with its calculation.
 
@@ -32,6 +32,8 @@ A move matters when it is large against three references:
 - **Normal variation.** Compare with the metric's range over comparable prior periods. If no history is available, say materiality against noise is unjudged.
 - **The goal.** How much of the gap to target, or of the cushion above it, does this move account for?
 - **The decision threshold.** What size of effect would make the owner choose differently? Ask when it is unknown and consequential. A move below it does not change the call, however surprising.
+
+A threshold the owner states for the total applies to the total. Compare each part with it to show which parts could open or close the gap on their own. Sampling error within one period is not normal variation; report it when useful, and still label materiality against history unjudged when there is no history.
 
 Label the result material, immaterial, or unjudged, with the reference that decided it.
 
@@ -45,11 +47,11 @@ Completion: one or two findings lead; the rest are named as secondary or dropped
 
 ## 5. Weigh the options
 
-Lay out two or three options the owner could actually take. Include waiting or doing nothing when it is a real choice. For each give:
+Lay out two or three options the owner could actually take. Include waiting or doing nothing when it is a real choice. When the owner's own rule already requires action, waiting is not one; say so instead of listing it. For each give:
 
 - what it would change, in goal units, and the evidence that estimate rests on;
 - what it costs, in money, effort, or time, when known;
-- the main risk, and whether the option is reversible;
+- the main risk, and whether the option is reversible ("unknown" when the inputs do not say);
 - the assumption it depends on.
 
 Check that each option can move the goal as it is defined. Some definitions settle the choice: net revenue retention excludes new customers, so acquisition work cannot move it. When a definition decides the call, say so, and name the counter-metric the owner should watch alongside it (total revenue, in that example).
@@ -62,7 +64,7 @@ Completion: each option has an effect, cost, risk, reversibility, and the assump
 
 Recommend one option at the confidence the evidence earns. Tie the recommendation to the finding that drives it. Where the evidence cannot separate two options, say so and recommend the cheaper test that would.
 
-Name what would flip the call: an observation that separates the explanations still standing. For example: "If the new paid sessions carry direct-style referrers and no campaign tags, this is a tracking relabel, not lost traffic, and the channel diagnosis starts over." Use a threshold or a date only when the owner supplied one or the data has the cadence to check it. A trigger someone can check beats a general caveat.
+Name what would flip the call: an observation that separates the explanations still standing. For example: "If the renewals lost after the price change are concentrated in accounts that were already past due, this is collections timing, not price sensitivity, and the pricing review waits." Use a threshold or a date only when the owner supplied one or the data has the cadence to check it. A trigger someone can check beats a general caveat.
 
 The owner decides. A recommendation is a proposal, not an approval, and an agent never records one as accepted.
 
@@ -70,7 +72,9 @@ Completion: one recommended option, the finding behind it, its confidence, and a
 
 ## Return a decision brief
 
-Lead with the call in one sentence the owner could repeat. Then, in order:
+The steps above are the working. The reply is the brief. Put the working, with its tables, below the brief or in a saved file, and link to it.
+
+Lead with the call in one sentence of about 25 words or fewer that the owner could repeat. Then, in order:
 
 1. Why it matters, in goal units, with its materiality.
 2. The finding behind it and its decisive caveat.
@@ -78,4 +82,4 @@ Lead with the call in one sentence the owner could repeat. Then, in order:
 4. What would change the call, and when to look.
 5. What is true but not worth attention for this decision.
 
-Keep it short enough to read before the meeting. Link each number to its source or calculation. Mark assumptions as assumptions and missing inputs as missing.
+Keep the brief under about 250 words, short enough to read before the meeting. Link each number to its source or calculation. Mark assumptions as assumptions and missing inputs as missing.

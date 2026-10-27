@@ -18,7 +18,7 @@ test('production navigation, skill sources and canonical example remain intact',
 test('GitHub Pages routes stay inside the project and drafts remain visibly labeled',()=>{
  const home=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
  const detail=readFileSync(new URL('../site/skills/diagnose-change/index.html',import.meta.url),'utf8');
- assert.match(home,/Synthetic four-row CSV on GitHub · the 900 plan is a stated teaching assumption · panels show the arithmetic and the call the skills ask for, not a model transcript/);
+ assert.match(home,/Synthetic four-row CSV on GitHub · the 900 plan is a stated teaching assumption · panels show the target diagnosis and recommendation, not a model transcript/);
  assert.match(home,/Draft Findings · not publication-approved/);
  assert.match(detail,/href="\.\.\/\.\.\/start\/"/);
  assert.match(detail,/data-copy="[^"]+--skill diagnose-change"/);
