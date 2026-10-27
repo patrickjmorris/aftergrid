@@ -26,7 +26,7 @@ The [lesson-reuse example](../examples/lesson-reuse.md) shows a second period th
 
 **What if a prior lesson does not apply?** Say so, with the condition that fails. Do not force new data through an obsolete check.
 
-**Is the plan evidence?** No. It is a commitment about what will be calculated and when to stop. Results come from [checked-analysis](checked-analysis.md).
+**Is the plan evidence?** No. It is a commitment about what will be calculated and when to stop. Results come from [analyze](analyze.md), which runs the checks and logs what ran.
 
 ## It's working if
 

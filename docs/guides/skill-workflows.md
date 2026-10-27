@@ -73,7 +73,7 @@ check the calculations, and produce a short memo for the product lead.
 Preserve the source and save the executed code with the answer.
 ```
 
-[Analyze](../skills/analyze.md) coordinates. [Checked-analysis](../skills/checked-analysis.md) supplies the checking discipline; [write-finding](../skills/write-finding.md) turns results into a readable artifact; [iterate-visual](../skills/iterate-visual.md) inspects charts; [shape-narrative](../skills/shape-narrative.md) makes the answer and material caveat clear.
+[Analyze](../skills/analyze.md) coordinates and supplies the checking discipline; [write-finding](../skills/write-finding.md) turns results into a readable artifact; [iterate-visual](../skills/iterate-visual.md) inspects charts; [shape-narrative](../skills/shape-narrative.md) makes the answer and material caveat clear.
 
 ## When the draft sounds too certain
 

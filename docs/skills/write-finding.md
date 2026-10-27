@@ -10,7 +10,7 @@ A writer may clarify a conclusion. It may not invent a calculation, promote a pr
 
 Ask in plain language. The agent reaches for it when numbers exist and the memo does not. Hidden from the Claude Code slash menu.
 
-Reach for it after [checked-analysis](checked-analysis.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives.
+Reach for it after [analyze](analyze.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives.
 
 ## The first paragraph has to be enough
 
@@ -42,8 +42,8 @@ Existing Engine checks and approval requirements still apply.
 
 ## What it does
 
-`/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence `/checked-analysis`
-pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+`/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence the checked-analysis stage of
+`/analyze` pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
 results, the Checks, any retained inputs, and `analysis.yaml` —
 and writes the half a Reader meets: `memo.md` in the six fixed sections, typed Claims, a chart or a table
 behind every number, and the export policy, coverage and Reader profile the render needs.
@@ -65,13 +65,13 @@ a `needs_attention` result after a third unsuccessful pass.
 
 ## When to reach for it
 
-- `/checked-analysis` has pinned executions, results and Check outcomes, and written `analysis.yaml`.
+- The checked-analysis stage of `/analyze` has pinned executions, results and Check outcomes, and written `analysis.yaml`.
 - An Analysis reached `insufficient_data`, `inconclusive` or `needs_reframing` and the Reader is owed a
   Finding that says so.
 - A Finding was reopened for a numeric change, the Analysis reran, and the memo has to be rewritten against
   the new results.
 
-Not for: changing a number or a query (that reopens `/checked-analysis`), re-styling a chart
+Not for: changing a number or a query (that reopens the checked-analysis stage of `/analyze`), re-styling a chart
 (`/iterate-visual`), reordering or rewording finished prose (`/shape-narrative`), or acting on Operator
 feedback on a merged Finding (`/revise-finding`).
 

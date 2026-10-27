@@ -4,7 +4,7 @@ This reference applies only to an existing aftergrid Finding or an explicitly re
 
 # Write the Finding
 
-`/checked-analysis` leaves a directory where the numbers are settled and nothing has been said yet. You turn
+The checked-analysis stage of `/analyze` leaves a directory where the numbers are settled and nothing has been said yet. You turn
 it into a Finding: `memo.md` in six fixed sections, typed Claims in `manifest.yaml`, and a chart or a table
 behind every number a Reader is asked to believe.
 
@@ -25,8 +25,8 @@ Read `manifest.yaml`, `analysis.yaml`, every file under `results/`, and the Read
 `analysis.yaml#reader_profile` names — `<instance>/readers.md`, or `schema/generic-reader-profile.yaml` when
 it is `generic`.
 
-`analysis.yaml` is the Analysis directory's own record, written by `/checked-analysis`
-(`docs/contracts/analysis-directory.md`, schema `src/analysis/analysis.schema.json`). You read five parts of
+`analysis.yaml` is the Analysis directory's own record, written by
+the checked-analysis stage of `/analyze` (`docs/contracts/analysis-directory.md`, schema `src/analysis/analysis.schema.json`). You read five parts of
 it: `analysis.yaml#reader_profile`, `analysis.yaml#outcome_recommendation`, `analysis.yaml#needs_input`,
 `analysis.yaml#candidate_claims` and `analysis.yaml#assumptions`. The rest — probes, the pre-registered
 comparison, the execution order — is context for the prose and for the reviewer, never something to restate
@@ -299,6 +299,6 @@ Each of these is a hard rule, stated as what to do and then as the line not to c
 | Leave `reviews` and `attestations` as you found them. | Add an entry to either. `check` reports an approval nobody granted as an untrusted attestation. |
 | Write `export_policy.allowed_fields` and `reader.profile`, and leave the rest of both blocks as you found them. | Touch `export_policy.recipient_scope`, `granularity`, `delivery` or `private_marker`. Dropping the marker turns off both sentinel guards silently, because each one is conditional on its presence. |
 | Call the Finding a draft, and say which facts are recorded. | Describe it as verified, approved, reviewed or complete-and-trusted. Those are separate facts a human establishes. |
-| State the falsifier `/checked-analysis` recorded, or that none exists yet and who owns writing it. | Invent a falsifier, a threshold, a definition or a caveat to fill a template slot. |
+| State the falsifier the checked-analysis stage recorded, or that none exists yet and who owns writing it. | Invent a falsifier, a threshold, a definition or a caveat to fill a template slot. |
 | Write the Finding `inconclusive` when the pre-registered falsifier fired, and name in the Answer what it asked and what the data showed. | Keep `answered` over a fired falsifier, loosen the Check, or write a second falsifier once the first one failed. |
 | Write "not available" where a value is null or a denominator is zero. | Write 0, a blank or a dash. |

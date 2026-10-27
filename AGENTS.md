@@ -32,7 +32,7 @@ Ordinary skill use must not require the Engine, an Instance, GitHub approval, a 
 | `site/` | Generated static site. Edit sources and rebuild; do not hand-edit production HTML. |
 | `.beads/` | Local development tracker. Its issue data is private and must not be committed or mirrored wholesale. |
 
-Sixteen promoted skills live directly under `skills/` and must appear in `skills/README.md`, `package.json#skills`, `.claude-plugin/plugin.json`, and `site/content/skills.json`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets for symmetry.
+Fifteen promoted skills live directly under `skills/` and must appear in `skills/README.md`, `package.json#skills`, `.claude-plugin/plugin.json`, and `site/content/skills.json`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets for symmetry.
 
 ## Skills
 

@@ -5,7 +5,7 @@
 <p>A writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.</p>
 <h2 id="when-to-reach-for-it">When to reach for it</h2>
 <p>Ask in plain language. The agent reaches for it when numbers exist and the memo does not. Hidden from the Claude Code slash menu.</p>
-<p>Reach for it after <a href="../checked-analysis/">checked-analysis</a> or any run that produced inspectable results. Use <a href="../shape-narrative/">shape-narrative</a> to reorder and reword without changing meaning. Use <a href="../iterate-visual/">iterate-visual</a> for the chart. Use <a href="../revise-finding/">revise-finding</a> once feedback arrives.</p>
+<p>Reach for it after <a href="../analyze/">analyze</a> or any run that produced inspectable results. Use <a href="../shape-narrative/">shape-narrative</a> to reorder and reword without changing meaning. Use <a href="../iterate-visual/">iterate-visual</a> for the chart. Use <a href="../revise-finding/">revise-finding</a> once feedback arrives.</p>
 <h2 id="the-first-paragraph-has-to-be-enough">The first paragraph has to be enough</h2>
 <p>A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. An honest answer may be that the source does not support the comparison.</p>
 <h2 id="common-questions">Common questions</h2>
@@ -23,8 +23,8 @@
 <p>Model-invoked Explain-stage craft. Neighbors: <a href="../shape-narrative/">shape-narrative</a>, <a href="../iterate-visual/">iterate-visual</a>, <a href="../analysis-review/">analysis-review</a>.</p>
 <details class="engine-details"><summary>Optional Engine reference</summary><p>Existing Engine checks and approval requirements still apply.</p>
 <h2 id="what-it-does-1">What it does</h2>
-<p><code>/write-finding</code> turns a checked Analysis directory into a Finding. It reads the evidence <code>/checked-analysis</code>
-pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+<p><code>/write-finding</code> turns a checked Analysis directory into a Finding. It reads the evidence the checked-analysis stage of
+<code>/analyze</code> pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
 results, the Checks, any retained inputs, and <code>analysis.yaml</code> —
 and writes the half a Reader meets: <code>memo.md</code> in the six fixed sections, typed Claims, a chart or a table
 behind every number, and the export policy, coverage and Reader profile the render needs.</p>
@@ -42,13 +42,13 @@ refusal in <code>render</code> both run only when it is present.</p>
 a <code>needs_attention</code> result after a third unsuccessful pass.</p>
 <h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
-<li><code>/checked-analysis</code> has pinned executions, results and Check outcomes, and written <code>analysis.yaml</code>.</li>
+<li>The checked-analysis stage of <code>/analyze</code> has pinned executions, results and Check outcomes, and written <code>analysis.yaml</code>.</li>
 <li>An Analysis reached <code>insufficient_data</code>, <code>inconclusive</code> or <code>needs_reframing</code> and the Reader is owed a
 Finding that says so.</li>
 <li>A Finding was reopened for a numeric change, the Analysis reran, and the memo has to be rewritten against
 the new results.</li>
 </ul>
-<p>Not for: changing a number or a query (that reopens <code>/checked-analysis</code>), re-styling a chart
+<p>Not for: changing a number or a query (that reopens the checked-analysis stage of <code>/analyze</code>), re-styling a chart
 (<code>/iterate-visual</code>), reordering or rewording finished prose (<code>/shape-narrative</code>), or acting on Operator
 feedback on a merged Finding (<code>/revise-finding</code>).</p>
 <h2 id="common-questions-1">Common questions</h2>

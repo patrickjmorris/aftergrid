@@ -1,6 +1,6 @@
 # Engine Finding mode
 
-This reference applies only to an existing aftergrid Finding or an explicitly requested Engine workflow. It requires the complete aftergrid toolkit, including the CLI and contracts; portable use of the skill does not. Resolve repository paths below against that toolkit, not against the user's data directory.
+This reference is the `checked_analysis` stage of [the `/analyze` Engine workflow](engine-workflow.md). It replaces the retired `/checked-analysis` skill. It applies only to an existing aftergrid Finding or an explicitly requested Engine workflow. It requires the complete aftergrid toolkit, including the CLI and contracts; portable use of the skill does not. Resolve repository paths below against that toolkit, not against the user's data directory.
 
 # Run a checked Analysis
 

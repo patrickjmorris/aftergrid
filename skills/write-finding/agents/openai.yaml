@@ -4,5 +4,5 @@ interface:
   default_prompt: "Use $write-finding on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. The writer is a step inside /analyze, reached
-  # once /checked-analysis has pinned the evidence; a human asks for the Analysis, not for the memo.
+  # once its checked-analysis stage has pinned the evidence; a human asks for the Analysis, not for the memo.
   allow_implicit_invocation: true

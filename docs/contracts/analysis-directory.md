@@ -129,7 +129,7 @@ needs_input:                    # what the Analysis stopped for; each specific e
 `stage: clarified` is the seed `/grill-question` writes: `reader_profile`, `clarified_at`, `assumptions`,
 `pre_registered_comparison`, `needs_input`. It is a **complete artifact for that stage**, `check` reports its
 evidence `valid`, and `execute` reports it as a warning naming what is not filled in yet — never as an error,
-because `/checked-analysis` runs `execute` at step (d) before it writes the working record.
+because the checked-analysis stage of `/analyze` runs `execute` at step (d) before it writes the working record.
 
 `stage: analysed` is that working record, and it requires `probes`, `execution_order`, `candidate_claims` and
 `outcome_recommendation`. A file with no `stage` is read as `analysed`, so a file written before the field
@@ -218,7 +218,7 @@ Enforced by `validateAnalysisFile(dir, manifest)` (`src/analysis/validate.ts`):
   `analysisWarnings(dir)` as a **warning** with the location of the offending `at` — `check`, `execute` and
   `record` print it, and none of them refuses the Finding over it.
 - **Capture follows clarification.** `clarified_at` is when the Question was settled, written by
-  `/grill-question` (and by the shared clarification procedure `/analyze` and `/checked-analysis` follow) from
+  `/grill-question` (and by the shared clarification procedure `/analyze` follows) from
   the harness's clock at that moment. A Snapshot input whose `manifest.snapshot.inputs[].captured_at` is
   **earlier** than it is reported by `analysisWarnings(dir)` as the **warning** `capture_before_clarify`, at
   `manifest.yaml#/snapshot/inputs/<i>/captured_at`, naming the input: an extract chosen before the Question was
@@ -238,13 +238,13 @@ Claim cite it without the reference dangling, and the writer turns each into the
 | Skill | Writes | Never touches |
 | --- | --- | --- |
 | `/grill-question` (user) | `manifest.question`, `manifest.reader`, proposed definition files, and the `stage: clarified` seed of `analysis.yaml` (`reader_profile`, `assumptions`, `pre_registered_comparison`, `needs_input`) | approved definition files, any evidence |
-| `/checked-analysis` (model) | `inputs/`, `queries/`, `checks/`, `results/`, the evidence half of the manifest, all of `analysis.yaml` | `memo.md`, `claims`, `charts`, `reviews`, `attestations` |
+| `/analyze`, checked-analysis stage (`skills/analyze/references/checked-analysis.md`) | `inputs/`, `queries/`, `checks/`, `results/`, the evidence half of the manifest, all of `analysis.yaml` | `memo.md`, `claims`, `charts`, `reviews`, `attestations` |
 | the harness, through `aftergrid record` (Operator) | on the recorded path only: `queries/*.sql`, `results/*.json`, `checks/evidence/*`, and the pinned half of `executions[]` / `results[]` / `checks[]` — `executed_by`, `mode: recorded`, `reported_by`, every hash, `snapshot.guarantees: [artifact_replay]`, the content digest | `snapshot.inputs` (nothing is retained), `claims`, `memo.md`, `reviews`, `attestations`, and `analysis_rerun` |
 | `/write-finding` (model) | `memo.md`, `manifest.claims` / `charts` / `tables` / `derived` / `external_sources` / `coverage`, `finding.state: complete` and `finding.outcome` | `queries`, `checks`, `results`, `definitions`, `analysis.yaml`, and a Claim's type, comparison, population or window | Carried across unchanged (the Analysis schema uses the manifest spelling for `comparison.kind`, so nothing is renamed; the identity table in `skills/write-finding/SKILL.md` step 5 lets a checker prove it).
 | `/iterate-visual` (model) | `charts/*.vl.json` and `charts[]` entries (Variants via `charts[].variant_of`), then re-render and re-check | every number, and the Claim a chart states |
 | `/revise-finding` (user) | a presentation change: re-render and re-check | meaning: see the classification below |
 | `/analysis-review` (model) | `reviews[]` entries (`kind: method` / `question` / `reader`, `blocking[]`, `non_blocking[]`, bound to the current content digest) | `attestations[]`, and any content it is reviewing |
-| `/analyze` (user) | nothing directly; it is the only orchestrator | — |
+| `/analyze` (user), every other stage | nothing directly; it is the only orchestrator | — |
 
 `/revise-finding` classifies every requested change before acting:
 

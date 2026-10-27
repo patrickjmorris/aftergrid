@@ -21,7 +21,7 @@ run prints when the directory refuses one).
 | Stage | Owner | Ends when |
 | --- | --- | --- |
 | `clarify` | the shared clarification procedure | `question.state` is `resolved`, or the run has halted with what is missing |
-| `checked_analysis` | `/checked-analysis` | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned — by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
+| `checked_analysis` | this skill, following [`references/checked-analysis.md`](checked-analysis.md) | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned — by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
 | `write_finding` | `/write-finding` | `memo.md` has all six sections and the manifest carries claims, charts, tables, coverage and an outcome |
 | `iterate_visual` | `/iterate-visual` | every chart has passed the rubric or been handed back after the third pass |
 | `shape_narrative` | `/shape-narrative` | the memo is answer-first and each Evidence subsection is one Claim |
@@ -58,7 +58,7 @@ Done when you can name the Finding directory and the stage you are starting from
 
 ## 2. Clarify
 
-Follow `skills/checked-analysis/references/clarification.md` — the shared procedure, owned by
+Follow [`references/clarification.md`](clarification.md) — the shared procedure, owned by
 `ag-grill-checked-analysis-7qg`. Ask the whole frontier in one round rather than one question at a time, and
 carry the answers into `question` in the manifest.
 
@@ -73,7 +73,8 @@ Done when `question.state` is `resolved` with a falsifier, or the run has halted
 
 ## 3. Run the stages
 
-Invoke each owner in turn and let it finish. Between stages, do three things and nothing else:
+Run `checked_analysis` yourself from [`references/checked-analysis.md`](checked-analysis.md). Invoke each
+other owner in turn and let it finish. Between stages, do three things and nothing else:
 
 1. Update `analysis-progress.yaml`.
 2. Read the halt conditions below.

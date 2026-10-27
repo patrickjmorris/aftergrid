@@ -58,8 +58,8 @@ If two rows fit, pick the earlier failure: question before data, data before dia
 ## Standalone vs orchestrator
 
 - **`analyze`** is the orchestrator. Reach for it when the user wants one run from ask to reviewed answer. It reuses clarification, checking, writing, and review procedures; it does not call this router or other user-invoked skills.
-- **Craft skills** (`checked-analysis`, `write-finding`, `iterate-visual`, `shape-narrative`, `analysis-review`) may be model-invoked. Name them when that is the stuck point. In hosts that hide them from a slash menu, give a plain-language prompt.
-- **`checked-analysis`** is execute-and-record discipline, not the movement playbook. Use `diagnose-change` when the job is “why did this number move?”
+- **Craft skills** (`write-finding`, `iterate-visual`, `shape-narrative`, `analysis-review`) may be model-invoked. Name them when that is the stuck point. In hosts that hide them from a slash menu, give a plain-language prompt.
+- **`analyze`** also carries the execute-and-record discipline: checks named before the main query and a log of what ran. It is not the movement playbook. Use `diagnose-change` when the job is “why did this number move?”
 
 ## Completion
 

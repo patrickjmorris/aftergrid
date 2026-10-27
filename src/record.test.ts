@@ -572,7 +572,7 @@ test("a refused recording never reports that it copied anything in", async () =>
 
 // ---------------------------------------------------------------- what the schema says about a recorded execution
 
-test("the state /checked-analysis writes is schema-valid, and check says the recording has not happened yet", async () => {
+test("the state the checked-analysis stage writes is schema-valid, and check says the recording has not happened yet", async () => {
   const { dir } = declaredFinding();
   const report = await check({ dir, github: null });
   assert.deepEqual(report.errors.filter((e) => e.category === "schema"), [], "mode: recorded with no executed_by and no retained inputs is a state the schema allows");

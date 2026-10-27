@@ -30,7 +30,7 @@ The [conversion example](../examples/conversion-mix.md) is the teaching case: ov
 
 **Should I keep slicing until the story is obvious?** No. Stop when the supported explanation is enough for the decision, remaining explanations predict the same available observations, or the next test needs data you do not have. New cuts after seeing a result are exploratory.
 
-**Is this the same as checked-analysis?** [checked-analysis](checked-analysis.md) is the general execute-and-record discipline. This skill is the metric-movement playbook: reproduce, decompose, discriminate.
+**Is this the same as analyze?** [analyze](analyze.md) carries the general execute-and-record discipline from ask to answer. This skill is the metric-movement playbook: reproduce, decompose, discriminate.
 
 ## It's working if
 

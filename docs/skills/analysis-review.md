@@ -10,7 +10,7 @@ A review can change the verdict to “inconclusive.” Agreement among reviewers
 
 Ask in plain language, or type `/analysis-review` in hosts that expose it. Hidden from the Claude Code slash menu. The agent may reach for it when a draft is about to be trusted.
 
-Use it when a memo, notebook, or chart is about to inform a decision. Use [checked-analysis](checked-analysis.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
+Use it when a memo, notebook, or chart is about to inform a decision. Use [analyze](analyze.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
 
 ## Four lenses, then refute yourself
 

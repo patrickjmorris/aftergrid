@@ -10,7 +10,7 @@ The skill proposes. An agent does not approve organizational meaning, and it doe
 
 Type `/define-metric`, or ask in plain language.
 
-Use it when “activation,” “active,” “revenue,” or “retained” would produce different SQL in two reasonable readings, or before anyone starts optimizing the number. Use [grill-question](grill-question.md) when the decision and comparison are still unset. Use [checked-analysis](checked-analysis.md) to compute a definition that is already agreed.
+Use it when “activation,” “active,” “revenue,” or “retained” would produce different SQL in two reasonable readings, or before anyone starts optimizing the number. Use [grill-question](grill-question.md) when the decision and comparison are still unset. Use [analyze](analyze.md) to compute a definition that is already agreed.
 
 ## The counting contract
 

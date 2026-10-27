@@ -10,7 +10,7 @@ Classify by what would change for the reader, not by how small the text edit loo
 
 You start it: `/revise-finding`. The agent will not start it on its own.
 
-Use it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use [iterate-visual](iterate-visual.md) when the chart is merely hard to read. Use [checked-analysis](checked-analysis.md) when the numbers have to be rerun. Use [analysis-review](analysis-review.md) to produce the critique this skill applies.
+Use it when a finished memo, chart, or Finding has feedback. Not for a draft still being written. Use [iterate-visual](iterate-visual.md) when the chart is merely hard to read. Use [analyze](analyze.md) when the numbers have to be rerun. Use [analysis-review](analysis-review.md) to produce the critique this skill applies.
 
 ## Three classes
 

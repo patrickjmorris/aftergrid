@@ -233,7 +233,7 @@ test("the writer changes only the fields it owns: no query, Check, result, retai
         `${name}: ${sub}/ differs between the Analysis directory and the Finding`);
     }
     assert.equal(sha(readFileSync(join(out, "analysis.yaml"))), sha(readFileSync(join(inp, "analysis.yaml"))),
-      `${name}: analysis.yaml belongs to /checked-analysis`);
+      `${name}: analysis.yaml belongs to the checked-analysis stage of /analyze`);
     // charts/ is the only directory the writer creates, and only where there is a chart.
     assert.equal(existsSync(join(inp, "charts")), false, `${name}: an Analysis directory carries no chart specs`);
 

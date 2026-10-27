@@ -63,7 +63,7 @@ test("a pre-registration pins the falsifier's expected_outcome, required flag an
   const manifest: any = parseYaml(readFileSync(join(EXEMPLAR, "manifest.yaml"), "utf8"));
   const falsifier = manifest.checks.find((c: any) => c.kind === "falsifier");
 
-  /** The entry an honest /checked-analysis writes the moment the Check file is saved. */
+  /** The entry an honest checked-analysis stage writes the moment the Check file is saved. */
   const entry = (over: Record<string, unknown> = {}) => ({
     check_id: falsifier.id,
     content_hash: { ...falsifier.content_hash },

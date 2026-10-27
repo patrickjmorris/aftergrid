@@ -27,7 +27,7 @@ and invocation are host-specific. The plain-language request above works wheneve
 | [Conversion decline](cases/conversion.md) | [conversion.csv](data/conversion.csv) | `diagnose-change` | Explain a change without assuming which product experience caused it |
 | [Recurring revenue](cases/revenue.md) | [recurring-revenue.csv](data/recurring-revenue.csv) | `diagnose-change` | Reconcile the headline with what happened to existing accounts |
 | [Review a claim](cases/review.md) | [onboarding.csv](data/onboarding.csv) | `analysis-review` | Separate correct arithmetic from an unsupported causal recommendation |
-| [Reuse a lesson](cases/learning.md) | First analysis + [conversion-followup.csv](data/conversion-followup.csv) | `learn-from-analysis`, `plan-analysis`, `checked-analysis` | Retrieve a lesson and test whether it explains a new period |
+| [Reuse a lesson](cases/learning.md) | First analysis + [conversion-followup.csv](data/conversion-followup.csv) | `learn-from-analysis`, `plan-analysis`, `checked-analysis` (since folded into `analyze`) | Retrieve a lesson and test whether it explains a new period |
 
 Start with the case prompt and inputs if you want to work through it yourself. The check below and the website
 walkthroughs reveal the arithmetic.

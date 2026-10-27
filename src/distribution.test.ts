@@ -204,6 +204,11 @@ function readDistributedText(path: string): string {
 function readEngineSkill(name: string): string {
   return readDistributedText(join(REPO, "skills", name, "SKILL.md"));
 }
+/** The checked-analysis stage of /analyze, which replaced the retired /checked-analysis skill. */
+const CHECKED_ANALYSIS = join("skills", "analyze", "references", "checked-analysis.md");
+function readCheckedAnalysis(): string {
+  return readFileSync(join(REPO, CHECKED_ANALYSIS), "utf8");
+}
 
 /* ------------------------------------------------------------------ the skills and the CLI agree (ag-olp) */
 //
@@ -222,7 +227,7 @@ function step(markdown: string, n: number): string {
 }
 
 test("checked-analysis steps 3 and 6 write the recorded path before the adapter path (ADR 0010)", () => {
-  const skill = readEngineSkill("checked-analysis");
+  const skill = readCheckedAnalysis();
 
   for (const [n, adapterCommand] of [[3, "aftergrid capture"], [6, "aftergrid execute"]] as const) {
     const body = step(skill, n);
@@ -250,7 +255,7 @@ test("checked-analysis steps 3 and 6 write the recorded path before the adapter 
 // ag-falsifier-outcome-cov. The skill told a model to mark the falsifier `required: true`, `check` then read a
 // failing falsifier as an evidence error, and the honest inconclusive Finding could not be written at all.
 test("checked-analysis writes the falsifier as required: false, and calls a failing one the inconclusive path", () => {
-  const skill = readEngineSkill("checked-analysis");
+  const skill = readCheckedAnalysis();
   const four = step(skill, 4);
 
   const row = four.split("\n").find((l) => /^\|\s*`falsifier`\s*\|/.test(l));
@@ -268,7 +273,7 @@ test("checked-analysis writes the falsifier as required: false, and calls a fail
   // The same rule, in the two places a harness might read instead of the skill body.
   const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
   assert.match(halting, /## What is not a halt[\s\S]*failing pre-registered falsifier/i, "the halting reference lists it as a non-halt");
-  const doc = readFileSync(join(REPO, "docs", "skills", "checked-analysis.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
   assert.match(doc, /falsifier_failed/, "the docs page must name the warning `check` reports");
 
   // And the contract the prose describes really refuses the shape, so the two cannot drift apart.
@@ -356,9 +361,8 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
   }
 
   const pages = [
-    join("skills", "checked-analysis", "SKILL.md"),
-    join("skills", "checked-analysis", "agents", "openai.yaml"),
-    join("skills", "checked-analysis", "references", "clarification.md"),
+    CHECKED_ANALYSIS,
+    join("skills", "analyze", "references", "clarification.md"),
     join("skills", "analyze", "SKILL.md"),
     join("skills", "analyze", "agents", "openai.yaml"),
     join("skills", "analyze", "references", "halting.md"),
@@ -366,7 +370,6 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
     join("skills", "setup-aftergrid", "agents", "openai.yaml"),
     join("skills", "write-finding", "SKILL.md"),
     join("skills", "revise-finding", "SKILL.md"),
-    join("docs", "skills", "checked-analysis.md"),
     join("docs", "skills", "analyze.md"),
     join("docs", "skills", "setup-aftergrid.md"),
     join("docs", "skills", "write-finding.md"),
@@ -498,7 +501,7 @@ test("revise-finding sends a numeric revision on the recorded path to `aftergrid
 
 // ag-3ce: the middle of an analysis is recorded in place, so the skill a harness ships has to say how.
 test("checked-analysis step 2 records each probe with its time, its kind, and the dead ends kept", () => {
-  const skill = readEngineSkill("checked-analysis");
+  const skill = readCheckedAnalysis();
   const two = step(skill, 2);
 
   assert.match(two, /`at`/, "step 2 must name the `at` field a probe carries");
@@ -519,9 +522,9 @@ test("checked-analysis step 2 records each probe with its time, its kind, and th
   assert.match(eight, /reframe/, "and name a reframe explicitly, since the Question answered is not the one the run started with");
 
   // The docs page and the OpenAI prompt carry the same instruction, not a different one.
-  const doc = readFileSync(join(REPO, "docs", "skills", "checked-analysis.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
   assert.match(doc, /dead_end/, "the docs page must name the kinds the skill writes");
-  const openai = readFileSync(openaiFile(REPO, "checked-analysis"), "utf8");
+  const openai = readFileSync(openaiFile(REPO, "analyze"), "utf8");
   for (const token of ["at", "dead_end", "reframe"]) {
     assert.ok(openai.includes(token), `the openai.yaml prompt must carry ${token}`);
   }
@@ -599,8 +602,8 @@ test("single-skill installation fails validation for a missing or sibling entryp
   const file = skillFile(root, "grill-question");
   writeFileSync(file, readFileSync(file, "utf8") + "\nRead [missing](references/not-installed.md).\n");
   assert.ok(validatePlugin(root).errors.some((e) => e.category === "missing_file" && e.message.includes("not-installed")));
-  writeFileSync(file, readFileSync(file, "utf8") + "\nRead [sibling](../checked-analysis/references/clarification.md).\n");
-  assert.ok(validatePlugin(root).errors.some((e) => e.category === "unsafe_path" && e.message.includes("sibling") === false && e.message.includes("../checked-analysis")));
+  writeFileSync(file, readFileSync(file, "utf8") + "\nRead [sibling](../analyze/references/clarification.md).\n");
+  assert.ok(validatePlugin(root).errors.some((e) => e.category === "unsafe_path" && e.message.includes("sibling") === false && e.message.includes("../analyze")));
 });
 
 test("an individually copied skill includes each resource linked by its entrypoint", () => {
@@ -640,7 +643,7 @@ test("moved Engine procedures keep their linked resources resolvable in the comp
 // not drift: the first file is the source, the rest are copies of it.
 test("shared skill references are byte-identical copies", () => {
   const shared = [
-    ["checked-analysis", "explore-data", "analyze"].map((s) => join(REPO, "skills", s, "references", "data-issues.md")),
+    ["analyze", "explore-data"].map((s) => join(REPO, "skills", s, "references", "data-issues.md")),
     ["analyze", "analysis-review", "define-metric", "diagnose-change", "explore-data", "grill-question", "iterate-visual",
       "make-the-call", "plan-analysis", "write-finding"].map((s) => join(REPO, "skills", s, "references", "rigor.md")),
   ];

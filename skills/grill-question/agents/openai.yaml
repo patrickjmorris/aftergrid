@@ -5,6 +5,6 @@ interface:
 policy:
   # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The interview is the Operator's
   # decisions, and the skill creates a Finding directory and proposes definition files: a human asks for it.
-  # The same procedure reached mid-task is the model-invoked `/checked-analysis`, which reads the one shared
+  # The same procedure reached mid-run is `/analyze`'s clarify stage, which reads the one shared
   # reference file this skill reads — no user-invoked skill calls another.
   allow_implicit_invocation: false

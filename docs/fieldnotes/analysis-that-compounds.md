@@ -57,7 +57,7 @@ examples/skills-lab/data/conversion-followup.csv. State which lesson
 applies and which checks it adds. Test the explanation again.
 ```
 
-Then run `checked-analysis` on that plan. Conversion recovers from 6.2% to 8.0%. Same convention: composition +1.2 points, within-channel +0.6. Direct stays at 11%; paid rises from 5% to 6%. Not the previous decline in reverse.
+Then execute that plan under its checks. The recorded run used `checked-analysis`, since folded into `analyze`. Conversion recovers from 6.2% to 8.0%. Same convention: composition +1.2 points, within-channel +0.6. Direct stays at 11%; paid rises from 5% to 6%. Not the previous decline in reverse.
 
 Evidence of reuse is concrete: the plan cites the lesson, verifies the attribution rule, and adds the composition reconciliation. "I considered prior learnings" shows nothing. The lesson supplies a question to check, not an answer to repeat.
 
