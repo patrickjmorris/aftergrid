@@ -504,20 +504,23 @@ test("the writer skill maps every Analysis comparison.kind onto a kind the manif
   const analysisKinds: string[] = ANALYSIS_SCHEMA.properties.candidate_claims.items.properties.comparison.properties.kind.enum;
   const manifestKinds: string[] = MANIFEST_SCHEMA.$defs.claim.properties.comparison.properties.kind.enum;
 
-  // The mapping table in step 5 of SKILL.md: rows of | `analysis kind` | `manifest kind` |.
-  const skill = readFileSync(join(WRITER_SKILL, "SKILL.md"), "utf8");
+  // The mapping table in step 5 of the Engine writing procedure: rows of | `analysis kind` | `manifest kind` |.
+  const page = "references/engine-workflow.md";
+  const skill = readFileSync(join(WRITER_SKILL, page), "utf8");
   const mapping = new Map<string, string>();
   for (const row of skill.matchAll(/^\|\s*`([a-z_]+)`\s*\|\s*`([a-z_]+)`\s*\|\s*$/gm)) mapping.set(row[1]!, row[2]!);
+  // An empty table would let every kind fall through to `?? kind` below and pass without a page backing it.
+  assert.deepEqual([...mapping.keys()].sort(), [...analysisKinds].sort(), `${page} must map every Analysis comparison.kind`);
 
   for (const kind of analysisKinds) {
     const target = mapping.get(kind) ?? kind;
     assert.ok(manifestKinds.includes(target),
-      `the Analysis spells comparison.kind ${kind}, which is not a manifest value and skills/write-finding/SKILL.md ` +
+      `the Analysis spells comparison.kind ${kind}, which is not a manifest value and skills/write-finding/${page} ` +
       "gives no mapping for it: carrying it across fails the manifest schema, and translating it is a judgment no page backs");
   }
   for (const [from, to] of mapping) {
-    assert.ok(analysisKinds.includes(from), `SKILL.md maps comparison.kind ${from}, which the Analysis schema does not allow`);
-    assert.ok(manifestKinds.includes(to), `SKILL.md maps comparison.kind ${from} to ${to}, which the manifest schema does not allow`);
+    assert.ok(analysisKinds.includes(from), `${page} maps comparison.kind ${from}, which the Analysis schema does not allow`);
+    assert.ok(manifestKinds.includes(to), `${page} maps comparison.kind ${from} to ${to}, which the manifest schema does not allow`);
   }
 
   // And the recorded runs carry each comparison across by that mapping, never by re-judging it.

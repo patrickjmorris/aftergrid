@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -606,49 +606,84 @@ test("single-skill installation fails validation for a missing or sibling entryp
   assert.ok(validatePlugin(root).errors.some((e) => e.category === "unsafe_path" && e.message.includes("sibling") === false && e.message.includes("../analyze")));
 });
 
-test("an individually copied skill includes each resource linked by its entrypoint", () => {
+function promotedSkillDirs(): string[] {
   const manifest = JSON.parse(readFileSync(join(REPO, ".claude-plugin", "plugin.json"), "utf8"));
-  for (const entry of manifest.skills) {
-    const source = join(REPO, String(entry).replace(/^\.\//, ""));
+  return manifest.skills.map((entry: string) => join(REPO, String(entry).replace(/^\.\//, "")));
+}
+
+function markdownFiles(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".md")).map((f) => join(dir, f));
+}
+
+function relativeLinks(text: string): string[] {
+  const links: string[] = [];
+  for (const match of text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+    const target = match[1]!.split("#")[0]!;
+    if (target && !/^[a-z][a-z0-9+.-]*:/i.test(target)) links.push(target);
+  }
+  return links;
+}
+
+// A skill installs alone, so every link in it, entrypoint or reference, must land inside that one directory.
+// A path into another skill or docs/ belongs in a code span naming the complete toolkit.
+test("an individually copied skill includes each resource linked from any of its pages", () => {
+  for (const source of promotedSkillDirs()) {
     const root = mkdtempSync(join(tmpdir(), "ag-single-skill-"));
     cleanup.push(root);
     const copy = join(root, "installed");
     cpSync(source, copy, { recursive: true });
-    const text = readFileSync(join(copy, "SKILL.md"), "utf8");
-    for (const match of text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
-      const target = match[1]!.split("#")[0]!;
-      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
-      const resolved = resolve(copy, target);
-      assert.ok(resolved.startsWith(copy + "/"), `${entry}: ${target} must stay in the installed skill`);
-      assert.ok(existsSync(resolved), `${entry}: ${target} exists with only that skill installed`);
+    for (const page of markdownFiles(copy)) {
+      const from = page.slice(copy.length + 1);
+      for (const target of relativeLinks(readFileSync(page, "utf8"))) {
+        const resolved = resolve(page, "..", target);
+        assert.ok(resolved.startsWith(copy + "/"), `${source}/${from}: ${target} must stay in the installed skill`);
+        assert.ok(existsSync(resolved), `${source}/${from}: ${target} exists with only that skill installed`);
+      }
     }
   }
 });
 
-test("moved Engine procedures keep their linked resources resolvable in the complete toolkit", () => {
-  const manifest = JSON.parse(readFileSync(join(REPO, ".claude-plugin", "plugin.json"), "utf8"));
-  for (const entry of manifest.skills) {
-    const referenceDir = join(REPO, String(entry).replace(/^\.\//, ""), "references");
-    const workflow = join(referenceDir, "engine-workflow.md");
-    if (!existsSync(workflow)) continue;
-    for (const match of readFileSync(workflow, "utf8").matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
-      const target = match[1]!.split("#")[0]!;
-      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
-      assert.ok(existsSync(resolve(referenceDir, target)), `${entry}: moved Engine reference ${target} resolves`);
-    }
-  }
-});
+// A procedure several skills share ships as one copy per skill. Each shared file names the one skill whose copy
+// is the source; every other skills/*/references/<file> is found by listing, not by a list kept here, so a new
+// copy is checked the day it lands. Edit the source, then recopy.
+const SHARED_REFERENCES: Record<string, string> = {
+  "rigor.md": "analyze",
+  "data-issues.md": "analyze",
+  "clarification.md": "analyze",
+  "narrative-criteria.md": "write-finding",
+};
+// Same file name in several skills, different content by design: each skill's own Engine procedure.
+const PER_SKILL_REFERENCES = new Set(["engine-workflow.md"]);
 
-// Each skill installs alone, so a procedure several skills share ships as one copy per skill. The copies must
-// not drift: the first file is the source, the rest are copies of it.
-test("shared skill references are byte-identical copies", () => {
-  const shared = [
-    ["analyze", "explore-data"].map((s) => join(REPO, "skills", s, "references", "data-issues.md")),
-    ["analyze", "analysis-review", "define-metric", "diagnose-change", "explore-data", "grill-question", "iterate-visual",
-      "make-the-call", "plan-analysis", "write-finding"].map((s) => join(REPO, "skills", s, "references", "rigor.md")),
-  ];
-  for (const [source, ...copies] of shared) {
-    const expected = readFileSync(source!, "utf8");
+test("shared skill references are byte-identical copies of one declared source", () => {
+  const owners = new Map<string, string[]>();
+  for (const dir of promotedSkillDirs()) {
+    const references = join(dir, "references");
+    if (!existsSync(references)) continue;
+    for (const name of readdirSync(references)) owners.set(name, [...(owners.get(name) ?? []), dir]);
+  }
+  for (const [name, dirs] of owners) {
+    if (dirs.length < 2 || PER_SKILL_REFERENCES.has(name)) continue;
+    assert.ok(name in SHARED_REFERENCES,
+      `references/${name} ships in ${dirs.length} skills: declare its source in SHARED_REFERENCES, or rename the copies that differ`);
+  }
+  for (const [name, owner] of Object.entries(SHARED_REFERENCES)) {
+    const source = join(REPO, "skills", owner, "references", name);
+    const expected = readFileSync(source, "utf8");
+    const copies = (owners.get(name) ?? []).map((dir) => join(dir, "references", name)).filter((copy) => copy !== source);
+    assert.ok(copies.length > 0, `${name} is declared shared and has no copy besides ${source}`);
     for (const copy of copies) assert.equal(readFileSync(copy, "utf8"), expected, `${copy} drifted from ${source}`);
+  }
+});
+
+test("every skill page that links a shared reference ships that reference", () => {
+  for (const dir of promotedSkillDirs()) {
+    for (const page of markdownFiles(dir)) {
+      for (const target of relativeLinks(readFileSync(page, "utf8"))) {
+        const name = target.split("/").pop()!;
+        if (!(name in SHARED_REFERENCES)) continue;
+        assert.ok(existsSync(join(dir, "references", name)), `${page} links ${target}, and ${dir} does not ship references/${name}`);
+      }
+    }
   }
 });
