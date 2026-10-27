@@ -1,5 +1,5 @@
 # The rounds narrated in raw-ask.md, in machine-readable form, so "a settled part is never asked again"
-# (skills/checked-analysis/references/clarification.md) is a property src/analysis.test.ts checks rather than a
+# (skills/analyze/references/clarification.md) is a property src/analysis.test.ts checks rather than a
 # sentence a README asserts. Recorded by hand for fixtures/runs/7qg-referral; no model was in the loop.
 settled_before_round_1:
   - part: reader

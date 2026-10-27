@@ -1,4 +1,4 @@
-# Analysis directory contract (docs/contracts/analysis-directory.md, owned by /checked-analysis).
+# Analysis directory contract (docs/contracts/analysis-directory.md, owned by the checked_analysis stage of /analyze).
 # Hand-written for this recorded run from the reviewed exemplar
 # fixtures/instance/analytics/findings/2026-09-15-price-change-cancellations. No model produced it.
 #
@@ -71,7 +71,7 @@ pre_registered_comparison:
 # execution_order is grouped probe -> check -> query, so recording it first would misstate the order.
 # The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
 # the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
-# the look is taken, which is what the schema and /checked-analysis step 2 require.
+# the look is taken, which is what the schema and checked-analysis.md step 2 require.
 probes:
   - id: p1
     at: "2026-09-15T23:05:00Z"
