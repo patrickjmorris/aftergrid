@@ -23,7 +23,12 @@ or the fact that nothing records it.
 ## Ask in rounds
 
 Work the **frontier**: every unsettled part whose prerequisites are already settled. Ask the whole frontier in
-one round, numbered, each with your recommended answer, then wait.
+one round, each with your recommended answer, then wait.
+
+Ask through the harness's structured question tool when it has one — `AskUserQuestion` in Claude Code,
+`request_user_input` in Codex. One question per part; the recommended answer is the first option, marked
+"(Recommended)"; each option's description says what that answer changes. When the frontier is larger than the
+tool accepts in one call, ask the parts others depend on first. Without such a tool, use this format:
 
 ```
 ❓ **Q1** — **<what is being settled>**: <the choice, and why it changes the analysis>

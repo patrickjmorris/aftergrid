@@ -10,7 +10,7 @@ Work with the user's files, notebook, SQL client, or existing connector. A check
 
 ## Establish the calculation
 
-Restate the question, metric/units, eligible population, time window, and comparison. Resolve only unknowns that change the result. Inspect the source grain and key before aggregating. A user row, an event row, and an invoice line are different units even when each has a user ID.
+Restate the question, metric/units, eligible population, time window, and comparison. Resolve only unknowns that change the result; when one needs the user, ask through the harness's structured question tool if it has one (`AskUserQuestion` in Claude Code, `request_user_input` in Codex), recommended choice first. Inspect the source grain and key before aggregating. A user row, an event row, and an invoice line are different units even when each has a user ID.
 
 Check whether joins are one-to-one, one-to-many, or many-to-many at that grain; compare row counts and distinct keys before and after. Aggregate each side to the intended grain before joining when needed. Do not use DISTINCT to conceal an unexplained multiplication. Keep unmatched rows visible and explain exclusions.
 
@@ -19,6 +19,8 @@ Check whether joins are one-to-one, one-to-many, or many-to-many at that grain; 
 Before the main query, select the checks the question needs: key uniqueness, completeness, range/unit consistency, reconciliation, denominator eligibility, cohort maturity, and source coverage. State expected behavior and why; derive thresholds from supplied policy or analytical requirements, not from convenient observed values.
 
 Separate a failed validity check from a substantive result. Duplicate events can invalidate the count; a pre-specified contrast that does not support the hypothesis is evidence against it. Missing rows, measured zeros, and not-applicable cells must not become the same value.
+
+When a check shows a source defect — the data disagreeing with how its source is meant to behave — follow [data issues](references/data-issues.md): measure it, continue under a stated workaround, and leave a note for its owner.
 
 ## Execute through the available tools
 

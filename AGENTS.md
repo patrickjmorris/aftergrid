@@ -41,7 +41,7 @@ Write skills the way Matt's `writing-for-agents` skill requires: ordered actions
 - **Portable first.** The default path uses the user's files and existing tools.
 - **Engine last.** If `references/engine-workflow.md` exists, the docs page keeps Engine detail after `## Engine Finding reference` so the site can collapse it.
 - **Invocation.** `ask-aftergrid`, `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit (`disable-model-invocation: true`). The original craft skills are model-invoked (`user-invocable: false`). New skills allow both. Keep `SKILL.md` and `agents/openai.yaml` in agreement.
-- **No user-invoked skill calls another user-invoked skill.** Shared procedures live in references.
+- **No user-invoked skill calls another user-invoked skill.** Shared procedures live in references. A skill installs alone, so a portable reference several skills use ships as a byte-identical copy in each; `src/distribution.test.ts` lists the copies and fails when one drifts. Edit the first-listed copy, then recopy.
 - **Docs pages** use What it does, When to reach for it, a short leading-idea section, Common questions, It's working if, and Where it fits. They do not dump install commands (the site template supplies those) and they do not reproduce `SKILL.md` step lists.
 - After adding, renaming, or changing a promoted skill, update its docs page, the catalog JSON, the README table, and the plugin/package skill arrays. Run `node src/cli.ts plugin validate --json`.
 

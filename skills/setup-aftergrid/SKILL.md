@@ -15,7 +15,9 @@ anything until its self-test has passed in the output you are reading.
 
 ## 1. Collect the inputs
 
-There are no prompts: every input is a flag. Ask the user for each one you do not already know, in one round.
+There are no prompts: every input is a flag. Ask the user for each one you do not already know, in one round. Where the harness has a structured question
+tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex), use it for choices such as the adapter
+question below; free-text inputs like logins go in the reply.
 Do not guess a GitHub login, an owner contact or a warehouse path.
 
 - **Instance directory.** Default `analytics/`. Take the default unless the user names another.
