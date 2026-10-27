@@ -3,8 +3,7 @@
 After completing the first conversion case, use `learn-from-analysis` to retain a durable lesson from the
 analysis you actually performed. Store it as proposed, with its supporting evidence and applicability.
 
-Then use `plan-analysis` followed by `analyze` on `data/conversion-followup.csv`. The recorded trial used
-`checked-analysis`, before that skill was folded into `analyze`:
+Then use `plan-analysis` followed by `checked-analysis` on `data/conversion-followup.csv`:
 
 > Conversion recovered in the next comparable period. Is this the reverse of the previous decline, or did
 > something else change? Use the earlier analysis where it applies, but test the explanation on this extract.
