@@ -4,9 +4,9 @@ description: Install two skills, paste a prompt, and see whether your agent stop
 kicker: Start here
 ---
 
-Conversion fell from 8.8% to 6.2%. Someone will say roll back signup. Direct went 10% → 11%. Paid went 4% → 5%. More traffic came from paid. The average is not the product.
+Conversion fell from 8.8% to 6.2%. Someone will say roll back signup. Direct went 10% → 11%. Paid went 4% → 5%. Paid grew from 2,000 to 8,000 of the 10,000 sessions.
 
-Getting that right is the first half. The second half is what a product lead actually needs: what the drop cost, whether it matters, and what to look at this week.
+Catching that mix shift is half the job. The other half is what the product lead needs next: how many signups the drop cost, whether that matters against the plan, and what to check first.
 
 No clone. The CSV is already on GitHub.
 
@@ -34,9 +34,11 @@ alone.
 Then ask for the call:
 
 ```text
-/make-the-call We are judged on signups this quarter. Using that
-diagnosis, say what the drop cost in signups, whether it matters,
-which findings do not, and what you would look at this week.
+/make-the-call Using that diagnosis, size the mix and rate effects
+in signups. For this teaching case, assume the plan was 900 signups
+for the period and we act on any shortfall over 100. Say whether the
+drop matters, which findings do not, what the options are, and what
+would change your recommendation.
 ```
 
 | Period | Channel | Sessions | Signups | Rate |
@@ -52,7 +54,7 @@ Four rows. No experiment, no change log. Work within that.
 
 The diagnosis recomputes 8.8% and 6.2% from counts, splits mix from within-channel change, and does **not** treat the aggregate as evidence the signup experience broke. Mix is about −3.6pp; within-channel about +1.0pp.
 
-The call goes further. It states the drop as about 260 lost signups on flat traffic, traces it to roughly 6,000 direct sessions replaced by paid, and says this week's question is where the direct traffic went, not the signup flow. Four rows give no history, so it should say materiality against normal variation is unjudged and ask what size of drop would change the plan.
+The call goes further. Signups fell 260 (880 to 620) on flat traffic. It splits that net into its parts: the shift toward paid cost 360 signups, and better rates in both channels won back 100. Against the assumed 900 plan the period is 280 short, well past the 100 threshold, so the drop is material. The rate gains are true and do not change the priority. The recommendation is to leave the signup flow alone, first rule out a tracking change that relabeled direct sessions as paid, and then find where direct traffic went. Four rows give no history, so it should also say materiality against normal variation is unjudged.
 
 Compare with the [worked write-up](../examples/conversion-mix.md). Then try [growth that hid churn](../examples/revenue-bridge.md) and [a 50% lift that is not a mandate](../examples/causal-claim.md).
 

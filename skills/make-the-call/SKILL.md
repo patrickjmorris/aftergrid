@@ -1,6 +1,6 @@
 ---
 name: make-the-call
-description: "Turn a checked result into a recommendation. Tie the metric to the goal it serves, judge whether the move is big enough to matter, drop true findings that do not change the decision, weigh the options, and name what would change the call."
+description: "Turn a checked result into a recommendation. Use when a metric moved or an analysis is done and someone has to decide what to do: tie the result to the goal it serves, judge whether it is big enough to matter, drop true findings that do not change the decision, weigh the options, and name what would change the call."
 disable-model-invocation: false
 user-invocable: true
 ---
@@ -21,7 +21,7 @@ Completion: the decision, owner, options on the table, and goal are stated, or t
 
 ## 2. Translate the result into goal units
 
-Convert the movement into what the owner tracks. A rate change becomes the count it cost or gained over the period ("−2.6pp is 260 fewer signups this month"). A count becomes its share of the gap to target. Show the arithmetic. When a conversion needs a value the user did not supply (value per signup, margin, spend), state it as an assumption with its source, or leave that unit out. Do not invent a dollar figure.
+Convert the movement into what the owner tracks. A rate change becomes the count it cost or gained over the data's own period ("−2.6pp on 10,000 sessions is 260 fewer signups"). Do not restate it per month or quarter unless the period length is supplied. A count becomes its share of the gap to target. When the move has parts, size each part, not only the net. A mix shift that cost 360 and rate gains that recovered 100 are two findings, not one loss of 260. Show the arithmetic. When a conversion needs a value the user did not supply (value per signup, margin, spend), state it as an assumption with its source, or leave that unit out. Do not invent a dollar figure.
 
 Completion: the headline result appears in at least one unit the owner manages, with its calculation.
 
@@ -52,15 +52,17 @@ Lay out two or three options the owner could actually take. Include waiting or d
 - the main risk, and whether the option is reversible;
 - the assumption it depends on.
 
-A descriptive finding can support a cheap, reversible action. A costly or irreversible action needs evidence of cause. Say which kind each option is. Do not upgrade an association into a forecast to make an option look stronger.
+Check that each option can move the goal as it is defined. Some definitions settle the choice: net revenue retention excludes new customers, so acquisition work cannot move it. When a definition decides the call, say so, and name the counter-metric the owner should watch alongside it (total revenue, in that example).
 
-Completion: each option has an effect, cost, risk, reversibility, and the assumption it depends on.
+A descriptive finding can support a cheap, reversible action, such as a check or a small test. A costly or irreversible action needs evidence of cause. Say which kind each option is. When cost is not supplied, do not label an action cheap; frame it as a test or observation and ask the owner to confirm the cost. Do not upgrade an association into a forecast to make an option look stronger.
+
+Completion: each option has an effect, cost, risk, reversibility, and the assumption it depends on. A field the inputs cannot fill reads "unknown" with what the owner would need to supply. Never fill it with an estimate you made up.
 
 ## 6. Recommend, and say what would change it
 
 Recommend one option at the confidence the evidence earns. Tie the recommendation to the finding that drives it. Where the evidence cannot separate two options, say so and recommend the cheaper test that would.
 
-Name what would flip the call: an observation, a threshold, or a date ("If direct sessions are still below 3,000 a week by the 15th, the problem is no longer a tracking gap; fund the channel review"). A trigger someone can check beats a general caveat.
+Name what would flip the call: an observation that separates the explanations still standing. For example: "If the new paid sessions carry direct-style referrers and no campaign tags, this is a tracking relabel, not lost traffic, and the channel diagnosis starts over." Use a threshold or a date only when the owner supplied one or the data has the cadence to check it. A trigger someone can check beats a general caveat.
 
 The owner decides. A recommendation is a proposal, not an approval, and an agent never records one as accepted.
 

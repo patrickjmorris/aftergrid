@@ -4,7 +4,7 @@ description: Consulting and sponsorship for teams putting analytics judgment int
 kicker: From the maintainer
 ---
 
-I'm Patrick Morris. I built aftergrid because agents got good at fetching the number before they got good at the work that follows. The answers reaching product and growth decisions were fast and confident. Too often they missed whether the move mattered, what drove it, and what to do next. Some were simply wrong in ways an experienced analyst would catch in a minute: a rollback on a mix shift, growth that hid churn, a mandate built on self-selected retention.
+I'm Patrick Morris. I built aftergrid because agents got good at fetching the number before they got good at the work that follows. The answers reaching product and growth decisions were fast and confident. They reported a rate without sizing it against the goal. Some were simply wrong in ways an experienced analyst would catch in a minute, like recommending a rollback because of a traffic shift, or celebrating revenue growth that hid churn.
 
 The skills are free and MIT. Two ways to go further.
 

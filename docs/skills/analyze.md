@@ -33,7 +33,7 @@ The answer leads with what was observed, for whom and when, with the decision-ch
 - The original ask is still visible next to the sharpened question.
 - Material numbers point at a source, saved result, or calculation that actually ran.
 - Dead ends that constrain the conclusion are kept.
-- The closing recommendation matches the claim type the design earned — descriptive, associational, or causal — and names what would change it.
+- The closing recommendation matches the claim type the design earned (descriptive, associational, or causal) and names what would change it.
 
 ## Where it fits
 

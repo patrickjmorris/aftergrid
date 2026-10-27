@@ -62,7 +62,7 @@ findings matter for that choice, what each option would change, and
 what would make you switch.
 ```
 
-Expect one recommendation stated in the goal's units, the true findings that do not change the choice, and a trigger with a date or threshold that would reverse it. [Make-the-call](../skills/make-the-call.md) asks for the goal or the action threshold when they are missing instead of inventing them.
+Expect one recommendation stated in the goal's units, explicit notes on which true findings do not change the choice, and a checkable trigger that would reverse it. Watch the definition, too: net revenue retention excludes new customers, so acquisition work cannot move it. A good answer says the definition settles part of the choice and names total MRR as the counter-metric to watch. [Make-the-call](../skills/make-the-call.md) asks for the goal or the action threshold when they are missing instead of inventing them.
 
 ## When you want an end-to-end analysis
 

@@ -2,9 +2,9 @@
 
 **Analytics judgment for the agent you already use.**
 
-Your agent can already get the number. Text-to-SQL, semantic layers, and BI copilots made that part easy. Knowing whether the number matters is still the hard part. A good analyst ties the metric to the goal it serves, checks that the story holds, says which true findings do not change anything, and makes a call someone can act on. aftergrid teaches your agent that part.
+Your agent can already get the number. Text-to-SQL, semantic layers, and BI copilots made the number cheap to request. Deciding what it means is still the hard work. A good analyst ties the metric to the goal it serves, checks that the story holds, sets aside true findings that do not change the decision, and recommends what to do. aftergrid teaches your agent that discipline.
 
-Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and the mix moved. `make-the-call` goes on: about 260 signups were lost because roughly 6,000 direct sessions were replaced by paid traffic, so this week's question is where the direct traffic went, not the signup flow.
+Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net 260 leaves the period 280 short of plan. The signup flow is not the problem. The next step is to rule out a tracking change, then find where 6,000 direct sessions went.
 
 Sixteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Fifteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up.
 
@@ -32,9 +32,11 @@ alone.
 Then ask for the call:
 
 ```text
-/make-the-call We are judged on signups this quarter. Using that
-diagnosis, say what the drop cost in signups, whether it matters,
-which findings do not, and what you would look at this week.
+/make-the-call Using that diagnosis, size the mix and rate effects
+in signups. For this teaching case, assume the plan was 900 signups
+for the period and we act on any shortfall over 100. Say whether the
+drop matters, which findings do not, what the options are, and what
+would change your recommendation.
 ```
 
 In Codex, write `$diagnose-change` and `$make-the-call`. The whole collection:
@@ -76,7 +78,7 @@ The [skills lab](examples/skills-lab/README.md) has the conversion case plus thr
 node examples/skills-lab/verify.mjs
 ```
 
-- **Conversion fell while both channels improved.** 8.8% → 6.2%. About 260 signups were lost to a traffic shift, not a broken signup flow. [Worked example](docs/examples/conversion-mix.md).
+- **Conversion fell while both channels improved.** 8.8% → 6.2%. A traffic shift cost 360 signups and better rates won back 100. Not a broken signup flow. [Worked example](docs/examples/conversion-mix.md).
 - **Conversion recovered. Same mechanism?** Mix plus a paid-rate change, not the prior decline in reverse. [Lesson reuse](docs/examples/lesson-reuse.md).
 - **MRR grew while the starting customers shrank.** $430 → $440 hides $80 of churn. [Revenue bridge](docs/examples/revenue-bridge.md).
 - **A precise retention number, an imprecise claim.** 60% versus 40% is real. Self-selection means it cannot say what mandatory onboarding would cause. [Worked review](docs/examples/causal-claim.md).
@@ -131,7 +133,7 @@ CI runs on Ubuntu and macOS, Node 22.18 and 24. Installer checks, model runs, de
 
 ## Work with me
 
-I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because agents could already get the number, and the answers reaching product and growth decisions still missed the part that matters: whether the move was big enough to act on, what drove it, and what to do next. Too often they were also wrong in ways an experienced analyst would catch in a minute.
+I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because agents got good at fetching the number before they got good at the work that follows. Their answers reported a rate without sizing it against the goal, and too often missed a mix shift an experienced analyst would spot in a minute.
 
 - **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metrics tied to the goals they serve, a review step that asks whether a result matters before it reaches a decision, and lessons the next analysis retrieves. Your data stays in your repository.
 - **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
