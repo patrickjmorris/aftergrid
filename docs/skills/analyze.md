@@ -16,7 +16,7 @@ Use it when you have an ask and want the whole practice applied, including an ho
 
 Read designated prior lessons before planning. Reproduce the headline before explaining it. For a rate, inspect numerator and denominator separately. For an aggregate change, separate mix from within-group change. Label cuts made after seeing results as exploratory. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or the next step needs something you do not have.
 
-The answer leads with what was observed, for whom and when, with the decision-changing caveat beside it. Three review lenses — method, question, reader — try to disprove the draft. Serial self-review is still self-review and must be described as such.
+The answer leads with what was observed, for whom and when, with the decision-changing caveat beside it. Four review lenses (method, question, reader, materiality) try to disprove the draft. Serial self-review is still self-review and must be described as such.
 
 ## Common questions
 
@@ -33,7 +33,7 @@ The answer leads with what was observed, for whom and when, with the decision-ch
 - The original ask is still visible next to the sharpened question.
 - Material numbers point at a source, saved result, or calculation that actually ran.
 - Dead ends that constrain the conclusion are kept.
-- The closing recommendation matches the claim type the design earned — descriptive, associational, or causal — and names what would change it.
+- The closing recommendation matches the claim type the design earned (descriptive, associational, or causal) and names what would change it.
 
 ## Where it fits
 

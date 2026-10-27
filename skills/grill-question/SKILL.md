@@ -10,7 +10,7 @@ Use this before expensive analysis or when an apparently simple ask hides differ
 
 ## Preserve the ask and find the ambiguity
 
-Keep the original wording. Read supplied definitions and prior decisions before questioning the user. Identify what decision the answer informs, or the purpose if it is purely descriptive, and who needs to understand it. Translate words such as active, retained, new, revenue, and improved into countable events and an eligible population.
+Keep the original wording. Read supplied definitions and prior decisions before questioning the user. Identify what decision the answer informs, or the purpose if it is purely descriptive, and who needs to understand it. For a decision, name the goal it serves in the owner's units (signups this quarter, retained revenue) and the size of effect that would make the owner choose differently. That threshold is what later separates a result that matters from one that is merely true. Translate words such as active, retained, new, revenue, and improved into countable events and an eligible population.
 
 For a rate, name numerator and denominator; for a total, name unit and grain. Separate event time from ingestion time and timezone from reporting date. Establish the comparison window and baseline, including cohort maturity and seasonality where relevant. Challenge causal wording when the design only supplies an association.
 
@@ -26,7 +26,7 @@ If the metric will be optimized, ask what could get worse while it improves. Rec
 
 ## Return a question brief
 
-Include the original ask; sharpened question; reader and decision/purpose; metric and units; eligible population and exclusions; time window/timezone; comparison; evidence that would change the answer; available sources; and remaining assumptions or questions with their effect. Mark unresolved fields as unresolved rather than quietly filling them. If the ask cannot be answered as phrased, explain why and offer the nearest answerable question without pretending the user already accepted it.
+Include the original ask; sharpened question; reader and decision/purpose; the goal and the action threshold, when there is a decision; metric and units; eligible population and exclusions; time window/timezone; comparison; evidence that would change the answer; available sources; and remaining assumptions or questions with their effect. Mark unresolved fields as unresolved rather than quietly filling them. If the ask cannot be answered as phrased, explain why and offer the nearest answerable question without pretending the user already accepted it.
 
 ## Existing Engine Finding
 

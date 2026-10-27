@@ -27,8 +27,9 @@ The route most work travels when someone has an ask and wants an answer they can
    - Several competing explanations that need an ordered test sequence → **`plan-analysis`**, which also retrieves prior lessons.
    - Carry the question through inspection, checks, writing, and review in one run → **`analyze`**.
 4. **Explain** with **`write-finding`** (answer first, evidence attached). Use **`iterate-visual`** when a chart has to earn the claim, **`shape-narrative`** when the order and wording hide the answer.
-5. **Challenge** with **`analysis-review`** before someone acts. A review may conclude “inconclusive.”
-6. **Keep the lesson** with **`learn-from-analysis`** when a verified surprise should change the next plan or check. Retrieval happens in `plan-analysis` and `analyze`; capture without retrieval is a diary.
+5. **Decide** with **`make-the-call`** when someone has to act on the result: tie it to the goal, judge whether it matters, weigh the options, and name what would change the call.
+6. **Challenge** with **`analysis-review`** before someone acts. A review may conclude “inconclusive.”
+7. **Keep the lesson** with **`learn-from-analysis`** when a verified surprise should change the next plan or check. Retrieval happens in `plan-analysis` and `analyze`; capture without retrieval is a diary.
 
 Use only the steps the current task needs. Reviewing a chart does not require the full loop. An honest “cannot distinguish” is a complete result.
 
@@ -44,6 +45,7 @@ Match the starting situation. Then merge onto the main flow at the step above; d
 | Metric moved; someone already has a story | `/diagnose-change` | Reproduce and decompose before the story. |
 | Need a test sequence before seeing the answer | `plan-analysis` | Discriminating checks, including retrieved lessons. |
 | Want the whole path in one run | `/analyze` | Orchestrates; still portable by default. |
+| Result is right; owner asks “so what do we do?” | `/make-the-call` | Goal units, materiality, options, a trigger. |
 | Draft, notebook, or chart about to inform a decision | `analysis-review` | Try to disprove the claim. |
 | Feedback on an existing answer | `/revise-finding` | Scope what reopens vs what is wording. |
 | Caught a durable mistake | `learn-from-analysis` | Scoped, proposed, retrievable. |

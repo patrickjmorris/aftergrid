@@ -2,7 +2,7 @@
 
 ## What it does
 
-Tries to disprove an answer before someone acts on it. It reads through three lenses — **method**, **question**, and **reader** — then discards objections the artifact already refutes.
+Tries to disprove an answer before someone acts on it. It reads through four lenses (**method**, **question**, **reader**, and **materiality**), then discards objections the artifact already refutes.
 
 A review can change the verdict to “inconclusive.” Agreement among reviewers is evidence to weigh, not an automatic fix instruction. Agent review is never human approval.
 
@@ -12,9 +12,9 @@ Ask in plain language, or type `/analysis-review` in hosts that expose it. Hidde
 
 Use it when a memo, notebook, or chart is about to inform a decision. Use [checked-analysis](checked-analysis.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
 
-## Three lenses, then refute yourself
+## Four lenses, then refute yourself
 
-**Method** traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. **Question** compares the original ask with the answer actually given. **Reader** asks what a non-SQL audience could reasonably repeat wrongly.
+**Method** traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. **Question** compares the original ask with the answer actually given. **Reader** asks what a non-SQL audience could reasonably repeat wrongly. **Materiality** asks whether the headline is big enough to change the decision, measured against normal variation and the goal, and whether a true but minor finding is leading while the one that matters sits in a parenthetical.
 
 For every suspected error, look for the explanation that would make the author’s choice correct. Do not pad the review with generic best practices. Independent reviewers help when the work justifies them; serial self-review must be disclosed as such. Never invent reviewer identities.
 
