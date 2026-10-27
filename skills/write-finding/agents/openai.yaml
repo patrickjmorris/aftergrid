@@ -1,8 +1,9 @@
 interface:
   display_name: "Write finding"
-  short_description: "Turn a checked Analysis directory into a Finding a Reader can read and inspect"
+  short_description: "Write or reshape an answer-first Finding a Reader can read and inspect"
   default_prompt: "Use $write-finding on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
 policy:
   # Model-invoked, matching `user-invocable: false` in SKILL.md. The writer is a step inside /analyze, reached
-  # once its checked-analysis stage has pinned the evidence; a human asks for the Analysis, not for the memo.
+  # once its checked-analysis stage has pinned the evidence, and again for the narrative pass after the charts
+  # settle; a human asks for the Analysis, not for the memo.
   allow_implicit_invocation: true

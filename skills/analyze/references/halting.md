@@ -142,8 +142,8 @@ every artifact that did get written stays, and the stage is rerun from the top.
 **A failing pre-registered falsifier.** A falsifier that records the outcome it did not expect is the Analysis
 working as designed: it said in advance what would show the Answer wrong, and that observation happened. The run
 **continues** — set `analysis.yaml#/outcome_recommendation.outcome` to `inconclusive` (or `needs_reframing`
-where the Question itself is the problem) and go on to `/write-finding`, `/shape-narrative` and
-`/analysis-review` as normal. The Finding this produces is the point of the whole system, and halting at
+where the Question itself is the problem) and go on to `/write-finding` (writing, then its narrative pass)
+and `/analysis-review` as normal. The Finding this produces is the point of the whole system, and halting at
 `needs_attention` leaves it unwritten.
 
 `check` reports a fired falsifier as a `falsifier_failed` **warning**, not an error, and `render` writes the

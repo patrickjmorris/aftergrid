@@ -35,7 +35,7 @@ Preserve a change record: request, edits, checks rerun, whether the conclusion m
 
 ## Where it fits
 
-User-invoked Improve-stage entry after a finished artifact. Neighbors: [write-finding](write-finding.md), [shape-narrative](shape-narrative.md), [analysis-review](analysis-review.md).
+User-invoked Improve-stage entry after a finished artifact. Neighbors: [write-finding](write-finding.md), [analysis-review](analysis-review.md).
 
 ## Engine Finding reference
 

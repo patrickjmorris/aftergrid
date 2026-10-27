@@ -228,8 +228,8 @@ in words.
 
 Six sections, in this order, and no others: **Answer**, **Decision it informs**, **Evidence**, **How we
 checked**, **What would change our mind**, **Appendix**. The markers and the rules `check` enforces are
-`docs/contracts/memo-template.md`. Ordering and Reader-level language are `/shape-narrative`'s craft; write
-answer-first here and let that skill sharpen it.
+`docs/contracts/memo-template.md`. Ordering and Reader-level language are the narrative pass's craft
+([`references/engine-narrative.md`](engine-narrative.md)); write answer-first here and let that pass sharpen it.
 
 - Front matter `finding` and `revision` match the manifest.
 - **Answer** — one sentence. Then `<!-- material_caveat -->` and the answer-bearing Claim's

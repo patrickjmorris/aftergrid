@@ -255,9 +255,9 @@ Claim cite it without the reference dangling, and the writer turns each into the
 - **Interpretation** — causal wording, a hidden comparison, a changed aggregation, a truncated axis. Invalidates
   the recorded reviews and requires review again, even when no digit changed.
 
-`/analyze` orders the chain: clarify, checked-analysis, write-finding, iterate-visual, shape-narrative,
-analysis-review, check. It halts on a blocking reviewer finding with a `needs_attention` artifact and on a
-missing input with a `needs_input` one; it never presents a halted run as done.
+`/analyze` orders the chain: clarify, checked-analysis, write-finding, iterate-visual, the write-finding
+narrative pass, analysis-review, check. It halts on a blocking reviewer finding with a `needs_attention`
+artifact and on a missing input with a `needs_input` one; it never presents a halted run as done.
 
 ## Commands
 

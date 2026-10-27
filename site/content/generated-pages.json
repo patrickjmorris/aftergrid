@@ -10,7 +10,6 @@
   "skills/diagnose-change/index.html",
   "skills/write-finding/index.html",
   "skills/iterate-visual/index.html",
-  "skills/shape-narrative/index.html",
   "skills/make-the-call/index.html",
   "skills/analysis-review/index.html",
   "skills/revise-finding/index.html",
@@ -33,5 +32,6 @@
   "examples/spotsports-youtube-how-it-was-built/index.html",
   "examples/nyc-open-data/index.html",
   "example-finding/index.html",
-  "skills/checked-analysis/index.html"
+  "skills/checked-analysis/index.html",
+  "skills/shape-narrative/index.html"
 ]

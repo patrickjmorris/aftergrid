@@ -2,7 +2,7 @@
 
 ## What it does
 
-Turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision — in the first paragraph.
+Turns settled results into an answer someone can act on without reading SQL: the conclusion, who was counted, the comparison, the evidence, and the caveat that would change the decision, all in the first paragraph. It also reshapes a draft whose answer is buried. It puts the answer first, gives each claim its own section with a heading that states it, and rewrites toward the reader's words without changing what the evidence supports.
 
 A writer may clarify a conclusion. It may not invent a calculation, promote a proposed definition to approved, or turn a correlation into a cause.
 
@@ -10,17 +10,27 @@ A writer may clarify a conclusion. It may not invent a calculation, promote a pr
 
 Ask in plain language. The agent reaches for it when numbers exist and the memo does not. Hidden from the Claude Code slash menu.
 
-Reach for it after [analyze](analyze.md) or any run that produced inspectable results. Use [shape-narrative](shape-narrative.md) to reorder and reword without changing meaning. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives.
+Reach for it after [analyze](analyze.md) or any run that produced inspectable results, or when a draft is right and still hard to use. Use [iterate-visual](iterate-visual.md) for the chart. Use [revise-finding](revise-finding.md) once feedback arrives.
 
 ## The first paragraph has to be enough
 
-A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. An honest answer may be that the source does not support the comparison.
+A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. Those rules live in `references/rigor.md`, which several skills share. An honest answer may be that the source does not support the comparison, and "not enough data," "inconclusive," and "needs reframing" each have their own shape.
+
+Every draft is checked against nine narrative criteria before it goes out: the answer is an answer, the caveat is the one that matters, every quantity word is earned, the comparison is visible, and so on. The analysis-review reader lens reads the same list.
 
 ## Common questions
 
 **Does every number need a chart?** No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.
 
 **Can it decide the outcome?** No. If the analysis recommended insufficient data, the memo says so in the first sentence.
+
+**Where did shape-narrative go?** It is part of this skill now. Writing the answer and shaping its order and words were one step to the reader.
+
+**Can it soften a discouraging caveat?** No. Dropping or hedging a material limitation changes the decision with every digit unchanged.
+
+**Can it upgrade "associated with" to "caused"?** No. That asserts a design the analysis did not have.
+
+**Can it reorder claims?** Yes, so the answer-bearing claim comes first, as long as each claim's evidence is unchanged.
 
 **Does a well-written memo become verified?** No. Never call the draft approved, Engine-checked, or human-tested merely because it is clear.
 
@@ -30,10 +40,12 @@ A reader who stops after the opening should retain the correct scope and uncerta
 - Material numbers point at supplied cells, query results, or retained calculations.
 - Exploratory results do not sound pre-registered.
 - Recommendations match the claim type the design supports.
+- Headings are sentences a reader could repeat, and jargon the reader does not use is gone or explained at first use.
+- A meaning-changing request came back as a report, with nothing edited.
 
 ## Where it fits
 
-Model-invoked Explain-stage craft. Neighbors: [shape-narrative](shape-narrative.md), [iterate-visual](iterate-visual.md), [analysis-review](analysis-review.md).
+Model-invoked Explain-stage craft. Neighbors: [iterate-visual](iterate-visual.md) for the chart, [make-the-call](make-the-call.md) when the owner needs a recommendation, [analysis-review](analysis-review.md) before anyone acts.
 
 ## Engine Finding reference
 
@@ -72,7 +84,7 @@ a `needs_attention` result after a third unsuccessful pass.
   the new results.
 
 Not for: changing a number or a query (that reopens the checked-analysis stage of `/analyze`), re-styling a chart
-(`/iterate-visual`), reordering or rewording finished prose (`/shape-narrative`), or acting on Operator
+(`/iterate-visual`), or acting on Operator
 feedback on a merged Finding (`/revise-finding`).
 
 ## Common questions
@@ -137,9 +149,75 @@ location and stops rather than writing around it.
   validity, the field boundary down to `export_policy` and `reader` keys, answer-first structure, bound
   values and allowed columns, figure titles that state their Claim, Reader vocabulary and the absence of
   causal verbs in a non-answer. Whether a caveat is the one that matters, and whether a sentence a linter
-  accepts reads honestly, is `skills/shape-narrative/references/narrative-criteria.md` and the Reader
+  accepts reads honestly, is `skills/write-finding/references/narrative-criteria.md` and the Reader
   reviewer's, not the suite's.
 - A recorded run is evidence of a contract, not of a model: both runs were written by hand, `run.yaml` says
   so, and neither reports a corrections count, because `input/` was cut out of an already-reviewed
   `output/` and nothing was produced and then corrected. The corrections number the bead asks for needs a
   model in the loop and the nightly Golden Questions, not this fixture.
+
+## The narrative pass
+
+The narrative pass decides what a Reader meets first in a written Finding, and in whose words. It puts the
+Answer and its material caveat at the top, makes each Evidence subsection one Claim whose heading states the
+Claim, makes each chart and table title state the Claim rather than name an axis, and rewrites the prose
+against the Finding's named Reader profile.
+
+It used to be the separate `/shape-narrative` skill. It is now the `shape_narrative` stage of an Engine run, a
+second `/write-finding` pass that runs inside `/analyze` after `/iterate-visual` and before `/analysis-review`.
+The procedure is `skills/write-finding/references/engine-narrative.md`.
+
+It changes wording and order. It changes no bound value, no Claim `type`, no `comparison`, `window`,
+`evidence` or `recheck`, no chart spec and no file under `queries/`, `checks/`, `results/` or `inputs/`. A
+request that would change what a Reader concludes is reported and stopped, not made: the procedure's last
+section lists the six shapes that takes.
+
+The judgments it applies live in `skills/write-finding/references/narrative-criteria.md`. The Reader
+reviewer in `/analysis-review` reads the same page, so writer and reviewer are never working from different
+rules.
+
+### When the narrative pass runs
+
+- A Finding is written and its charts have settled, and it has not been reviewed yet.
+- A Reader review came back with wording findings that do not change a number or an interpretation.
+- `/revise-finding` classified an Operator's request as presentation and handed the narrative half over.
+
+Not for: writing a Finding that does not exist yet (the writing pass above), chart work (`/iterate-visual`), any
+change to a number or a query (that reopens the Analysis), or recording a review or an approval (a reviewer's
+and a human's, respectively).
+
+### Narrative pass: common questions
+
+**Why is it a second pass rather than part of the first?** Ordering and language are judged after the charts
+settle, and they are judged against criteria a reviewer reads too. A separate pass means a chart change can be
+followed by a narrative pass without rewriting the Claims, and the Reader reviewer and the writer cite one page
+rather than two.
+
+**Can it reorder Claims?** Yes — `claims[]` order is what the render lays out, and the answer-bearing Claim
+goes first. The Evidence subsections follow that order.
+
+**Can it soften a caveat an Operator finds discouraging?** No. Dropping or softening a `material_caveat`, an
+exclusion or a limitation changes what a Reader concludes with every digit unchanged. The pass reports it
+and stops.
+
+**Can it change "was linked to" into "caused"?** No. A verb that upgrades a Claim's type asserts a design the
+Analysis did not have, and it invalidates method review. Claim types are set in the writing pass, earned by
+randomized assignment.
+
+**What does it do about a misreading it cannot fix with wording?** Records it as a non-blocking note for the
+Reader reviewer, naming the `will_misread` item and the sentence that invites it.
+
+### Narrative pass: it's working if
+
+- **Answer** is the first section, its first sentence carries the outcome, and the `<!-- material_caveat -->`
+  block sits directly under it.
+- Every Evidence heading is a sentence a Reader could repeat, identical to its Claim's `sentence`, and every
+  subsection carries one idea.
+- Every chart title states what the chart shows with its values bound, and every table title states its Claim
+  in words with no token in it — a table caption renders verbatim — rather than naming a measure, asking a
+  question or pointing back at another figure.
+- No word on the Reader profile's `vocabulary.avoid` list survives outside a token, and every `will_misread`
+  item is either answered by a sentence or recorded as a note.
+- `aftergrid check` still reports `evidence valid` with zero errors after the pass, and the content digest was
+  re-pinned.
+- A meaning-changing request came back as a report naming which of the six shapes it was, with nothing edited.

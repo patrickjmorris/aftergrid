@@ -1,8 +1,0 @@
-interface:
-  display_name: "Shape narrative"
-  short_description: "Order and word a written Finding so a Reader gets the point without reading all of it"
-  default_prompt: "Use $shape-narrative on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
-policy:
-  # Model-invoked, matching `user-invocable: false` in SKILL.md. It is a craft pass inside /analyze, run after
-  # /write-finding and /iterate-visual; an Operator asks for the Analysis or, later, for /revise-finding.
-  allow_implicit_invocation: true

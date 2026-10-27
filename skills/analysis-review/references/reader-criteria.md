@@ -1,6 +1,6 @@
 # Reader criteria
 
-The fallback the Reader reviewer applies when `skills/shape-narrative/references/narrative-criteria.md` is not
+The fallback the Reader reviewer applies when `skills/write-finding/references/narrative-criteria.md` is not
 installed. That file, when it exists, is the source of truth and this one is not consulted.
 
 Each item is yes or no against the memo as written. A `no` on an item marked **blocking** is a blocking

@@ -75,7 +75,7 @@ When independent subagents are available, send all three in one message so they 
 [`references/reviewer-briefs.md`](reviewer-briefs.md).
 
 Pass each subagent the Finding directory, the manifest, the memo and the resolved Reader profile. Give the
-Reader reviewer the narrative criteria: use `skills/shape-narrative/references/narrative-criteria.md` when it
+Reader reviewer the narrative criteria: use `skills/write-finding/references/narrative-criteria.md` when it
 exists, and [`references/reader-criteria.md`](reader-criteria.md) when it does not.
 
 Done when you hold three results, each an object with a `blocking` array and a `non_blocking` array of plain

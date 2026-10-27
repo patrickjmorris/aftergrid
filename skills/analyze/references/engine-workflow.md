@@ -24,7 +24,7 @@ run prints when the directory refuses one).
 | `checked_analysis` | this skill, following [`references/checked-analysis.md`](checked-analysis.md) | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned — by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
 | `write_finding` | `/write-finding` | `memo.md` has all six sections and the manifest carries claims, charts, tables, coverage and an outcome |
 | `iterate_visual` | `/iterate-visual` | every chart has passed the rubric or been handed back after the third pass |
-| `shape_narrative` | `/shape-narrative` | the memo is answer-first and each Evidence subsection is one Claim |
+| `shape_narrative` | `/write-finding`, its narrative pass ([`references/engine-narrative.md`](../../write-finding/references/engine-narrative.md) in that skill) | the memo is answer-first and each Evidence subsection is one Claim |
 | `analysis_review` | `/analysis-review` | a current `method`, `question` and `reader` review is recorded |
 | `check` | `aftergrid check`, then `aftergrid review status` | `check` reports no errors **and** `review status` exits 0 |
 

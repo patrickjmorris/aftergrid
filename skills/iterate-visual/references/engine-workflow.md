@@ -28,7 +28,7 @@ This writes `render/<chart_id>.png` beside `render/<chart_id>.svg`. Open the PNG
 
 Editing a chart spec changes content the digest covers, so **every pass after the first starts by re-pinning
 `content_digest` with `digestOf` from `scripts/lib/validate-finding.mjs`** — the same re-pin `/write-finding`
-step 9 and `/shape-narrative` step 6 do. Until you re-pin, `render` refuses and `check` reports a `digest`
+step 9 and its narrative pass (step 6) do. Until you re-pin, `render` refuses and `check` reports a `digest`
 error whose remedy names a `check --pin` flag that does not exist. There is no CLI command for this: re-pin in
 code, from the Finding directory the edit is in.
 

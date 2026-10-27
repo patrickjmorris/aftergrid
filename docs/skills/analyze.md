@@ -56,7 +56,7 @@ Existing Engine checks and approval requirements still apply.
 fails. It is the **only** orchestrator in the Engine: it owns the order of the stages and the decision to halt,
 and nothing else runs them.
 
-The order is fixed: clarify → the checked-analysis stage → `/write-finding` → `/iterate-visual` → `/shape-narrative` →
+The order is fixed: clarify → the checked-analysis stage → `/write-finding` → `/iterate-visual` → the `/write-finding` narrative pass →
 `/analysis-review` → `aftergrid check` → `aftergrid review status`. Each stage's craft belongs to the skill
 that owns it; `/analyze` does not redo that work, which is what keeps a three-pass visual loop from quietly
 becoming a six-pass one.

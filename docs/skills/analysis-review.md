@@ -10,7 +10,7 @@ A review can change the verdict to “inconclusive.” Agreement among reviewers
 
 Ask in plain language, or type `/analysis-review` in hosts that expose it. Hidden from the Claude Code slash menu. The agent may reach for it when a draft is about to be trusted.
 
-Use it when a memo, notebook, or chart is about to inform a decision. Use [analyze](analyze.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [shape-narrative](shape-narrative.md) when the issue is order and wording, not whether the claim is earned.
+Use it when a memo, notebook, or chart is about to inform a decision. Use [analyze](analyze.md) if the calculations have not been run. Use [revise-finding](revise-finding.md) to apply the review, not to perform it. Use [write-finding](write-finding.md) when the issue is order and wording, not whether the claim is earned.
 
 ## Four lenses, then refute yourself
 
@@ -100,7 +100,7 @@ not been reviewed as the Finding now stands, and it is the only one to redo. The
 however many superseded entries sit behind its current ones. (Citi Bike run 2 conflated the two and spent a
 run on reviews that could not be recorded — `examples/nyc-open-data/docs/run-log.md`.)
 
-**Where do the Reader criteria come from?** `skills/shape-narrative/references/narrative-criteria.md` when that
+**Where do the Reader criteria come from?** `skills/write-finding/references/narrative-criteria.md` when that
 skill is installed, so the writer and the reviewer judge against the same list. When it is not, the skill's own
 `references/reader-criteria.md` is used instead.
 

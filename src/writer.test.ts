@@ -1,4 +1,4 @@
-// ag-write-finding-narrative-kpc: the /write-finding and /shape-narrative contracts, held by recorded runs.
+// ag-write-finding-narrative-kpc: the /write-finding contracts, writing and narrative pass, held by recorded runs.
 //
 // A skill reasons with a model in the loop, which this suite cannot run. What it can run is the contract the
 // skill is written against: fixtures/runs/<run>/ holds an Analysis directory (input/) and the Finding the
@@ -6,7 +6,7 @@
 // and the absence of a model. So the assertions here are mechanical ones — evidence validity, the writer's
 // field boundary, answer-first structure, bound values, figure titles, Reader vocabulary, causal wording —
 // and the judgments a lint cannot make (whether a caveat is the one that matters, whether "doubled" is
-// earned) are deliberately absent: they live in skills/shape-narrative/references/narrative-criteria.md and
+// earned) are deliberately absent: they live in skills/write-finding/references/narrative-criteria.md and
 // are the Reader reviewer's, not this file's.
 //
 // Three tests at the end read the skill prose rather than the fixtures. A step that sends a writer to a
@@ -69,7 +69,7 @@ const CAUSAL_VERBS = [
  * A title that opens by asking, or by pointing back at another figure, names the artifact instead of
  * stating the Claim: "Who was counted, and how many came back", "The same comparison, phones and web
  * separately". A blunt proxy for a judgment that is the Reader reviewer's
- * (skills/shape-narrative/references/narrative-criteria.md, criterion 8); it reads the opening, not the
+ * (skills/write-finding/references/narrative-criteria.md, criterion 8); it reads the opening, not the
  * sentence, so a label it does not catch is still a review finding.
  */
 const LABEL_OPENER = /^\s*(who|what|which|when|where|why|how|the same|this|that|these|those|summary|overview|breakdown)\b/i;
@@ -324,7 +324,7 @@ test("every numeric Claim leads with its figure, and every chart and table title
     // Chart and table titles state their Claim, and both are held to it. A chart title carries the values as
     // tokens and the render resolves them; a table caption is emitted verbatim (src/render/html.ts), so a
     // token in a table title would reach a Reader as literal braces — it states the Claim in words and the
-    // rows underneath carry the numbers. skills/shape-narrative/SKILL.md step 4 is the contract.
+    // rows underneath carry the numbers. skills/write-finding/references/engine-narrative.md step 4 is the contract.
     for (const fig of [...m.charts, ...m.tables]) {
       const isChart = m.charts.includes(fig);
       const kind = isChart ? "chart" : "table";

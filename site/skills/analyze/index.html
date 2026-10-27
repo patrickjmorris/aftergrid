@@ -32,7 +32,7 @@
 <p><code>/analyze</code> runs one Question from a raw ask to a reviewed Finding draft, and stops with a reason when any gate
 fails. It is the <strong>only</strong> orchestrator in the Engine: it owns the order of the stages and the decision to halt,
 and nothing else runs them.</p>
-<p>The order is fixed: clarify → the checked-analysis stage → <code>/write-finding</code> → <code>/iterate-visual</code> → <code>/shape-narrative</code> →
+<p>The order is fixed: clarify → the checked-analysis stage → <code>/write-finding</code> → <code>/iterate-visual</code> → the <code>/write-finding</code> narrative pass →
 <code>/analysis-review</code> → <code>aftergrid check</code> → <code>aftergrid review status</code>. Each stage&#39;s craft belongs to the skill
 that owns it; <code>/analyze</code> does not redo that work, which is what keeps a three-pass visual loop from quietly
 becoming a six-pass one.</p>
