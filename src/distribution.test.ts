@@ -635,3 +635,15 @@ test("moved Engine procedures keep their linked resources resolvable in the comp
     }
   }
 });
+
+// Each skill installs alone, so a procedure several skills share ships as one copy per skill. The copies must
+// not drift: the first file is the source, the rest are copies of it.
+test("shared skill references are byte-identical copies", () => {
+  const shared = [
+    ["checked-analysis", "explore-data", "analyze"].map((s) => join(REPO, "skills", s, "references", "data-issues.md")),
+  ];
+  for (const [source, ...copies] of shared) {
+    const expected = readFileSync(source!, "utf8");
+    for (const copy of copies) assert.equal(readFileSync(copy, "utf8"), expected, `${copy} drifted from ${source}`);
+  }
+});

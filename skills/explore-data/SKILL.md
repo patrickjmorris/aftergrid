@@ -27,6 +27,8 @@ Choose small, interpretable summaries tied to the ask: numerator/denominator cou
 
 Do not turn an exploratory correlation into a finding or expose unnecessary raw personal records in the output. When data access is missing, produce the exact bounded probes needed and label them unexecuted.
 
+When a probe shows a source defect — rows missing for a period, a refresh that stopped, duplicates on a key meant to be unique — follow [data issues](references/data-issues.md): measure it, keep exploring around it, and leave a note for its owner.
+
 ## Return a data map
 
-Report each relevant source's grain, key, units, coverage, freshness, safe join conditions, and known limits with query or file references. Separate observations from inferred meanings and open questions. Finish with the questions answerable now, the smallest additional information needed for others, and the checks a later analysis should retain. This map is proposed context, not an approval or a guarantee about future data.
+Report each relevant source's grain, key, units, coverage, freshness, safe join conditions, known limits, and data issues noted with query or file references. Separate observations from inferred meanings and open questions. Finish with the questions answerable now, the smallest additional information needed for others, and the checks a later analysis should retain. This map is proposed context, not an approval or a guarantee about future data.

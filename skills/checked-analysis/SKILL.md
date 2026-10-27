@@ -20,6 +20,8 @@ Before the main query, select the checks the question needs: key uniqueness, com
 
 Separate a failed validity check from a substantive result. Duplicate events can invalidate the count; a pre-specified contrast that does not support the hypothesis is evidence against it. Missing rows, measured zeros, and not-applicable cells must not become the same value.
 
+When a check shows a source defect — the data disagreeing with how its source is meant to behave — follow [data issues](references/data-issues.md): measure it, continue under a stated workaround, and leave a note for its owner.
+
 ## Execute through the available tools
 
 Use read-only queries and bounded local computation appropriate to the source. Record actual query/transform text, parameters, source/version or retrieval time when available, result, and the checks that ran. If access is unavailable, deliver a runnable plan and mark every unexecuted result as unexecuted. Never fill a saved result with expected values.

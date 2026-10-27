@@ -24,7 +24,7 @@ A missing source is a concrete limit, not a reason to invent a result. If enough
 
 Read relevant existing lessons in the user-designated project context before choosing a plan. Check each lesson's source evidence, grain, population, time/version, and invalidating conditions against this task. Treat a previous explanation as a hypothesis to test; preserve contradictory evidence. If no lesson store exists, proceed without claiming one was searched. Do not create global memory or apply another project's assumptions.
 
-Establish the source grain and units. Check join cardinality, missingness, duplicates, coverage, late arrivals, and whether the most recent cohort has matured. Read only the data required for this question through already authorized tools. Save the actual query or transformation and its observed result when producing an artifact.
+Establish the source grain and units. Check join cardinality, missingness, duplicates, coverage, late arrivals, and whether the most recent cohort has matured. Read only the data required for this question through already authorized tools. Save the actual query or transformation and its observed result when producing an artifact. When a check shows a source defect — the data disagreeing with how its source is meant to behave — follow [data issues](references/data-issues.md): measure it, continue under a stated workaround, and leave a note for its owner.
 
 Write the primary comparison and what would undermine it before making explanatory cuts. Distinguish data-validity checks (wrong grain, missing records) from a substantive test that could disconfirm the explanation. Choose meaningful checks, not a quota. Do not retrofit a threshold after seeing its result and call it pre-registered.
 
