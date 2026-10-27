@@ -1,10 +1,10 @@
 ---
 title: Choose the skill that fits the work
-description: Pick the route that matches the stuck point.
+description: Pick the route from the ask you have to the call you need.
 kicker: Workflow guide
 ---
 
-Use one skill where you are stuck, or ask `analyze` to carry a question through the whole sequence. Unsure which? Start with [ask-aftergrid](../skills/ask-aftergrid.md).
+Use one skill for the step in front of you: sharpen a question, explain a move, decide what it means, or challenge a draft. Or ask `analyze` to carry a question through the whole sequence. Unsure which? Start with [ask-aftergrid](../skills/ask-aftergrid.md).
 
 Most prompts below use slash syntax; in Codex, use `$skill-name`. The original craft skills, including analysis-review, are hidden from the Claude Code slash menu, so their examples use plain-language requests.
 
@@ -51,6 +51,18 @@ between acquisition and retention work.
 ```
 
 Expect a bridge back to the reported total, not a list of interesting segments. The [revenue example](../examples/revenue-bridge.md) shows why a small positive top line can coexist with substantial losses from existing accounts.
+
+## When someone has to decide
+
+```text
+/make-the-call The MRR bridge is done: +$90 new, +$20 expansion, -$20
+contraction, -$80 churn. We are judged on net revenue retention this
+half. Should next sprint go to acquisition or retention? Say which
+findings matter for that choice, what each option would change, and
+what would make you switch.
+```
+
+Expect one recommendation stated in the goal's units, the true findings that do not change the choice, and a trigger with a date or threshold that would reverse it. [Make-the-call](../skills/make-the-call.md) asks for the goal or the action threshold when they are missing instead of inventing them.
 
 ## When you want an end-to-end analysis
 

@@ -1,17 +1,19 @@
 # aftergrid
 
-**Analytics skills for the agent you already use.**
+**Analytics judgment for the agent you already use.**
 
-Conversion fell from 8.8% to 6.2%. Both channels improved. An agent that only pulls the total will recommend rolling back signup. `diagnose-change` will not.
+Your agent can already get the number. Text-to-SQL, semantic layers, and BI copilots made that part easy. Knowing whether the number matters is still the hard part. A good analyst ties the metric to the goal it serves, checks that the story holds, says which true findings do not change anything, and makes a call someone can act on. aftergrid teaches your agent that part.
 
-Fifteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Fourteen work on a CSV, notebook, or SQL client. No warehouse, GitHub review, or CLI required.
+Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and the mix moved. `make-the-call` goes on: about 260 signups were lost because roughly 6,000 direct sessions were replaced by paid traffic, so this week's question is where the direct traffic went, not the signup flow.
+
+Sixteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Fifteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up.
 
 [Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/) · [Work with me](#work-with-me)
 
 ## Install and run it
 
 ```bash
-npx skills add patrickjmorris/aftergrid --skill diagnose-change
+npx skills add patrickjmorris/aftergrid --skill diagnose-change make-the-call
 ```
 
 Then paste this. No clone; the CSV is on GitHub:
@@ -27,7 +29,15 @@ Show the calculations. Do not recommend a rollback from the aggregate
 alone.
 ```
 
-In Codex, write `$diagnose-change`. The whole collection:
+Then ask for the call:
+
+```text
+/make-the-call We are judged on signups this quarter. Using that
+diagnosis, say what the drop cost in signups, whether it matters,
+which findings do not, and what you would look at this week.
+```
+
+In Codex, write `$diagnose-change` and `$make-the-call`. The whole collection:
 
 ```bash
 npx skills add patrickjmorris/aftergrid
@@ -47,7 +57,8 @@ The installer asks which skills and agents to use. It copies Markdown; it does n
 | Explain a movement | [diagnose-change](skills/diagnose-change/SKILL.md) | A reconciled decomposition and the uncertainty that remains |
 | Do the work under checks | [checked-analysis](skills/checked-analysis/SKILL.md) | Executed calculations, evidence, and an honest analysis log |
 | Run the full workflow | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, review, and a clear next step |
-| Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question, and reader |
+| Decide what a result means | [make-the-call](skills/make-the-call/SKILL.md) | One recommendation in goal units, what matters and what does not, and the trigger that would change it |
+| Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question, reader, and materiality |
 | Write the answer | [write-finding](skills/write-finding/SKILL.md) | A decision-oriented memo whose claims point to their evidence |
 | Make the chart explain the claim | [iterate-visual](skills/iterate-visual/SKILL.md) | An inspected visual with sound comparisons and readable labels |
 | Give the narrative a structure | [shape-narrative](skills/shape-narrative/SKILL.md) | An answer-first explanation with limitations where they matter |
@@ -65,7 +76,7 @@ The [skills lab](examples/skills-lab/README.md) has the conversion case plus thr
 node examples/skills-lab/verify.mjs
 ```
 
-- **Conversion fell while both channels improved.** 8.8% → 6.2%. The next question is acquisition mix, not a broken signup. [Worked example](docs/examples/conversion-mix.md).
+- **Conversion fell while both channels improved.** 8.8% → 6.2%. About 260 signups were lost to a traffic shift, not a broken signup flow. [Worked example](docs/examples/conversion-mix.md).
 - **Conversion recovered. Same mechanism?** Mix plus a paid-rate change, not the prior decline in reverse. [Lesson reuse](docs/examples/lesson-reuse.md).
 - **MRR grew while the starting customers shrank.** $430 → $440 hides $80 of churn. [Revenue bridge](docs/examples/revenue-bridge.md).
 - **A precise retention number, an imprecise claim.** 60% versus 40% is real. Self-selection means it cannot say what mandatory onboarding would cause. [Worked review](docs/examples/causal-claim.md).
@@ -74,19 +85,22 @@ Teaching cases, not customer outcomes or a benchmark. An isolated Codex agent co
 
 For a larger example, [NYC open data](examples/nyc-open-data/README.md) has two Claude Code runs on public taxi, weather, and bike data. One Finding is inconclusive; the other answers its descriptive question. Both are merged and agent-reviewed; **neither has human publication approval**. The [run log](examples/nyc-open-data/docs/run-log.md) keeps the false starts.
 
+## Fieldnotes
+
+- [The number is not the answer](docs/fieldnotes/the-number-is-not-the-answer.md)
+- [Ask before you query](docs/fieldnotes/ask-before-query.md)
+- [The metric moved. Now what?](docs/fieldnotes/the-metric-moved.md)
+- [Analysis that compounds](docs/fieldnotes/analysis-that-compounds.md)
+
 ## Lessons that get retrieved
 
 Before writing SQL, establish the unit. Before explaining a change, reproduce it and test the strongest alternative. Before publishing a claim, try to break it. After a non-obvious error, keep the evidence and the conditions where the lesson applies.
 
 `learn-from-analysis` captures a proposed lesson; `plan-analysis` and `analyze` look for matching lessons before proceeding. A lesson can change the next check without becoming a universal rule or an approved metric.
 
-- [Ask before you query](docs/fieldnotes/ask-before-query.md)
-- [The metric moved. Now what?](docs/fieldnotes/the-metric-moved.md)
-- [Analysis that compounds](docs/fieldnotes/analysis-that-compounds.md)
-
 ## When you want stronger guarantees
 
-The optional **Engine** adds a TypeScript CLI, typed evidence, runnable Checks, retained inputs, versioned Findings, and human publication controls. A team's definitions live in its private **Instance**. Skills take the Engine path when you ask for it or supply a Finding directory.
+The optional **Engine** is a command-line tool for teams that need an audit trail. It saves each analysis as a versioned report (a **Finding**) with its queries, retained inputs, runnable checks, and review record, and it keeps human publication approval separate from agent review. A team's metric definitions and Findings live in its own repository (an **Instance**). Skills take the Engine path when you ask for it or supply a Finding directory.
 
 Portable work does not claim these guarantees. Agent review and human approval are different facts, and the Engine keeps them separate.
 
@@ -117,9 +131,9 @@ CI runs on Ubuntu and macOS, Node 22.18 and 24. Installer checks, model runs, de
 
 ## Work with me
 
-I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because the agent answers reaching product and growth decisions were confident, fast, and often wrong in ways an experienced analyst would catch in a minute.
+I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because agents could already get the number, and the answers reaching product and growth decisions still missed the part that matters: whether the move was big enough to act on, what drove it, and what to do next. Too often they were also wrong in ways an experienced analyst would catch in a minute.
 
-- **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metric definitions a second analyst would apply the same way, a review step before numbers reach a decision, and lessons the next analysis retrieves. Your data stays in your repository.
+- **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metrics tied to the goals they serve, a review step that asks whether a result matters before it reaches a decision, and lessons the next analysis retrieves. Your data stays in your repository.
 - **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
 
 Email [patrickjohnmorris@gmail.com](mailto:patrickjohnmorris@gmail.com?subject=aftergrid) with the meeting you're trying to get right.

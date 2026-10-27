@@ -37,6 +37,6 @@ Stop when the supported explanation is sufficient for the decision, the remainin
 
 ## Report the diagnosis
 
-Lead with the reproduced change and the best-supported explanation at its actual level of certainty. Give the calculation/decomposition, checked alternatives, surviving rivals, source/query references, and what would change the conclusion. Distinguish measurement problems, arithmetic composition, associations, and causal explanations. Recommend the smallest useful next observation or action; do not prescribe a business intervention solely from a descriptive decomposition.
+Lead with the reproduced change and the best-supported explanation at its actual level of certainty. Give the calculation/decomposition, checked alternatives, surviving rivals, source/query references, and what would change the conclusion. Distinguish measurement problems, arithmetic composition, associations, and causal explanations. Recommend the smallest useful next observation or action; do not prescribe a business intervention solely from a descriptive decomposition. When the owner needs a call rather than a diagnosis, an available `make-the-call` skill takes the diagnosis from here: it ties the move to the goal, judges materiality, and weighs the options.
 
 When working in an Engine Finding, keep the diagnosis in the existing probe/execution record and preserve its claim, falsifier, and review rules; this skill alone grants no Engine verification or approval.

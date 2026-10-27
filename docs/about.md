@@ -4,15 +4,16 @@ description: Consulting and sponsorship for teams putting analytics judgment int
 kicker: From the maintainer
 ---
 
-I'm Patrick Morris. I built aftergrid because the agent answers reaching product and growth decisions were fast, confident, and wrong in ways an experienced analyst would catch in a minute: a rollback on a mix shift, growth that hid churn, a mandate built on self-selected retention.
+I'm Patrick Morris. I built aftergrid because agents got good at fetching the number before they got good at the work that follows. The answers reaching product and growth decisions were fast and confident. Too often they missed whether the move mattered, what drove it, and what to do next. Some were simply wrong in ways an experienced analyst would catch in a minute: a rollback on a mix shift, growth that hid churn, a mandate built on self-selected retention.
 
 The skills are free and MIT. Two ways to go further.
 
 ## Consulting
 
-Pilot engagements for product, growth, and data teams who want their agents to reason like their best analyst. The usual shape:
+Pilot engagements for product, growth, and data teams who want their agents to work like their best analyst: tie the number to the goal, check the story, and make the call. The usual shape:
 
 - **Metric definitions that survive a second analyst.** Numerator, denominator, eligibility, time rules, counter-metrics; written down and reviewed with the owner.
+- **Results stated against the goal.** `make-the-call` in the workflow, using your targets and the thresholds that would change a decision.
 - **A review step before numbers reach a decision.** `analysis-review` in the workflow, tuned to the failure modes your team hits.
 - **Lessons that get retrieved.** A capture-and-retrieval loop so the fourth analyst does not start from the same trap.
 

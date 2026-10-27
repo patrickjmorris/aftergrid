@@ -12,13 +12,15 @@ Review the artifact supplied: SQL and results, notebook, chart, memo, or an Engi
 
 Read the original question, intended reader, analysis, and evidence that is available. Distinguish source data, calculated results, assumptions, and author claims. Missing SQL or raw data limits verification; report the specific unverified claim instead of pretending to have rerun it or refusing all useful review.
 
-## Apply three lenses
+## Apply four lenses
 
 **Method:** Trace important numbers to their source and formula. Check numerator/denominator eligibility, pooled versus averaged rates, grain and join multiplication, exclusions, units, timezone, partial periods and cohort maturity. Inspect mixture/selection effects, uncertainty, repeated comparisons, and post-result threshold changes when relevant. Ask whether an alternative explanation produces the same observations. Causal verbs need a defensible identification strategy; association alone is insufficient. Engine mode additionally follows its narrower accepted claim contract.
 
 **Question:** Compare the original ask with the answer's metric, population, window, and comparison. Look for cherry-picked cuts, a switched baseline, unexplained reframing, or an outcome contradicted by its own checks. Distinguish evidence against a hypothesis from a failed data pipeline. Ask what plausible observation would change the conclusion and whether it was sought, without demanding an artificial experiment for a descriptive question.
 
 **Reader:** Read the answer and chart as the intended audience. Is the decisive caveat adjacent to the claim? Could someone repeat the headline with the wrong denominator, period, certainty, or causal meaning? Does the visual emphasize a claim the prose retreats from? A reader simulation is an agent critique, never evidence of a human's comprehension.
+
+**Materiality:** When the artifact informs a decision, ask whether the headline is big enough to matter. Is it stated in a unit the owner manages? Is it compared with normal variation, the goal, and the size of effect that would change the decision? Does a true but immaterial finding lead while the one that drives the decision sits in a parenthetical? Does the recommendation, if any, rest on the finding it cites, and is a costly or irreversible action backed by evidence of cause? Skip this lens for a purely descriptive request.
 
 ## Refute your own findings
 
