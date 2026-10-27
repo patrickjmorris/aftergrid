@@ -58,7 +58,7 @@ Lay out two or three options the owner could actually take. Include waiting or d
 
 Check that each option can move the goal as it is defined. Some definitions settle the choice: net revenue retention excludes new customers, so acquisition work cannot move it. When a definition decides the call, say so, and name the counter-metric the owner should watch alongside it (total revenue, in that example).
 
-A descriptive finding can support a cheap, reversible action, such as a check or a small test. A costly or irreversible action needs evidence of cause. Say which kind each option is. When cost is not supplied, do not label an action cheap; frame it as a test or observation and ask the owner to confirm the cost. Do not upgrade an association into a forecast to make an option look stronger.
+A descriptive finding can support a cheap, reversible action, such as a check or a small test. A costly or irreversible action needs evidence of cause. Say which kind each option is. When cost is not supplied, do not label an action cheap; frame it as a test or observation and ask the owner to confirm the cost. The claims rules in [rigor](references/rigor.md) say what counts as evidence of cause and forbid upgrading an association to make an option look stronger.
 
 Before recommending an adjustment (a correction factor, a reweighting, a new rule), apply it to the records it would change and check the result. Does it fit every group it would touch, or does it misstate some? Does it correct anything twice? Does it behave at the edges, such as the units that straddle the change? An adjustment that fails on its own targets is an option to reject, with that evidence as the reason.
 

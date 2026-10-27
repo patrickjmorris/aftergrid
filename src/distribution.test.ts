@@ -641,6 +641,8 @@ test("moved Engine procedures keep their linked resources resolvable in the comp
 test("shared skill references are byte-identical copies", () => {
   const shared = [
     ["checked-analysis", "explore-data", "analyze"].map((s) => join(REPO, "skills", s, "references", "data-issues.md")),
+    ["analyze", "analysis-review", "define-metric", "diagnose-change", "explore-data", "grill-question", "iterate-visual",
+      "make-the-call", "plan-analysis", "write-finding"].map((s) => join(REPO, "skills", s, "references", "rigor.md")),
   ];
   for (const [source, ...copies] of shared) {
     const expected = readFileSync(source!, "utf8");

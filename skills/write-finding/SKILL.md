@@ -17,7 +17,7 @@ State the answer, population, comparison and period in language the reader under
 
 Explain the decision or purpose, then the few claims that support the answer. For each numerical claim, give its denominator, units, baseline/window, evidence location and relevant limits. Link to supplied cells, query results, source excerpts, or calculation files. If a value requires a new derivation, calculate it explicitly with named operands and retain the calculation; otherwise ask the analyst for it. Mark estimates and assumptions as such.
 
-Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. Separate the direction of a change from whether its cause is known. Distinguish percentage points from percent change. Do not average rates across groups without accounting for their denominators.
+Hold every sentence to [the rigor rules](references/rigor.md), above all the claims, rates, and changes sections: causal language only when the supplied design earns it, percentage points named as such, and no rate averaged across groups without its denominators.
 
 Use tables for comparisons that need exact lookup and charts for relationships that are easier to see. A picture is not mandatory behind every number in portable work. A chart title must agree with the conclusion and its caveat, including inconclusive results.
 
