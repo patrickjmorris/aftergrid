@@ -40,7 +40,7 @@ Edit only these:
 - `memo.md` — wording, ordering, headings.
 - `charts/*.vl.json` — the chart specs. For a chart that is hard to read rather than wrong, work it with
   `/iterate-visual`, or score it yourself against
-  [`skills/iterate-visual/references/visual-rubric.md`](../../iterate-visual/references/visual-rubric.md).
+  `skills/iterate-visual/references/visual-rubric.md` (complete toolkit).
 - `manifest.yaml` — chart and table titles, labels, descriptions, `charts[].variant_of`.
 
 `queries/`, `checks/`, `results/` and `inputs/` are evidence. Changing one is not a revision; it is a new

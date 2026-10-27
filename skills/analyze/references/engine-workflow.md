@@ -21,10 +21,10 @@ run prints when the directory refuses one).
 | Stage | Owner | Ends when |
 | --- | --- | --- |
 | `clarify` | the shared clarification procedure | `question.state` is `resolved`, or the run has halted with what is missing |
-| `checked_analysis` | this skill, following [`references/checked-analysis.md`](checked-analysis.md) | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned — by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
+| `checked_analysis` | this skill, following [`references/checked-analysis.md`](checked-analysis.md) | `analysis.yaml` carries candidate claims, an execution order and an outcome recommendation, and the results are pinned: by `aftergrid record` on the recorded path, by `aftergrid execute` where the Instance configures an adapter |
 | `write_finding` | `/write-finding` | `memo.md` has all six sections and the manifest carries claims, charts, tables, coverage and an outcome |
 | `iterate_visual` | `/iterate-visual` | every chart has passed the rubric or been handed back after the third pass |
-| `shape_narrative` | `/write-finding`, its narrative pass ([`references/engine-narrative.md`](../../write-finding/references/engine-narrative.md) in that skill) | the memo is answer-first and each Evidence subsection is one Claim |
+| `shape_narrative` | `/write-finding`, narrative pass only (`skills/write-finding/references/engine-narrative.md` in the complete toolkit) | the memo is answer-first and each Evidence subsection is one Claim |
 | `analysis_review` | `/analysis-review` | a current `method`, `question` and `reader` review is recorded |
 | `check` | `aftergrid check`, then `aftergrid review status` | `check` reports no errors **and** `review status` exits 0 |
 
@@ -58,7 +58,7 @@ Done when you can name the Finding directory and the stage you are starting from
 
 ## 2. Clarify
 
-Follow [`references/clarification.md`](clarification.md) — the shared procedure, owned by
+Follow [`references/clarification.md`](clarification.md), the shared procedure, owned by
 `ag-grill-checked-analysis-7qg`. Ask the whole frontier in one round rather than one question at a time, and
 carry the answers into `question` in the manifest.
 
@@ -74,7 +74,8 @@ Done when `question.state` is `resolved` with a falsifier, or the run has halted
 ## 3. Run the stages
 
 Run `checked_analysis` yourself from [`references/checked-analysis.md`](checked-analysis.md). Invoke each
-other owner in turn and let it finish. Between stages, do three things and nothing else:
+other owner in turn and let it finish. `/write-finding` is the owner twice: for `write_finding` ask for the
+writing procedure, and for `shape_narrative` ask for its narrative pass only. Between stages, do three things and nothing else:
 
 1. Update `analysis-progress.yaml`.
 2. Read the halt conditions below.

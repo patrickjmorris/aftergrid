@@ -7,7 +7,7 @@
 <p>Ask in plain language, or type <code>/analysis-review</code> in hosts that expose it. Hidden from the Claude Code slash menu. The agent may reach for it when a draft is about to be trusted.</p>
 <p>Use it when a memo, notebook, or chart is about to inform a decision. Use <a href="../analyze/">analyze</a> if the calculations have not been run. Use <a href="../revise-finding/">revise-finding</a> to apply the review, not to perform it. Use <a href="../write-finding/">write-finding</a> when the issue is order and wording, not whether the claim is earned.</p>
 <h2 id="four-lenses-then-refute-yourself">Four lenses, then refute yourself</h2>
-<p><strong>Method</strong> traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. <strong>Question</strong> compares the original ask with the answer actually given. <strong>Reader</strong> asks what a non-SQL audience could reasonably repeat wrongly. <strong>Materiality</strong> asks whether the headline is big enough to change the decision, measured against normal variation and the goal, and whether a true but minor finding is leading while the one that matters sits in a parenthetical.</p>
+<p><strong>Method</strong> traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. <strong>Question</strong> compares the original ask with the answer actually given. <strong>Reader</strong> asks what a non-SQL audience could reasonably repeat wrongly, against the same narrative criteria write-finding writes to. <strong>Materiality</strong> asks whether the headline is big enough to change the decision, measured against normal variation and the goal, and whether a true but minor finding is leading while the one that matters sits in a parenthetical.</p>
 <p>For every suspected error, look for the explanation that would make the author’s choice correct. Do not pad the review with generic best practices. Independent reviewers help when the work justifies them; serial self-review must be disclosed as such. Never invent reviewer identities.</p>
 <p>The <a href="../../examples/causal-claim/">onboarding teaching case</a> is the cautionary draft: a real 20 percentage-point difference that does not identify an intervention effect.</p>
 <h2 id="common-questions">Common questions</h2>
@@ -69,9 +69,9 @@ not been reviewed as the Finding now stands, and it is the only one to redo. The
 <code>check</code> raises <code>stale_review</code> at most once per kind, and a Finding with <code>0 stale</code> needs no review redone
 however many superseded entries sit behind its current ones. (Citi Bike run 2 conflated the two and spent a
 run on reviews that could not be recorded — <code>examples/nyc-open-data/docs/run-log.md</code>.)</p>
-<p><strong>Where do the Reader criteria come from?</strong> <code>skills/write-finding/references/narrative-criteria.md</code> when that
-skill is installed, so the writer and the reviewer judge against the same list. When it is not, the skill&#39;s own
-<code>references/reader-criteria.md</code> is used instead.</p>
+<p><strong>Where do the Reader criteria come from?</strong> The skill&#39;s own <code>references/narrative-criteria.md</code>, an identical
+copy of the page write-finding writes against, so the writer and the reviewer judge against the same list
+whether or not write-finding is installed.</p>
 <h2 id="its-working-if-1">It&#39;s working if</h2>
 <ul>
 <li><code>aftergrid review status &lt;dir&gt;</code> lists a current <code>method</code>, <code>question</code> and <code>reader</code> review after it runs.</li>

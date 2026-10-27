@@ -7,7 +7,7 @@ version: 0.2.0
 
 # Write a finding
 
-Use supplied results and analysis notes to answer the reader's question, or reshape a draft that already answers it. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. For an aftergrid Finding, use [the Engine writing procedure](references/engine-workflow.md) for its typed claims, bound values, and fixed artifact contract, then [the Engine narrative pass](references/engine-narrative.md) once its charts have settled.
+Use supplied results and analysis notes to answer the reader's question, or reshape a draft that already answers it. A finding can be an ordinary memo, notebook summary, document, or message. No manifest or CLI is required. An aftergrid Finding gets one of two passes, never both in one call. If `memo.md` exists and its charts have settled (the `shape_narrative` stage, after `/iterate-visual`), run only [the Engine narrative pass](references/engine-narrative.md), and change no field it says to leave alone. Otherwise run [the Engine writing procedure](references/engine-workflow.md) for its typed claims, bound values, and fixed artifact contract, then stop: the narrative pass comes after the charts.
 
 Read the question, results, assumptions, checks, and intended reader before writing. Identify the answer-bearing claim, who is counted, its baseline and window, and the caveat that would change what the reader does. Establish which conclusions were actually reached and which remain exploratory. If a piece is missing, name the gap rather than manufacturing it. A writer may clarify a conclusion; it may not invent a new calculation, promote a proposed definition to approved, or turn a correlation into a cause.
 
@@ -23,7 +23,7 @@ Hold every sentence to [the rigor rules](references/rigor.md), above all the cla
 
 Use one evidence-bearing claim per section. Its heading states what was learned, as a sentence the reader could repeat, rather than a label such as "Analysis." Put the answer-bearing claim first. Separate observed facts, interpretations, and recommendations. Keep an exploratory result from sounding pre-planned.
 
-Use tables for comparisons that need exact lookup and charts for relationships that are easier to see. A picture is not mandatory behind every number in portable work. Chart titles, captions, and emphasis must tell the same story as the answer, including an inconclusive one. A whole-month increase must not visually stand in for an inconclusive weather-adjusted comparison.
+Use tables for comparisons that need exact lookup and charts for relationships that are easier to see. A picture is not mandatory behind every number in portable work. Chart titles, captions, and emphasis must tell the same story as the answer and its material caveat, including an inconclusive one. A whole-month increase must not visually stand in for an inconclusive weather-adjusted comparison.
 
 ## Use the reader's words
 
@@ -41,7 +41,7 @@ No number, threshold, or caveat is invented to fill the shape of an answer, and 
 
 ## Check the draft before handing it over
 
-Apply every criterion in [the narrative criteria](references/narrative-criteria.md) to every claim. Record a criterion that does not apply as not applying. The analysis-review reader lens reads the same page.
+Apply every criterion in [the narrative criteria](references/narrative-criteria.md) to every claim. Record a criterion that does not apply as not applying. `analysis-review` ships an identical copy for its Reader lens, so writer and reviewer judge against the same list.
 
 When reshaping an existing draft, compare each revised claim with its source version. A change that alters population, window, exclusions, statistical certainty, causal strength, or which comparison supports the answer is substantive. Disclose it and return it for analytical review instead of making it silently.
 

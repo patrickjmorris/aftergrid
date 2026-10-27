@@ -24,7 +24,7 @@ A missing source is a concrete limit, not a reason to invent a result. If enough
 
 Read relevant existing lessons in the user-designated project context before choosing a plan. Check each lesson's source evidence, grain, population, time/version, and invalidating conditions against this task. Treat a previous explanation as a hypothesis to test; preserve contradictory evidence. If no lesson store exists, proceed without claiming one was searched. Do not create global memory or apply another project's assumptions.
 
-Establish the source grain and units. Run the grain, join, time, and coverage checks in [rigor](references/rigor.md) that this source needs. Read only the data required for this question through already authorized tools. When a check shows a source defect — the data disagreeing with how its source is meant to behave — follow [data issues](references/data-issues.md): measure it, continue under a stated workaround, and leave a note for its owner.
+Establish the source grain and units. Run the grain, join, time, and coverage checks in [rigor](references/rigor.md) that this source needs. Read only the data required for this question through already authorized tools. When a check shows a source defect, the data disagreeing with how its source is meant to behave, follow [data issues](references/data-issues.md): measure it, continue under a stated workaround, and leave a note for its owner.
 
 Write the primary comparison and what would undermine it before making explanatory cuts. Follow the planned and exploratory rules in [rigor](references/rigor.md). Choose meaningful checks, not a quota.
 
@@ -38,7 +38,7 @@ Keep a short analysis log as the work happens. Each entry names the question tes
 
 ## Follow the evidence
 
-Reproduce the headline before explaining it. Apply the rate and mix rules in [rigor](references/rigor.md). Rank plausible explanations by what the evidence currently supports and what would distinguish them. Take the smallest useful next cut, record its actual result and what it changes, then update the plan. An available `diagnose-change` skill can deepen this step; these instructions also work alone.
+Reproduce the headline before explaining it. Inspect the numerator and denominator separately, and separate change within comparable segments from change in their weights. Apply the rate, change, and mix rules in [rigor](references/rigor.md). Rank plausible explanations by what the evidence currently supports and what would distinguish them. Take the smallest useful next cut, record its actual result and what it changes, then update the plan. An available `diagnose-change` skill can deepen this step; these instructions also work alone.
 
 Record each cut and its result in the log, including dead ends that constrain the conclusion. Re-anchor when a cut no longer bears on the question: stop that branch or explicitly explain the revised question. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or further work needs a source or choice the user has not supplied. Never manufacture a dead end or run extra cuts to make an analysis look deep.
 

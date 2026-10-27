@@ -7,10 +7,10 @@ This reference applies only to an existing aftergrid Finding or an explicitly re
 An ask in plain words on one side; on the other, a Question a Finding can answer and a Revisit can later re-test.
 The interview is the work. Everything else here is where the answers land.
 
-The procedure is in **[references/clarification.md](../../analyze/references/clarification.md)** — the
-rounds, the seven parts, the vocabulary challenge, how a definition is proposed, and what to write. Read it
-before round 1. `/analyze` reads the same file, so an Operator gets the same interview whether they
-started here or the analysis started it.
+The procedure is in **[references/clarification.md](clarification.md)**: the rounds, the seven parts, the
+vocabulary challenge, how a definition is proposed, and what to write. Read it before round 1. `/analyze`
+ships an identical copy, so an Operator gets the same interview whether they started here or the analysis
+started it.
 
 ## 1. Find the Finding, or make one
 

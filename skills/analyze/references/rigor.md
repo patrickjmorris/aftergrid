@@ -59,6 +59,8 @@ The rules a number has to pass before anyone trusts it. Each aftergrid skill tha
 ## Executed and proposed
 
 - Record the actual query or transformation, its parameters, and its observed result. Record the source version or retrieval time when available.
+- Keep a short log as the work happens, not afterward: what each step tested, what it showed, what it decided, and whether it was planned or exploratory.
 - Label every check or query that did not run as unexecuted. Never fill a saved result with expected values.
 - In what you deliver, distinguish checks executed from checks proposed, and observed facts from explanations.
+- Say whether another person can rerun the calculation, only inspect saved results, or neither.
 - Do not invent approvals, confidence intervals, or causal identification.

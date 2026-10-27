@@ -8,9 +8,9 @@
 <p>Reach for it after <a href="../analyze/">analyze</a> or any run that produced inspectable results, or when a draft is right and still hard to use. Use <a href="../iterate-visual/">iterate-visual</a> for the chart. Use <a href="../revise-finding/">revise-finding</a> once feedback arrives.</p>
 <h2 id="the-first-paragraph-has-to-be-enough">The first paragraph has to be enough</h2>
 <p>A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. Those rules live in <code>references/rigor.md</code>, which several skills share. An honest answer may be that the source does not support the comparison, and &quot;not enough data,&quot; &quot;inconclusive,&quot; and &quot;needs reframing&quot; each have their own shape.</p>
-<p>Every draft is checked against nine narrative criteria before it goes out: the answer is an answer, the caveat is the one that matters, every quantity word is earned, the comparison is visible, and so on. The analysis-review reader lens reads the same list.</p>
+<p>Every draft is checked against nine narrative criteria before it goes out: the answer is an answer, the caveat is the one that matters, every quantity word is earned, the comparison is visible, and so on. analysis-review ships an identical copy of that page for its Reader lens, so writer and reviewer judge against the same list.</p>
 <h2 id="common-questions">Common questions</h2>
-<p><strong>Does every number need a chart?</strong> No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.</p>
+<p><strong>Does every number need a chart?</strong> No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion and its material caveat, including inconclusive results.</p>
 <p><strong>Can it decide the outcome?</strong> No. If the analysis recommended insufficient data, the memo says so in the first sentence.</p>
 <p><strong>Where did shape-narrative go?</strong> It is part of this skill now. Writing the answer and shaping its order and words were one step to the reader.</p>
 <p><strong>Can it soften a discouraging caveat?</strong> No. Dropping or hedging a material limitation changes the decision with every digit unchanged.</p>
@@ -31,8 +31,8 @@
 <details class="engine-details"><summary>Optional Engine reference</summary><p>Existing Engine checks and approval requirements still apply.</p>
 <h2 id="what-it-does-1">What it does</h2>
 <p><code>/write-finding</code> turns a checked Analysis directory into a Finding. It reads the evidence the checked-analysis stage of
-<code>/analyze</code> pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
-results, the Checks, any retained inputs, and <code>analysis.yaml</code> —
+<code>/analyze</code> pinned (the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+results, the Checks, any retained inputs, and <code>analysis.yaml</code>)
 and writes the half a Reader meets: <code>memo.md</code> in the six fixed sections, typed Claims, a chart or a table
 behind every number, and the export policy, coverage and Reader profile the render needs.</p>
 <p>It is <strong>model-invoked</strong> (<code>user-invocable: false</code>, <code>policy.allow_implicit_invocation: true</code>). It is a step
@@ -131,8 +131,8 @@ The procedure is <code>skills/write-finding/references/engine-narrative.md</code
 request that would change what a Reader concludes is reported and stopped, not made: the procedure&#39;s last
 section lists the six shapes that takes.</p>
 <p>The judgments it applies live in <code>skills/write-finding/references/narrative-criteria.md</code>. The Reader
-reviewer in <code>/analysis-review</code> reads the same page, so writer and reviewer are never working from different
-rules.</p>
+reviewer in <code>/analysis-review</code> reads an identical copy shipped in that skill, so writer and reviewer are never
+working from different rules.</p>
 <h3 id="when-the-narrative-pass-runs">When the narrative pass runs</h3>
 <ul>
 <li>A Finding is written and its charts have settled, and it has not been reviewed yet.</li>
@@ -147,7 +147,7 @@ and a human&#39;s, respectively).</p>
 settle, and they are judged against criteria a reviewer reads too. A separate pass means a chart change can be
 followed by a narrative pass without rewriting the Claims, and the Reader reviewer and the writer cite one page
 rather than two.</p>
-<p><strong>Can it reorder Claims?</strong> Yes — <code>claims[]</code> order is what the render lays out, and the answer-bearing Claim
+<p><strong>Can it reorder Claims?</strong> Yes. <code>claims[]</code> order is what the render lays out, and the answer-bearing Claim
 goes first. The Evidence subsections follow that order.</p>
 <p><strong>Can it soften a caveat an Operator finds discouraging?</strong> No. Dropping or softening a <code>material_caveat</code>, an
 exclusion or a limitation changes what a Reader concludes with every digit unchanged. The pass reports it
@@ -164,7 +164,7 @@ block sits directly under it.</li>
 <li>Every Evidence heading is a sentence a Reader could repeat, identical to its Claim&#39;s <code>sentence</code>, and every
 subsection carries one idea.</li>
 <li>Every chart title states what the chart shows with its values bound, and every table title states its Claim
-in words with no token in it — a table caption renders verbatim — rather than naming a measure, asking a
+in words with no token in it (a table caption renders verbatim) rather than naming a measure, asking a
 question or pointing back at another figure.</li>
 <li>No word on the Reader profile&#39;s <code>vocabulary.avoid</code> list survives outside a token, and every <code>will_misread</code>
 item is either answered by a sentence or recorded as a note.</li>

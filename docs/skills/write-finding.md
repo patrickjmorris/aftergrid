@@ -16,11 +16,11 @@ Reach for it after [analyze](analyze.md) or any run that produced inspectable re
 
 A reader who stops after the opening should retain the correct scope and uncertainty. Pair rates with denominators. Distinguish percentage points from percent change. Use descriptive language for observed values, associational language for relationships, and causal language only when the supplied design earns it. Those rules live in `references/rigor.md`, which several skills share. An honest answer may be that the source does not support the comparison, and "not enough data," "inconclusive," and "needs reframing" each have their own shape.
 
-Every draft is checked against nine narrative criteria before it goes out: the answer is an answer, the caveat is the one that matters, every quantity word is earned, the comparison is visible, and so on. The analysis-review reader lens reads the same list.
+Every draft is checked against nine narrative criteria before it goes out: the answer is an answer, the caveat is the one that matters, every quantity word is earned, the comparison is visible, and so on. analysis-review ships an identical copy of that page for its Reader lens, so writer and reviewer judge against the same list.
 
 ## Common questions
 
-**Does every number need a chart?** No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion, including inconclusive results.
+**Does every number need a chart?** No. Portable work may use a table for a few exact values. A chart title must agree with the conclusion and its material caveat, including inconclusive results.
 
 **Can it decide the outcome?** No. If the analysis recommended insufficient data, the memo says so in the first sentence.
 
@@ -55,8 +55,8 @@ Existing Engine checks and approval requirements still apply.
 ## What it does
 
 `/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence the checked-analysis stage of
-`/analyze` pinned — the Question, the queries, the executions with their parameters and the tool that ran them, the saved
-results, the Checks, any retained inputs, and `analysis.yaml` —
+`/analyze` pinned (the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+results, the Checks, any retained inputs, and `analysis.yaml`)
 and writes the half a Reader meets: `memo.md` in the six fixed sections, typed Claims, a chart or a table
 behind every number, and the export policy, coverage and Reader profile the render needs.
 
@@ -173,8 +173,8 @@ request that would change what a Reader concludes is reported and stopped, not m
 section lists the six shapes that takes.
 
 The judgments it applies live in `skills/write-finding/references/narrative-criteria.md`. The Reader
-reviewer in `/analysis-review` reads the same page, so writer and reviewer are never working from different
-rules.
+reviewer in `/analysis-review` reads an identical copy shipped in that skill, so writer and reviewer are never
+working from different rules.
 
 ### When the narrative pass runs
 
@@ -193,7 +193,7 @@ settle, and they are judged against criteria a reviewer reads too. A separate pa
 followed by a narrative pass without rewriting the Claims, and the Reader reviewer and the writer cite one page
 rather than two.
 
-**Can it reorder Claims?** Yes — `claims[]` order is what the render lays out, and the answer-bearing Claim
+**Can it reorder Claims?** Yes. `claims[]` order is what the render lays out, and the answer-bearing Claim
 goes first. The Evidence subsections follow that order.
 
 **Can it soften a caveat an Operator finds discouraging?** No. Dropping or softening a `material_caveat`, an
@@ -214,7 +214,7 @@ Reader reviewer, naming the `will_misread` item and the sentence that invites it
 - Every Evidence heading is a sentence a Reader could repeat, identical to its Claim's `sentence`, and every
   subsection carries one idea.
 - Every chart title states what the chart shows with its values bound, and every table title states its Claim
-  in words with no token in it — a table caption renders verbatim — rather than naming a measure, asking a
+  in words with no token in it (a table caption renders verbatim) rather than naming a measure, asking a
   question or pointing back at another figure.
 - No word on the Reader profile's `vocabulary.avoid` list survives outside a token, and every `will_misread`
   item is either answered by a sentence or recorded as a note.

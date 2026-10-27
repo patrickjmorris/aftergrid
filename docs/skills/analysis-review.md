@@ -14,7 +14,7 @@ Use it when a memo, notebook, or chart is about to inform a decision. Use [analy
 
 ## Four lenses, then refute yourself
 
-**Method** traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. **Question** compares the original ask with the answer actually given. **Reader** asks what a non-SQL audience could reasonably repeat wrongly. **Materiality** asks whether the headline is big enough to change the decision, measured against normal variation and the goal, and whether a true but minor finding is leading while the one that matters sits in a parenthetical.
+**Method** traces numbers to source and formula: denominators, pooled versus averaged rates, joins, partial periods, causal verbs without identification. **Question** compares the original ask with the answer actually given. **Reader** asks what a non-SQL audience could reasonably repeat wrongly, against the same narrative criteria write-finding writes to. **Materiality** asks whether the headline is big enough to change the decision, measured against normal variation and the goal, and whether a true but minor finding is leading while the one that matters sits in a parenthetical.
 
 For every suspected error, look for the explanation that would make the author’s choice correct. Do not pad the review with generic best practices. Independent reviewers help when the work justifies them; serial self-review must be disclosed as such. Never invent reviewer identities.
 
@@ -100,9 +100,9 @@ not been reviewed as the Finding now stands, and it is the only one to redo. The
 however many superseded entries sit behind its current ones. (Citi Bike run 2 conflated the two and spent a
 run on reviews that could not be recorded — `examples/nyc-open-data/docs/run-log.md`.)
 
-**Where do the Reader criteria come from?** `skills/write-finding/references/narrative-criteria.md` when that
-skill is installed, so the writer and the reviewer judge against the same list. When it is not, the skill's own
-`references/reader-criteria.md` is used instead.
+**Where do the Reader criteria come from?** The skill's own `references/narrative-criteria.md`, an identical
+copy of the page write-finding writes against, so the writer and the reviewer judge against the same list
+whether or not write-finding is installed.
 
 ## It's working if
 

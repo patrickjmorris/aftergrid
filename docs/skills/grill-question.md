@@ -62,8 +62,8 @@ get worse if this metric were pushed hard.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`): it creates
 a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
-mid-run is `/analyze`'s clarify stage, which reads the same reference file this skill reads — so no user-invoked skill
-ever calls another one.
+mid-run is `/analyze`'s clarify stage, which reads an identical copy of this skill's clarification reference, so no user-invoked
+skill ever calls another one.
 
 ## When to reach for it
 

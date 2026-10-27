@@ -28,6 +28,8 @@ npx skills add patrickjmorris/aftergrid
 npx skills add patrickjmorris/aftergrid --skill diagnose-change
 ```
 
+Renamed skills: `--skill checked-analysis` is now `--skill analyze`, and `--skill shape-narrative` is now `--skill write-finding`. The old names no longer install; remove a previously installed copy of either and add its replacement. Old docs URLs redirect on the site.
+
 Target one harness with `-a <agent>`. Claude Code can load the repo as a plugin via `.claude-plugin/plugin.json`. Each skill carries `agents/openai.yaml` for Codex discovery. The repository is public; the npm CLI is unpublished.
 
 Installer check, 2026-09-17: the then-fourteen skills copied into isolated Codex, Cursor (`grill-question`), and Claude Code (`diagnose-change`) destinations. `ask-aftergrid` and `make-the-call` were added afterward and are in the plugin index; that check did not cover them. Copied files are not runtime parity. The NYC Claude Code runs are the only exercised Engine workflow.
