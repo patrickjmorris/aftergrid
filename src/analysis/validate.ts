@@ -444,7 +444,7 @@ export function analysisWarnings(dir: string): Problem[] {
 
 /**
  * Clarify, then capture. A Snapshot input retained before the Question was settled was chosen before anyone
- * knew what was being asked — the skill says so in words (`skills/checked-analysis/SKILL.md`, step 3), and a
+ * knew what was being asked — the skill says so in words (`skills/analyze/references/checked-analysis.md`, step 3), and a
  * real run captured four tables before clarifying, one of them 93,739 rows that no Claim ever read
  * (`examples/nyc-open-data/docs/run-log.md`). This is what makes that checkable.
  *

@@ -38,7 +38,7 @@ would otherwise be written into the declared query file as the query the harness
 over it — a mistyped path is how a Finding ends up with its real query replaced by a 39-byte string that `check`
 reports as valid evidence.
 
-`record` acts on an execution or a Check the manifest **already declares** (`/checked-analysis` writes the
+`record` acts on an execution or a Check the manifest **already declares** (the checked-analysis stage of `/analyze` writes the
 declaration: the query, the execution with `input_ids: []` and `mode: recorded`, the result set with its columns,
 row key and types, and the Check files). It pins what a declaration says it is; it never invents one.
 

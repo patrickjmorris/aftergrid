@@ -10,7 +10,7 @@ A chart that scores well against the wrong comparison is still the wrong chart. 
 
 Ask in plain language. The agent reaches for it when a chart is about to be shown. Hidden from the Claude Code slash menu.
 
-Use it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use [write-finding](write-finding.md) if there is no answer yet. Use [revise-finding](revise-finding.md) to change a chart that has already been reviewed. Use [shape-narrative](shape-narrative.md) when the title and caveat in prose are the problem.
+Use it when a figure is hard to read, emphasizes a claim the prose retreats from, or encodes length from a truncated baseline. Use [write-finding](write-finding.md) if there is no answer yet. Use [revise-finding](revise-finding.md) to change a chart that has already been reviewed. Use [write-finding](write-finding.md) when the title and caveat in prose are the problem.
 
 ## Inspect the image, then the claim
 
@@ -33,7 +33,7 @@ Check denominators and units before aesthetics. Rate differences can be mix. Kee
 
 ## Where it fits
 
-Model-invoked Explain-stage craft, usually after [write-finding](write-finding.md) and before [shape-narrative](shape-narrative.md).
+Model-invoked Explain-stage craft, usually after [write-finding](write-finding.md) drafts the answer and before its narrative pass.
 
 ## Engine Finding reference
 

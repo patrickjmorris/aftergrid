@@ -32,7 +32,7 @@ Ordinary skill use must not require the Engine, an Instance, GitHub approval, a 
 | `site/` | Generated static site. Edit sources and rebuild; do not hand-edit production HTML. |
 | `.beads/` | Local development tracker. Its issue data is private and must not be committed or mirrored wholesale. |
 
-Sixteen promoted skills live directly under `skills/` and must appear in `skills/README.md`, `package.json#skills`, `.claude-plugin/plugin.json`, and `site/content/skills.json`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets for symmetry.
+Fourteen promoted skills live directly under `skills/` and must appear in `skills/README.md`, `package.json#skills`, `.claude-plugin/plugin.json`, and `site/content/skills.json`. Experimental or retired skills may use `in-progress/` or `deprecated/`; those buckets are excluded from the plugin index. Do not create empty buckets for symmetry.
 
 ## Skills
 
@@ -41,7 +41,7 @@ Write skills the way Matt's `writing-for-agents` skill requires: ordered actions
 - **Portable first.** The default path uses the user's files and existing tools.
 - **Engine last.** If `references/engine-workflow.md` exists, the docs page keeps Engine detail after `## Engine Finding reference` so the site can collapse it.
 - **Invocation.** `ask-aftergrid`, `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit (`disable-model-invocation: true`). The original craft skills are model-invoked (`user-invocable: false`). New skills allow both. Keep `SKILL.md` and `agents/openai.yaml` in agreement.
-- **No user-invoked skill calls another user-invoked skill.** Shared procedures live in references. A skill installs alone, so a portable reference several skills use ships as a byte-identical copy in each; `src/distribution.test.ts` lists the copies and fails when one drifts. Edit the first-listed copy, then recopy.
+- **No user-invoked skill calls another user-invoked skill.** Shared procedures live in references. A skill installs alone, so a portable reference several skills use ships as a byte-identical copy in each; `src/distribution.test.ts` names each shared file's source skill in `SHARED_REFERENCES`, finds every copy by listing `skills/*/references/`, and fails when one drifts. Edit the source copy, then recopy. Links inside a skill stay inside it; a path into another skill or `docs/` is a code span naming the complete toolkit.
 - **Docs pages** use What it does, When to reach for it, a short leading-idea section, Common questions, It's working if, and Where it fits. They do not dump install commands (the site template supplies those) and they do not reproduce `SKILL.md` step lists.
 - After adding, renaming, or changing a promoted skill, update its docs page, the catalog JSON, the README table, and the plugin/package skill arrays. Run `node src/cli.ts plugin validate --json`.
 

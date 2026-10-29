@@ -1,6 +1,6 @@
 // Seam: the Analysis directory (docs/contracts/analysis-directory.md).
 //
-// Everything a model does in `/grill-question` and `/checked-analysis` is prose, and prose cannot be asserted
+// Everything a model does in `/grill-question` and the checked-analysis stage of `/analyze` is prose, and prose cannot be asserted
 // here. What can be asserted is the contract the two skills write into and the writer reads out of: a Finding
 // directory taken from `new finding` through `capture` and `execute` to evidence that survives a rerun, plus an
 // `analysis.yaml` whose recorded execution order really does put the Checks before the analysis SQL.
@@ -744,7 +744,7 @@ test("execute reports a partial analysis.yaml as a problem instead of throwing a
   const m: any = parseYaml(readFileSync(join(dir, "manifest.yaml"), "utf8"));
   assert.equal(m.checks.find((c: any) => c.id === "unique_users").outcome, "pass");
 
-  // A clarified seed mid-run is reported, never rejected: /checked-analysis executes before it fills the file.
+  // A clarified seed mid-run is reported, never rejected: the checked-analysis stage executes before it fills the file.
   writeFileSync(join(dir, "analysis.yaml"), toYaml({
     schema_version: "0.1.0", stage: "clarified", reader_profile: "product_owner", assumptions: [],
   }, { lineWidth: 0 }));

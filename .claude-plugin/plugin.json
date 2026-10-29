@@ -10,7 +10,6 @@
     "./skills/analysis-review",
     "./skills/analyze",
     "./skills/ask-aftergrid",
-    "./skills/checked-analysis",
     "./skills/define-metric",
     "./skills/diagnose-change",
     "./skills/explore-data",
@@ -21,7 +20,6 @@
     "./skills/plan-analysis",
     "./skills/revise-finding",
     "./skills/setup-aftergrid",
-    "./skills/shape-narrative",
     "./skills/write-finding"
   ]
 }

@@ -12,7 +12,7 @@ Use this before expensive analysis or when an apparently simple ask hides differ
 
 Keep the original wording. Read supplied definitions and prior decisions before questioning the user. Identify what decision the answer informs, or the purpose if it is purely descriptive, and who needs to understand it. For a decision, name the goal it serves in the owner's units (signups this quarter, retained revenue) and the size of effect that would make the owner choose differently. That threshold is what later separates a result that matters from one that is merely true. Translate words such as active, retained, new, revenue, and improved into countable events and an eligible population.
 
-For a rate, name numerator and denominator; for a total, name unit and grain. Separate event time from ingestion time and timezone from reporting date. Establish the comparison window and baseline, including cohort maturity and seasonality where relevant. Challenge causal wording when the design only supplies an association.
+For a rate, name numerator and denominator; for a total, name unit and grain. Separate event time from ingestion time and timezone from reporting date. Establish the comparison window and baseline, including cohort maturity and seasonality where relevant. Challenge causal wording when the design only supplies an association; the claims rules in [rigor](references/rigor.md) say what a design must supply.
 
 ## Ask only what changes the work
 
@@ -20,7 +20,7 @@ Group unresolved consequential choices into one round. Give each a recommended i
 
 Ask through the harness's structured question tool when it has one — `AskUserQuestion` in Claude Code, `request_user_input` in Codex — not as a list at the end of the reply. One question per choice. Put the recommended interpretation first, marked "(Recommended)", and use each option's description for what that choice would change. Keep the constraints and the proposed brief in the reply; the tool carries only the choices. The tool limits how many questions fit in one call, so ask first the choices that other choices depend on (usually the decision), then recompute and ask the rest in the next round. Drop a question whose answer would not change the calculation rather than filling a slot with it. Without such a tool, end with the numbered list.
 
-A falsifier is an observation that could change the proposed conclusion, not a ritual field. For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or state that no such check is available. Do not invent an arbitrary threshold or imply that an unavailable causal design exists.
+A falsifier is an observation that could change the proposed conclusion, not a ritual field. For an explanatory question, name competing explanations and the comparison that would distinguish them. For a descriptive count, reconcile against an independent total or state that no such check is available. Do not invent an arbitrary threshold or imply that an unavailable causal design exists. [Rigor](references/rigor.md) says where a threshold may come from.
 
 If the metric will be optimized, ask what could get worse while it improves. Record a relevant counter-metric and why, or a concrete reason none is needed. Proposed definitions remain proposals; an agent does not approve organizational meaning.
 

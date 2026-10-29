@@ -1,7 +1,7 @@
 interface:
   display_name: "Analyze"
   short_description: "Raw ask to reviewed Finding draft: clarify, analyze under Checks, write, illustrate, shape, review, check"
-  default_prompt: "Use $analyze on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
+  default_prompt: "Use $analyze on the question or artifact I provide; use portable analysis unless I request an Engine Finding. Keep a log of what ran as it happens, dead ends and reframes included; in Engine mode record each probe with its at timestamp and its kind, such as dead_end or reframe."
 policy:
   # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The run writes a Finding directory,
   # reads a warehouse and spends real model time: a human asks for it. It is also the only orchestrator, so a

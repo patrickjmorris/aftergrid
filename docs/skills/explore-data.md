@@ -35,4 +35,4 @@ For a proposed join, compare row counts, distinct keys, and unmatched keys on bo
 
 ## Where it fits
 
-A Frame-stage standalone. It feeds [plan-analysis](plan-analysis.md) and [checked-analysis](checked-analysis.md). It does not replace [grill-question](grill-question.md): a precise question and a trustworthy extract are different jobs.
+A Frame-stage standalone. It feeds [plan-analysis](plan-analysis.md) and [analyze](analyze.md). It does not replace [grill-question](grill-question.md): a precise question and a trustworthy extract are different jobs.

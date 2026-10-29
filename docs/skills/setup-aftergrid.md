@@ -79,4 +79,4 @@ The full contract, including every limit: [`docs/contracts/setup.md`](../contrac
 
 ## Where it fits
 
-Run-once Engine setup, not part of ordinary analysis. The fifteen portable skills work without it. After a working Instance, start with [ask-aftergrid](ask-aftergrid.md), [grill-question](grill-question.md), or [analyze](analyze.md).
+Run-once Engine setup, not part of ordinary analysis. The thirteen portable skills work without it. After a working Instance, start with [ask-aftergrid](ask-aftergrid.md), [grill-question](grill-question.md), or [analyze](analyze.md).

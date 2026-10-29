@@ -1,6 +1,6 @@
 # Recorded run: September referral campaign (insufficient data)
 
-The second synthetic acceptance run for `/grill-question` and `/checked-analysis`, on the golden Question
+The second synthetic acceptance run for `/grill-question` and `/checked-analysis` (now the `checked_analysis` stage of `/analyze`), on the golden Question
 `fixtures/instance/analytics/golden/referral_campaign.yaml`, whose reviewed expectation is an **abstention**.
 
 **How it was produced.** By hand, following the two skills step by step. **No model was in the loop.** It is a

@@ -1,6 +1,6 @@
 // Proposing a Metric definition or a Diagnostic calculation, without touching an approved one.
 //
-// `/grill-question` and `/checked-analysis` both propose definitions. Approval is an Operator's attestation
+// `/grill-question` and `/analyze` (its checked-analysis stage) both propose definitions. Approval is an Operator's attestation
 // against the definition's own content hash (docs/contracts/instance-layout.md), so the one thing this must
 // never do is write a file that reads as approved, or edit a file whose approval someone already signed.
 // The rule is mechanical: write only where nothing is approved. `lifecycle: approved` and an `approval:` block

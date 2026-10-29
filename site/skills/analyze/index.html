@@ -7,28 +7,32 @@
 <p>You start it: <code>/analyze</code>. The agent will not start it on its own.</p>
 <p>Use it when you have an ask and want the whole practice applied, including an honest “inconclusive” or “not enough data.” Use <a href="../grill-question/">grill-question</a> when you only want the interview. Use a single craft skill when you already have a query, a chart, or a draft. Use <a href="../revise-finding/">revise-finding</a> for feedback on a finished artifact.</p>
 <h2 id="follow-the-evidence-then-try-to-break-it">Follow the evidence, then try to break it</h2>
-<p>Read designated prior lessons before planning. Reproduce the headline before explaining it. For a rate, inspect numerator and denominator separately. For an aggregate change, separate mix from within-group change. Label cuts made after seeing results as exploratory. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or the next step needs something you do not have.</p>
+<p>Read designated prior lessons before planning. Name the checks that could invalidate the result before the main query, and say what each should show. Reproduce the headline before explaining it. For a rate, inspect numerator and denominator separately. For an aggregate change, separate mix from within-group change. Label cuts made after seeing results as exploratory. Keep a log as the work happens: what each step tested, what it showed, and what it decided. Stop when the decision-relevant uncertainty is resolved, the useful evidence is exhausted, or the next step needs something you do not have.</p>
 <p>The answer leads with what was observed, for whom and when, with the decision-changing caveat beside it. Four review lenses (method, question, reader, materiality) try to disprove the draft. Serial self-review is still self-review and must be described as such.</p>
 <h2 id="common-questions">Common questions</h2>
 <p><strong>Do I need the aftergrid CLI?</strong> No. Start with a CSV, notebook, pasted results, or an existing connector. The Engine route needs the complete toolkit.</p>
 <p><strong>Why doesn’t it call /grill-question?</strong> User-invoked skills do not call each other. Both read the same clarification procedure.</p>
 <p><strong>Is “inconclusive” a failed run?</strong> No. Insufficient data, inconclusive, and needs-reframing are valid completed answers. A check that <em>errored</em> is a run that did not happen; a check that <em>failed as pre-specified</em> can be the answer.</p>
+<p><strong>Where did checked-analysis go?</strong> It is part of this skill now. The checks named before the main query, the analysis log, and the line between checks that ran and checks only proposed all live here. The rules about rates, joins, and causal language live in <code>references/rigor.md</code>, which several skills share.</p>
+<p><strong>What if I cannot run the queries?</strong> It delivers a runnable plan and marks every result in it unexecuted. It never fills a result with the value it expected.</p>
 <p><strong>Does a clean run mean the finding is approved?</strong> No. Agent review is not human publication approval. Portable output has no Engine verification merely because this skill produced it.</p>
 <h2 id="its-working-if">It&#39;s working if</h2>
 <ul>
 <li>The original ask is still visible next to the sharpened question.</li>
 <li>Material numbers point at a source, saved result, or calculation that actually ran.</li>
-<li>Dead ends that constrain the conclusion are kept.</li>
+<li>Validity checks are named before the main query, with expected behavior taken from the question or policy, not from a convenient observed value.</li>
+<li>Dead ends that constrain the conclusion are kept, in a log written as the work happened.</li>
+<li>Another person can tell whether they can rerun the calculation, only inspect saved results, or neither.</li>
 <li>The closing recommendation matches the claim type the design earned (descriptive, associational, or causal) and names what would change it.</li>
 </ul>
 <h2 id="where-it-fits">Where it fits</h2>
-<p>User-invoked Analyze-stage orchestrator. Neighbors: <a href="../diagnose-change/">diagnose-change</a> for a movement-only job, <a href="../checked-analysis/">checked-analysis</a> for execute-and-record without the full loop, <a href="../analysis-review/">analysis-review</a> for a draft you already have.</p>
+<p>User-invoked Analyze-stage orchestrator. Neighbors: <a href="../diagnose-change/">diagnose-change</a> for a movement-only job, <a href="../plan-analysis/">plan-analysis</a> for a test sequence before execution, <a href="../analysis-review/">analysis-review</a> for a draft you already have.</p>
 <details class="engine-details"><summary>Optional Engine reference</summary><p>Existing Engine checks and approval requirements still apply.</p>
 <h2 id="what-it-does-1">What it does</h2>
 <p><code>/analyze</code> runs one Question from a raw ask to a reviewed Finding draft, and stops with a reason when any gate
 fails. It is the <strong>only</strong> orchestrator in the Engine: it owns the order of the stages and the decision to halt,
 and nothing else runs them.</p>
-<p>The order is fixed: clarify → <code>/checked-analysis</code> → <code>/write-finding</code> → <code>/iterate-visual</code> → <code>/shape-narrative</code> →
+<p>The order is fixed: clarify → the checked-analysis stage → <code>/write-finding</code> → <code>/iterate-visual</code> → the <code>/write-finding</code> narrative pass →
 <code>/analysis-review</code> → <code>aftergrid check</code> → <code>aftergrid review status</code>. Each stage&#39;s craft belongs to the skill
 that owns it; <code>/analyze</code> does not redo that work, which is what keeps a three-pass visual loop from quietly
 becoming a six-pass one.</p>
@@ -55,8 +59,8 @@ resumes from the stage that stopped.</li>
 (<code>/grill-question</code>), or recording a decision (<code>aftergrid decide</code>).</p>
 <h2 id="common-questions-1">Common questions</h2>
 <p><strong>Why does it not call <code>/grill-question</code> to clarify?</strong> Because <code>/grill-question</code> is user-invoked, and no
-user-invoked skill invokes another. Both read the same clarification procedure,
-<code>skills/checked-analysis/references/clarification.md</code>, so the interview is the same one either way.</p>
+user-invoked skill invokes another. Both ship an identical copy of the clarification procedure,
+<code>references/clarification.md</code>, so the interview is the same one either way.</p>
 <p><strong>What is the difference between the three halts?</strong> <code>needs_input</code> means a person owes the run something — a
 clarification, an approved Metric definition for a published decision metric, a provisional-read sign-off.
 <code>needs_attention</code> means the run produced something a person must look at — a blocking review finding, an error
@@ -126,5 +130,123 @@ reported as superseded rather than as a review to redo.</li>
 guarantee.</li>
 <li>It never runs a fourth visual pass, a second narrative shaping, or <code>/analysis-review</code> twice on the same
 content.</li>
+</ul>
+<h2 id="the-checked-analysis-stage">The checked-analysis stage</h2>
+<p>The <code>checked_analysis</code> stage runs one Analysis and leaves behind evidence someone else can trust without rerunning it:
+Checks written before the numbers were seen, results pinned to the SQL that produced them and to the tool that
+ran it, and an <code>analysis.yaml</code> recording what was assumed, what was explored and what is still missing.</p>
+<p>The order is the point. The stage probes the catalog before committing to a plan, writes the applicable Checks
+(invariant, reconciliation, minimum-data, falsifier) <strong>before</strong> the final analysis queries, runs each query and
+Check through the harness&#39;s own data tool, pins what ran with <code>aftergrid record</code>, and records the execution order
+as it happened. A Check written after the number is known is a Check written to agree with it.</p>
+<p>That recorded path is the default (ADR 0010, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>). Where the
+Instance configures an adapter, the stage captures the tables it will read and runs everything against those
+retained inputs with <code>aftergrid execute</code> instead: the same Analysis, with retained inputs, mechanically observed
+Check outcomes, <code>check --mode rerun</code> and Revisit on top.</p>
+<p>It used to be the model-invoked <code>/checked-analysis</code> skill. It is now a stage <code>/analyze</code> runs itself, from
+<code>skills/analyze/references/checked-analysis.md</code>. The shared clarification procedure lives beside it, in
+<code>skills/analyze/references/clarification.md</code>, and <code>/grill-question</code> ships an identical copy, so the two reuse one
+interview without a user-invoked skill calling another.</p>
+<p>Contract for everything the stage writes: <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/analysis-directory.md"><code>docs/contracts/analysis-directory.md</code></a>;
+for the recorded path, <a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/record.md"><code>docs/contracts/record.md</code></a>.</p>
+<h3 id="when-the-stage-runs-again">When the stage runs again</h3>
+<ul>
+<li>A Question is sharpened and the evidence behind it does not exist yet.</li>
+<li>An Analysis must be run again after a query or a Check changed, against the same retained inputs where an
+adapter exists, and otherwise re-run by the harness and recorded again.</li>
+<li><code>/revise-finding</code> classified a request as numeric or query, which reopens this stage.</li>
+<li>A run has to stop: a definition is only proposed, a clarification is unanswered, or a provisional-access
+sign-off was never recorded.</li>
+</ul>
+<p>Reach for <code>/grill-question</code> instead when the ask is not yet a Question and you want to run the interview
+yourself. Reach for <code>/write-finding</code> when the evidence is pinned and the memo is what is missing.</p>
+<h3 id="checked-analysis-stage-common-questions">Checked-analysis stage: common questions</h3>
+<p><strong>Does the stage need an adapter?</strong> No. Without one it runs on the recorded path: your harness&#39;s tool (an MCP
+server, a CLI, <code>psql</code>) runs every query and every Check, and <code>aftergrid record --tool &quot;&lt;name&gt;&quot;</code> pins the SQL,
+the parameters, the result, the evidence and who ran it. An Instance (<code>aftergrid.yaml</code>) is still required; an
+adapter is not, and its absence is not a halt. What you do not get: retained inputs, so <code>snapshot.guarantees</code> is
+exactly <code>[artifact_replay]</code>, <code>aftergrid check --mode rerun</code> is refused with <code>rerun_unavailable</code>, and the Finding
+cannot be revisited until inputs are captured.</p>
+<p><strong>If aftergrid did not run the Checks, what does a passing Check mean?</strong> That the tool said it passed. On the
+recorded path a Check outcome is agent-reported: <code>record</code> refuses a <code>pass</code> with no evidence file, <code>check</code>
+verifies that the file is present and still hashes to what was pinned, and the report carries
+<code>checks_reported_by_agent: true</code> as its own fact. An agent-reported outcome can lower publication readiness and
+never raises it: <code>unknown</code> at most. The guardrail hook inspects shell commands in Claude Code, so a query run
+through an MCP server or an in-process client never passed a shell and the guard never saw it; that
+non-coverage is stated on the Finding rather than left to be inferred.</p>
+<p><strong>Can it read my warehouse during the analysis?</strong> On the recorded path your tool reads it every time a query
+runs, and nothing is copied into the Finding but the SQL, the parameters and the result. On the adapter path it
+reads the source in two places, and both are reads: the catalog probe, and the capture that copies the declared
+tables into the Finding. After that, <code>aftergrid execute</code> opens the retained extracts, verifies every hash, and
+reports <code>missing_file</code> or <code>hash_mismatch</code> rather than fall back to the source. There is no flag that changes
+this.</p>
+<p><strong>Does the capture only take the rows my window needs?</strong> On the adapter path, no. It copies whole tables, and
+the recorded <code>source.method</code> says so. The window is applied in the analysis SQL, which converts to the
+analytical timezone explicitly, so nothing depends on how wide the extract is. A <code>--description</code> claiming the
+extract was bounded or filtered is refused, because provenance inside the content digest may not describe a read
+that did not happen.</p>
+<p><strong>What if a table is too big to copy whole?</strong> Because the read <em>is</em> the whole table, a table the planner puts
+over the Instance&#39;s admission limit is refused with <code>admission</code> before anything is read or written, and there is
+no narrower flag to reach for: build the bounded table for this Question yourself (into the Instance&#39;s DuckDB
+file, or as a table in the schema a Postgres Instance reads) with a provenance table beside it, and capture
+that, the analytical window still living in the SQL
+(<a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/contracts/adapters.md"><code>docs/contracts/adapters.md</code></a>, &quot;Large sources: the windowed Instance pattern&quot;).
+<code>aftergrid capture &lt;finding-dir&gt; --catalog</code> reports each table&#39;s scan rows, its bytes where the source states
+them, and its admissibility before anything is copied.</p>
+<p><strong>What happens when a Check fails?</strong> It depends on which Check, and the distinction is deliberate. A failing
+<code>minimum_data</code> Check is a business result: the Finding&#39;s outcome becomes <code>insufficient_data</code> and the memo says
+what is missing. A failing <code>required</code> invariant or reconciliation Check means the Analysis does not establish
+what it asserts, and it is reported as an error. A Check that <em>errors</em> is never a business result.</p>
+<p>A failing <strong>falsifier</strong> is a third thing, and the most important one. A falsifier is never <code>required: true</code>:
+<code>required</code> asks whether the numbers stand, a falsifier asks whether the <em>Answer</em> does. So a falsifier that
+records the outcome it did not expect makes the Finding <code>inconclusive</code> (or <code>needs_reframing</code>) and the run
+carries straight on to <code>/write-finding</code>. <code>check</code> reports it as a <code>falsifier_failed</code> warning, not an error, and
+<code>render</code> writes the page with the falsifier on it. The one thing the stage will not do is loosen the threshold,
+drop <code>required</code>, flip <code>expected_outcome</code> or rewrite the SQL after seeing the result; <code>checks_preregistered</code>
+records each Check&#39;s hash when it was written so a reviewer can check that mechanically.</p>
+<p><strong>What if no approved definition fits?</strong> It proposes one (<code>lifecycle: proposed</code>, no approval block), and that
+definition may back a supporting or diagnostic Claim with its status shown. It can never be the published
+decision metric. If the Question&#39;s decision metric is the one that is only proposed, the run stops with a
+<code>needs_input</code> item of kind <code>definition_approval</code> naming you.</p>
+<p><strong>Where does the middle of the analysis go: the dead ends, the days that went nowhere?</strong> Into
+<code>analysis.yaml#/probes</code>, in place, as it happens. Each entry carries <code>at</code> (the harness&#39;s clock at the time,
+never a time reconstructed afterward) and a <code>kind</code>: <code>exploratory</code> for a look that informed the plan,
+<code>dead_end</code> for a path tried or considered and abandoned, <code>reframe</code> for a look that changed the Question, which
+must then say what changed. Dead ends are kept, not deleted, and the list is read in <code>at</code> order as the timeline
+of the run. <code>check</code> warns when it is out of order rather than refusing it, because the honest repair is the
+times and not the sort. The writer may cite a dead end in a Finding&#39;s Limitations; it may never turn one into a
+number.</p>
+<p><strong>How are exploratory cuts kept from becoming the headline?</strong> The primary comparison is registered in
+<code>analysis.yaml</code> before any cut is explored, with <code>registered_before_cuts</code> telling the truth about when. A cut
+decided afterward is marked <code>exploratory: true</code> in <code>execution_order</code>, and its Claim carries
+<code>comparison.pre_registered: false</code> all the way into the Finding.</p>
+<p><strong>Will it rewrite an approved Finding?</strong> No. <code>aftergrid execute</code> and <code>aftergrid record</code> both refuse a revision
+carrying attestations when the run would change the content digest they bind to: nothing is written, and the
+report says to bump the revision. Attestations and reviews are never written, refreshed or dropped.</p>
+<p><strong>What does the writer get?</strong> <code>analysis.yaml</code>, <code>manifest.yaml</code> and <code>results/</code>. The writer sharpens sentences and
+writes the memo; it does not change a query, a result, a definition, or a Claim&#39;s type, comparison, population or
+window.</p>
+<h3 id="checked-analysis-stage-its-working-if">Checked-analysis stage: it&#39;s working if</h3>
+<ul>
+<li><code>analysis.yaml#/execution_order</code> lists every Check before the first analysis query, and the Check files&#39; git
+history agrees with that order.</li>
+<li>Every exploratory cut is labeled in <code>execution_order</code> and in the Claim resting on it.</li>
+<li>Each probe records what it asked <em>and</em> what it observed, and at least one of them changed the plan.</li>
+<li>Every probe carries <code>at</code> and <code>kind</code>, the entries are in <code>at</code> order, and the dead ends are still there. The
+middle of the analysis is legible from the list alone: where it went, what it abandoned, what it reframed.</li>
+<li>On the recorded path: every declared execution and Check has been recorded with the tool that ran it,
+<code>aftergrid check</code> reports evidence <code>valid</code> with no <code>recorded_path</code> warning left, and the handover says the
+Check outcomes were reported rather than executed.</li>
+<li>On the adapter path: <code>aftergrid execute</code> reports <code>sql performed</code> with no errors, and <code>aftergrid check --mode rerun</code> reports evidence <code>valid</code> with no <code>rerun_mismatch</code>.</li>
+<li><code>snapshot.guarantees</code> was set by a run that actually happened, not by capturing the inputs, and it is empty
+when the run saved no result, because there is then nothing to replay. A recorded Finding carries
+<code>artifact_replay</code> and never claims <code>analysis_rerun</code>.</li>
+<li>Every Check names the execution it runs against, so on the adapter path <code>check --mode rerun</code> resolves it to the
+same retained inputs <code>execute</code> used; a Check that resolves to no execution is refused instead of quietly
+passing.</li>
+<li>Every evidence reference names a cell that exists, and a causal Claim records <code>causal_basis</code>.</li>
+<li>Every assumption the Question did not settle has an entry with an honest <code>basis</code>, including <code>unverified</code>.</li>
+<li>A halted run names each <code>needs_input</code> item with an owner, and neither the state nor the outcome is rounded up.</li>
+<li>A non-answer carries <code>what_would_be_needed</code>, so <code>insufficient_data</code> is usable rather than a shrug.</li>
 </ul>
 </details><div class="article-footer"><a href="../"><span class="label">Keep exploring</span>← Back to the skill library</a><a href="../../start/"><span class="label">Try it</span>Install your first skill ↗</a></div></article><aside class="aside"><div><span class="label">Try this prompt</span><pre>/analyze Did the change in our acquisition mix explain the drop in trial conversion? Use the attached data, keep competing explanations visible, and review the answer.</pre><button class="tiny-copy" data-copy="/analyze Did the change in our acquisition mix explain the drop in trial conversion? Use the attached data, keep competing explanations visible, and review the answer.">Copy prompt ↗</button><p>Use <code>$skill-name</code> in Codex, or your host’s invocation syntax. You can request model-invoked skills in plain language.</p><h2>What you leave with</h2><p>A reviewed analysis, its evidence, and the questions that remain.</p></div><div class="aside-section"><span class="label">Install this skill</span><pre>npx skills add patrickjmorris/aftergrid --skill analyze</pre><button class="tiny-copy" data-copy="npx skills add patrickjmorris/aftergrid --skill analyze">Copy install command ↗</button><p>Installing copies Markdown. The skill uses the tools and permissions your agent already has.</p><a class="aside-link" href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/analyze/SKILL.md">Read the source</a><a class="aside-link" href="../../start/">Installation guide</a><a class="aside-link" href="../../guides/skill-workflows/">Put skills together</a><a class="aside-link" href="../../about/">Work with Patrick</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href="../.." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · Built by <a href="https://github.com/patrickjmorris">Patrick Morris</a></p></div><div class="footer-links"><a href="../../about/">Work with me</a><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="../../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

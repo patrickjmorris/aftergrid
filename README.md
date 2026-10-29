@@ -6,7 +6,7 @@ Your agent can already get the number. Text-to-SQL, semantic layers, and BI copi
 
 Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net loss of 260 leaves the period 280 short of an assumed 900-signup plan. Don't roll back signup yet. First check whether a tracking change relabeled direct visits as paid, then find where the 6,000 direct sessions went.
 
-Sixteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Fifteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up.
+Fourteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up.
 
 [Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/) · [Work with me](#work-with-me)
 
@@ -57,13 +57,11 @@ The installer asks which skills and agents to use. It copies Markdown; it does n
 | Resolve what a metric means | [define-metric](skills/define-metric/SKILL.md) | A proposed definition with denominator, exclusions, and checks |
 | Choose the investigation first | [plan-analysis](skills/plan-analysis/SKILL.md) | Competing explanations, discriminating tests, and stopping conditions |
 | Explain a movement | [diagnose-change](skills/diagnose-change/SKILL.md) | A reconciled decomposition and the uncertainty that remains |
-| Do the work under checks | [checked-analysis](skills/checked-analysis/SKILL.md) | Executed calculations, evidence, and an honest analysis log |
-| Run the full workflow | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, review, and a clear next step |
+| Do the work under checks, start to finish | [analyze](skills/analyze/SKILL.md) | An evidence-linked answer, a log of what ran, a review, and a clear next step |
 | Decide what a result means | [make-the-call](skills/make-the-call/SKILL.md) | One recommendation in goal units, what matters and what does not, and the trigger that would change it |
 | Challenge a result | [analysis-review](skills/analysis-review/SKILL.md) | Substantiated objections across method, question, reader, and materiality |
-| Write the answer | [write-finding](skills/write-finding/SKILL.md) | A decision-oriented memo whose claims point to their evidence |
+| Write the answer, or fix a buried one | [write-finding](skills/write-finding/SKILL.md) | An answer-first memo in the reader's words whose claims point to their evidence |
 | Make the chart explain the claim | [iterate-visual](skills/iterate-visual/SKILL.md) | An inspected visual with sound comparisons and readable labels |
-| Give the narrative a structure | [shape-narrative](skills/shape-narrative/SKILL.md) | An answer-first explanation with limitations where they matter |
 | Revise without losing what changed | [revise-finding](skills/revise-finding/SKILL.md) | A scoped revision and the checks or reviews it reopens |
 | Make a correction useful next time | [learn-from-analysis](skills/learn-from-analysis/SKILL.md) | A scoped, evidence-backed lesson for subsequent work |
 | Add the optional checked-artifact path | [setup-aftergrid](skills/setup-aftergrid/SKILL.md) | An Engine Instance with explicit capability and approval status |

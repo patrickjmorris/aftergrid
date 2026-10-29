@@ -755,7 +755,7 @@
         },
         "allOf": [
           {
-            "description": "An adapter-run execution names the adapter, the Engine version that ran it and at least one retained input. A recorded one names none of them: aftergrid did not run it, will not say which engine did, and read no retained extract. The recorded branch is entered by `mode: recorded` as well as by `executed_by.kind: harness`, so the state /checked-analysis writes before the harness has run anything (mode: recorded, input_ids: [], no executed_by) is valid and `check` can report that the recording has not happened yet.",
+            "description": "An adapter-run execution names the adapter, the Engine version that ran it and at least one retained input. A recorded one names none of them: aftergrid did not run it, will not say which engine did, and read no retained extract. The recorded branch is entered by `mode: recorded` as well as by `executed_by.kind: harness`, so the state the checked-analysis stage of /analyze writes before the harness has run anything (mode: recorded, input_ids: [], no executed_by) is valid and `check` can report that the recording has not happened yet.",
             "if": {
               "type": "object",
               "anyOf": [

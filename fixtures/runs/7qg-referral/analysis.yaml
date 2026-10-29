@@ -31,7 +31,7 @@ pre_registered_comparison:
 
 # The `at` on each probe is part of the same hand-recorded fiction as the numbers: it is consistent with
 # the run's other timestamps, and no clock produced it. A real run reads `at` from the harness's clock as
-# the look is taken, which is what the schema and /checked-analysis step 2 require.
+# the look is taken, which is what the schema and checked-analysis.md step 2 require.
 probes:
   - id: p_referral_signal
     at: "2026-09-15T09:45:00Z"

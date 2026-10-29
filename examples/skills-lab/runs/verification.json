@@ -9,7 +9,7 @@
     "plan-analysis",
     "checked-analysis"
   ],
-  "used_skill_entrypoints_match_current_source": true,
+  "used_skill_entrypoints_matched_source_as_of_verified_at": true,
   "reruns": [
     {
       "case": "conversion",

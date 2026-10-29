@@ -62,8 +62,8 @@ get worse if this metric were pushed hard.
 
 It is **user-invoked** (`disable-model-invocation: true`, `policy.allow_implicit_invocation: false`): it creates
 a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
-mid-task is `/checked-analysis`, which reads the same reference file this skill reads — so no user-invoked skill
-ever calls another one.
+mid-run is `/analyze`'s clarify stage, which reads an identical copy of this skill's clarification reference, so no user-invoked
+skill ever calls another one.
 
 ## When to reach for it
 
@@ -114,7 +114,7 @@ the catalog, and bounded probes on data the Instance's connection already allows
 
 **Will `aftergrid check` say my evidence is invalid before any analysis has run?** No. The file this skill
 leaves is marked `stage: clarified`, which is a complete artifact for where it is: `check` reports evidence
-`valid` and content `incomplete`, and the sections `/checked-analysis` fills are required only once the run has
+`valid` and content `incomplete`, and the sections `/analyze`'s checked-analysis stage fills are required only once the run has
 happened. "Invalid evidence" means something is wrong with evidence, never that there is none yet.
 
 **It says my Question is `unresolved`. Is that a failure?** No. An unresolved Question with its missing parts

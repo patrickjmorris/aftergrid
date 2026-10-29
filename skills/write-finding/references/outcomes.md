@@ -74,7 +74,7 @@ The memo must carry all of this:
   do support are still made, still traced, still charted. `check` reports one `falsifier_failed` warning and no
   error, and `render` writes the page with the falsifier on it as its own fact.
 
-The falsifier Check is `required: false`, as `/checked-analysis` writes it. A second falsifier written after the
+The falsifier Check is `required: false`, as the checked-analysis stage of `/analyze` writes it. A second falsifier written after the
 first one fired is not a falsifier; a threshold moved to clear the result is the thing this outcome exists to
 prevent.
 

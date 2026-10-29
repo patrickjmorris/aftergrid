@@ -38,8 +38,8 @@ block, and a definition that could be the decision metric carries the answer to 
 get worse if this metric were pushed hard.</p>
 <p>It is <strong>user-invoked</strong> (<code>disable-model-invocation: true</code>, <code>policy.allow_implicit_invocation: false</code>): it creates
 a Finding directory, writes definition files, and spends your attention in rounds. The same procedure reached
-mid-task is <code>/checked-analysis</code>, which reads the same reference file this skill reads — so no user-invoked skill
-ever calls another one.</p>
+mid-run is <code>/analyze</code>&#39;s clarify stage, which reads an identical copy of this skill&#39;s clarification reference, so no user-invoked
+skill ever calls another one.</p>
 <h2 id="when-to-reach-for-it-1">When to reach for it</h2>
 <ul>
 <li>You have an ask in plain words and no metric, window, population or falsifier behind it yet.</li>
@@ -80,7 +80,7 @@ analysis stops there for that metric.</p>
 the catalog, and bounded probes on data the Instance&#39;s connection already allows. It never writes.</p>
 <p><strong>Will <code>aftergrid check</code> say my evidence is invalid before any analysis has run?</strong> No. The file this skill
 leaves is marked <code>stage: clarified</code>, which is a complete artifact for where it is: <code>check</code> reports evidence
-<code>valid</code> and content <code>incomplete</code>, and the sections <code>/checked-analysis</code> fills are required only once the run has
+<code>valid</code> and content <code>incomplete</code>, and the sections <code>/analyze</code>&#39;s checked-analysis stage fills are required only once the run has
 happened. &quot;Invalid evidence&quot; means something is wrong with evidence, never that there is none yet.</p>
 <p><strong>It says my Question is <code>unresolved</code>. Is that a failure?</strong> No. An unresolved Question with its missing parts
 named is a better artifact than a resolved-looking one with an invented falsifier, and <code>insufficient_data</code> and

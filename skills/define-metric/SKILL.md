@@ -17,7 +17,7 @@ Name the decision or descriptive purpose, intended reader, unit, and unit of ana
 
 Specify numerator membership and denominator eligibility independently. For a proportion, explain why every numerator member belongs in the eligible denominator. For an incidence rate or ratio such as events per person-time or revenue per account, state both units and their relationship; numerator and denominator need not count the same kind of thing. Define distinct entities versus event counts, repeat actions, identity merges, cancellations, refunds, trials, reactivations, internal/test traffic, and missing values where they affect this metric.
 
-Specify event time versus processing time, timezone, closed/open interval boundaries, cohort assignment, maturation period, and treatment of late arrivals or restatements. State whether comparisons hold population fixed or use each period's eligible population. For a ratio of totals, do not substitute a mean of row-level ratios.
+Specify event time versus processing time, timezone, closed/open interval boundaries, cohort assignment, maturation period, and treatment of late arrivals or restatements. State whether comparisons hold population fixed or use each period's eligible population. The formula must obey the rate and time rules in [rigor](references/rigor.md).
 
 Name source tables/fields and join conditions only when verified. Separate a logical definition from its implementation; unavailable columns make the implementation unresolved, not permission to silently change the concept.
 
@@ -25,7 +25,7 @@ Name source tables/fields and join conditions only when verified. Separate a log
 
 Give a few concrete include/exclude examples targeting the definition's real ambiguity: an event at midnight, one user on two devices, a refund in a later period, or an immature cohort. Show how rival interpretations change a small supplied or explicitly synthetic example. Label invented examples as illustrative, never measured production effects.
 
-Propose validity checks: uniqueness at the chosen grain, reconciliation to a source total, numerator containment, and coverage. Explain a zero denominator separately from zero performance. If the metric will become a target, name a counter-metric and mechanism by which the headline could improve while the outcome worsens; a justified “none” is better than a decorative metric.
+Propose validity checks: uniqueness at the chosen grain, reconciliation to a source total, numerator containment, and coverage. Say how the definition reports a zero denominator; [rigor](references/rigor.md) explains why it is not zero performance. If the metric will become a target, name a counter-metric and mechanism by which the headline could improve while the outcome worsens; a justified “none” is better than a decorative metric.
 
 ## Deliver a proposed definition
 

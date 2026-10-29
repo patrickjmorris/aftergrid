@@ -11,19 +11,19 @@ Investigate a reported jump, drop, anomaly, or discrepancy using the user's data
 
 ## Reproduce before explaining
 
-Restate metric, units, source, eligible population, time window/timezone, and baseline. Recalculate the reported movement from the smallest sufficient source and reconcile it to the reported number. Check late arrivals, incomplete periods, instrumentation/schema changes, duplicated records, joins, and definition changes before treating the movement as behavior.
+Restate metric, units, source, eligible population, time window/timezone, and baseline. Recalculate the reported movement from the smallest sufficient source and reconcile it to the reported number. Before treating the movement as behavior, run the time, coverage, and join checks in [rigor](references/rigor.md).
 
-For a rate, show numerator, denominator, absolute percentage-point change, and relative change with a defined baseline. If reproduction fails, investigate the discrepancy first and label any explanation of the original headline provisional. Do not turn an unavailable source into an assumed root cause.
+For a rate, show numerator, denominator, absolute percentage-point change, and relative change with a defined baseline, as the rate and change rules in [rigor](references/rigor.md) require. If reproduction fails, investigate the discrepancy first and label any explanation of the original headline provisional. Do not turn an unavailable source into an assumed root cause.
 
 ## Separate arithmetic contributions
 
-Test whether movement comes from changes within comparable groups or a change in their weights. A pooled rate is `sum(numerator) / sum(denominator)`, not the unweighted mean of segment rates. Recompute each period with a common set of segment weights when useful, stating which weights you chose and why. A rate can decline overall while every segment improves.
+Test whether movement comes from changes within comparable groups or a change in their weights. Compute every pooled rate as [rigor](references/rigor.md) defines it. Recompute each period with a common set of segment weights when useful, stating which weights you chose and why.
 
 For contributions, use an exact decomposition and identify interactions rather than assigning the same movement to several factors. With segment rates `r` and denominator shares `w`, one transparent path is:
 
 `total change = sum(w_before × (r_after − r_before)) + sum((w_after − w_before) × r_after)`.
 
-The terms sum to the observed change when the groups form the same exhaustive partition. State that this ordering assigns the interaction to the mix term; another ordering reallocates it. A segment absent in a period has no observed rate for that period: do not fill it with zero to force the formula. Report entry/exit separately or use a justified common-support comparison. Decomposition describes where arithmetic movement comes from; it does not establish why people behaved differently.
+The terms sum to the observed change when the groups form the same exhaustive partition. State that this ordering assigns the interaction to the mix term; another ordering reallocates it. A segment absent in a period has no observed rate for that period: do not fill it with zero to force the formula. Report entry/exit separately or use a justified common-support comparison. The decomposition is arithmetic, not a cause.
 
 For funnels inspect entrants, eligibility, stage conversion and elapsed time. For totals inspect volume, value per unit, mix and coverage. Choose only dimensions with a meaningful connection to the question.
 
@@ -41,7 +41,7 @@ A segment departs from the headline only if it departs under the headline's own 
 
 Keep a small hypothesis ledger: explanation, observed support, evidence against it, prediction, next discriminating test, status. Rank by current support and testability, not narrative appeal. Before each cut, say what each plausible result would change. Prefer a comparison that can rule something out over another chart consistent with everything.
 
-After each test, record the actual observation and update the ledger. Preserve failed explanations, but do not fabricate dead ends or force a minimum number of hypotheses. New cuts after seeing a result are exploratory. Re-anchor if the work starts answering a different question.
+After each test, record the actual observation and update the ledger. Preserve failed explanations, but do not fabricate dead ends or force a minimum number of hypotheses. Label cuts as [rigor](references/rigor.md) requires for planned and exploratory work. Re-anchor if the work starts answering a different question.
 
 Stop when the supported explanation is sufficient for the decision, the remaining explanations predict the same available observations, or the next test needs unavailable data/authorization. Do not keep slicing until a convenient story appears.
 

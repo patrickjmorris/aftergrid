@@ -316,7 +316,7 @@ export async function execute(opts: ExecuteOptions): Promise<Report> {
     }];
   }
   report.errors.push(...analysisProblems);
-  // Completeness is required of the finished working record, not of the seed mid-run: /checked-analysis runs
+  // Completeness is required of the finished working record, not of the seed mid-run: the checked-analysis stage runs
   // this command before it fills analysis.yaml in, so a `stage: clarified` file is reported, never rejected.
   try {
     if (analysisStage(readAnalysis(dir)) === "clarified") {

@@ -434,7 +434,7 @@ test("the contracts state the rule, the severity axis and where \"none\" is reco
 test("the skills ask the question, record a \"none\", and hand the reporting to the writer and the reviewer", () => {
   const says = (name: string, text: string, pattern: RegExp, what: string) =>
     assert.ok(pattern.test(text), `${name} must ${what} (no match for ${pattern})`);
-  const clarification = readFileSync(join(REPO, "skills/checked-analysis/references/clarification.md"), "utf8");
+  const clarification = readFileSync(join(REPO, "skills/analyze/references/clarification.md"), "utf8");
   const grill = readFileSync(join(REPO, "skills/grill-question/references/engine-workflow.md"), "utf8");
   const grillDoc = readFileSync(join(REPO, "docs/skills/grill-question.md"), "utf8");
   const writer = readFileSync(join(REPO, "skills/write-finding/references/engine-workflow.md"), "utf8");

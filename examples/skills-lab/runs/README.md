@@ -9,7 +9,10 @@ The original artifacts are retained unchanged in [outputs/](../outputs/README.md
 [command log](../outputs/command-log.md). Source hashes are in [input-hashes.json](input-hashes.json).
 The coordinator reran all four Python calculation scripts after copying the artifacts into the repository;
 each result matched the saved JSON exactly. [verification.json](verification.json) records that check.
-The five skill entrypoints actually used matched the source at the time of verification.
+The five skill entrypoints actually used matched the source at the time of verification. Since then
+`checked-analysis` was folded into `analyze` and `reader-criteria.md` into `narrative-criteria.md`, so some
+paths in `input-hashes.json` no longer exist. The case files are kept byte-exact, so `cases/learning.md` still
+names `checked-analysis`; to rerun that case today, use `analyze` in its place.
 
 | Task | Observed behavior | Evidence |
 | --- | --- | --- |

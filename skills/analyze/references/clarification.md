@@ -1,7 +1,8 @@
 # Clarification: turning a raw ask into a Question
 
-The procedure `/grill-question` runs on its own and `/checked-analysis` runs inside a larger job. One copy, so
-the Operator gets the same interview either way — and so no user-invoked skill has to call another one.
+The procedure `/grill-question` runs on its own and `/analyze` runs as its first stage. Each skill ships an
+identical copy, so the Operator gets the same interview either way, and no user-invoked skill has to call
+another one.
 
 A **Question** is a raw ask plus six settled parts: decision, Reader, metric, population, window, primary
 comparison — and a falsifier, or an explicit record that one cannot be written yet. A raw ask is never rejected
@@ -166,8 +167,8 @@ later. It is what makes "clarify before capture" checkable: `check` reports `cap
 Snapshot input whose `captured_at` is earlier than it. Where the Question stays `unresolved`, there is no
 moment to record and the field is left out.
 
-`stage: clarified` is what makes that file complete for where it is. The four sections `/checked-analysis`
-fills — `probes`, `execution_order`, `candidate_claims`, `outcome_recommendation` — are required only at
+`stage: clarified` is what makes that file complete for where it is. The four sections the checked-analysis stage
+(`skills/analyze/references/checked-analysis.md`, complete toolkit) fills (`probes`, `execution_order`, `candidate_claims`, `outcome_recommendation`) are required only at
 `stage: analysed`, and a file that omits the stage is read as `analysed` and reported as missing them.
 
 **Never write a falsifier you cannot run.** A threshold picked after seeing the numbers is a bar set to fit its

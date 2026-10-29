@@ -26,7 +26,7 @@ The route most work travels when someone has an ask and wants an answer they can
    - A reported jump, drop, or “the dashboard moved” → **`diagnose-change`**. Reproduce, decompose mix from within-group change, rank rival explanations.
    - Several competing explanations that need an ordered test sequence → **`plan-analysis`**, which also retrieves prior lessons.
    - Carry the question through inspection, checks, writing, and review in one run → **`analyze`**.
-4. **Explain** with **`write-finding`** (answer first, evidence attached). Use **`iterate-visual`** when a chart has to earn the claim, **`shape-narrative`** when the order and wording hide the answer.
+4. **Explain** with **`write-finding`** (answer first, evidence attached). Use **`iterate-visual`** when a chart has to earn the claim. **`write-finding`** also reshapes a draft whose order and wording hide the answer.
 5. **Decide** with **`make-the-call`** when someone has to act on the result: tie it to the goal, judge whether it matters, weigh the options, and name what would change the call.
 6. **Challenge** with **`analysis-review`** before someone acts. A review may conclude “inconclusive.”
 7. **Keep the lesson** with **`learn-from-analysis`** when a verified surprise should change the next plan or check. Retrieval happens in `plan-analysis` and `analyze`; capture without retrieval is a diary.
@@ -50,7 +50,7 @@ Match the starting situation. Then merge onto the main flow at the step above; d
 | Feedback on an existing answer | `/revise-finding` | Scope what reopens vs what is wording. |
 | Caught a durable mistake | `learn-from-analysis` | Scoped, proposed, retrievable. |
 | Chart exists but does not show the comparison | `iterate-visual` | Inspect the rendered form. |
-| Answer is buried in sections | `shape-narrative` | Answer first; caveat beside it. |
+| Answer is buried in sections | `write-finding` | Answer first; caveat beside it; meaning unchanged. |
 | Want typed Findings, retained evidence, publication controls | `/setup-aftergrid` | Optional Engine; not required to analyze. |
 
 If two rows fit, pick the earlier failure: question before data, data before diagnosis, diagnosis before prose.
@@ -58,8 +58,8 @@ If two rows fit, pick the earlier failure: question before data, data before dia
 ## Standalone vs orchestrator
 
 - **`analyze`** is the orchestrator. Reach for it when the user wants one run from ask to reviewed answer. It reuses clarification, checking, writing, and review procedures; it does not call this router or other user-invoked skills.
-- **Craft skills** (`checked-analysis`, `write-finding`, `iterate-visual`, `shape-narrative`, `analysis-review`) may be model-invoked. Name them when that is the stuck point. In hosts that hide them from a slash menu, give a plain-language prompt.
-- **`checked-analysis`** is execute-and-record discipline, not the movement playbook. Use `diagnose-change` when the job is “why did this number move?”
+- **Craft skills** (`write-finding`, `iterate-visual`, `analysis-review`) may be model-invoked. Name them when that is the stuck point. In hosts that hide them from a slash menu, give a plain-language prompt.
+- **`analyze`** also carries the execute-and-record discipline: checks named before the main query and a log of what ran. It is not the movement playbook. Use `diagnose-change` when the job is “why did this number move?”
 
 ## Completion
 

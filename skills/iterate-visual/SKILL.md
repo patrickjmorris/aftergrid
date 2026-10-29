@@ -16,7 +16,7 @@ Identify the question, intended reader, claim, source, units, population, and co
 
 Read [the portable rubric](references/portable-rubric.md). Focus on the problems the actual chart exhibits. Check if the chart type supports the task: position/length for comparisons, ordered time for change, distributions for spread, scatter for relationships. A table may be better for a few exact values.
 
-Check denominators and units before aesthetics. Rate differences can reflect changed population weights; category totals cannot silently imply individual behavior. Keep incomplete periods and uncertain comparisons visible. Use zero baselines for length-encoded bars; an appropriately labeled nonzero range on a line or scatterplot can be legitimate. Do not truncate or rescale to exaggerate the story.
+Check denominators and units before aesthetics, using the rate, mix, and time rules in [rigor](references/rigor.md). Category totals cannot silently imply individual behavior. Keep incomplete periods and uncertain comparisons visible. Use zero baselines for length-encoded bars; an appropriately labeled nonzero range on a line or scatterplot can be legitimate. Do not truncate or rescale to exaggerate the story.
 
 Make the title state the defensible claim, with its limitation when material. Label series directly when practical. Use emphasis to direct attention to the comparison that supports the answer, including a null or inconclusive outcome. Color should carry meaning consistently and never be the only way to distinguish a series.
 

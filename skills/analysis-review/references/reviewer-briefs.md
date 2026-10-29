@@ -117,7 +117,6 @@ Then take each entry in the profile's `will_misread` in turn and find the place 
 A memo that invites a listed misreading is blocking; name the sentence. Use the profile's `vocabulary.avoid`
 list the same way: a term from it, unexplained, is blocking when the sentence cannot be understood without it.
 
-Apply the narrative criteria you were given: `skills/shape-narrative/references/narrative-criteria.md` when it
-exists, otherwise `references/reader-criteria.md` beside this file.
+Apply the narrative criteria you were given: `references/narrative-criteria.md` beside this file.
 
 Not your job: whether the statistics are right, whether the SQL is right. Another reviewer has those.

@@ -1,6 +1,6 @@
 # Engine Finding mode
 
-This reference applies only to an existing aftergrid Finding or an explicitly requested Engine workflow. It requires the complete aftergrid toolkit, including the CLI and contracts; portable use of the skill does not. Resolve repository paths below against that toolkit, not against the user's data directory.
+This reference is the `checked_analysis` stage of [the `/analyze` Engine workflow](engine-workflow.md). It replaces the retired `/checked-analysis` skill. It applies only to an existing aftergrid Finding or an explicitly requested Engine workflow. It requires the complete aftergrid toolkit, including the CLI and contracts; portable use of the skill does not. Resolve repository paths below against that toolkit, not against the user's data directory.
 
 # Run a checked Analysis
 
@@ -13,8 +13,8 @@ assumed, what was explored and what is still missing.
 an Instance configures one, never a prerequisite for producing one: it adds retained inputs, mechanically
 observed Check outcomes, `check --mode rerun` and Revisit. Steps 3 and 6 are written in that order.
 
-Contract for everything written here: **[docs/contracts/analysis-directory.md](../../../docs/contracts/analysis-directory.md)**.
-The recorded path: **[docs/contracts/record.md](../../../docs/contracts/record.md)**.
+Contract for everything written here: **`docs/contracts/analysis-directory.md`** (complete toolkit).
+The recorded path: **`docs/contracts/record.md`** (complete toolkit).
 
 **Stop rather than guess.** At any step, a missing definition approval, an unanswered clarification or an
 unrecorded provisional-access sign-off is a `needs_input` entry in `analysis.yaml` and a matching
@@ -128,7 +128,7 @@ Done when: on the recorded path, `snapshot.inputs` is empty and every execution 
 
 ## 4. Write the Checks â€” before the analysis SQL
 
-This is the step the whole skill exists for. A Check written after the number is known is a Check written to
+This is the step the whole stage exists for. A Check written after the number is known is a Check written to
 agree with it.
 
 | Kind | Asserts | Normally |
@@ -322,7 +322,7 @@ Done when `aftergrid check <finding-dir>` reports no `analysis_contract` error â
 
 The writer (`/write-finding`) consumes `analysis.yaml`, `manifest.yaml` and `results/`. It does not change a
 query, a result, a definition, or a Claim's type, comparison, population or window. Anything it would have to
-change belongs here, and a request to change a number reopens this skill at step 5.
+change belongs here, and a request to change a number reopens this stage at step 5.
 
 Say which of the four outcomes was recommended and why, name every `needs_input` item with its owner, and state
 which Claims rest on an exploratory cut or a proposed definition.
