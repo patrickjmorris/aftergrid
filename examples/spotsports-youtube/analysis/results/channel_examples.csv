@@ -1,0 +1,26 @@
+sport,channel_title,pre_videos,post_videos,ratio_of_means,lo,hi
+Soccer,FC Barcelona,31,43,3.8282,2.3049,6.5284
+Soccer,CBS Sports Golazo,171,314,2.6621,1.8544,3.5883
+Soccer,ESPN FC,270,218,2.0637,1.4712,2.8194
+Soccer,Manchester United,26,60,1.0025,0.4254,2.6634
+Soccer,Major League Soccer,82,183,9.1056,4.7733,17.9431
+Basketball,NBA,156,67,1.1362,0.6248,2.0251
+Basketball,FIBA Basketball,368,370,2.3243,1.7132,3.1671
+Basketball,Club 520 Podcast,71,90,1.1202,0.8619,1.4698
+Basketball,First Things First,74,107,3.5365,2.8247,4.4904
+Basketball,Gil's Arena,19,53,3.5792,2.8152,4.5295
+Baseball,MLB,468,793,1.5053,1.2701,1.8304
+Baseball,Jomboy Media,7,10,2.2202,1.3781,3.5345
+Baseball,Los Angeles Dodgers,8,25,1.2473,0.8356,2.0627
+Baseball,ESPN MLB,45,45,1.1908,0.6177,2.2842
+Baseball,Fuzzy,19,26,1.4692,1.2534,1.7163
+Hockey,NHL,43,112,1.8151,1.1501,3.4909
+Hockey,The Hockey Guy,78,95,1.7696,1.4374,2.2023
+Hockey,sdpn,52,85,1.2818,0.9685,1.7535
+Hockey,NBC Sports Philadelphia,45,97,1.7797,1.1849,2.8687
+Hockey,Edmonton Oilers,14,70,2.1851,1.0606,5.8653
+Football,ESPN College Football,52,498,12.7556,9.1903,18.5079
+Football,Nightcap,101,223,1.304,1.0835,1.5426
+Football,NFL on ESPN,73,308,2.6634,1.9556,3.5977
+Football,Speakeasy,81,228,1.4329,1.1922,1.6791
+Football,NFL on NBC,129,552,1.7507,1.3822,2.2623

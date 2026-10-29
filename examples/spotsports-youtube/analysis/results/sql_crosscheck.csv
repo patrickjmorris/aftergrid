@@ -1,0 +1,3 @@
+estimate,sql_channels,py_channels,sql_pre_videos,py_pre_videos,sql_post_videos,py_post_videos,sql_ratio_of_totals,py_ratio_of_totals,sql_ratio_version1_weights
+long-form 28-30d,746,746,13254,13254,23962,23962,1.7435,1.7435,1.7711
+shorts 12-14d,554,554,39485,39485,28742,28742,0.8462,0.8462,0.8144

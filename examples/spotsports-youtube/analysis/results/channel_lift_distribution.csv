@@ -1,0 +1,13 @@
+comparison,channel_ratio,channels,share
+switch: read before 08-24 vs published 08-31 on,under 0.5x,7,0.0146
+switch: read before 08-24 vs published 08-31 on,0.5x to 0.8x,24,0.05
+switch: read before 08-24 vs published 08-31 on,0.8x to 1.25x,79,0.1646
+switch: read before 08-24 vs published 08-31 on,1.25x to 2x,168,0.35
+switch: read before 08-24 vs published 08-31 on,2x to 4x,147,0.3063
+switch: read before 08-24 vs published 08-31 on,4x or more,55,0.1146
+"nothing changed: published before vs after 07-01, all read before 08-24",under 0.5x,24,0.1096
+"nothing changed: published before vs after 07-01, all read before 08-24",0.5x to 0.8x,42,0.1918
+"nothing changed: published before vs after 07-01, all read before 08-24",0.8x to 1.25x,69,0.3151
+"nothing changed: published before vs after 07-01, all read before 08-24",1.25x to 2x,49,0.2237
+"nothing changed: published before vs after 07-01, all read before 08-24",2x to 4x,26,0.1187
+"nothing changed: published before vs after 07-01, all read before 08-24",4x or more,9,0.0411

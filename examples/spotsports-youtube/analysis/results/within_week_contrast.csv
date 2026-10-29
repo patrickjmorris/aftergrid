@@ -1,0 +1,17 @@
+week_start,comparison,regime,ratio_of_totals,rt_lo,rt_hi,typical_video,tv_lo,tv_hi,channels,early_videos,late_videos
+2026-08-24,direct: 08-27..08-30 vs 08-24..08-26,straddles the step,1.4993,1.1906,1.8659,1.6709,1.5223,1.8185,453,2111,3050
+2026-06-15,Thu-Sun vs Mon-Wed,old rule at day 29,0.7355,0.5464,0.9465,0.9035,0.7374,1.0659,113,485,279
+2026-06-22,Thu-Sun vs Mon-Wed,old rule at day 29,1.3973,0.8607,2.453,1.9898,1.286,3.7138,142,833,438
+2026-06-29,Thu-Sun vs Mon-Wed,old rule at day 29,1.146,0.9028,1.4692,1.17,0.9792,1.3763,178,867,719
+2026-07-06,Thu-Sun vs Mon-Wed,old rule at day 29,1.0626,0.7591,1.819,1.024,0.7888,1.3307,34,92,64
+2026-07-13,Thu-Sun vs Mon-Wed,old rule at day 29,1.293,1.0004,1.7052,1.1946,0.9916,1.4298,288,1482,1125
+2026-07-20,Thu-Sun vs Mon-Wed,old rule at day 29,1.4066,1.1384,1.733,1.2253,1.1085,1.3564,337,1264,1516
+2026-07-27,Thu-Sun vs Mon-Wed,transition band,0.8964,0.7353,1.0901,1.0072,0.9275,1.0999,334,1634,1214
+2026-08-03,Thu-Sun vs Mon-Wed,transition band,1.2021,0.9851,1.4551,1.2086,0.9946,1.5289,376,1868,2305
+2026-08-10,Thu-Sun vs Mon-Wed,transition band,1.4777,0.9492,2.2564,1.0969,0.8826,1.3732,107,277,295
+2026-08-17,Thu-Sun vs Mon-Wed,transition band,0.9989,0.7304,1.3058,1.2532,1.1189,1.3977,402,1674,2270
+2026-08-24,Thu-Sun vs Mon-Wed,straddles the step,1.4993,1.1939,1.8688,1.6709,1.5219,1.8276,453,2111,3050
+2026-08-31,Thu-Sun vs Mon-Wed,new rule at day 29,1.1078,0.9157,1.2997,1.0676,0.9098,1.2012,450,2543,3345
+2026-09-07,Thu-Sun vs Mon-Wed,new rule at day 29,1.222,1.0031,1.4292,1.0797,0.9797,1.1878,432,2203,3021
+2026-09-14,Thu-Sun vs Mon-Wed,new rule at day 29,0.9649,0.831,1.1529,0.9841,0.8999,1.0812,463,2229,2936
+2026-09-21,Thu-Sun vs Mon-Wed,new rule at day 29,1.1334,0.929,1.4244,0.9874,0.8951,1.0918,442,2053,2908

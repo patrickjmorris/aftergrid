@@ -1,0 +1,4 @@
+format,rows,sum_view_count,view_count_null,view_count_zero,duration_null,duration_gt_1day,duration_max,never_refetched,has_prev,prev_value_without_timestamp,last_check_before_ingest,prev_reading_before_ingest,ingested_before_published,count_decreased
+long-form,278809,16963368205,34,1869,18,133,12540852,2436,254776,2108,815,543,16372,302
+short,255842,18740321917,4092,19562,0,0,181,35499,106033,33080,1046,5414,16,377
+unknown,517,8268734,6,107,0,0,180,81,410,1,20,3,0,3

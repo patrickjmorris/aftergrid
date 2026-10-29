@@ -1,0 +1,17 @@
+{
+  "extract": {
+    "extract": "data/videos.csv",
+    "extracted": "2026-10-27",
+    "query": "data/extract.sql",
+    "rows": 535168,
+    "sha256": "e096dc8a93a742bc880307cebb897d10e9192962aac58b7fc948a22a1c9b7d98"
+  },
+  "titles": {
+    "extract": "data/titles.csv",
+    "extracted": "2026-10-28",
+    "query": "data/titles.sql",
+    "rows": 535119,
+    "sha256": "22783d2db444b20595dcb25911d1beed97f6661b8558672f69cdbcc8d512100c",
+    "note": "Video titles are used only to tag format and are not published. 49 videos in videos.csv were no longer available on 2026-10-28 and stay untagged."
+  }
+}

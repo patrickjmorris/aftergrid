@@ -15,6 +15,8 @@ Read table descriptions and available schema, then verify against actual rows. R
 
 Inspect types, units, nulls, sentinel values, and plausible ranges. Determine whether apparent missing dates are zero activity, absent collection, or dates the source does not cover. Check coverage by source and period, not just overall min/max dates. Compare event time with ingestion time where available; identify cohorts or periods that have not matured.
 
+When a value is measured repeatedly and overwritten (a lifetime count, a balance, a status), inventory the readings before anyone designs a comparison. For each stored reading, record when it was taken relative to the unit's start (its age) and relative to any event the question is about. Count the readings that fall cleanly before and cleanly after the event at comparable ages. Do not report that history is unavailable until you have counted it. A "before" group whose measurements were taken after the event is not a before group.
+
 ## Test joins, do not infer them from names
 
 For a proposed join, compare row counts, distinct keys, and unmatched keys on both sides. State its cardinality at the grain the analysis needs. If multiple records exist per key, establish which record is valid as of the event or aggregate to the intended grain first. Do not repair a many-to-many join with unexplained DISTINCT.

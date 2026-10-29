@@ -1,0 +1,20 @@
+comparison,tier_measure,tier,ratio_of_totals,rt_lo,rt_hi,typical_video,tv_lo,tv_hi,channels,pre_videos,post_videos,pre_age_mean,post_age_mean,share_of_pooled_pre_views,share_of_post_count_not_counted_under_old_rule,agentio_public_per_engaged
+switch,"mean pre-switch count, videos outside the estimate, 3+ videos",micro (under 50k),1.8511,1.6361,2.0761,2.1844,1.9676,2.4346,579,9014,17148,28.8181,29.099,0.1908,0.4598,1.85
+switch,"mean pre-switch count, videos outside the estimate, 3+ videos",mid (50k to 300k),1.7876,1.5678,2.0768,2.0049,1.8002,2.2261,133,3817,6596,28.8085,29.0953,0.6402,0.4406,1.77
+switch,"mean pre-switch count, videos outside the estimate, 3+ videos",macro (300k+),1.4933,1.2216,1.7842,1.9757,1.3405,2.8018,22,399,163,28.8265,29.0684,0.169,0.3303,1.49
+switch,"mean pre-switch count, videos outside the estimate, 3+ videos",all tiered channels,1.75,1.5957,1.938,2.1262,1.9615,2.322,734,13230,23907,28.8156,29.0978,1.0,0.4286,1.67
+Agentio tier ratios on our tier mix,"mean pre-switch count, videos outside the estimate, 3+ videos",all tiered channels,1.7379,,,,,,,,,,,1.0,0.4246,
+ours over Agentio on our tier mix,"mean pre-switch count, videos outside the estimate, 3+ videos",all tiered channels,1.0069,,,,,,,,,,,,,
+untiered channels (fewer than 3 videos outside the estimate),"mean pre-switch count, videos outside the estimate, 3+ videos",none,,,,,,,12,24,55,,,0.0066,,
+"null: published before vs after 07-01, all read before the switch","mean pre-switch count, videos outside the estimate, 3+ videos",micro (under 50k),0.9705,0.803,1.1759,1.0322,0.9497,1.1264,473,3875,4811,28.9706,28.701,,,
+"null: published before vs after 07-01, all read before the switch","mean pre-switch count, videos outside the estimate, 3+ videos",mid (50k to 300k),0.9442,0.7382,1.1633,1.1182,0.9485,1.3371,112,1675,2071,28.9885,28.6712,,,
+"null: published before vs after 07-01, all read before the switch","mean pre-switch count, videos outside the estimate, 3+ videos",macro (300k+),0.8835,0.6432,1.8866,0.6373,0.4957,1.5311,19,182,211,28.9674,28.702,,,
+switch,thresholds divided by Agentio all-video ratio (if its tiers count public views),micro (under 50k),1.8491,1.5889,2.1694,2.1856,1.9616,2.4568,527,7604,15097,28.8187,29.0984,,0.4592,1.85
+switch,thresholds divided by Agentio all-video ratio (if its tiers count public views),mid (50k to 300k),1.8336,1.6148,2.1733,2.0503,1.8481,2.2641,160,4868,8014,28.8093,29.096,,0.4546,1.77
+switch,thresholds divided by Agentio all-video ratio (if its tiers count public views),macro (300k+),1.5784,1.3587,1.8858,2.0059,1.4615,2.975,47,758,796,28.8242,29.1043,,0.3665,1.49
+switch,"mean lifetime count, long-form published 2026-01-01..04-30, 3+ videos",micro (under 50k),1.8182,1.5967,2.0811,2.0651,1.9124,2.2462,554,8433,16273,28.8117,29.0988,,0.45,1.85
+switch,"mean lifetime count, long-form published 2026-01-01..04-30, 3+ videos",mid (50k to 300k),1.6962,1.5185,1.9661,2.0328,1.8608,2.2412,120,3557,6029,28.8085,29.0966,,0.4105,1.77
+switch,"mean lifetime count, long-form published 2026-01-01..04-30, 3+ videos",macro (300k+),1.7368,1.3255,2.2639,2.0645,1.1746,3.6785,31,338,469,28.8728,29.1157,,0.4242,1.49
+switch,pre group day-29 mean (biased by regression to the mean),micro (under 50k),2.2483,1.9455,2.6496,2.2454,2.0456,2.4927,615,9882,19089,28.8133,29.1,,0.5552,1.85
+switch,pre group day-29 mean (biased by regression to the mean),mid (50k to 300k),1.6914,1.503,1.9824,1.8088,1.5945,2.0236,109,2959,4557,28.8239,29.0868,,0.4088,1.77
+switch,pre group day-29 mean (biased by regression to the mean),macro (300k+),1.3727,1.1551,1.598,1.576,0.9855,2.5482,22,413,316,28.8087,29.1157,,0.2715,1.49

@@ -27,6 +27,16 @@ The terms sum to the observed change when the groups form the same exhaustive pa
 
 For funnels inspect entrants, eligibility, stage conversion and elapsed time. For totals inspect volume, value per unit, mix and coverage. Choose only dimensions with a meaningful connection to the question.
 
+## Check the comparison before trusting it
+
+Before attributing a step to an event, confirm that each side was measured under the condition it claims. Compare measurement timestamps, not only event or cohort dates: a reading taken after the change belongs to the after side, whatever the unit's start date. Compare units with themselves (the same customer, channel, store) at the same age or exposure when the data allows.
+
+Run the same estimator on comparisons where nothing changed: earlier pairs of periods, the same weeks a year earlier, or a group the event should not touch. Report that spread beside the main result. A step means something only against it.
+
+When others have published an estimate of the same change, compare yours with theirs. Different methods that land in the same place strengthen the result. A gap needs an explanation: a different population, measure, or window, or an error on one side.
+
+A segment departs from the headline only if it departs under the headline's own controls. When a pooled segment split disagrees with its within-unit version, the split is composition, not a finding. Do not report it as an exception.
+
 ## Rank and discriminate
 
 Keep a small hypothesis ledger: explanation, observed support, evidence against it, prediction, next discriminating test, status. Rank by current support and testability, not narrative appeal. Before each cut, say what each plausible result would change. Prefer a comparison that can rule something out over another chart consistent with everything.

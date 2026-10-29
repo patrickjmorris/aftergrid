@@ -1,0 +1,8 @@
+comparison,in_null_spread,ratio_of_totals,rt_lo,rt_hi,typical_video,tv_lo,tv_hi,channels,pre_videos,post_videos,pre_age_mean,post_age_mean
+"long-form 28-30d: published before vs after 2026-07-01, all read before change",yes,0.9575,0.7948,1.1973,1.0546,0.9693,1.148,623,5886,7233,28.9732,28.6968
+"long-form 28-30d: published 2026-08-31..09-13 vs 09-14 on, all after change",yes,0.8908,0.8145,0.9747,0.9456,0.8842,1.0046,757,12046,12559,29.1438,29.0544
+"shorts 12-14d: published before vs after 2026-05-01, all read before change",yes,0.9653,0.8026,1.1891,1.0306,0.961,1.1003,341,24790,11695,13.6442,13.1797
+shorts 12-14d across the 2026 switch (control; calendar windows differ from long-form),yes,0.8462,0.6239,1.0756,0.9052,0.8351,0.9883,554,39485,28742,13.4571,13.1139
+"shorts across the switch, without the one channel holding the largest share of pre views","no, check",0.9863,0.8784,1.1127,0.9069,0.8321,0.9941,553,39448,28727,13.4572,13.1138
+"long-form 2025 placebo, unequal ages: lifetime count last read before 2026-08-24; published 2025-07-01..07-24 vs 2025-08-31..09-29","no, ages differ",0.8835,0.7157,1.0964,0.6977,0.3679,0.9719,335,4057,5393,328.8786,267.0022
+"shorts 2025 placebo, unequal ages: lifetime count last read before 2026-08-24; published 2025-07-01..07-24 vs 2025-08-31..09-29","no, ages differ",2.4221,0.6098,7.6635,1.0346,0.8715,1.2713,48,2357,357,47.9754,178.5553

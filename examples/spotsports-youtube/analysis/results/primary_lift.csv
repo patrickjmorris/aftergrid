@@ -1,0 +1,3 @@
+estimate,ratio_of_totals,rt_lo,rt_hi,typical_video,tv_lo,tv_hi,channels,pre_videos,post_videos,pre_age_mean,post_age_mean,pre_views,post_views,pre_channels_all,post_channels_all
+"long-form, age 28-30 days",1.7435,1.5959,1.9389,2.1265,1.963,2.3098,746,13254,23962,28.8155,29.0977,679235228,1732815320,799,875
+"shorts, age 12-14 days (same estimator)",0.8462,0.6239,1.0756,0.9052,0.8351,0.9883,554,39485,28742,13.4571,13.1139,3889113438,1779000398,615,700

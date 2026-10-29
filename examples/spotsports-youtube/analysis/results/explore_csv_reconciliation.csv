@@ -1,0 +1,7 @@
+check,sqlite,csv
+rows,535168,535168
+sum view_count,35711958856,35711958856
+long-form rows (0 / f),278809,278809
+short rows (1 / t),255842,255842
+format null rows,517,517
+video_key symmetric difference,0,0

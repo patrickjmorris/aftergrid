@@ -1,0 +1,12 @@
+group,quantity,ours,ours_lo,ours_hi,agentio,source
+creators,"public views at day 29, post-change over pre-change videos, same channels, pooled",1.7435,1.5959,1.9389,1.67,primary_lift.csv; Agentio from ../external/published_estimates.csv
+creators,"same, typical video",2.1265,1.963,2.3098,,primary_lift.csv
+sponsors,"share of a post-change count that would not have counted under the old rule, 1 - 1/ratio, pooled",0.4264,0.3734,0.4842,0.4012,primary_lift.csv; Agentio from ../external/published_estimates.csv
+sponsors,"same, typical video",0.5297,0.4906,0.5671,,primary_lift.csv
+sponsors,"cost per old-rule view at an unchanged price per public view, new over old",1.7435,1.5959,1.9389,1.67,primary_lift.csv; Agentio from ../external/published_estimates.csv
+sponsors,"price per public view that keeps cost per old-rule view unchanged, as a share of the old price, 1/ratio",0.5736,0.5158,0.6266,0.5988,primary_lift.csv; Agentio from ../external/published_estimates.csv
+sponsors,"added views (plays with under 30 seconds of watching) that reached a sponsor read starting at or after 0:30, played from the start without skipping",0,,,0,definition: the old rule counted a view after 30 seconds of watching
+spot sports,"post-change share of the pool, matched channels, day-29 views",0.6439,,,,ranking_illustration.csv
+spot sports,post-change share of the top 100 by raw views,0.68,,,,ranking_illustration.csv
+spot sports,"post-change share of the top 1,000 by raw views",0.773,,,,ranking_illustration.csv
+spot sports,"top 1,000 share over pool share",1.2006,,,,ranking_illustration.csv

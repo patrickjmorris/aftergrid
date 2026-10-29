@@ -1,0 +1,8 @@
+item,value
+rows,535168
+distinct video_key,535168
+distinct channel_key,1070
+published_at min,2025-07-01 00:00:42+00
+published_at max,2026-10-26 23:59:32+00
+last_stats_check max,2026-10-28 01:56:02.995923+00
+readings stamped after 2026-10-28 00:00 UTC,19035

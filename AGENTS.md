@@ -72,7 +72,7 @@ Do not claim browser QA, visual contrast, or live harness parity from the offlin
 - Secrets never in tracked files.
 - Internal business plans, financial projections, pricing assumptions, personal circumstances, and revenue strategy stay outside the public repository. Do not commit the local tracker or mirror its private entries to GitHub. Public service descriptions and synthetic analytics examples are allowed.
 - `br` only in the main checkout, never in worktrees.
-- Do not touch private Instance data or Spot Sports schema, metrics, IDs, or credentials.
+- Do not touch private Instance data or Spot Sports schema, metrics, IDs, or credentials. One exception: on 2026-10-27 the owner approved publishing the YouTube channel and video performance metrics used in `examples/spotsports-youtube/`, including public channel titles. Channel-level and video-level aggregates only. Credentials, connection strings, internal schema beyond what that case needs, viewer or personal data, and non-YouTube Spot Sports data stay off-limits.
 - Owner gates stay owner gates: PR approvals, publication identities, real Reader sessions, selling entity, outreach.
 - Human publication approval is not something an agent can complete.
 
