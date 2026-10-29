@@ -1,0 +1,31 @@
+format,sport,ratio_of_totals,rt_lo,rt_hi,typical_video,tv_lo,tv_hi,channels,pre_videos,post_videos
+Highlights,All sports,1.741,1.4952,1.9937,1.8676,1.6391,2.1187,140,1816,3471
+Highlights,Soccer,1.7,0.9048,4.5593,1.7247,1.2451,2.4223,60,151,898
+Highlights,Basketball,2.471,1.5485,3.2727,2.3107,1.619,2.6249,10,286,219
+Highlights,Baseball,1.6322,1.3671,1.7005,1.8747,1.4228,2.0294,29,557,943
+Full game or match,All sports,1.1725,0.9478,2.4177,1.7537,1.3314,2.6211,20,123,274
+Press conference or interview,All sports,1.4717,1.0757,1.85,2.0963,1.8072,2.4217,125,495,1259
+Press conference or interview,Soccer,1.1346,0.7007,2.2923,2.1678,1.8677,2.5041,49,156,471
+Press conference or interview,Basketball,1.6046,0.9593,2.3457,2.2875,1.7654,2.9722,32,118,299
+Press conference or interview,Baseball,1.9214,1.3234,3.8601,2.4362,1.4215,3.4337,11,101,144
+Press conference or interview,Hockey,1.2091,0.8171,1.704,1.2366,0.8542,1.8663,14,54,218
+Live stream or watchalong,All sports,2.075,1.3588,3.0511,1.6627,1.1438,2.3117,83,406,538
+Live stream or watchalong,Soccer,2.6593,0.8494,4.9264,2.2172,1.2626,5.7417,27,152,115
+Podcast or show,All sports,1.8222,1.2884,2.4603,2.0804,1.7364,2.5051,124,677,1125
+Podcast or show,Soccer,1.4429,1.0345,2.3529,1.8617,1.4891,2.4714,25,93,143
+Podcast or show,Basketball,1.5366,1.172,3.2192,2.3277,1.5305,4.0782,15,63,81
+Podcast or show,Baseball,1.5984,1.1566,2.5902,2.2404,1.4113,3.3603,13,29,38
+Podcast or show,Hockey,1.1044,0.9241,3.3533,1.4727,1.0491,3.15,11,76,150
+Podcast or show,Football,2.5903,1.2541,4.3965,2.2697,1.8233,2.9329,12,117,325
+Analysis or preview,All sports,1.8315,1.3176,2.3308,2.0924,1.664,2.6222,119,524,875
+Analysis or preview,Soccer,1.0886,0.7191,2.7486,1.1946,0.8623,1.8261,17,93,120
+Analysis or preview,Basketball,13.4638,2.2221,16.2558,5.9901,2.1542,8.0716,10,38,67
+Analysis or preview,Baseball,2.2614,2.1418,3.4205,2.2212,1.7694,2.5795,12,43,59
+Analysis or preview,Football,1.4715,0.9736,2.1657,1.4791,1.0372,1.9394,22,50,221
+Reaction,All sports,1.3377,0.7684,2.3005,1.5284,1.2207,2.0304,42,303,341
+Untagged,All sports,1.6862,1.5105,1.887,2.1664,1.9891,2.3734,677,8316,13387
+Untagged,Soccer,1.7381,1.3175,2.2928,2.1371,1.7151,2.6035,153,1807,3116
+Untagged,Basketball,2.1006,1.606,2.6708,2.3305,1.6599,3.1087,78,1088,1132
+Untagged,Baseball,1.3277,1.1059,1.9494,1.9748,1.7525,2.3121,76,847,1205
+Untagged,Hockey,2.0461,1.7496,2.8616,2.0974,1.8122,2.5012,52,520,1034
+Untagged,Football,2.0076,1.5554,3.2625,2.2845,1.857,2.9493,46,769,2239

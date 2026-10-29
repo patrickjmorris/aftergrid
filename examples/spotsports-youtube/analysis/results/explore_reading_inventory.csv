@@ -1,0 +1,96 @@
+format,reading,reading_side,accrual,age_band,readings
+long-form,ingest_only,after 2026-08-24,accrual all after,0-1d,75
+long-form,ingest_only,after 2026-08-24,accrual all after,1-3d,21
+long-form,ingest_only,after 2026-08-24,accrual all after,14-28d,1
+long-form,ingest_only,after 2026-08-24,accrual all after,3-7d,9
+long-form,ingest_only,after 2026-08-24,accrual all after,7-12d,15
+long-form,ingest_only,before 2026-08-24,accrual all before,0-1d,11
+long-form,ingest_only,before 2026-08-24,accrual all before,180d+,2270
+long-form,last,after 2026-08-24,accrual all after,0-1d,93
+long-form,last,after 2026-08-24,accrual all after,1-3d,1840
+long-form,last,after 2026-08-24,accrual all after,12-14d,2036
+long-form,last,after 2026-08-24,accrual all after,14-28d,11564
+long-form,last,after 2026-08-24,accrual all after,28-30d,26245
+long-form,last,after 2026-08-24,accrual all after,3-7d,4341
+long-form,last,after 2026-08-24,accrual all after,30-60d,4326
+long-form,last,after 2026-08-24,accrual all after,60-180d,211
+long-form,last,after 2026-08-24,accrual all after,7-12d,4180
+long-form,last,after 2026-08-24,straddles,180d+,116656
+long-form,last,after 2026-08-24,straddles,30-60d,15870
+long-form,last,after 2026-08-24,straddles,60-180d,67967
+long-form,last,before 2026-08-24,accrual all before,180d+,21039
+long-form,last,before 2026-08-24,accrual all before,60-180d,5
+long-form,prev,2026-08-24,straddles,14-28d,10
+long-form,prev,2026-08-24,straddles,28-30d,545
+long-form,prev,after 2026-08-24,accrual all after,0-1d,30
+long-form,prev,after 2026-08-24,accrual all after,1-3d,2070
+long-form,prev,after 2026-08-24,accrual all after,12-14d,1997
+long-form,prev,after 2026-08-24,accrual all after,14-28d,11708
+long-form,prev,after 2026-08-24,accrual all after,28-30d,30002
+long-form,prev,after 2026-08-24,accrual all after,3-7d,4393
+long-form,prev,after 2026-08-24,accrual all after,30-60d,40
+long-form,prev,after 2026-08-24,accrual all after,7-12d,4343
+long-form,prev,after 2026-08-24,straddles,14-28d,5869
+long-form,prev,after 2026-08-24,straddles,180d+,79812
+long-form,prev,after 2026-08-24,straddles,28-30d,13388
+long-form,prev,after 2026-08-24,straddles,30-60d,745
+long-form,prev,after 2026-08-24,straddles,60-180d,35199
+long-form,prev,before 2026-08-24,accrual all before,0-1d,1
+long-form,prev,before 2026-08-24,accrual all before,12-14d,1016
+long-form,prev,before 2026-08-24,accrual all before,14-28d,22640
+long-form,prev,before 2026-08-24,accrual all before,180d+,11698
+long-form,prev,before 2026-08-24,accrual all before,28-30d,13618
+long-form,prev,before 2026-08-24,accrual all before,3-7d,1424
+long-form,prev,before 2026-08-24,accrual all before,30-60d,3003
+long-form,prev,before 2026-08-24,accrual all before,60-180d,6315
+long-form,prev,before 2026-08-24,accrual all before,7-12d,2802
+short,ingest_only,2026-08-24,accrual all after,0-1d,13
+short,ingest_only,after 2026-08-24,accrual all after,0-1d,65
+short,ingest_only,before 2026-08-24,accrual all before,0-1d,24626
+short,ingest_only,before 2026-08-24,accrual all before,1-3d,491
+short,ingest_only,before 2026-08-24,accrual all before,12-14d,47
+short,ingest_only,before 2026-08-24,accrual all before,14-28d,590
+short,ingest_only,before 2026-08-24,accrual all before,180d+,2398
+short,ingest_only,before 2026-08-24,accrual all before,28-30d,92
+short,ingest_only,before 2026-08-24,accrual all before,3-7d,337
+short,ingest_only,before 2026-08-24,accrual all before,30-60d,705
+short,ingest_only,before 2026-08-24,accrual all before,60-180d,1885
+short,ingest_only,before 2026-08-24,accrual all before,7-12d,159
+short,last,after 2026-08-24,accrual all after,0-1d,34
+short,last,after 2026-08-24,accrual all after,1-3d,1885
+short,last,after 2026-08-24,accrual all after,12-14d,30893
+short,last,after 2026-08-24,accrual all after,14-28d,10414
+short,last,after 2026-08-24,accrual all after,28-30d,1552
+short,last,after 2026-08-24,accrual all after,3-7d,4571
+short,last,after 2026-08-24,accrual all after,30-60d,171
+short,last,after 2026-08-24,accrual all after,7-12d,4389
+short,last,after 2026-08-24,straddles,12-14d,2
+short,last,after 2026-08-24,straddles,14-28d,44
+short,last,after 2026-08-24,straddles,180d+,138
+short,last,after 2026-08-24,straddles,28-30d,12
+short,last,after 2026-08-24,straddles,3-7d,3
+short,last,after 2026-08-24,straddles,30-60d,21094
+short,last,after 2026-08-24,straddles,60-180d,27090
+short,last,after 2026-08-24,straddles,7-12d,36
+short,last,before 2026-08-24,accrual all before,0-1d,32718
+short,last,before 2026-08-24,accrual all before,1-3d,3297
+short,last,before 2026-08-24,accrual all before,12-14d,39438
+short,last,before 2026-08-24,accrual all before,14-28d,6536
+short,last,before 2026-08-24,accrual all before,180d+,1310
+short,last,before 2026-08-24,accrual all before,28-30d,1294
+short,last,before 2026-08-24,accrual all before,3-7d,9198
+short,last,before 2026-08-24,accrual all before,30-60d,4146
+short,last,before 2026-08-24,accrual all before,60-180d,10815
+short,last,before 2026-08-24,accrual all before,7-12d,9262
+short,prev,after 2026-08-24,accrual all after,0-1d,5226
+short,prev,after 2026-08-24,accrual all after,1-3d,5228
+short,prev,after 2026-08-24,accrual all after,12-14d,30020
+short,prev,after 2026-08-24,accrual all after,3-7d,4640
+short,prev,after 2026-08-24,accrual all after,7-12d,4490
+short,prev,before 2026-08-24,accrual all before,0-1d,5510
+short,prev,before 2026-08-24,accrual all before,1-3d,1975
+short,prev,before 2026-08-24,accrual all before,12-14d,5739
+short,prev,before 2026-08-24,accrual all before,14-28d,2
+short,prev,before 2026-08-24,accrual all before,28-30d,17
+short,prev,before 2026-08-24,accrual all before,3-7d,4172
+short,prev,before 2026-08-24,accrual all before,7-12d,5934

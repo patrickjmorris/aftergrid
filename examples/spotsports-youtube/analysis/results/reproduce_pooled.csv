@@ -1,0 +1,3 @@
+comparison,pre_n,pre_channels,pre_mean,pre_median,pre_geomean,post_n,post_channels,post_mean,post_median,post_geomean,ratio_mean,ratio_median,ratio_geomean
+"long-form 28-30d, pooled all channels",13618,799,51901.784,7568.5,5891.327,24979,875,70899.8027,12986,12195.4105,1.366,1.7158,2.0701
+"shorts 12-14d, pooled all channels",39829,615,97878.9803,17655,18059.7308,31041,700,58261.9519,9615,8911.5491,0.5952,0.5446,0.4934

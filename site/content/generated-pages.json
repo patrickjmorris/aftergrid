@@ -30,6 +30,8 @@
   "examples/revenue-bridge/index.html",
   "examples/lesson-reuse/index.html",
   "examples/causal-claim/index.html",
+  "examples/spotsports-youtube/index.html",
+  "examples/spotsports-youtube-how-it-was-built/index.html",
   "examples/nyc-open-data/index.html",
   "example-finding/index.html"
 ]

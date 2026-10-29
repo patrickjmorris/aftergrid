@@ -1,0 +1,17 @@
+item,value
+"pooled mean, all channels, pre",51901.784
+"pooled mean, all channels, post",70899.8027
+common-support channels,746
+"entry: post-only channels, videos",1017
+"exit: pre-only channels, videos",364
+"common-support mean, pre",51247.5651
+"common-support mean, post",72315.1373
+total change (common support),21067.5722
+within-channel term sum(w_pre*(r_post-r_pre)),39517.608
+"mix term sum((w_post-w_pre)*r_post), includes interaction",-18450.0358
+within + mix (check),21067.5722
+within-channel share of change,1.8758
+largest single-channel mix contribution,-17104.8599
+  that channel: pre videos,233
+  that channel: post videos,10
+mix term without that channel,-1345.1758

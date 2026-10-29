@@ -1,0 +1,4 @@
+cutover,micro_channels,micro_mean_shift_pct_points,mid_channels,mid_mean_shift_pct_points,macro_channels,macro_mean_shift_pct_points,micro_minus_macro_pct_points
+switch: read before 08-24 vs published 08-27 on,579,1.6132,133,2.9108,22,2.5586,-0.9454
+"null: published before vs after 07-01, all read before 08-24",473,-1.0323,112,1.3425,19,-4.8221,3.7899
+null: published 08-31..09-13 vs 09-14 on,533,2.2108,120,0.3744,18,2.8342,-0.6234

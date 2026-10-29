@@ -1,0 +1,13 @@
+comparison,sport,channels,share_rose,share_rose_25pct_plus,median_channel_ratio
+switch: read before 08-24 vs published 08-31 on,All sports,480,0.8812,0.7708,1.8053
+switch: read before 08-24 vs published 08-31 on,Soccer,116,0.8621,0.7155,1.83
+switch: read before 08-24 vs published 08-31 on,Basketball,66,0.7879,0.6515,1.7725
+switch: read before 08-24 vs published 08-31 on,Baseball,73,0.9178,0.7945,1.7245
+switch: read before 08-24 vs published 08-31 on,Hockey,33,0.9697,0.8485,1.8001
+switch: read before 08-24 vs published 08-31 on,Football,35,1.0,0.9714,2.5754
+"nothing changed: published before vs after 07-01, all read before 08-24",All sports,219,0.5342,0.3836,1.0403
+"nothing changed: published before vs after 07-01, all read before 08-24",Soccer,43,0.7209,0.6512,1.7562
+"nothing changed: published before vs after 07-01, all read before 08-24",Basketball,34,0.2941,0.2059,0.9071
+"nothing changed: published before vs after 07-01, all read before 08-24",Baseball,27,0.5185,0.2593,1.0011
+"nothing changed: published before vs after 07-01, all read before 08-24",Hockey,14,0.5,0.5,1.0962
+"nothing changed: published before vs after 07-01, all read before 08-24",Football,18,0.4444,0.1667,0.944

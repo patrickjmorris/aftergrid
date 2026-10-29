@@ -1,0 +1,4 @@
+group,videos,channels,median_age_1,median_age_2,median_elapsed_days,median_growth,geomean_growth,aggregate_growth,aggregate_growth_without_largest_video,growth_per_log_age
+"first 29 days old rule, later growth new rule (read at 29 before switch)",2782,569,28.1928,67.9558,39.763,1.0157,1.0649,1.0647,1.0661,0.0712
+"first 15+ days old rule, read at 29 just after switch (published 2026-07-26..08-08)",8002,743,29.2156,59.8303,30.6147,1.0134,1.0494,1.0903,1.0728,0.1206
+all new rule (published on or after 2026-08-24),4245,674,29.5182,59.5887,30.0705,1.0084,1.0285,1.0386,1.0357,0.0539

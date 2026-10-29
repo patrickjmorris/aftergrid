@@ -1,0 +1,10 @@
+source,published,measured_or_modeled,population,method,segment,public_per_engaged_ratio,note,url
+Agentio,2026-09-03,measured,"75,000+ videos from creators connected to Agentio, published since 2026-06-01, views after 2026-08-24",public views / engaged views from creator analytics,all,1.67,"549M public vs 330M engaged views; 60% engaged view rate",https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Agentio,2026-09-03,measured,same,same,micro channels (under 50k avg views per video),1.85,54% engaged view rate,https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Agentio,2026-09-03,measured,same,same,mid channels (50k to 300k),1.77,57% engaged view rate,https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Agentio,2026-09-03,measured,same,same,macro channels (300k+),1.49,67% engaged view rate,https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Agentio,2026-09-03,measured,same,same,plays from feeds and recommendations,5.0,"20% engaged view rate; 38% of public views and 77% of the gap",https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Agentio,2026-09-03,measured,same,same,plays from the watch page,1.18,85% engaged view rate,https://www.agentio.com/blog/youtube-new-view-count-60-engaged-view-rate
+Podtrac,2026-09-03,measured,"84.2M views on YouTube podcast channels, collected 2026-08-27 to 08-28",views / engaged views via YouTube Analytics and Reporting APIs,podcast playlist episodes,1.56,64% engaged share,https://ppc.land/podtrac-says-youtubes-new-view-count-overstates-podcast-attention-by-36/
+Podtrac,2026-09-03,measured,same,same,other videos on podcast channels,1.72,58% engaged share,https://ppc.land/podtrac-says-youtubes-new-view-count-overstates-podcast-attention-by-36/
+Agentio,2026-08,modeled before the change,"35,800 videos from creators connected to Agentio, published June to July 2026",30-second view-through from audience retention data,all,1.30,forecast; later measurement came in higher,https://www.agentio.com/blog/youtube-view-vs-engaged-view

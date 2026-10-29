@@ -17,7 +17,9 @@ State who decides, what they are choosing between, and by when. State the goal t
 
 If the decision, owner, or goal is missing and would change the call, ask through the harness's structured question tool when it has one (`AskUserQuestion` in Claude Code, `request_user_input` in Codex), recommended interpretation first. Otherwise ask in a numbered list. If the request is purely descriptive, with no decision in view, say so and stop. This skill does not manufacture a decision.
 
-Completion: the decision, owner, options on the table, and goal are stated, or the missing one is named as the limit.
+Then ask who else the result moves. A metric rarely has one audience: the people it measures, the people who pay or plan on it, and the people who compare with it. For each group that would act differently, name what changed for them, in their own unit, and what they should do. Keep the groups that would not act differently out of the brief.
+
+Completion: the decision, owner, options on the table, and goal are stated, or the missing one is named as the limit. Each affected group that would act differently is named with its unit.
 
 ## 2. Translate the result into goal units
 
@@ -58,6 +60,8 @@ Check that each option can move the goal as it is defined. Some definitions sett
 
 A descriptive finding can support a cheap, reversible action, such as a check or a small test. A costly or irreversible action needs evidence of cause. Say which kind each option is. When cost is not supplied, do not label an action cheap; frame it as a test or observation and ask the owner to confirm the cost. Do not upgrade an association into a forecast to make an option look stronger.
 
+Before recommending an adjustment (a correction factor, a reweighting, a new rule), apply it to the records it would change and check the result. Does it fit every group it would touch, or does it misstate some? Does it correct anything twice? Does it behave at the edges, such as the units that straddle the change? An adjustment that fails on its own targets is an option to reject, with that evidence as the reason.
+
 Completion: each option has an effect, cost, risk, reversibility, and the assumption it depends on. A field the inputs cannot fill reads "unknown" with what the owner would need to supply. Never fill it with an estimate you made up.
 
 ## 6. Recommend, and say what would change it
@@ -83,3 +87,5 @@ Lead with the call in one sentence of about 25 words or fewer that the owner cou
 5. What is true but not worth attention for this decision.
 
 Keep the brief under about 250 words, short enough to read before the meeting. Link each number to its source or calculation. Mark assumptions as assumptions and missing inputs as missing.
+
+Write the brief in the owner's words, not the analyst's. Leave out estimator names, weighting schemes, and this skill's step headings. One number leads; a second appears only if the owner would act differently on it. State each caveat once, beside the claim it limits. When a review adds a qualification, cut something of equal length. A brief that grows with every revision is getting harder to act on.
