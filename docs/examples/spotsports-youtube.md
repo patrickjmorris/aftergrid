@@ -119,7 +119,7 @@ Built on Spot Sports’ catalog of about 1,040 sports creator channels in 18 spo
 2. **Sponsor-ready numbers.** Rate cards and sponsor reports built on engaged views, by sport and channel size.
 3. **The workflow.** The same skills set up in your team’s agent, so the next analysis starts here.
 
-[Email Patrick](mailto:patrickjohnmorris@gmail.com?subject=Sporting%20Works%20analysis) · [aftergrid on GitHub](https://github.com/patrickjmorris/aftergrid) · [How this analysis was built](https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md)
+[Email Patrick](mailto:patrick@sportingworks.co?subject=Sporting%20Works%20analysis) · [aftergrid on GitHub](https://github.com/patrickjmorris/aftergrid) · [How this analysis was built](https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md)
 
 ## Appendix: sport and channel detail
 
