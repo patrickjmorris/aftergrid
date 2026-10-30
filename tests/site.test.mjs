@@ -34,5 +34,5 @@ test('the maintainer is reachable from every page and the About page exists',()=
  assert.match(about,/<h1>Work with me<\/h1>/);
  assert.match(about,/id="consulting"/);
  assert.match(about,/id="sponsorship"/);
- assert.match(about,/mailto:patrickjohnmorris@gmail.com/);
+ assert.match(about,/mailto:patrick@sportingworks.co/);
 });
