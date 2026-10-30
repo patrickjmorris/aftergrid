@@ -131,12 +131,12 @@ CI runs on Ubuntu and macOS, Node 22.18 and 24. Installer checks, model runs, de
 
 ## Work with me
 
-I'm [Patrick Morris](https://github.com/patrickjmorris). I built aftergrid because agents got good at fetching the number before they got good at the work that follows. Their answers reported a rate without sizing it against the goal, and too often missed a mix shift an experienced analyst would spot in a minute.
+I'm [Patrick Morris](https://github.com/patrickjmorris). I ran data for ESPN+ as it grew to 25 million subscribers and built the experimentation platform at The New York Times. I built aftergrid because agents got good at fetching the number before they got good at the work that follows. Their answers reported a rate without sizing it against the goal, and too often missed a mix shift an experienced analyst would spot in a minute.
 
 - **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metrics tied to the goals they serve, a review step that asks whether a result matters before it reaches a decision, and lessons the next analysis retrieves. Your data stays in your repository.
 - **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
 
-Email [patrickjohnmorris@gmail.com](mailto:patrickjohnmorris@gmail.com?subject=aftergrid) with the meeting you're trying to get right.
+Email [patrick@sportingworks.co](mailto:patrick@sportingworks.co?subject=aftergrid) with the meeting you're trying to get right. More on [the website](https://patrickjmorris.github.io/aftergrid/about/).
 
 ## Influences and license
 
