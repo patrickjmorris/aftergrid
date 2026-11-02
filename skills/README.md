@@ -32,7 +32,7 @@ Renamed skills: `--skill checked-analysis` is now `--skill analyze`, and `--skil
 
 Target one harness with `-a <agent>`. Claude Code installs the repo as a plugin through `.claude-plugin/marketplace.json`: `/plugin marketplace add patrickjmorris/aftergrid`, then `/plugin install aftergrid@aftergrid`. Each skill carries `agents/openai.yaml` for Codex discovery. The repository is public; the npm CLI is unpublished.
 
-Installer check, 2026-11-02, `skills` 1.7.4: `diagnose-change` and `make-the-call` copied into scratch Claude Code (`.claude/skills/`), Codex and Cursor (`.agents/skills/`) projects. Claude Code and Codex loaded them; Cursor's runtime was not checked. [What runs where](../docs/guides/what-runs-where.md#by-agent) has the detail. Copied files are not runtime parity.
+Installer check, 2026-11-02, `skills` 1.7.4: `diagnose-change` and `make-the-call` copied into scratch Claude Code (`.claude/skills/`), Codex and Cursor (`.agents/skills/`) projects. Runtime checks used `diagnose-change`, `grill-question`, and `analysis-review` in Claude Code and Codex; `make-the-call` was copied but not loaded. Cursor's runtime was not checked. [What runs where](../docs/guides/what-runs-where.md#by-agent) has the detail. Copied files are not runtime parity.
 
 `ask-aftergrid`, `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit: you start them. The three remaining original craft skills are model-invoked and hidden from the Claude Code slash menu; describe the task. The six newest skills allow both.
 

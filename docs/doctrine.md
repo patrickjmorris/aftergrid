@@ -38,7 +38,7 @@ From the [rigor rules](../skills/diagnose-change/references/rigor.md). "Caused,"
 
 > A costly or irreversible action needs evidence of cause.
 
-From [make-the-call](../skills/make-the-call/SKILL.md). A descriptive finding can support a check or a small test. It can't carry a rollback or a mandate.
+From [make-the-call](../skills/make-the-call/SKILL.md). A descriptive finding can support a cheap, reversible step, such as a check or a small test. It can't carry a costly or irreversible one on its own.
 
 ## No invented inputs
 

@@ -65,14 +65,16 @@ test('every doctrine quote matches the skill file it names',()=>{
 
 test('what-runs-where comes from the skills, and only setup-aftergrid needs the Engine',()=>{
  const catalog=JSON.parse(readFileSync(new URL('../site/content/skills.json',import.meta.url),'utf8'));
- const page=readFileSync(new URL('../site/guides/what-runs-where/index.html',import.meta.url),'utf8');
+ const guide=readFileSync(new URL('../docs/guides/what-runs-where.md',import.meta.url),'utf8');
  const readme=readFileSync(new URL('../README.md',import.meta.url),'utf8');
  const section=readme.slice(readme.indexOf('## What runs where'),readme.indexOf('## What the agent refuses'));
  for(const skill of catalog){
   const text=readFileSync(new URL(`../skills/${skill.slug}/SKILL.md`,import.meta.url),'utf8');
   assert.ok(text.includes(skill.start_source),`${skill.slug}: start_source is not in SKILL.md`);
-  const cell=skill.slug==='setup-aftergrid'?'Required':/Engine (Finding|procedure|workflow|writing|mode)|Under the Engine/.test(text)?'Optional':'None';
-  assert.ok(page.includes(`>${skill.slug}</a></td><td>${skill.start}</td><td>${cell}</td>`),`${skill.slug}: page row`);
+  const front=text.split('---')[1];
+  const engine=skill.slug==='setup-aftergrid'?'Required':/Engine (Finding|procedure|workflow|writing|mode)|Under the Engine/.test(text)?'Optional':'None';
+  const who=/disable-model-invocation: true/.test(front)?'You start it':/user-invocable: false/.test(front)?'Your agent uses it':'You or your agent';
+  assert.ok(guide.includes(`| [${skill.slug}](../skills/${skill.slug}.md) | ${skill.start} | ${engine} | ${who} |`),`${skill.slug}: guide row`);
   assert.ok(section.includes(`\`${skill.slug}\``),`${skill.slug}: README table`);
  }
 });

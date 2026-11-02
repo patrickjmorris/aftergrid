@@ -21,7 +21,7 @@ byte-stable and committed so GitHub Pages can serve it directly.
 - `docs/skills/<name>.md`: skill detail-page bodies. Invocation is read from each `skills/<name>/SKILL.md`.
 - `docs/guides/quickstart.md`: `/start/`.
 - `docs/guides/skill-workflows.md`: `/guides/skill-workflows/`.
-- `docs/guides/what-runs-where.md`: `/guides/what-runs-where/`; the per-skill table comes from `content/skills.json` and each `SKILL.md`.
+- `docs/guides/what-runs-where.md`: `/guides/what-runs-where/`; a test checks each per-skill row against `content/skills.json` and that skill's `SKILL.md`.
 - `docs/doctrine.md`: `/doctrine/`; a test checks every quote against the skill it names.
 - `docs/examples/*.md`: the five worked example pages.
 - `docs/fieldnotes/*.md`: the three essays.

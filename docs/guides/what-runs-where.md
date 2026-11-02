@@ -8,7 +8,22 @@ Thirteen of the fourteen skills need no Engine, Instance, manifest, or CLI. A CS
 
 ## By skill
 
-<!-- runs-where-table -->
+| Skill | The least you can start with | Engine | Who starts it |
+| --- | --- | --- | --- |
+| [ask-aftergrid](../skills/ask-aftergrid.md) | A description of the work. No data. | None | You start it |
+| [grill-question](../skills/grill-question.md) | An unfinished question. No data. | Optional | You start it |
+| [explore-data](../skills/explore-data.md) | A CSV, a pasted sample, or a connection you already have. | None | You or your agent |
+| [define-metric](../skills/define-metric.md) | A metric name, plus a CSV or a written policy. | Optional | You or your agent |
+| [plan-analysis](../skills/plan-analysis.md) | A question, plus a CSV, schema, or data map. | None | You or your agent |
+| [analyze](../skills/analyze.md) | A question, plus a CSV, notebook, or connection. | Optional | You start it |
+| [diagnose-change](../skills/diagnose-change.md) | A CSV covering both periods. | Optional | You or your agent |
+| [write-finding](../skills/write-finding.md) | Results and notes to write up. | Optional | Your agent uses it |
+| [iterate-visual](../skills/iterate-visual.md) | A chart, an image of one, or its code. | Optional | Your agent uses it |
+| [make-the-call](../skills/make-the-call.md) | A result and the goal it serves. | None | You or your agent |
+| [analysis-review](../skills/analysis-review.md) | The memo, chart, notebook, or SQL to challenge. | Optional | Your agent uses it |
+| [revise-finding](../skills/revise-finding.md) | A memo, notebook, or chart, plus the feedback. | Optional | You start it |
+| [learn-from-analysis](../skills/learn-from-analysis.md) | A finished analysis or correction. | None | You or your agent |
+| [setup-aftergrid](../skills/setup-aftergrid.md) | A repository and the complete aftergrid toolkit. | Required | You start it |
 
 "Optional" means the skill has an Engine path you only reach by asking for a Finding or supplying a Finding directory. That path needs the complete aftergrid toolkit, which a single installed skill doesn't include. "None" means the skill doesn't use the Engine. "Who starts it" comes from each skill's frontmatter.
 

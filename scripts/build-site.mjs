@@ -62,7 +62,6 @@ for(const s of skills) {
   const {meta}=readMarkdown(source);
   s.invocation=meta['disable-model-invocation']===true?'You start it':meta['user-invocable']===false?'Your agent uses it':'You or your agent';
   s.engine=s.slug==='setup-aftergrid';
-  s.enginePath=s.engine?'Required':/Engine (Finding|procedure|workflow|writing|mode)|Under the Engine/.test(readFileSync(resolve(ROOT,source),'utf8'))?'Optional':'None';
 }
 function markdown(path,route) {
  const {body}=readMarkdown(path);
@@ -81,12 +80,11 @@ function markdown(path,route) {
  renderer.image=({href,text,title})=>{const dest=/^(https?:|data:)/.test(href)?href:`https://raw.githubusercontent.com/patrickjmorris/aftergrid/main/${posix.normalize(posix.join(posix.dirname(path),href))}`;return `<img src="${esc(dest)}" alt="${esc(text)}"${title?` title="${esc(title)}"`:''} loading="lazy">`;};
  const prepared=body.replace(/^# [^\n]+\n/,'');
  const engineAt=prepared.indexOf('## Engine Finding reference');
- const render=text=>marked.parse(text,{renderer}).replace(/<table>/g,'<div class="table-scroll"><table>').replace(/<\/table>/g,'</table></div>').replace('<!-- runs-where-table -->',runsWhereTable(route));
+ const render=text=>marked.parse(text,{renderer}).replace(/<table>/g,'<div class="table-scroll"><table>').replace(/<\/table>/g,'</table></div>');
  if(path.startsWith('docs/skills/')&&engineAt>=0)return render(prepared.slice(0,engineAt))+`<details class="engine-details"><summary>Optional Engine reference</summary>${render(prepared.slice(engineAt).replace(/^## Engine Finding reference[^\n]*\n/,''))}</details>`;
  return render(prepared);
 }
 const symbol=`<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg>`;
-function runsWhereTable(route){return `<div class="table-scroll"><table><thead><tr><th>Skill</th><th>The least you can start with</th><th>Engine</th><th>Who starts it</th></tr></thead><tbody>${skills.map(s=>`<tr><td><a href="${link(route,`skills/${s.slug}/`)}">${esc(s.slug)}</a></td><td>${esc(s.start)}</td><td>${s.enginePath}</td><td>${s.invocation}</td></tr>`).join('')}</tbody></table></div>`;}
 function socialCard(){
  const rows=[['Direct conversion','10% → 11%'],['Paid conversion','4% → 5%'],['Paid share of sessions','20% → 80%']];
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="1200" height="630" fill="#fcfcfa"/><path transform="translate(64 52) scale(1.25)" fill="#142440" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/><text x="116" y="84" font-size="38" fill="#142440">aftergrid</text><rect x="796" y="50" width="340" height="50" rx="4" fill="#f4ecdf" stroke="#79542b"/><text x="966" y="83" font-size="24" text-anchor="middle" fill="#79542b">Synthetic teaching case</text><text x="64" y="172" font-size="28" fill="#52617a">Overall conversion</text><text x="60" y="310" font-size="136" fill="#142440">8.8% → 6.2%</text><line x1="64" x2="1136" y1="352" y2="352" stroke="#b9cbe2" stroke-width="2"/>${rows.map(([k,v],i)=>`<text x="${64+i*360}" y="398" font-size="24" fill="#52617a">${k}</text><text x="${64+i*360}" y="442" font-size="36" fill="#142440">${v}</text>`).join('')}<text x="64" y="540" font-size="60" fill="#142440">Don’t roll back signup yet.</text><text x="64" y="590" font-size="28" fill="#52617a">Both channels improved. Traffic shifted to paid. Check the traffic first.</text></svg>`;
