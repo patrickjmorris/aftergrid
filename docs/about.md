@@ -12,7 +12,7 @@ The skills are free and MIT licensed. Consulting is how I help directly.
 
 ## Background
 
-- **ESPN+ at Disney, 2020 to 2025.** Head of data for ESPN+ (Director of Sports Streaming Analytics). I led a 20-person analytics organization as ESPN+ grew to 25 million subscribers. I built the unified metrics framework behind billion-dollar sports rights evaluations, and a self-serve reporting suite that cut ad-hoc requests by 60%.
+- **ESPN+ at Disney, 2020 to 2025.** Head of data for ESPN+. I led a 20-person analytics organization as ESPN+ grew to 25 million subscribers. I built the unified metrics framework behind billion-dollar sports rights evaluations, and a self-serve reporting suite that cut ad-hoc requests by 60%.
 - **The New York Times, 2013 to 2020.** Product lead for the experimentation platform at The New York Times, used by more than 100 teams. Testing grew from 10 to more than 100 experiments a month, and I introduced dbt for analytics code.
 - **Now.** I build AI products on live data. I run Sporting Works, which makes Spot Sports and its AI agent Jerry: a daily briefing that publishes about 290 fact-checked stories each morning for under $3 in model cost. [How Jerry was built](https://www.spotsports.com/blog/building-jerry).
 
