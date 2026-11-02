@@ -89,13 +89,13 @@ Give a reviewer the row-level data and the question, and leave your conclusion o
 
 The analysis answered the question, but making a deck a sports channel could act on took more work.
 
-The slides are written once, in [`content.mjs`](https://github.com/patrickjmorris/aftergrid/blob/main/examples/spotsports-youtube/scripts/content.mjs), and their numbers come from the saved result tables. The HTML deck, the PDF, and [the site page](spotsports-youtube.md) are all generated from that one file. A verifier checks the result tables against their hashes and checks that every slide's text appears in the HTML and PDF.
+The slides are written once, in [`content.mjs`](https://github.com/patrickjmorris/aftergrid/blob/main/examples/spotsports-youtube/scripts/content.mjs), and their numbers come from the saved result tables. The HTML deck, the PDF, and [the site page](spotsports-youtube.md) are all generated from that one file. A verifier checks the result tables against their hashes, checks that the slide text appears in the HTML, and checks that slide titles appear in the PDF.
 
 The first draft walked through the method in order, and I found it hard to follow, so the deck was rebuilt with the answer first. Slide 1 now says what to report and how to price, and the method moved to supporting slides and an appendix.
 
 The second draft was a generic sponsorship read that could have come from anyone, so I asked for the sports angle. A new analysis step added sport-by-sport timing and channel-level spread. A second read-only pull of public titles added named channels and formats tagged from video titles. That changed the story to different sports calendars with the same week of rising public views.
 
-Two AI models then graded the deck each round on three criteria: a clear takeaway, a clear impact, and sports specificity. Each round's fixes were checked against the results before they went in, and when the graders disagreed, the more cautious one won. The deck went through 35 rounds. These are AI grades, and no person has reviewed the deck.
+Two AI models then graded the deck each round on a clear takeaway and a clear impact, and on sports specificity after the sports reframe. Each round's fixes were checked against the results before they went in, and when the graders disagreed, the more cautious one won. The deck went through 35 rounds. These are AI grades, and no human review is recorded.
 
 The Agentio comparison and the review history were there to check the analysis, so they live on this page and in the repository, and I left them out of the deck.
 

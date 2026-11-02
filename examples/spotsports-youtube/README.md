@@ -30,7 +30,7 @@ The owner approved publishing these YouTube metrics and public channel titles on
 node examples/spotsports-youtube/scripts/verify.mjs
 ```
 
-This checks every result file against its hash in `analysis/results_manifest.json`. It then checks that the deck, the PDF, the site page, and the skill outputs cite only numbers in those results. It does not need the private extract.
+This checks every result file against its hash in `analysis/results_manifest.json`. It then checks that the deck and PDF match their source, that the site page is current, and that decimals in the skill outputs appear in those results. It does not need the private extract.
 
 With a copy of the extract (`data/README.md`), the whole analysis reruns in about a minute and reproduces every result file byte for byte:
 
