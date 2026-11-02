@@ -23,6 +23,7 @@ Ordinary skill use must not require the Engine, an Instance, GitHub approval, a 
 | --- | --- |
 | `skills/<name>/SKILL.md` | The skill. Portable procedure first. Optional Engine path in `references/engine-workflow.md`. |
 | `docs/skills/<name>.md` | Human docs page. Orients a person choosing the skill; does not copy the runbook. |
+| `docs/skills/engine/<name>.md` | Engine detail for people running the CLI. Not published on the site. |
 | `docs/guides/` | Quickstart and workflows. |
 | `docs/examples/` | Worked examples that the site publishes. |
 | `docs/fieldnotes/` | Teaching essays. |
@@ -39,7 +40,7 @@ Fourteen promoted skills live directly under `skills/` and must appear in `skill
 Write skills the way Matt's `writing-for-agents` skill requires: ordered actions with observable completion, domain-specific decision rules, and branch detail behind references. A skill solves a problem a practicing analyst can name.
 
 - **Portable first.** The default path uses the user's files and existing tools.
-- **Engine last.** If `references/engine-workflow.md` exists, the docs page keeps Engine detail after `## Engine Finding reference` so the site can collapse it.
+- **Engine last.** Public docs pages stay portable. If `references/engine-workflow.md` exists, human-facing Engine detail lives in `docs/skills/engine/<name>.md`, which the site does not publish, and the docs page ends with one line linking to it.
 - **Invocation.** `ask-aftergrid`, `analyze`, `grill-question`, `revise-finding`, and `setup-aftergrid` are explicit (`disable-model-invocation: true`). The original craft skills are model-invoked (`user-invocable: false`). New skills allow both. Keep `SKILL.md` and `agents/openai.yaml` in agreement.
 - **No user-invoked skill calls another user-invoked skill.** Shared procedures live in references. A skill installs alone, so a portable reference several skills use ships as a byte-identical copy in each; `src/distribution.test.ts` names each shared file's source skill in `SHARED_REFERENCES`, finds every copy by listing `skills/*/references/`, and fails when one drifts. Edit the source copy, then recopy. Links inside a skill stay inside it; a path into another skill or `docs/` is a code span naming the complete toolkit.
 - **Docs pages** use What it does, When to reach for it, a short leading-idea section, Common questions, It's working if, and Where it fits. They do not dump install commands (the site template supplies those) and they do not reproduce `SKILL.md` step lists.

@@ -6,9 +6,9 @@ Your agent can already get the number. Text-to-SQL, semantic layers, and BI copi
 
 Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net loss of 260 leaves the period 280 short of an assumed 900-signup plan. Don't roll back signup yet. First check whether a tracking change relabeled direct visits as paid, then find where the 6,000 direct sessions went.
 
-Fourteen open-source skills for agents that read `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up. [What was checked in Claude Code, Codex, and Cursor](docs/guides/what-runs-where.md).
+Fourteen open-source skills for agents that read `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. [What was checked, agent by agent](docs/guides/what-runs-where.md).
 
-[Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://aftergrid.dev) · [Doctrine](docs/doctrine.md) · [Work with me](#work-with-me)
+[Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://aftergrid.dev) · [Doctrine](docs/doctrine.md) · [About](#about)
 
 ## Install and run it
 
@@ -127,10 +127,10 @@ For a larger example, [NYC open data](examples/nyc-open-data/README.md) has two 
 
 ## Fieldnotes
 
-- [The number is not the answer](docs/fieldnotes/the-number-is-not-the-answer.md)
+- [After you have the number](docs/fieldnotes/the-number-is-not-the-answer.md)
 - [Ask before you query](docs/fieldnotes/ask-before-query.md)
-- [The metric moved. Now what?](docs/fieldnotes/the-metric-moved.md)
-- [Analysis that compounds](docs/fieldnotes/analysis-that-compounds.md)
+- [When a metric moves](docs/fieldnotes/the-metric-moved.md)
+- [Keeping lessons from one analysis to the next](docs/fieldnotes/analysis-that-compounds.md)
 
 ## Lessons that get retrieved
 
@@ -169,14 +169,14 @@ pnpm run smoke:pack
 
 CI runs on Ubuntu and macOS, Node 22.18 and 24. Installer checks, model runs, deterministic arithmetic, and human reader feedback are different kinds of evidence; none stands in for another. Development is tracked in [beads](docs/agents/issue-tracker.md). Agents working on this repository read [AGENTS.md](AGENTS.md).
 
-## Work with me
+## About
 
-I'm [Patrick Morris](https://github.com/patrickjmorris). I ran data for ESPN+ as it grew to 25 million subscribers and built the experimentation platform at The New York Times. I built aftergrid because agents got good at fetching the number before they got good at the work that follows. Their answers reported a rate without sizing it against the goal, and too often missed a mix shift an experienced analyst would spot in a minute.
+I'm [Patrick Morris](https://github.com/patrickjmorris). I was head of data for ESPN+ as it grew to 25 million subscribers, and before that I was product lead for the experimentation platform at The New York Times. I built aftergrid because agents got good at fetching a number before they got good at the work that comes after it. An agent can report a rate without sizing it against the goal, or miss a mix shift an experienced analyst would catch quickly.
 
 - **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metrics tied to the goals they serve, a review step that asks whether a result matters before it reaches a decision, and lessons the next analysis retrieves. Your data stays in your repository.
 - **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
 
-Email [patrick@sportingworks.co](mailto:patrick@sportingworks.co?subject=aftergrid) with the meeting you're trying to get right. More on [the website](https://aftergrid.dev/about/).
+Email [patrick@sportingworks.co](mailto:patrick@sportingworks.co?subject=aftergrid) about the decision you're working on. More on [the website](https://aftergrid.dev/about/).
 
 ## Influences and license
 

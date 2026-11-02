@@ -37,4 +37,4 @@ The [lesson-reuse example](../examples/lesson-reuse.md) shows a second period th
 
 ## Where it fits
 
-A Frame-stage standalone that [analyze](analyze.md) also performs internally. Neighbors: [diagnose-change](diagnose-change.md) for the movement playbook, [learn-from-analysis](learn-from-analysis.md) for the capture half of the loop. See [Analysis that compounds](../fieldnotes/analysis-that-compounds.md).
+A Frame-stage standalone that [analyze](analyze.md) also performs internally. Neighbors: [diagnose-change](diagnose-change.md) for the movement playbook, [learn-from-analysis](learn-from-analysis.md) for the capture half of the loop. See [Keeping lessons from one analysis to the next](../fieldnotes/analysis-that-compounds.md).

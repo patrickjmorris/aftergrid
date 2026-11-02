@@ -34,7 +34,7 @@ const MANIFEST_SCHEMA = readJson(new URL("../schema/finding-manifest.schema.json
  * The manifest paths /write-finding owns. Everything else must survive the skill byte-identical.
  *
  * Ownership is path-level, not block-level. The skill owns `export_policy.allowed_fields` and
- * `reader.profile` (skills/write-finding/SKILL.md, docs/skills/write-finding.md), not the blocks they sit
+ * `reader.profile` (skills/write-finding/SKILL.md, docs/skills/engine/write-finding.md), not the blocks they sit
  * in: listing the coarse keys here would let `recipient_scope`, `granularity`, `delivery` and
  * `private_marker` change, or disappear, with the boundary reporting nothing. `private_marker` is the one
  * that bites — it is optional in schema/finding-manifest.schema.json, and both guards that use it are

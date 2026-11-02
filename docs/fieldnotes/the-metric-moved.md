@@ -1,36 +1,36 @@
 ---
-title: The metric moved. Now what?
-description: Separate the arithmetic from the story.
+title: When a metric moves
+description: How to separate the arithmetic of a change from the explanation for it.
 kicker: Fieldnote · Diagnosis
 ---
 
-A rate fell. Someone remembers a recent product change. The explanation arrives before the analysis: the change must have hurt conversion.
+When a rate falls right after a product change, people tend to blame the change before anyone has looked at the data.
 
-A useful diagnosis slows that down long enough to ask whether the measurement changed, the population changed, or performance within comparable groups changed. All three move a dashboard. They call for different responses.
+I try to slow that down long enough to ask whether the measurement changed, the population changed, or performance changed within comparable groups. Any of these can move a dashboard, and each calls for a different response.
 
 ## Begin with the denominator
 
 The [conversion case](../examples/conversion-mix.md) has four synthetic rows. Direct converts at 10% in the baseline and 11% now. Paid improves from 4% to 5%. Overall conversion falls from 8.8% to 6.2%.
 
-The total is correct. The population changed. Direct went from 80% of sessions to 20%; paid from 20% to 80%. More of the current period came from the channel that converts worse.
+The total is correct, and the population changed. Direct went from 80% of sessions to 20%, and paid went from 20% to 80%, so more of the current period came from the channel that converts worse.
 
-Averaging the two channel rates would weight them equally. The reported rate is total signups over total sessions. Rebuilding that total is the first check, before any story about why it moved.
+Averaging the two channel rates would weight them equally, but the reported rate is total signups over total sessions. I'd rebuild that total first, before forming any view on why it moved.
 
 ## Make the decomposition add up
 
-Hold channel rates at baseline and change the weights: −3.6 percentage points from composition. Apply each channel's rate change at current weights: +1.0. Together, the observed −2.6.
+Holding channel rates at baseline and changing the weights gives −3.6 percentage points from composition. Applying each channel's rate change at current weights gives +1.0. Together they make the observed −2.6.
 
-That is one specified decomposition. Another ordering allocates the interaction differently when weights and rates both change. State the convention, reconcile to the total, and do not treat the parts as natural constants.
+That's one way to do the decomposition. Another ordering allocates the interaction differently when weights and rates both change, so state the convention you used and reconcile to the total.
 
-The result gives an operational lead: inspect the acquisition shift before reading the aggregate as a worse signup experience. It does not prove the product change had no effect. Channels are broad; intent, devices, campaigns, or measurement could have changed within them. There is no experimental assignment or change log.
+The result tells you to look at the acquisition shift before reading the total as a worse signup experience. It doesn't prove the product change had no effect. Channels are broad, and intent, devices, campaigns, or measurement could have changed within them. This data has no experimental assignment or change log.
 
 ## Check whether the metric stayed the same
 
-Before decomposing a real movement, establish that the two periods measure the same thing. A tracking release can exclude a class of sessions. A timezone change can move late-night events across a date boundary. A new dedup rule can lower a count without anyone behaving differently.
+Before decomposing a real change, make sure the two periods measure the same thing. A tracking release can exclude a class of sessions, a timezone change can move late-night events across a date boundary, and a new dedup rule can lower a count without anyone behaving differently.
 
-Each needs evidence: release records, event volumes, null rates, distinct keys, reconciliation against an independent source. A list of possible causes is a research plan, not a finding. Report what was checked, what held, and what is still open.
+Each of these needs evidence, such as release records, event volumes, null rates, distinct keys, or reconciliation against an independent source. A list of possible causes is only a plan for what to check. Report what you checked, what held, and what's still open.
 
-A prompt that asks for the distinction:
+This prompt asks for that distinction:
 
 ```text
 /diagnose-change Conversion fell last week. Reconstruct the reported
@@ -42,14 +42,14 @@ disconfirm it. Name what the supplied data cannot establish.
 
 ## Counts need bridges too
 
-The same discipline works without a rate. In the [revenue case](../examples/revenue-bridge.md), contracted MRR goes from $430 to $440. New business +$90, expansion +$20, contraction −$20, churn −$80.
+The same approach works without a rate. In the synthetic [revenue case](../examples/revenue-bridge.md), contracted MRR goes from $430 to $440, with new business at +$90, expansion at +$20, contraction at −$20, and churn at −$80.
 
-Net gain $10. The customers present at baseline end at $350, down from $430. A growth headline and a retention concern are both accurate. The bridge shows what the aggregate hides.
+The net gain is $10, while the customers present at baseline end at $350, down from $430. A growth headline and a retention concern are both accurate, and the bridge shows both.
 
-Five synthetic rows teach accounting for movement, not forecasting or benchmarking. The next investigation looks at the losses and their context. It does not pretend the extract can tell the founder how to allocate budget.
+Five synthetic rows can teach how to account for a change, but they can't support a forecast or a benchmark. The next step is to look at the losses and their context. The extract can't tell the founder how to allocate budget.
 
 ## Finish with a narrower decision
 
-A diagnosis is useful when it changes what someone investigates or does next. "Conversion declined" repeats the chart. "The shift toward paid sessions more than offsets the gains within channels" names a mechanism in the supplied counts and points at the next question.
+A diagnosis is useful when it changes what someone investigates or does next. "Conversion declined" repeats the chart. "The shift toward paid sessions more than offsets the gains within channels" names a mechanism in the supplied counts and leads to the next question.
 
-Keep that sentence separate from a causal claim. Arithmetic says how a total is composed. Why people behaved differently needs evidence about the process that produced the components.
+Keep that sentence separate from a causal claim. Arithmetic tells you how a total is composed. To say why people behaved differently, you need evidence about the process behind those numbers.

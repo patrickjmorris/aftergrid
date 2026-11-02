@@ -1,6 +1,6 @@
 ---
 title: Conversion recovered. Was it the same mechanism?
-description: Last time it was mix. Check before repeating the story.
+description: A synthetic follow-up that re-tests an earlier mix-shift lesson before repeating the explanation.
 kicker: Worked example · Synthetic data · Lesson reuse
 ---
 

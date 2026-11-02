@@ -1,6 +1,6 @@
 {
   "name": "aftergrid",
-  "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings.",
+  "description": "Analytics judgment for the agent you already use: open-source skills that work on a CSV, a notebook, or your SQL connection.",
   "version": "0.0.0",
   "author": {
     "name": "Patrick Morris",

@@ -1,6 +1,6 @@
 ---
 title: Retention was 50% higher. Did onboarding cause it?
-description: A mandate and a forecast sitting on a self-selected 60% vs 40%.
+description: A synthetic review of a mandate and a forecast built on a self-selected 60% vs 40% comparison.
 kicker: Worked example · Synthetic data · Review
 ---
 

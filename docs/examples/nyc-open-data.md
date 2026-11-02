@@ -1,6 +1,6 @@
 ---
 title: Two questions about New York
-description: Real taxi, weather, and bike data. One inconclusive answer, one descriptive one, dead ends kept.
+description: Analyses of real taxi, weather, and bike data. One answer is inconclusive, one is descriptive, and the dead ends are kept.
 kicker: Worked example · Public data
 ---
 

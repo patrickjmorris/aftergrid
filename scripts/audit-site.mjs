@@ -51,7 +51,9 @@ if(!existsSync(resolve(SITE,'assets/social-card.png')))errors.push('Missing asse
 const catalog=JSON.parse(readFileSync(resolve(SITE,'content/skills.json'),'utf8'));
 if(catalog.length<1||new Set(catalog.map(x=>x.slug)).size!==catalog.length)errors.push('Skill catalog must contain unique skills.');
 for(const skill of catalog){for(const path of [`skills/${skill.slug}/SKILL.md`,`skills/${skill.slug}/agents/openai.yaml`,`docs/skills/${skill.slug}.md`])if(!existsSync(resolve(ROOT,path)))errors.push(`Missing skill source ${path}`);}
-const example=readFileSync(resolve(SITE,'example-finding/index.html'));
-const canonical=readFileSync(resolve(ROOT,'fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/render/finding.html'));
-if(!example.equals(canonical))errors.push('Example Finding has drifted from canonical renderer output.');
+const example=readFileSync(resolve(SITE,'example-finding/index.html'),'utf8');
+const canonical=readFileSync(resolve(ROOT,'fixtures/instance/analytics/findings/2026-07-20-onboarding-checklist-retention/render/finding.html'),'utf8');
+if(example.replace(/<!--site-insert-->.*?<!--\/site-insert-->/g,'')!==canonical)errors.push('Example Finding has drifted from canonical renderer output.');
+if(!example.includes('Synthetic test fixture')||!example.includes('name="robots" content="noindex"'))errors.push('Example Finding must be labeled as a synthetic fixture and marked noindex.');
+if(readFileSync(resolve(SITE,'sitemap.xml'),'utf8').includes('example-finding'))errors.push('Example Finding must stay out of the sitemap.');
 if(errors.length){console.error(`Site audit failed (${errors.length}):\n${errors.map(x=>'  '+x).join('\n')}`);process.exitCode=1;}else console.log(`Site audit passed: ${pages.length} pages, ${catalog.length} skill sources, local navigation, repository links, document structure and canonical Finding.`);

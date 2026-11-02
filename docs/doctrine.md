@@ -1,12 +1,10 @@
 ---
-title: The agent argues before the number reaches a decision
-description: What these skills tell your agent to refuse, quoted from the skills themselves.
+title: What the skills tell your agent to refuse
+description: The rules these skills give your agent, quoted from the skills themselves.
 kicker: Doctrine
 ---
 
-A fast agent can carry a wrong number straight into a decision. These skills put an argument in the way. The agent is told to push back on you, on the draft, and on its own answer before anyone acts.
-
-Each refusal below quotes the skill that carries it. A test in this repository fails if the quote stops matching the skill.
+An agent can carry a wrong number into a decision quickly, so these skills tell it to stop and push back first. Each section below quotes the skill file that carries the rule, and a test in this repository fails if a quote stops matching.
 
 ## No recommendation from a number nobody reproduced
 
@@ -72,6 +70,6 @@ From [make-the-call](../skills/make-the-call/SKILL.md). Metric definitions work 
 
 ## What this doesn't promise
 
-These are instructions to your agent, not enforcement. An agent can still break one, and a portable answer carries no guarantee because a skill produced it. The [skills lab](../examples/skills-lab/runs/README.md) records one isolated agent on four synthetic tasks, which is a teaching record, not a benchmark.
+These are instructions to your agent, and an agent can still break one. An answer carries no guarantee just because a skill produced it. The [skills lab](../examples/skills-lab/runs/README.md) records one isolated agent on four synthetic tasks. It's a teaching record, and I wouldn't read it as a benchmark.
 
-Two things help catch a miss. [analysis-review](../skills/analysis-review/SKILL.md) challenges the result as a separate step. The optional Engine adds runnable Checks, and even those establish only the properties they test.
+Two things help catch a miss. [analysis-review](../skills/analysis-review/SKILL.md) challenges the result as a separate step. The optional command-line tool adds checks you can run, and those establish only the properties they test.

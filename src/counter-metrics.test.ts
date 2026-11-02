@@ -436,7 +436,7 @@ test("the skills ask the question, record a \"none\", and hand the reporting to 
     assert.ok(pattern.test(text), `${name} must ${what} (no match for ${pattern})`);
   const clarification = readFileSync(join(REPO, "skills/analyze/references/clarification.md"), "utf8");
   const grill = readFileSync(join(REPO, "skills/grill-question/references/engine-workflow.md"), "utf8");
-  const grillDoc = readFileSync(join(REPO, "docs/skills/grill-question.md"), "utf8");
+  const grillDoc = readFileSync(join(REPO, "docs/skills/engine/grill-question.md"), "utf8");
   const writer = readFileSync(join(REPO, "skills/write-finding/references/engine-workflow.md"), "utf8");
   const briefs = readFileSync(join(REPO, "skills/analysis-review/references/reviewer-briefs.md"), "utf8");
 
@@ -444,7 +444,7 @@ test("the skills ask the question, record a \"none\", and hand the reporting to 
   says("clarification.md", clarification, /counter_metrics_none_because/, "give \"none\" a place to be recorded");
   says("clarification.md", clarification, /Never `counter_metrics: \[\]`/, "forbid the empty list");
   says("clarification.md", clarification, /definition_approval/, "send a change to an approved definition to the Operator");
-  for (const [name, text] of [["skills/grill-question/SKILL.md", grill], ["docs/skills/grill-question.md", grillDoc]] as const) {
+  for (const [name, text] of [["skills/grill-question/SKILL.md", grill], ["docs/skills/engine/grill-question.md", grillDoc]] as const) {
     says(name, text, /counter_metrics/, "name the field");
     says(name, text, /counter_metrics_none_because/, "name where a recorded \"none\" goes");
   }

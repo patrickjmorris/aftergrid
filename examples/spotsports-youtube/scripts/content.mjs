@@ -9,7 +9,7 @@ const md = (d) => `${num(d.slice(5, 7))}/${num(d.slice(8, 10))}`;
 const range = (r, lo, hi, v) => `${x(r[v])} (${x(r[lo])} to ${x(r[hi])})`;
 
 export const meta = {
-  title: 'Sports YouTube’s fall 2026 will look like a record season. The new view count is the leading reason',
+  title: 'Sports YouTube’s fall 2026 will look like a record season. The new view count is the leading explanation',
   description: `Real data from ${N.channels} sports creator channels across 14 sports. Same creators, same video age: long-form views rose ${N.pooledPct} after YouTube changed how it counts a view, in the same weeks the football and soccer seasons began. What it means for creators, clubs, leagues, and sponsors.`,
   kicker: 'Analysis · Real data · Sports YouTube',
 };
@@ -55,7 +55,7 @@ const ap = (k) => `A${APX.indexOf(k) + 1}`;
 const sportWeeks = [...new Set(S.sportEvents.map((r) => r.publish_start))].filter((w) => w !== '2026-08-10').sort();
 const sportSeries = (sp, short) => ({ name: sp, short: short || sp, end: num(seg('sport', sp).ratio_of_totals), values: sportWeeks.map((w) => num(S.sportEvents.find((r) => r.sport === sp && r.publish_start === w).ratio_of_totals)) });
 
-const CONTACT = 'mailto:patrickjohnmorris@gmail.com?subject=Sporting%20Works%20analysis';
+const CONTACT = 'mailto:patrick@sportingworks.co?subject=Sporting%20Works%20analysis';
 
 export const slides = [
   {
@@ -71,7 +71,7 @@ export const slides = [
       'Monday, reporting: compare first-30-day engaged views at matching competition stages with 2025; label public views separately (slide 7).',
       'Monday, sponsorships: for your 10 most recent sponsored long-form videos since August 24 now 30 days old, divide total engaged by total public views; use that share with an agreed engaged CPM (slide 8).',
     ],
-    notes: `Data: 535,168 videos from Spot Sports’ catalog of about ${N.catalogChannels} sports creator channels, read 2026-10-27.`,
+    notes: `Data: 535,168 videos from Spot Sports’ catalog of ${N.allChannels} sports creator channels, read 2026-10-27.`,
   },
   {
     id: 'what-changed',
@@ -138,7 +138,7 @@ export const slides = [
     cards: [
       { stat: `+${N.pooledPct}`, label: 'New videos vs the same creators’ summer videos', body: 'A new video’s first month runs far above the same creator’s earlier videos. Any recap that compares this fall with last fall on public views mixes two counts.' },
       { stat: N.top1000PostShare, label: 'Of the top 1,000 videos', body: `Among long-form videos published May 8 to July 26 or August 31 to September 29, each at one month old, those after the change are ${N.poolPostShare} of uploads but ${N.top1000PostShare} of the 1,000 most viewed. A uniform ${N.pooled} adjustment cuts their share to ${N.top1000ScaledShare}: a sensitivity to counting, not a measured correction. The windows also differ by season, summer against early fall, so part of the gap may be season.` },
-      { stat: 'No blanket correction', label: `The ${N.pooledPct} rise is not a discount for your whole channel`, body: `Older videos contain views counted under different rules, and this study does not measure engaged views. For Monday’s report, show first-30-day engaged views against matching competition stages in 2025, and label public views separately. Lifetime-total scenarios are in appendix ${ap('lifetime')}.` },
+      { stat: 'No blanket correction', label: `Don’t apply the ${N.pooledPct} rise as a discount across your whole channel`, body: `Older videos contain views counted under different rules, and this study does not measure engaged views. For Monday’s report, show first-30-day engaged views against matching competition stages in 2025, and label public views separately. Lifetime-total scenarios are in appendix ${ap('lifetime')}.` },
     ],
     notes: 'Ranking: videos published May 8 to July 26 against August 31 to September 29, each read at one month old.',
   },
@@ -148,7 +148,7 @@ export const slides = [
     lead: `Measured on ${N.channels} sports channels, including league and club channels, which ranged from no clear change (NBA, Manchester United) to ${x(S.chExamples.find((r) => r.channel_title === 'Major League Soccer').ratio_of_means)} (Major League Soccer, whose summer baseline overlapped the World Cup) (appendix ${ap('named')}).  Shorts already used the new rule, so keep long-form and Shorts separate and measure your own gap before estimating a whole-channel effect. Compare engaged views with matching 2025 weeks and competition stages; show public views only beside engaged views, both labeled.`,
     asks: [
       ['Season recaps by sport', 'Report line: “[stage, format]: X first-30-day engaged views, Y% vs the matching 2025 stage; public views Z, new count.” Football: weeks 1 to 4. MLB: same postseason rounds. Soccer: match stages; July’s World Cup is a different baseline. NBA and NHL: openers pending until day 30.'],
-      ['Rate cards and media kits', `Name the count behind every number. New videos average ${N.pooled} the public views of the same channels’ summer videos (${x(S.lf.rt_lo)} to ${x(S.lf.rt_hi)}), including any real growth. Among the ${N.chCount} channels with five or more videos on each side, about ${N.chUnder125} moved less than 1.25x and ${N.chOver4} more than 4x: observed changes, not measured counting effects (appendix ${ap('channels')}). Before a sponsor asks, put your own day-30 public and engaged views side by side, and quote engaged first.`],
+      ['Rate cards and media kits', `Name the count behind every number. New videos average ${N.pooled} the public views of the same channels’ summer videos (${x(S.lf.rt_lo)} to ${x(S.lf.rt_hi)}), including any real growth. Among the ${N.chCount} channels with five or more videos on each side, about ${N.chUnder125} moved less than 1.25x and ${N.chOver4} more than 4x. These are observed changes and don’t measure the counting effect (appendix ${ap('channels')}). Before a sponsor asks, put your own day-30 public and engaged views side by side, and quote engaged first.`],
       ['Records and rankings', `Label records set after August 24 as records under the new count. Football’s opening weeks and the October NBA and NHL openers use a different count from 2025; before claiming a cross-season record, compare engaged views at the same video age.`],
     ],
     notes: 'Engaged views are not public; creators see them in YouTube Studio.',
@@ -176,14 +176,9 @@ export const slides = [
   {
     id: 'pitch',
     layout: 'closing',
-    title: 'Sports YouTube is our beat. Have a number that moved? Sporting Works turns it into a decision',
-    lead: `Built on Spot Sports’ catalog of about ${N.catalogChannels} sports creator channels in ${N.catalogSports} sports (${N.channels} channels in ${sports.length} sports met the analysis bar), by Patrick Morris at Sporting Works with aftergrid, open-source analytics skills for the AI agent your team already uses.`,
-    offers: [
-      ['Season reporting', 'Season-over-season views, records, and rankings that hold up when the count changes.'],
-      ['Sponsor-ready numbers', 'Rate cards and sponsor reports built on engaged views, by sport and channel size.'],
-      ['The workflow', 'The same skills set up in your team’s agent, so the next analysis starts here.'],
-    ],
-    links: [['Email Patrick', CONTACT], ['aftergrid on GitHub', 'https://github.com/patrickjmorris/aftergrid'], ['How this analysis was built', 'https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md']],
+    title: 'Who made this',
+    lead: `Patrick Morris made this at Sporting Works using aftergrid, open-source analytics skills for the AI agent you already use. Spot Sports’ catalog has ${N.allChannels} sports creator channels, ${N.catalogChannels} of them with an assigned sport across ${N.catalogSports} sports. ${N.channels} channels in ${sports.length} sports met the analysis bar.`,
+    links: [['About Patrick', 'https://aftergrid.dev/about/'], ['Email', CONTACT], ['aftergrid on GitHub', 'https://github.com/patrickjmorris/aftergrid'], ['How this analysis was built', 'https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md']],
     notes: 'Agent-made and AI-reviewed. Not human-approved.',
   },
 ];
@@ -206,7 +201,7 @@ export const appendix = [
       ['Baseball', 'Final month of the regular season', sportChange('Baseball'), 'Postseason rounds against last year’s same rounds'],
       ['Soccer', 'European leagues starting; summer was World Cup season', sportChange('Soccer'), 'Same competition stage, not July'],
       ['All sports', 'Shorts counting unchanged', `+${N.pooledPct}`, 'Long-form only; ask for Shorts separately']],
-    'Calendar positions are general knowledge, not data in this extract. Compare first-30-day engaged views from YouTube Studio, not public views.'),
+    'Calendar positions are general knowledge, not data in this extract. Use first-30-day engaged views from YouTube Studio for this comparison.'),
   { key: 'sportWeekly', title: `${ap('sportWeekly')}. The weekly rise in the five largest sports`, source: 'sport_event_study.csv',
     lead: `Soccer was already above its baseline in July, during the World Cup’s final weeks: do not read its full ${sportChange('Soccer')} pooled rise as counting, or use it as a soccer pricing discount. Football’s season start coincides with the change; basketball and hockey avoid the NBA and NHL regular-season starts, but other calendar changes remain possible contributors.`,
     chart: { kind: 'line', gapAfter: '8/3', labels: sportWeeks.map(md), series: [sportSeries('Soccer'), sportSeries('Football'), sportSeries('Baseball'), sportSeries('Basketball'), sportSeries('Hockey')], marker: { at: '8/24', label: 'Aug 24' } },
@@ -221,7 +216,7 @@ export const appendix = [
         { name: 'Where nothing changed', values: S.chDist.filter((r) => r.comparison.startsWith('nothing')).map((r) => num(r.share)) }] },
     note: 'Share of channels in each band of mean views per new video over mean views per earlier video, at 28 to 30 days. Where nothing changed: published before vs after July 1, all read before August 24.' },
   { key: 'channelsBySport', title: `${ap('channelsBySport')}. Between seasons, ${N.hockeyChRose} of hockey channels and ${N.basketballChRose} of basketball channels rose. Football’s ${N.footballChRose} coincides with kickoff`, source: 'channel_lift_summary.csv',
-    lead: `Share of channels whose new videos rose, across the change against a period where nothing changed. Audit season reports across every channel, not just a few breakouts. This shows breadth, not each channel’s counting effect. Football: ${N.footballCh} of ${int(seg('sport', 'Football').channels)} analyzed channels had 5 or more videos on each side.`,
+    lead: `Share of channels whose new videos rose, across the change against a period where nothing changed. Audit season reports across every channel, including those without a breakout. This shows how widespread the rise is and doesn’t measure each channel’s counting effect. Football: ${N.footballCh} of ${int(seg('sport', 'Football').channels)} analyzed channels had 5 or more videos on each side.`,
     chart: { kind: 'pairs', format: 'share', labels: ['All sports', 'Soccer', 'Basketball', 'Baseball', 'Hockey', 'Football'],
       series: [{ name: 'Across the change', values: ['All sports', 'Soccer', 'Basketball', 'Baseball', 'Hockey', 'Football'].map((sp) => num(S.chSumm.find((r) => r.comparison.startsWith('switch') && r.sport === sp).share_rose)) },
         { name: 'Where nothing changed', values: ['All sports', 'Soccer', 'Basketball', 'Baseball', 'Hockey', 'Football'].map((sp) => num(S.chSumm.find((r) => r.comparison.startsWith('nothing') && r.sport === sp).share_rose)) }] },
@@ -230,7 +225,7 @@ export const appendix = [
     S.chExamples.map((r) => [r.sport, r.channel_title, `${int(r.pre_videos)} / ${int(r.post_videos)}`, `${x(r.ratio_of_means)} (${x(r.lo)} to ${x(r.hi)})`]),
     'The five largest channels by stored long-form views in each of the five largest sports, with at least 5 videos on each side at 28 to 30 days. Mean views per new video over mean per earlier video; ranges resample each channel’s videos. A channel whose summer had no games, such as college football, mixes its season start with the count; Major League Soccer’s before window overlaps the World Cup summer. Use: ask each of these for its engaged share before renewing a package.'),
   { key: 'formats', title: `${ap('formats')}. ${words[fmtRows.filter((r) => num(r.rt_lo) > 1).length].replace(/^./, (c) => c.toUpperCase())} of ${words[fmtRows.length]} title-tagged formats rose clearly; ${fmtRows.filter((r) => num(r.rt_lo) <= 1).map((r) => r.format.toLowerCase()).join(' and ')} are within noise. No format is shown to differ`, source: 'format_lift.csv',
-    lead: `Long-form videos tagged from their titles, all sports. Live streams and watchalongs rose ${change(fmtRows.find((r) => r.format.startsWith('Live')).ratio_of_totals)}; press conferences and interviews ${change(fmtRows.find((r) => r.format.startsWith('Press')).ratio_of_totals)}; the ranges overlap. Price formats from each creator’s engaged share, not from this chart.`,
+    lead: `Long-form videos tagged from their titles, all sports. Live streams and watchalongs rose ${change(fmtRows.find((r) => r.format.startsWith('Live')).ratio_of_totals)}; press conferences and interviews ${change(fmtRows.find((r) => r.format.startsWith('Press')).ratio_of_totals)}; the ranges overlap. Use each creator’s engaged share to price formats.`,
     chart: { kind: 'bars', labels: fmtRows.map((r) => r.format), values: fmtRows.map((r) => num(r.ratio_of_totals)), lo: fmtRows.map((r) => num(r.rt_lo)), hi: fmtRows.map((r) => num(r.rt_hi)) },
     note: `Keyword rules on video titles, applied in the order shown; most long-form videos match no rule and are left out. Each format compares the same channels’ tagged videos before and after; formats with at least 10 such channels. Video titles are not published.` },
   { key: 'sportFormats', title: `${ap('sportFormats')}. Long-form rose in every sport; Shorts did not clearly rise in any, and basketball Shorts are mixed (${change(seg('shorts sport', 'Basketball').typical_video)} typical, ${change(seg('shorts sport', 'Basketball').ratio_of_totals)} views per video)`, source: 'lift_by_segment.csv',

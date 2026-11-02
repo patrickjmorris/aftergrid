@@ -2,7 +2,7 @@
 
 Access to numbers does not tell anyone what to do. This example takes one real dataset and works it from a raw count to a decision for sports channels, using the aftergrid skills in order.
 
-Spot Sports catalogs videos from about 1,040 sports YouTube channels in 18 sports and stores each video's public view count. On August 24, 2026, YouTube started counting a long-form view when a video starts playing; the old count, now called engaged views, needed a viewer to keep watching. The change landed as the football and soccer seasons began. The analysis asks how much public views moved, whether the sports calendar explains it, and what creators, clubs, leagues, and sponsors should report and price on.
+Spot Sports catalogs videos from 1,070 sports YouTube channels (1,040 with an assigned sport, across 18 sports) and stores each video's public view count. On August 24, 2026, YouTube started counting a long-form view when a video starts playing; the old count, now called engaged views, needed a viewer to keep watching. The change landed as the football and soccer seasons began. The analysis asks how much public views moved, whether the sports calendar explains it, and what creators, clubs, leagues, and sponsors should report and price on.
 
 **The answer:** across 746 sports channels in 14 sports, long-form videos published August 31 to September 29 had 74% more first-month public views than the same channels' summer videos (range 60% to 94%). Basketball and hockey rose the same week as football, before the NBA and NHL openers, and Shorts, whose count did not change, rose clearly in no sport. That points to the new count, but the analysis cannot separate counting from real growth and did not see engaged views. Named channels ran from about 1.0x to 12.8x, so each channel should report and price on its own engaged views, not a blanket 1.74x.
 
@@ -30,7 +30,7 @@ The owner approved publishing these YouTube metrics and public channel titles on
 node examples/spotsports-youtube/scripts/verify.mjs
 ```
 
-This checks every result file against its hash in `analysis/results_manifest.json`. It then checks that the deck, the PDF, the site page, and the skill outputs cite only numbers in those results. It does not need the private extract.
+This checks every result file against its hash in `analysis/results_manifest.json`. It then checks that the deck and PDF match their source, that the site page is current, and that decimals in the skill outputs appear in those results. It does not need the private extract.
 
 With a copy of the extract (`data/README.md`), the whole analysis reruns in about a minute and reproduces every result file byte for byte:
 

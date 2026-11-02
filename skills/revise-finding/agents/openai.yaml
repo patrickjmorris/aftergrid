@@ -1,8 +1,8 @@
 interface:
-  display_name: "Revise a Finding"
-  short_description: "Apply Operator feedback to a reviewed Finding, and say what it reopens"
-  default_prompt: "Use $revise-finding on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
+  display_name: "Revise an answer"
+  short_description: "Apply feedback to an analytical answer, and separate presentation edits from changes to calculations and evidence"
+  default_prompt: "Use $revise-finding on the answer and feedback I provide; work from the files and tools I already have, and use the aftergrid CLI only if I ask for it."
 policy:
-  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. Revising a reviewed Finding bumps its
-  # revision and drops its approval: a human asks for it.
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. A revision can reopen reviewed work and,
+  # with the CLI, drop an approval: a human asks for it.
   allow_implicit_invocation: false

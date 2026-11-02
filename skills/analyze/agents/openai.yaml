@@ -1,9 +1,9 @@
 interface:
   display_name: "Analyze"
-  short_description: "Raw ask to reviewed Finding draft: clarify, analyze under Checks, write, illustrate, shape, review, check"
-  default_prompt: "Use $analyze on the question or artifact I provide; use portable analysis unless I request an Engine Finding. Keep a log of what ran as it happens, dead ends and reframes included; in Engine mode record each probe with its at timestamp and its kind, such as dead_end or reframe."
+  short_description: "Take a question from the data you have to a reviewed answer, or an honest limit, with a log of what ran"
+  default_prompt: "Use $analyze on the question or artifact I provide; work from the files and tools I already have, and use the aftergrid CLI only if I ask for it. Keep a log of what ran as it happens, dead ends and reframes included; with the CLI, record each probe with its at timestamp and its kind, such as dead_end or reframe."
 policy:
-  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The run writes a Finding directory,
-  # reads a warehouse and spends real model time: a human asks for it. It is also the only orchestrator, so a
-  # model reaching for it mid-task would nest one run inside another.
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. A run can read a warehouse and spends
+  # real model time: a human asks for it. It is also the only orchestrator, so a model reaching for it mid-task
+  # would nest one run inside another.
   allow_implicit_invocation: false

@@ -1,6 +1,6 @@
 ---
-title: MRR grew. The starting customers shrank.
-description: Headline +$10. Starting customers −$80. Reconcile before you celebrate.
+title: MRR grew while the starting customers shrank
+description: A synthetic case where headline MRR rises $10 while starting customers lose $80.
 kicker: Worked example · Synthetic data
 ---
 
