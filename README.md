@@ -6,9 +6,9 @@ Your agent can already get the number. Text-to-SQL, semantic layers, and BI copi
 
 Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net loss of 260 leaves the period 280 short of an assumed 900-signup plan. Don't roll back signup yet. First check whether a tracking change relabeled direct visits as paid, then find where the 6,000 direct sessions went.
 
-Fourteen open-source skills for Claude Code, Codex, Cursor, and any agent that reads `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up.
+Fourteen open-source skills for agents that read `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. Nothing else to set up. [What was checked in Claude Code, Codex, and Cursor](docs/guides/what-runs-where.md).
 
-[Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://patrickjmorris.github.io/aftergrid/) · [Work with me](#work-with-me)
+[Try the four-row case](docs/guides/quickstart.md) · [Browse the skills](skills/README.md) · [Website](https://aftergrid.dev) · [Doctrine](docs/doctrine.md) · [Work with me](#work-with-me)
 
 ## Install and run it
 
@@ -45,7 +45,32 @@ In Codex, write `$diagnose-change` and `$make-the-call`. The whole collection:
 npx skills add patrickjmorris/aftergrid
 ```
 
-The installer asks which skills and agents to use. It copies Markdown; it does not grant data access. Unsure which skill? Start with `ask-aftergrid`.
+The installer asks which skills and agents to use. It copies the skill files and writes `skills-lock.json`; it does not grant data access. Unsure which skill? Start with `ask-aftergrid`.
+
+### Or have your agent install them
+
+Paste this into your agent:
+
+```text
+Install the aftergrid analytics skills into this project.
+
+Run this, replacing <agent> with claude-code, codex, or cursor, whichever you are:
+
+npx skills add patrickjmorris/aftergrid --skill diagnose-change make-the-call --agent <agent> --yes
+
+Then list every file and directory the command created, and say whether I need to restart you before the skills appear. Do not run the skills or change anything else.
+```
+
+Tested 2026-11-02 in scratch projects. It worked in Claude Code. In Codex it failed under the `workspace-write` sandbox (`EPERM` on `.agents/`) and worked with full access. It hasn't been run in Cursor. If your sandbox blocks the write, run the command yourself. [Details](docs/guides/what-runs-where.md#by-agent).
+
+### Claude Code plugin
+
+```text
+/plugin marketplace add patrickjmorris/aftergrid
+/plugin install aftergrid@aftergrid
+```
+
+Plugin skills are namespaced: `/aftergrid:diagnose-change`.
 
 ## Pick the skill for the work
 
@@ -67,6 +92,21 @@ The installer asks which skills and agents to use. It copies Markdown; it does n
 | Add the optional checked-artifact path | [setup-aftergrid](skills/setup-aftergrid/SKILL.md) | An Engine Instance with explicit capability and approval status |
 
 Use the smallest workflow that answers the task. Reviewing a chart does not require a full analysis. A completed investigation can still conclude the evidence is insufficient.
+
+## What runs where
+
+| You have | Skills |
+| --- | --- |
+| A question, no data yet | `ask-aftergrid`, `grill-question` |
+| A CSV, notebook, or SQL connection | `explore-data`, `define-metric`, `plan-analysis`, `diagnose-change`, `analyze` |
+| A result, draft, or chart | `make-the-call`, `analysis-review`, `write-finding`, `iterate-visual`, `revise-finding`, `learn-from-analysis` |
+| A repository where you want the Engine | `setup-aftergrid` |
+
+Only `setup-aftergrid` needs the Engine. [Per-skill and per-agent detail](docs/guides/what-runs-where.md).
+
+## What the agent refuses
+
+The skills tell your agent to argue before a bad number reaches a decision: no recommendation from a number nobody reproduced, no story from the aggregate alone, no causal verb the design hasn't earned, no invented inputs. [The doctrine](docs/doctrine.md) quotes each refusal from the skill that carries it. These are instructions to the agent, not enforcement.
 
 ## Try it on data you can inspect
 
@@ -136,7 +176,7 @@ I'm [Patrick Morris](https://github.com/patrickjmorris). I ran data for ESPN+ as
 - **Consulting.** Pilot engagements for teams putting analytics judgment into the agents they already use: metrics tied to the goals they serve, a review step that asks whether a result matters before it reaches a decision, and lessons the next analysis retrieves. Your data stays in your repository.
 - **Sponsorship.** Sponsors fund public skills and worked examples and get a named line on the site and in the docs. Nothing commercial appears inside a Finding, and no sponsor touches a metric approval or a capability status.
 
-Email [patrick@sportingworks.co](mailto:patrick@sportingworks.co?subject=aftergrid) with the meeting you're trying to get right. More on [the website](https://patrickjmorris.github.io/aftergrid/about/).
+Email [patrick@sportingworks.co](mailto:patrick@sportingworks.co?subject=aftergrid) with the meeting you're trying to get right. More on [the website](https://aftergrid.dev/about/).
 
 ## Influences and license
 

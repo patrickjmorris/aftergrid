@@ -1,6 +1,6 @@
 # aftergrid site
 
-The skills library, examples, guides and fieldnotes at <https://patrickjmorris.github.io/aftergrid/>.
+The skills library, examples, guides and fieldnotes at <https://aftergrid.dev>.
 Plain static HTML, local Geist typography, shared CSS and small progressive enhancements. All reading and
 navigation work without JavaScript. JavaScript adds copy buttons, skill filtering and the home example selector.
 
@@ -17,19 +17,21 @@ Run from the repository after installing dependencies. The builder uses the exis
 packages; it needs no browser, network connection, environment secret or platform-specific tool. Output is
 byte-stable and committed so GitHub Pages can serve it directly.
 
-- `content/skills.json`: catalog summaries, stages, suggested prompts and outputs.
+- `content/skills.json`: catalog summaries, stages, suggested prompts, outputs and each skill's least start, with `start_source` the sentence in its `SKILL.md` behind it.
 - `docs/skills/<name>.md`: skill detail-page bodies. Invocation is read from each `skills/<name>/SKILL.md`.
 - `docs/guides/quickstart.md`: `/start/`.
 - `docs/guides/skill-workflows.md`: `/guides/skill-workflows/`.
+- `docs/guides/what-runs-where.md`: `/guides/what-runs-where/`; the per-skill table comes from `content/skills.json` and each `SKILL.md`.
+- `docs/doctrine.md`: `/doctrine/`; a test checks every quote against the skill it names.
 - `docs/examples/*.md`: the five worked example pages.
 - `docs/fieldnotes/*.md`: the three essays.
 - `assets/site.css`, `assets/site.js`: shared presentation and progressive interactions.
-- `scripts/build-site.mjs`: page templates and route map.
+- `scripts/build-site.mjs`: page templates, route map and the social card (`assets/social-card.png`).
 
 Content pages accept YAML `title`, `description`, and optional `kicker`. Write source-relative Markdown links;
 known content pages resolve to the local site route, while repository source links resolve to GitHub. Do not
 add a body H1: the template supplies the page title. The builder adds stable heading anchors. Paths are relative
-so every production page works under the `/aftergrid/` GitHub Pages project base and a local server root.
+so every production page works at the domain root and under any local server path.
 
 `example-finding/index.html` is copied byte-for-byte from the synthetic onboarding fixture's canonical
 `render/finding.html`. Its own renderer labels are preserved. The new NYC journey links to real repository

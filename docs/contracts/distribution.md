@@ -98,9 +98,9 @@ npx aftergrid --help
 npx aftergrid plugin validate --json        # the installed copy checks itself
 ```
 
-**As a Claude Code plugin**, from a checkout or an unpacked tarball: the manifest is `.claude-plugin/plugin.json`
-at the package root and the skills are the paths it lists. There is no marketplace entry, so installation is from
-a local path. **With skills.sh**: point it at a skill directory under `skills/`; `package.json#skills` carries the
+**As a Claude Code plugin**: the manifest is `.claude-plugin/plugin.json` at the package root and the skills are
+the paths it lists. `.claude-plugin/marketplace.json` makes the repository its own marketplace, with one plugin
+whose source is the package root. Add it from GitHub or a local path. **With skills.sh**: point it at a skill directory under `skills/`; `package.json#skills` carries the
 same list as the manifest, mirroring `mattpocock-skills`. Neither installer is run by CI — `aftergrid plugin
 validate` checks the layout, and a layout that validates is not the same as an install that succeeded.
 
@@ -161,7 +161,7 @@ the repository and site are public, and skills.sh installation is exercised inde
 - **No `npm publish`.** The package is `"private": true` and version `0.0.0`.
 - **No repository visibility change.** The repository stays as the owner set it.
 - **No automatic release from a passing package check.** Public skills documentation does not publish the CLI.
-- **No marketplace listing.** There is no `.claude-plugin/marketplace.json` and no submission.
+- **No marketplace submission.** The repository is its own marketplace through `.claude-plugin/marketplace.json`; it is not submitted to any directory.
 - **No installer run inside this smoke.** This check validates the layout; separate skills.sh checks exercise
   installation. A skills.sh install does not establish native Claude Code plugin loading.
 - **No live GitHub path.** Intake is exercised through fakes only.

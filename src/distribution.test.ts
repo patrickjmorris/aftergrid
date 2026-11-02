@@ -140,6 +140,28 @@ test("a missing or unparseable manifest stops with one honest error, not a casca
   assert.deepEqual(categories(broken), ["syntax"]);
 });
 
+test("a marketplace entry disagreeing with the manifest is an error, and an absent marketplace is not", () => {
+  const root = packageCopy();
+  const path = join(root, ".claude-plugin", "marketplace.json");
+  const marketplace = JSON.parse(readFileSync(path, "utf8"));
+  const marketplaceErrors = () => validatePlugin(root).errors.filter((e) => e.location.includes("marketplace.json"));
+  assert.deepEqual(marketplaceErrors(), []);
+
+  writeFileSync(path, JSON.stringify({ ...marketplace, plugins: [{ ...marketplace.plugins[0], description: "something else", source: "./elsewhere" }] }));
+  const messages = marketplaceErrors().map((e) => e.message).join("; ");
+  assert.match(messages, /description does not match/);
+  assert.match(messages, /not the package root/);
+
+  writeFileSync(path, JSON.stringify({ ...marketplace, plugins: [] }));
+  assert.ok(marketplaceErrors().some((e) => e.location.endsWith("#plugins")));
+
+  writeFileSync(path, "{ not json");
+  assert.ok(marketplaceErrors().some((e) => e.category === "syntax"));
+
+  rmSync(path, { force: true });
+  assert.deepEqual(marketplaceErrors(), []);
+});
+
 test("the package.json skills index disagreeing with the manifest is an error", () => {
   const root = packageCopy();
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));

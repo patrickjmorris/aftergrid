@@ -1,11 +1,14 @@
 {
   "name": "aftergrid",
-  "description": "Analytics skills for the agent you already use, with an optional Engine for checked Findings.",
+  "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings.",
   "version": "0.0.0",
   "author": {
     "name": "Patrick Morris",
     "url": "https://github.com/patrickjmorris/aftergrid"
   },
+  "homepage": "https://aftergrid.dev",
+  "repository": "https://github.com/patrickjmorris/aftergrid",
+  "license": "MIT",
   "skills": [
     "./skills/analysis-review",
     "./skills/analyze",

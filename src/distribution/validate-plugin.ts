@@ -130,6 +130,29 @@ export function validatePlugin(root: string): PluginReport {
     }
   }
 
+  // The marketplace entry Claude Code's `/plugin marketplace add` reads. When present it must agree with the manifest.
+  const marketplacePath = join(rootDir, ".claude-plugin", "marketplace.json");
+  if (existsSync(marketplacePath)) {
+    const location = ".claude-plugin/marketplace.json";
+    try {
+      const marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
+      const entry = Array.isArray(marketplace.plugins) ? marketplace.plugins.find((p: { name?: unknown }) => p?.name === manifest.name) : undefined;
+      if (typeof marketplace.name !== "string" || !marketplace.name.trim() || typeof marketplace.owner?.name !== "string") {
+        err({ category: "plugin_manifest", location, message: "the marketplace needs a name and an owner name", remedy: "set name and owner.name" });
+      }
+      if (!entry) {
+        err({ category: "plugin_manifest", location: `${location}#plugins`, message: `no plugin entry is named ${String(manifest.name)}`, remedy: "add an entry with the plugin manifest's name" });
+      } else {
+        if (entry.source !== "./") err({ category: "plugin_manifest", location: `${location}#plugins`, message: `the plugin source is ${JSON.stringify(entry.source)}, not the package root`, remedy: "set source to \"./\"" });
+        if (entry.description !== manifest.description) err({ category: "plugin_manifest", location: `${location}#plugins`, message: "the marketplace description does not match the plugin manifest", remedy: "use the same description in both" });
+        if (entry.version !== undefined && entry.version !== manifest.version) err({ category: "plugin_manifest", location: `${location}#plugins`, message: "the marketplace version does not match the plugin manifest", remedy: "remove the version here, or match it" });
+        if (entry.skills !== undefined) err({ category: "plugin_manifest", location: `${location}#plugins`, message: "the marketplace entry lists its own skills", remedy: "keep the skill list in plugin.json and package.json only" });
+      }
+    } catch (e) {
+      err({ category: "syntax", location, message: (e as Error).message, remedy: "fix the JSON" });
+    }
+  }
+
   // Promoted skills on disk: the direct children of skills/ that are not buckets.
   const skillsRoot = join(rootDir, "skills");
   const promoted: string[] = [];
