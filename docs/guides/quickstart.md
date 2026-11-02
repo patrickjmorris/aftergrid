@@ -20,6 +20,8 @@ Installing copies instructions; it does not grant data access. Use `/diagnose-ch
 
 ## Paste this
 
+This is a guided demo: the prompt names the mix shift, so it shows what the skills produce, not that an agent would miss it without them.
+
 ```text
 /diagnose-change Conversion fell from 8.8% to 6.2%. Should we roll
 back signup?

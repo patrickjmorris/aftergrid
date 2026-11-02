@@ -4,7 +4,7 @@
 
 Your agent can already get the number. Text-to-SQL, semantic layers, and BI copilots made the number cheap to request. Deciding what it means is still the hard work. A good analyst ties the metric to the goal it serves, checks that the story holds, sets aside true findings that do not change the decision, and recommends what to do. aftergrid teaches your agent that discipline.
 
-Conversion fell from 8.8% to 6.2%. An agent that reads the total recommends rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net loss of 260 leaves the period 280 short of an assumed 900-signup plan. Don't roll back signup yet. First check whether a tracking change relabeled direct visits as paid, then find where the 6,000 direct sessions went.
+Conversion fell from 8.8% to 6.2%. Read alone, the total points at rolling back signup. `diagnose-change` finds that both channels improved and traffic shifted toward paid. `make-the-call` sizes it: the shift cost 360 signups, better rates won back 100, and the net loss of 260 leaves the period 280 short of an assumed 900-signup plan. Don't roll back signup yet. First check whether a tracking change relabeled direct visits as paid, then find where the 6,000 direct sessions went.
 
 Fourteen open-source skills for agents that read `SKILL.md`. Thirteen work on a CSV, a notebook, or the SQL connection your agent already has. [What was checked, agent by agent](docs/guides/what-runs-where.md).
 
@@ -16,7 +16,7 @@ Fourteen open-source skills for agents that read `SKILL.md`. Thirteen work on a 
 npx skills add patrickjmorris/aftergrid --skill diagnose-change make-the-call
 ```
 
-Then paste this. No clone; the CSV is on GitHub:
+Then paste this. No clone; the CSV is on GitHub. It's a guided demo: the prompt names the mix shift, so it shows what the skills produce, not that an agent would miss it without them.
 
 ```text
 /diagnose-change Conversion fell from 8.8% to 6.2%. Should we roll
