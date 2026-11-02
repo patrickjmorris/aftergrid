@@ -1,6 +1,6 @@
 # aftergrid
 
-Open-source analytics skills for sharpening questions, investigating data, challenging conclusions, and retaining useful lessons. Skills work with the agent's existing tools. The optional Engine adds Checks and a thin CLI for Findings with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Portable skill output is not an Engine Finding.
+Analytics judgment for the agent you already use: open-source skills for sharpening questions, investigating data, challenging conclusions, and retaining useful lessons. Skills work with the agent's existing tools. The optional Engine adds Checks and a thin CLI for Findings with every number traced to its evidence. The Engine is public; each team's context lives in a private Instance. Portable skill output is not an Engine Finding.
 
 This glossary governs Engine and Instance docs and skill prose. Reader-facing copy may use plain words (analyst, decision maker, workspace, "a finding").
 

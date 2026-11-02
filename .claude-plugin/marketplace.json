@@ -1,0 +1,20 @@
+{
+  "name": "aftergrid",
+  "owner": {
+    "name": "Patrick Morris",
+    "url": "https://github.com/patrickjmorris"
+  },
+  "metadata": {
+    "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings."
+  },
+  "plugins": [
+    {
+      "name": "aftergrid",
+      "source": "./",
+      "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings.",
+      "homepage": "https://aftergrid.dev",
+      "repository": "https://github.com/patrickjmorris/aftergrid",
+      "license": "MIT"
+    }
+  ]
+}

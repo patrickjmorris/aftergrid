@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>The agent argues before the number reaches a decision — aftergrid</title><meta name="description" content="What these skills tell your agent to refuse, quoted from the skills themselves."><meta name="author" content="Patrick Morris"><meta property="og:title" content="The agent argues before the number reaches a decision — aftergrid"><meta property="og:description" content="What these skills tell your agent to refuse, quoted from the skills themselves."><meta property="og:type" content="website"><meta property="og:site_name" content="aftergrid"><meta property="og:url" content="https://aftergrid.dev/doctrine/"><meta property="og:image" content="https://aftergrid.dev/assets/social-card.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Synthetic teaching case: conversion fell from 8.8% to 6.2% while direct and paid both improved and traffic shifted to paid. The call: do not roll back signup yet."><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="The agent argues before the number reaches a decision — aftergrid"><meta name="twitter:description" content="What these skills tell your agent to refuse, quoted from the skills themselves."><meta name="twitter:image" content="https://aftergrid.dev/assets/social-card.png"><meta name="twitter:image:alt" content="Synthetic teaching case: conversion fell from 8.8% to 6.2% while direct and paid both improved and traffic shifted to paid. The call: do not roll back signup yet."><link rel="canonical" href="https://aftergrid.dev/doctrine/"><link rel="icon" href="../assets/mark.svg" type="image/svg+xml"><link rel="preload" href="../assets/Geist-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="../assets/site.css"><script src="../assets/site.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><div class="wrap"><header class="site-header"><a class="brand" href=".." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><nav class="nav" aria-label="Main navigation"><a href="../skills/">Skills</a><a href="../examples/">Examples</a><a href="../fieldnotes/">Fieldnotes</a><a href="../about/">About</a><a class="github-nav" href="https://github.com/patrickjmorris/aftergrid">GitHub<span class="external" aria-hidden="true">↗</span></a><a class="nav-start" href="../start/">Start here <span aria-hidden="true">↗</span></a></nav></header><main id="main"><header class="page-hero"><p class="eyebrow">Doctrine</p><h1>The agent argues before the number reaches a decision</h1><p class="intro">What these skills tell your agent to refuse, quoted from the skills themselves.</p></header><div class="reading-layout"><article class="reading article-lede"><p>A fast agent can carry a wrong number straight into a decision. These skills put an argument in the way. The agent is told to push back on you, on the draft, and on its own answer before anyone acts.</p>
+<p>Each refusal below quotes the skill that carries it. A test in this repository fails if the quote stops matching the skill.</p>
+<h2 id="no-recommendation-from-a-number-nobody-reproduced">No recommendation from a number nobody reproduced</h2>
+<blockquote>
+<p>A recommendation built on an unreproduced number inherits its error.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/make-the-call/SKILL.md">make-the-call</a>. The agent reproduces the result first, and <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/diagnose-change/SKILL.md">diagnose-change</a> tells it to reconcile the recalculation to the reported figure:</p>
+<blockquote>
+<p>Recalculate the reported movement from the smallest sufficient source and reconcile it to the reported number.</p>
+</blockquote>
+<h2 id="no-story-from-the-aggregate-alone">No story from the aggregate alone</h2>
+<blockquote>
+<p>A rate can fall overall while every segment improves.</p>
+</blockquote>
+<p>From the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/diagnose-change/references/rigor.md">rigor rules</a>. When a total moves, the agent separates change inside the segments from change in their weights. In the <a href="../examples/conversion-mix/">conversion case</a>, a synthetic teaching case, that is the difference between &quot;signup broke&quot; and &quot;traffic shifted.&quot;</p>
+<h2 id="no-business-fix-from-arithmetic">No business fix from arithmetic</h2>
+<blockquote>
+<p>Recommend the smallest useful next observation or action; do not prescribe a business intervention solely from a descriptive decomposition.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/diagnose-change/SKILL.md">diagnose-change</a>. A decomposition shows where the movement came from. It does not show why behavior changed.</p>
+<h2 id="no-causal-verb-the-design-hasnt-earned">No causal verb the design hasn&#39;t earned</h2>
+<blockquote>
+<p>Use causal language only when the design earns it.</p>
+</blockquote>
+<p>From the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/diagnose-change/references/rigor.md">rigor rules</a>. &quot;Caused,&quot; &quot;drove,&quot; and &quot;thanks to&quot; need randomized assignment, or an identification strategy whose assumptions are named and testable.</p>
+<h2 id="no-costly-action-on-descriptive-evidence">No costly action on descriptive evidence</h2>
+<blockquote>
+<p>A costly or irreversible action needs evidence of cause.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/make-the-call/SKILL.md">make-the-call</a>. A descriptive finding can support a cheap, reversible step, such as a check or a small test. It can&#39;t carry a costly or irreversible one on its own.</p>
+<h2 id="no-invented-inputs">No invented inputs</h2>
+<blockquote>
+<p>Never fill it with an estimate you made up.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/make-the-call/SKILL.md">make-the-call</a>. A cost, value, or threshold the inputs don&#39;t supply reads &quot;unknown,&quot; with what the owner would need to provide.</p>
+<h2 id="no-decision-manufactured-from-a-descriptive-ask">No decision manufactured from a descriptive ask</h2>
+<blockquote>
+<p>This skill does not manufacture a decision.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/make-the-call/SKILL.md">make-the-call</a>. With no decision in view, it says so and stops.</p>
+<h2 id="no-confident-answer-when-the-data-cant-give-one">No confident answer when the data can&#39;t give one</h2>
+<blockquote>
+<p>&quot;Not enough data,&quot; &quot;inconclusive,&quot; and &quot;the question needs reframing&quot; are complete findings.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/write-finding/SKILL.md">write-finding</a>. The non-answer comes in the first clause, before the reason.</p>
+<h2 id="no-result-for-a-query-that-didnt-run">No result for a query that didn&#39;t run</h2>
+<blockquote>
+<p>Never fill a saved result with expected values.</p>
+</blockquote>
+<p>From the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/diagnose-change/references/rigor.md">rigor rules</a>. A check that didn&#39;t run is labeled unexecuted.</p>
+<h2 id="no-approval-it-cant-give">No approval it can&#39;t give</h2>
+<blockquote>
+<p>The owner decides. A recommendation is a proposal, not an approval, and an agent never records one as accepted.</p>
+</blockquote>
+<p>From <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/make-the-call/SKILL.md">make-the-call</a>. Metric definitions work the same way: they stay proposed until the right person approves them.</p>
+<h2 id="what-this-doesnt-promise">What this doesn&#39;t promise</h2>
+<p>These are instructions to your agent, not enforcement. An agent can still break one, and a portable answer carries no guarantee because a skill produced it. The <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/runs/README.md">skills lab</a> records one isolated agent on four synthetic tasks, which is a teaching record, not a benchmark.</p>
+<p>Two things help catch a miss. <a href="https://github.com/patrickjmorris/aftergrid/blob/main/skills/analysis-review/SKILL.md">analysis-review</a> challenges the result as a separate step. The optional Engine adds runnable Checks, and even those establish only the properties they test.</p>
+<div class="article-footer"><a href="../skills/"><span class="label">Find your next step</span>Browse the skills ↗</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/docs/doctrine.md"><span class="label">In the open</span>Read this page on GitHub ↗</a></div></article><aside class="aside"><div><span class="label">Put it into practice</span><h2>One question.<br>One useful next step.</h2><p>Install a skill and try it with the data, context, and tools you already have.</p><a class="aside-link" href="../skills/">Browse the skills</a><a class="aside-link" href="../guides/skill-workflows/">Choose a workflow</a><a class="aside-link" href="../start/">Installation guide</a></div><div class="aside-section"><span class="label">Explore the examples</span><a class="aside-link" href="../examples/conversion-mix/">Conversion &amp; mix</a><a class="aside-link" href="../examples/revenue-bridge/">The revenue bridge</a><a class="aside-link" href="../examples/lesson-reuse/">Lesson reuse</a><a class="aside-link" href="../examples/causal-claim/">Causal overclaim</a><a class="aside-link" href="../examples/spotsports-youtube/">YouTube view count</a><a class="aside-link" href="../examples/spotsports-youtube-how-it-was-built/">How the YouTube analysis was built</a><a class="aside-link" href="../examples/nyc-open-data/">New York open data</a></div></aside></div></main><footer class="site-footer"><div><a class="brand" href=".." aria-label="aftergrid home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 13h6v10h10v6H5a2 2 0 0 1-2-2V13Zm10-10h14a2 2 0 0 1 2 2v14h-6V9H13V3Z"/></svg><span>aftergrid</span></a><p class="footer-meta">Open source · MIT · Built by <a href="https://github.com/patrickjmorris">Patrick Morris</a></p></div><div class="footer-links"><a href="../about/">Work with me</a><a href="https://github.com/patrickjmorris/aftergrid">GitHub ↗</a><a href="./">Doctrine</a><a href="../guides/what-runs-where/">What runs where</a><a href="../guides/skill-workflows/">Workflows</a><a href="https://github.com/patrickjmorris/aftergrid/blob/main/LICENSE">MIT license</a><a href="../start/">Install</a></div></footer></div><p class="sr" role="status" aria-live="polite" data-copy-status></p></body></html>

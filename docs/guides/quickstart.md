@@ -16,7 +16,7 @@ No clone. The CSV is already on GitHub.
 npx skills add patrickjmorris/aftergrid --skill diagnose-change make-the-call
 ```
 
-Installing copies instructions; it does not grant data access. Use `/diagnose-change` in Claude Code or Cursor, `$diagnose-change` in Codex. Refresh the agent's skills if they are not visible yet.
+Installing copies instructions; it does not grant data access. Use `/diagnose-change` in Claude Code, `$diagnose-change` in Codex. Refresh the agent's skills if they are not visible yet. To have your agent run the install, use the [install prompt](what-runs-where.md#install-prompt), which also says what was checked in each agent.
 
 ## Paste this
 

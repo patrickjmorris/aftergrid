@@ -2,10 +2,10 @@ name: Publish site
 
 on:
   pull_request:
-    paths: ['site/**', 'scripts/build-site.mjs', 'scripts/audit-site.mjs', 'tests/site.test.mjs', 'examples/skills-lab/**', 'docs/skills/**', 'docs/guides/**', 'docs/fieldnotes/**', 'docs/examples/**', 'skills/**', 'fonts/**', 'fixtures/instance/analytics/findings/**/render/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/pages.yml']
+    paths: ['site/**', 'scripts/build-site.mjs', 'scripts/audit-site.mjs', 'tests/site.test.mjs', 'examples/skills-lab/**', 'docs/skills/**', 'docs/guides/**', 'docs/doctrine.md', 'docs/fieldnotes/**', 'docs/examples/**', 'skills/**', 'fonts/**', 'fixtures/instance/analytics/findings/**/render/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/pages.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'scripts/build-site.mjs', 'scripts/audit-site.mjs', 'tests/site.test.mjs', 'examples/skills-lab/**', 'docs/skills/**', 'docs/guides/**', 'docs/fieldnotes/**', 'docs/examples/**', 'skills/**', 'fonts/**', 'fixtures/instance/analytics/findings/**/render/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/pages.yml']
+    paths: ['site/**', 'scripts/build-site.mjs', 'scripts/audit-site.mjs', 'tests/site.test.mjs', 'examples/skills-lab/**', 'docs/skills/**', 'docs/guides/**', 'docs/doctrine.md', 'docs/fieldnotes/**', 'docs/examples/**', 'skills/**', 'fonts/**', 'fixtures/instance/analytics/findings/**/render/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:

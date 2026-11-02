@@ -36,3 +36,51 @@ test('the maintainer is reachable from every page and the About page exists',()=
  assert.match(about,/id="sponsorship"/);
  assert.match(about,/mailto:patrick@sportingworks.co/);
 });
+
+test('the site lives at aftergrid.dev and shares a labeled social card',()=>{
+ const home=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
+ assert.match(home,/<link rel="canonical" href="https:\/\/aftergrid\.dev\/">/);
+ assert.match(home,/<meta property="og:image" content="https:\/\/aftergrid\.dev\/assets\/social-card\.png">/);
+ assert.match(home,/<meta name="twitter:card" content="summary_large_image">/);
+ assert.match(home,/<meta property="og:image:alt" content="Synthetic teaching case:/);
+ assert.match(readFileSync(new URL('../site/robots.txt',import.meta.url),'utf8'),/Sitemap: https:\/\/aftergrid\.dev\/sitemap\.xml/);
+ const png=readFileSync(new URL('../site/assets/social-card.png',import.meta.url));
+ assert.equal(png.readUInt32BE(16),1200);
+ assert.equal(png.readUInt32BE(20),630);
+ assert.match(readFileSync(new URL('../scripts/build-site.mjs',import.meta.url),'utf8'),/>Synthetic teaching case<\/text>/);
+});
+
+test('every doctrine quote matches the skill file it names',()=>{
+ const doctrine=readFileSync(new URL('../docs/doctrine.md',import.meta.url),'utf8');
+ const sections=doctrine.split(/^## /m).slice(1).filter(x=>x.startsWith('No '));
+ assert.ok(sections.length>=5);
+ for(const section of sections){
+  const quotes=[...section.matchAll(/^> (.+)$/gm)].map(x=>x[1]);
+  const files=[...section.matchAll(/\]\(\.\.\/(skills\/[^)]+\.md)\)/g)].map(x=>x[1]);
+  assert.ok(quotes.length&&files.length,`no quote or source in: ${section.split('\n')[0]}`);
+  const sources=files.map(file=>readFileSync(new URL(`../${file}`,import.meta.url),'utf8'));
+  for(const quote of quotes)assert.ok(sources.some(text=>text.includes(quote)),`not in ${files.join(', ')}: ${quote}`);
+ }
+});
+
+test('what-runs-where comes from the skills, and only setup-aftergrid needs the Engine',()=>{
+ const catalog=JSON.parse(readFileSync(new URL('../site/content/skills.json',import.meta.url),'utf8'));
+ const guide=readFileSync(new URL('../docs/guides/what-runs-where.md',import.meta.url),'utf8');
+ const readme=readFileSync(new URL('../README.md',import.meta.url),'utf8');
+ const section=readme.slice(readme.indexOf('## What runs where'),readme.indexOf('## What the agent refuses'));
+ for(const skill of catalog){
+  const text=readFileSync(new URL(`../skills/${skill.slug}/SKILL.md`,import.meta.url),'utf8');
+  assert.ok(text.includes(skill.start_source),`${skill.slug}: start_source is not in SKILL.md`);
+  const front=text.split('---')[1];
+  const engine=skill.slug==='setup-aftergrid'?'Required':/Engine (Finding|procedure|workflow|writing|mode)|Under the Engine/.test(text)?'Optional':'None';
+  const who=/disable-model-invocation: true/.test(front)?'You start it':/user-invocable: false/.test(front)?'Your agent uses it':'You or your agent';
+  assert.ok(guide.includes(`| [${skill.slug}](../skills/${skill.slug}.md) | ${skill.start} | ${engine} | ${who} |`),`${skill.slug}: guide row`);
+  assert.ok(section.includes(`\`${skill.slug}\``),`${skill.slug}: README table`);
+ }
+});
+
+test('the paste-prompt install is the same text everywhere and names no unverified result',()=>{
+ const prompt=readFileSync(new URL('../scripts/build-site.mjs',import.meta.url),'utf8').match(/const PASTE_PROMPT=`([^`]+)`/)[1];
+ for(const file of ['../README.md','../docs/guides/what-runs-where.md'])assert.ok(readFileSync(new URL(file,import.meta.url),'utf8').includes(prompt),file);
+ assert.doesNotMatch(prompt,/verified|guarantee|works in/i);
+});
