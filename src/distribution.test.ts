@@ -295,7 +295,7 @@ test("checked-analysis writes the falsifier as required: false, and calls a fail
   // The same rule, in the two places a harness might read instead of the skill body.
   const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
   assert.match(halting, /## What is not a halt[\s\S]*failing pre-registered falsifier/i, "the halting reference lists it as a non-halt");
-  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "analyze.md"), "utf8");
   assert.match(doc, /falsifier_failed/, "the docs page must name the warning `check` reports");
 
   // And the contract the prose describes really refuses the shape, so the two cannot drift apart.
@@ -319,7 +319,7 @@ test("the /analyze halt conditions do not name a missing adapter", () => {
   assert.match(halts, /"aftergrid": "halt"/, "and it is printed as the last line of the final message");
   assert.match(halts, /rerun_unavailable/, "the halt section must say what a recorded Finding costs instead of halting");
 
-  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "analyze.md"), "utf8");
   assert.match(doc, /Is a missing adapter a halt\?\*\* No/, "the docs page must answer it in the same words");
   const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
   assert.match(halting, /## What is not a halt/, "the halting reference carries the same non-halt");
@@ -333,14 +333,14 @@ test("the /analyze halt conditions do not name a missing adapter", () => {
 test("the /analyze chain ends with review status, quotes its verdict line, and separates stale from superseded", () => {
   const skill = readEngineSkill("analyze");
   const halting = readFileSync(join(REPO, "skills", "analyze", "references", "halting.md"), "utf8");
-  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "analyze.md"), "utf8");
 
   // `assert.ok` rather than `assert.match`: these pages are thousands of characters, and a failure that dumps
   // all three of them buries the one sentence that went missing.
   const says = (name: string, text: string, pattern: RegExp, what: string) =>
     assert.ok(pattern.test(text), `${name} must ${what} (no match for ${pattern})`);
 
-  for (const [name, text] of [["SKILL.md", skill], ["halting.md", halting], ["docs/skills/analyze.md", doc]] as const) {
+  for (const [name, text] of [["SKILL.md", skill], ["halting.md", halting], ["docs/skills/engine/analyze.md", doc]] as const) {
     // 1. The order of the last two commands, and that nothing follows them.
     says(name, text, /last two commands of every run[\s\S]{0,240}`aftergrid check[\s\S]{0,160}`aftergrid review status/,
       "name the last two commands of every run, in order");
@@ -358,7 +358,7 @@ test("the /analyze chain ends with review status, quotes its verdict line, and s
   }
   says("SKILL.md", skill, /verbatim/, "say the final report quotes the verdict line verbatim");
   says("SKILL.md", skill, /not\*{0,2}\s+summarize/i, "say the run does not retell it in its own words");
-  says("docs/skills/analyze.md", doc, /verbatim/, "answer it the same way");
+  says("docs/skills/engine/analyze.md", doc, /verbatim/, "answer it the same way");
 
   // The rule is not only prose: the command it describes exits non-zero, and the contract documents the code.
   const command = readFileSync(join(REPO, "src", "commands", "review.ts"), "utf8");
@@ -392,10 +392,10 @@ test("every `aftergrid record` line in the skills and their docs uses flags the 
     join("skills", "setup-aftergrid", "agents", "openai.yaml"),
     join("skills", "write-finding", "SKILL.md"),
     join("skills", "revise-finding", "SKILL.md"),
-    join("docs", "skills", "analyze.md"),
+    join("docs", "skills", "engine", "analyze.md"),
     join("docs", "skills", "setup-aftergrid.md"),
-    join("docs", "skills", "write-finding.md"),
-    join("docs", "skills", "revise-finding.md"),
+    join("docs", "skills", "engine", "write-finding.md"),
+    join("docs", "skills", "engine", "revise-finding.md"),
   ];
 
   let invocations = 0;
@@ -492,7 +492,7 @@ test("write-finding step 7 takes coverage from the recorded parameters before th
   assert.match(ten, /recorded result/, "step 10 must cover a mismatch on a recorded result");
   assert.match(ten, /evidence file/, "and on a Check's evidence file");
 
-  const doc = readFileSync(join(REPO, "docs", "skills", "write-finding.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "write-finding.md"), "utf8");
   assert.match(doc, /recorded parameters/, "the docs page must answer it in the same words");
 });
 
@@ -517,7 +517,7 @@ test("revise-finding sends a numeric revision on the recorded path to `aftergrid
   assert.match(numeric, /stale_attestation/, "recording into an approved revision is refused, by that category");
   assert.match(numeric, /revisions\/<N>\//, "the archive is revise --pin's, and the skill names where it lives");
 
-  const doc = readFileSync(join(REPO, "docs", "skills", "revise-finding.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "revise-finding.md"), "utf8");
   assert.match(doc, /aftergrid record/, "the docs page must give the same route");
 });
 
@@ -544,7 +544,7 @@ test("checked-analysis step 2 records each probe with its time, its kind, and th
   assert.match(eight, /reframe/, "and name a reframe explicitly, since the Question answered is not the one the run started with");
 
   // The docs page and the OpenAI prompt carry the same instruction, not a different one.
-  const doc = readFileSync(join(REPO, "docs", "skills", "analyze.md"), "utf8");
+  const doc = readFileSync(join(REPO, "docs", "skills", "engine", "analyze.md"), "utf8");
   assert.match(doc, /dead_end/, "the docs page must name the kinds the skill writes");
   const openai = readFileSync(openaiFile(REPO, "analyze"), "utf8");
   for (const token of ["at", "dead_end", "reframe"]) {
@@ -586,7 +586,7 @@ test("`record` is documented as refusing any attestation, not only an approval",
   assert.match(refusal, /attestation\(s\)/, "the refusal counts attestations");
   assert.doesNotMatch(refusal, /approval/i, "and reads no approval off them");
 
-  for (const page of [join(REPO, "skills", "revise-finding", "SKILL.md"), join(REPO, "docs", "skills", "revise-finding.md")]) {
+  for (const page of [join(REPO, "skills", "revise-finding", "SKILL.md"), join(REPO, "docs", "skills", "engine", "revise-finding.md")]) {
     const text = readDistributedText(page);
     const line = text.split(/\n\n/).find((p) => /stale_attestation/.test(p));
     assert.ok(line, `${page} must say what record refuses`);

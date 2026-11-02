@@ -2,7 +2,7 @@
   "name": "aftergrid",
   "version": "0.0.0",
   "private": true,
-  "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings.",
+  "description": "Analytics judgment for the agent you already use: open-source skills that work on a CSV, a notebook, or your SQL connection.",
   "homepage": "https://aftergrid.dev",
   "license": "MIT",
   "type": "module",

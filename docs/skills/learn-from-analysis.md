@@ -37,4 +37,4 @@ The teaching sequence is the [conversion case](../examples/conversion-mix.md) fo
 
 ## Where it fits
 
-An Improve-stage standalone; the Compound Engineering analog in this set. Capture here, retrieve in [plan-analysis](plan-analysis.md) and [analyze](analyze.md). See [Analysis that compounds](../fieldnotes/analysis-that-compounds.md).
+An Improve-stage standalone; the Compound Engineering analog in this set. Capture here, retrieve in [plan-analysis](plan-analysis.md) and [analyze](analyze.md). See [Keeping lessons from one analysis to the next](../fieldnotes/analysis-that-compounds.md).

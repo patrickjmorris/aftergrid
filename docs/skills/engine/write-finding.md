@@ -1,0 +1,172 @@
+# write-finding: Engine reference
+
+The optional Engine path for [write-finding](../write-finding.md). This page is for people running the aftergrid CLI; existing Engine checks and approval requirements still apply. Agents read `skills/write-finding/references/engine-workflow.md`.
+
+## What it does
+
+`/write-finding` turns a checked Analysis directory into a Finding. It reads the evidence the checked-analysis stage of
+`/analyze` pinned (the Question, the queries, the executions with their parameters and the tool that ran them, the saved
+results, the Checks, any retained inputs, and `analysis.yaml`)
+and writes the half a Reader meets: `memo.md` in the six fixed sections, typed Claims, a chart or a table
+behind every number, and the export policy, coverage and Reader profile the render needs.
+
+It is **model-invoked** (`user-invocable: false`, `policy.allow_implicit_invocation: true`). It is a step
+inside `/analyze`, reached once the numbers are settled; an Operator asks for the Analysis, not for the memo.
+
+The skill owns a fixed set of fields and nothing else: `memo.md`, `claims`, `charts`, `tables`, `derived`,
+`external_sources`, `coverage`, `export_policy.allowed_fields`, `reader.profile`, `finding.title`,
+`finding.state`, `finding.outcome`, `finding.generated_at` and `content_digest`. Queries, Checks, results,
+retained inputs, executions and definitions are read-only to it, and so are `reviews` and `attestations`.
+The ownership is field-level, not block-level: `export_policy.recipient_scope`, `granularity`, `delivery`
+and `private_marker`, and everything in `reader` other than `profile`, are the Instance's and survive the
+skill byte-identical. `private_marker` matters most, because the memo scan in `check` and the output-byte
+refusal in `render` both run only when it is present.
+
+It finishes by running `aftergrid check` and `aftergrid render`, fixing what it introduced, and stopping with
+a `needs_attention` result after a third unsuccessful pass.
+
+## When to reach for it
+
+- The checked-analysis stage of `/analyze` has pinned executions, results and Check outcomes, and written `analysis.yaml`.
+- An Analysis reached `insufficient_data`, `inconclusive` or `needs_reframing` and the Reader is owed a
+  Finding that says so.
+- A Finding was reopened for a numeric change, the Analysis reran, and the memo has to be rewritten against
+  the new results.
+
+Not for: changing a number or a query (that reopens the checked-analysis stage of `/analyze`), re-styling a chart
+(`/iterate-visual`), or acting on Operator
+feedback on a merged Finding (`/revise-finding`).
+
+## Common questions
+
+**Can it decide the Finding answers the question?** No. `finding.outcome` is copied from
+`analysis.yaml#outcome_recommendation.outcome`. A non-answer stays a non-answer, and
+`skills/write-finding/references/outcomes.md` is how each one is written honestly.
+
+**What makes a Claim causal?** Randomized assignment, recorded by the Analysis, and nothing else in v0. No
+sample size, effect size or set of controls promotes an associational Claim. The Analysis records the basis
+in `candidate_claims[].comparison.description`, which its schema requires on every `associational` and
+`causal` candidate. `skills/write-finding/references/claim-typing.md` has the four questions that settle a
+type.
+
+**Where do the coverage dates come from when nothing was retained?** From the recorded parameters. On the
+recorded path — the default (ADR 0010), where the harness ran the queries and `aftergrid record` wrote them
+down — `coverage.data_from` and `coverage.data_to` are read off the executions' own parameters, with
+`data_to` coming from the recorded `executed_at` where the SQL read up to the moment it ran. On the adapter
+path they come from the retained inputs, which may run wider or narrower than the Question's window. A date
+that is in neither place is a `needs_input` item, never a choice the skill makes. The Appendix says which of
+the two it was: on the recorded path it names the tool that ran each query and states that no copy of the data
+was kept.
+
+**Where does a threshold or a target come from?** From the Analysis, or from nowhere. A typed external
+source carries the value `analysis.yaml` recorded for it; where the Analysis recorded none, the skill writes
+a `needs_input` item naming the owner and stops instead of choosing one.
+
+**Where do numbers in prose come from?** A token — `{{ref:…}}`, `{{derived:…}}` or `{{ext:…}}` — that
+resolves from the pinned manifest. A bare digit in `memo.md` fails `check` with `untraced_numeral` unless it
+is a date, an id, a section number, a definition version, a file path or an explicit `{{literal:…}}`.
+`skills/write-finding/references/evidence-binding.md` is the working guide.
+
+**Does a numeric Claim always need a chart?** It needs a chart *or* a table. On a phone a table is often the
+better answer; the chart earns its place when the shape of the comparison is the point.
+
+**Can it mark a Finding reviewed or approved?** No. It writes no `reviews` and no `attestations`; `check`
+reports an approval nobody granted as an untrusted attestation, and publication readiness is a human's
+APPROVED review verified through the API (`docs/contracts/publication.md`).
+
+**What if a required Check failed?** That is the Analysis, not the memo. The skill reports the category and
+location and stops rather than writing around it.
+
+## It's working if
+
+- `aftergrid check <finding-dir>` reports `evidence valid` with zero errors, and `aftergrid render` writes
+  `render/finding.html` without a warning.
+- The diff against the Analysis directory touches only the fields listed above: no query, Check, result,
+  retained input, execution or definition changed.
+- Every number on the rendered page can be traced, by clicking into the calculation, back to a saved result.
+- A Finding that could not answer says so in its first sentence and contains no invented threshold, falsifier
+  or number. Where the pre-registered falsifier fired, the outcome is `inconclusive` (or `needs_reframing`) and
+  the Answer names what the falsifier asked and what the data showed — the numbers stay, the Answer does not.
+- Where the published decision metric's definition names counter-metrics, every one of them is reported:
+  `counter_metrics_reported` carries either a value traced to a result over the Question's own window or a
+  stated reason it could not be computed, the memo says the same in words under *How we checked*, and the
+  rendered page shows each as its own fact beside the decision metric. A counter-metric that moved the wrong
+  way is reported in the same words a good one would be.
+- `reviews` and `attestations` are as empty as they were before the skill ran.
+- Recorded runs: `fixtures/runs/kpc-numeric` (a named Reader profile, `answered`, a causal Claim earned by
+  randomized assignment) and `fixtures/runs/kpc-insufficient` (the generic profile, `insufficient_data`, no
+  causal wording anywhere). `src/writer.test.ts` holds them to the mechanical half of the above: evidence
+  validity, the field boundary down to `export_policy` and `reader` keys, answer-first structure, bound
+  values and allowed columns, figure titles that state their Claim, Reader vocabulary and the absence of
+  causal verbs in a non-answer. Whether a caveat is the one that matters, and whether a sentence a linter
+  accepts reads honestly, is `skills/write-finding/references/narrative-criteria.md` and the Reader
+  reviewer's, not the suite's.
+- A recorded run is evidence of a contract, not of a model: both runs were written by hand, `run.yaml` says
+  so, and neither reports a corrections count, because `input/` was cut out of an already-reviewed
+  `output/` and nothing was produced and then corrected.
+
+## The narrative pass
+
+The narrative pass decides what a Reader meets first in a written Finding, and in whose words. It puts the
+Answer and its material caveat at the top, makes each Evidence subsection one Claim whose heading states the
+Claim, makes each chart and table title state the Claim rather than name an axis, and rewrites the prose
+against the Finding's named Reader profile.
+
+It used to be the separate `/shape-narrative` skill. It is now the `shape_narrative` stage of an Engine run, a
+second `/write-finding` pass that runs inside `/analyze` after `/iterate-visual` and before `/analysis-review`.
+The procedure is `skills/write-finding/references/engine-narrative.md`.
+
+It changes wording and order. It changes no bound value, no Claim `type`, no `comparison`, `window`,
+`evidence` or `recheck`, no chart spec and no file under `queries/`, `checks/`, `results/` or `inputs/`. A
+request that would change what a Reader concludes is reported and stopped, not made: the procedure's last
+section lists the six shapes that takes.
+
+The judgments it applies live in `skills/write-finding/references/narrative-criteria.md`. The Reader
+reviewer in `/analysis-review` reads an identical copy shipped in that skill, so writer and reviewer are never
+working from different rules.
+
+### When the narrative pass runs
+
+- A Finding is written and its charts have settled, and it has not been reviewed yet.
+- A Reader review came back with wording findings that do not change a number or an interpretation.
+- `/revise-finding` classified an Operator's request as presentation and handed the narrative half over.
+
+Not for: writing a Finding that does not exist yet (the writing pass above), chart work (`/iterate-visual`), any
+change to a number or a query (that reopens the Analysis), or recording a review or an approval (a reviewer's
+and a human's, respectively).
+
+### Narrative pass: common questions
+
+**Why is it a second pass rather than part of the first?** Ordering and language are judged after the charts
+settle, and they are judged against criteria a reviewer reads too. A separate pass means a chart change can be
+followed by a narrative pass without rewriting the Claims, and the Reader reviewer and the writer cite one page
+rather than two.
+
+**Can it reorder Claims?** Yes. `claims[]` order is what the render lays out, and the answer-bearing Claim
+goes first. The Evidence subsections follow that order.
+
+**Can it soften a caveat an Operator finds discouraging?** No. Dropping or softening a `material_caveat`, an
+exclusion or a limitation changes what a Reader concludes with every digit unchanged. The pass reports it
+and stops.
+
+**Can it change "was linked to" into "caused"?** No. A verb that upgrades a Claim's type asserts a design the
+Analysis did not have, and it invalidates method review. Claim types are set in the writing pass, earned by
+randomized assignment.
+
+**What does it do about a misreading it cannot fix with wording?** Records it as a non-blocking note for the
+Reader reviewer, naming the `will_misread` item and the sentence that invites it.
+
+### Narrative pass: it's working if
+
+- **Answer** is the first section, its first sentence carries the outcome, and the `<!-- material_caveat -->`
+  block sits directly under it.
+- Every Evidence heading is a sentence a Reader could repeat, identical to its Claim's `sentence`, and every
+  subsection carries one idea.
+- Every chart title states what the chart shows with its values bound, and every table title states its Claim
+  in words with no token in it (a table caption renders verbatim) rather than naming a measure, asking a
+  question or pointing back at another figure.
+- No word on the Reader profile's `vocabulary.avoid` list survives outside a token, and every `will_misread`
+  item is either answered by a sentence or recorded as a note.
+- `aftergrid check` still reports `evidence valid` with zero errors after the pass, and the content digest was
+  re-pinned.
+- A meaning-changing request came back as a report naming which of the six shapes it was, with nothing edited.

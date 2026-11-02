@@ -95,6 +95,6 @@ where it can enforce the rule. Show where the next relevant analysis
 will find it, and what would make the lesson no longer applicable.
 ```
 
-A lesson should change a future question, check, or interpretation. It should not silently promote a provisional definition into an approved fact. [Analysis that compounds](../fieldnotes/analysis-that-compounds.md) shows the capture-and-retrieval pattern.
+A lesson should change a future question, check, or interpretation. It should not silently promote a provisional definition into an approved fact. [Keeping lessons from one analysis to the next](../fieldnotes/analysis-that-compounds.md) shows the capture-and-retrieval pattern.
 
 For the Engine’s structured evidence and publication workflow, [setup-aftergrid](../skills/setup-aftergrid.md) is a separate step. The analytical skills are useful before you adopt it.

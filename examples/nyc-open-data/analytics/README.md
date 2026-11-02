@@ -4,8 +4,8 @@ The public Instance for the New York City open-data walkthrough: the connection 
 the metric definitions and the Golden Questions. Layout: `docs/contracts/instance-layout.md`. Everything here
 was written by `aftergrid setup` or by hand on top of what setup wrote, and everything here is public.
 
-**Status: the Instance is scaffolded and filled in. No Finding has been produced.** Nothing below describes
-something that has been approved, reviewed or published, because nothing has.
+**Status: the Instance is scaffolded and filled in. Two Findings are merged in `findings/`.** Agents produced and
+reviewed them. Nothing here has human approval or has been published as approved.
 
 ## What is here
 
@@ -15,7 +15,7 @@ something that has been approved, reviewed or published, because nothing has.
 | `readers.md` | Two Reader profiles: `city_transport_analyst` and `bike_product_manager`. |
 | `definitions/` | Eight definitions, **all `proposed`**, none approved. |
 | `golden/` | Five Golden Questions with reference values computed from a built database on 2026-09-17. |
-| `findings/` | Empty. |
+| `findings/` | Two merged Findings: `2026-09-17-crz-trips-after-pricing` and `2026-09-17-member-ebike-share-jan2025`. Neither is `ready`. |
 | `decisions/`, `decisions.md` | Empty, and the generated index of an empty Decision log. |
 | `provisional/` | Empty, with the scaffold's README. |
 | `demo.duckdb` | **Not committed.** Gitignored; rebuilt from public sources by the build script, then `crz_daily` derived into it by [`../scripts/derive-question-tables.mjs`](../scripts/derive-question-tables.mjs). |
@@ -182,11 +182,11 @@ of those numbers so that reading it does not leak them.
 
 ## What is **not** here
 
-- **No Finding.** `findings/` is empty. The `examples-check` CI job reports that there is nothing to check, which
-  is the truth.
+- **No `ready` Finding.** Both Findings in `findings/` are agent-reviewed and unapproved. The `examples-check` CI
+  job checks them in artifact mode.
 - **No approved definition.** All eight are `proposed` and carry no approval block. Approval is an attestation
   the owner gives later, verified against GitHub; nothing here synthesises one.
-- **No Decision record**, and no review of any kind.
+- **No Decision record**, and no human review.
 - **No committed data.** `demo.duckdb` and `data/raw/` are gitignored. Rebuild them.
 - **The guardrail hook is not installed.** Setup was run with `--skip-hook`, because the hook writes into a
   Claude Code `settings.json` on one machine — it is per-machine local configuration, not a shared artifact, so

@@ -1,8 +1,8 @@
 interface:
   display_name: "Iterate on a chart"
-  short_description: "Render each chart, look at it, score it against the visual rubric and revise it"
-  default_prompt: "Use $iterate-visual on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
+  short_description: "Inspect and improve a chart for truthful comparisons, readable labels, and agreement with its claim"
+  default_prompt: "Use $iterate-visual on the chart or artifact I provide; work from the files and tools I already have, and use the aftergrid CLI only if I ask for it."
 policy:
-  # Model-invoked, matching `user-invocable: false` in SKILL.md. The visual loop is craft inside writing a
-  # Finding; an agent reaches for it mid-task, and a human asks for `/revise-finding` instead.
+  # Model-invoked, matching `user-invocable: false` in SKILL.md. The visual loop is craft inside writing up an
+  # analysis; an agent reaches for it mid-task, and a human asks for `/revise-finding` instead.
   allow_implicit_invocation: true

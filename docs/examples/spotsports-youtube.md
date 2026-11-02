@@ -1,12 +1,12 @@
 ---
-title: "Sports YouTube’s fall 2026 will look like a record season. The new view count is the leading reason"
+title: "Sports YouTube’s fall 2026 will look like a record season. The new view count is the leading explanation"
 description: "Real data from 746 sports creator channels across 14 sports. Same creators, same video age: long-form views rose 74% after YouTube changed how it counts a view, in the same weeks the football and soccer seasons began. What it means for creators, clubs, leagues, and sponsors."
 kicker: "Analysis · Real data · Sports YouTube"
 ---
 
-An analysis on real data: the public view counts of about 900 sports creator channels, from Spot Sports' catalog. The owner approved publishing these metrics. Nothing here identifies a viewer. The analysis is agent-made and AI-reviewed, not human-approved. [How it was built](spotsports-youtube-how-it-was-built.md).
+This analysis uses the public view counts of sports creator channels in Spot Sports' catalog. The catalog has 1,070 channels, 1,040 of them with an assigned sport across 18 sports, and 746 channels in 14 sports met the analysis bar. I approved publishing these metrics. Nothing here identifies a viewer. AI agents did the analysis and AI models reviewed it. No person has approved it. [How it was built](spotsports-youtube-how-it-was-built.md).
 
-This page and the [deck](https://github.com/patrickjmorris/aftergrid/blob/main/examples/spotsports-youtube/deck/spotsports-youtube-case-study.pdf) are generated from the same source. Every number traces to a [saved result](https://github.com/patrickjmorris/aftergrid/tree/main/examples/spotsports-youtube/analysis/results).
+This page and the [deck](https://github.com/patrickjmorris/aftergrid/blob/main/examples/spotsports-youtube/deck/spotsports-youtube-case-study.pdf) are generated from the same source, and every number comes from a [saved result](https://github.com/patrickjmorris/aftergrid/tree/main/examples/spotsports-youtube/analysis/results).
 
 ## 1. Report sports performance and price sponsorships on engaged views.
 
@@ -88,14 +88,14 @@ On the typical video all 14 sports rose, 1.39x to 2.35x (A16). Sorted by number 
 
 - **+74%** New videos vs the same creators’ summer videos. A new video’s first month runs far above the same creator’s earlier videos. Any recap that compares this fall with last fall on public views mixes two counts.
 - **77%** Of the top 1,000 videos. Among long-form videos published May 8 to July 26 or August 31 to September 29, each at one month old, those after the change are 64% of uploads but 77% of the 1,000 most viewed. A uniform 1.74x adjustment cuts their share to 61%: a sensitivity to counting, not a measured correction. The windows also differ by season, summer against early fall, so part of the gap may be season.
-- **No blanket correction** The 74% rise is not a discount for your whole channel. Older videos contain views counted under different rules, and this study does not measure engaged views. For Monday’s report, show first-30-day engaged views against matching competition stages in 2025, and label public views separately. Lifetime-total scenarios are in appendix A18.
+- **No blanket correction** Don’t apply the 74% rise as a discount across your whole channel. Older videos contain views counted under different rules, and this study does not measure engaged views. For Monday’s report, show first-30-day engaged views against matching competition stages in 2025, and label public views separately. Lifetime-total scenarios are in appendix A18.
 
 ## 7. For sports creators, clubs, and leagues: report the season on engaged views, and label every count
 
 Measured on 746 sports channels, including league and club channels, which ranged from no clear change (NBA, Manchester United) to 9.11x (Major League Soccer, whose summer baseline overlapped the World Cup) (appendix A7).  Shorts already used the new rule, so keep long-form and Shorts separate and measure your own gap before estimating a whole-channel effect. Compare engaged views with matching 2025 weeks and competition stages; show public views only beside engaged views, both labeled.
 
 1. **Season recaps by sport.** Report line: “[stage, format]: X first-30-day engaged views, Y% vs the matching 2025 stage; public views Z, new count.” Football: weeks 1 to 4. MLB: same postseason rounds. Soccer: match stages; July’s World Cup is a different baseline. NBA and NHL: openers pending until day 30.
-2. **Rate cards and media kits.** Name the count behind every number. New videos average 1.74x the public views of the same channels’ summer videos (1.60x to 1.94x), including any real growth. Among the 480 channels with five or more videos on each side, about 22% moved less than 1.25x and 11% more than 4x: observed changes, not measured counting effects (appendix A5). Before a sponsor asks, put your own day-30 public and engaged views side by side, and quote engaged first.
+2. **Rate cards and media kits.** Name the count behind every number. New videos average 1.74x the public views of the same channels’ summer videos (1.60x to 1.94x), including any real growth. Among the 480 channels with five or more videos on each side, about 22% moved less than 1.25x and 11% more than 4x. These are observed changes and don’t measure the counting effect (appendix A5). Before a sponsor asks, put your own day-30 public and engaged views side by side, and quote engaged first.
 3. **Records and rankings.** Label records set after August 24 as records under the new count. Football’s opening weeks and the October NBA and NHL openers use a different count from 2025; before claiming a cross-season record, compare engaged views at the same video age.
 
 ## 8. Selling sponsorships: agree a CPM per 1,000 engaged views; convert public-view requests with each creator’s measured engaged share
@@ -111,15 +111,11 @@ Do not use 1 ÷ 1.74 to price a creator. Your engaged share: take your 10 most r
 - **What would settle it.** What would settle it: public and engaged views on the same videos from a representative set of sports creators, matched by age. What we have: 19 re-cuts of public views all show a rise (+46% to +85%, appendix A17); none of them sees engaged views. Unexplained: the full step starts with videos published August 27, not August 24 (appendix A14).
 - **The assumption.** The evidence points to counting, but we cannot yet split the rise between counting and real viewing growth. The 74% rise cannot tell a creator’s engaged share or sponsorship discount: request public and engaged counts on the same sponsored videos, and agree the engaged-view CPM separately. Last year’s same weeks, the only long-form check that spans a season start, showed no rise (0.88x, 0.72x to 1.10x), though video ages differ widely (appendix A15).
 
-## 10. Sports YouTube is our beat. Have a number that moved? Sporting Works turns it into a decision
+## 10. Who made this
 
-Built on Spot Sports’ catalog of about 1,040 sports creator channels in 18 sports (746 channels in 14 sports met the analysis bar), by Patrick Morris at Sporting Works with aftergrid, open-source analytics skills for the AI agent your team already uses.
+Patrick Morris made this at Sporting Works using aftergrid, open-source analytics skills for the AI agent you already use. Spot Sports’ catalog has 1,070 sports creator channels, 1,040 of them with an assigned sport across 18 sports. 746 channels in 14 sports met the analysis bar.
 
-1. **Season reporting.** Season-over-season views, records, and rankings that hold up when the count changes.
-2. **Sponsor-ready numbers.** Rate cards and sponsor reports built on engaged views, by sport and channel size.
-3. **The workflow.** The same skills set up in your team’s agent, so the next analysis starts here.
-
-[Email Patrick](mailto:patrick@sportingworks.co?subject=Sporting%20Works%20analysis) · [aftergrid on GitHub](https://github.com/patrickjmorris/aftergrid) · [How this analysis was built](https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md)
+[About Patrick](https://aftergrid.dev/about/) · [Email](mailto:patrick@sportingworks.co?subject=Sporting%20Works%20analysis) · [aftergrid on GitHub](https://github.com/patrickjmorris/aftergrid) · [How this analysis was built](https://github.com/patrickjmorris/aftergrid/blob/main/docs/examples/spotsports-youtube-how-it-was-built.md)
 
 ## Appendix: sport and channel detail
 
@@ -159,7 +155,7 @@ Each channel is assigned its most common sport. Views are stored public counts a
 | Soccer | European leagues starting; summer was World Cup season | +114% | Same competition stage, not July |
 | All sports | Shorts counting unchanged | +74% | Long-form only; ask for Shorts separately |
 
-Calendar positions are general knowledge, not data in this extract. Compare first-30-day engaged views from YouTube Studio, not public views. Source: `sports calendar; lift_by_segment.csv`.
+Calendar positions are general knowledge, not data in this extract. Use first-30-day engaged views from YouTube Studio for this comparison. Source: `sports calendar; lift_by_segment.csv`.
 
 ### A3. The weekly rise in the five largest sports
 
@@ -219,7 +215,7 @@ Share of channels in each band of mean views per new video over mean views per e
 
 ### A6. Between seasons, 97% of hockey channels and 79% of basketball channels rose. Football’s 100% coincides with kickoff
 
-Share of channels whose new videos rose, across the change against a period where nothing changed. Audit season reports across every channel, not just a few breakouts. This shows breadth, not each channel’s counting effect. Football: 35 of 49 analyzed channels had 5 or more videos on each side.
+Share of channels whose new videos rose, across the change against a period where nothing changed. Audit season reports across every channel, including those without a breakout. This shows how widespread the rise is and doesn’t measure each channel’s counting effect. Football: 35 of 49 analyzed channels had 5 or more videos on each side.
 
 | Group | Across the change | Where nothing changed |
 | --- | --- | --- |
@@ -266,7 +262,7 @@ The five largest channels by stored long-form views in each of the five largest 
 
 ### A8. Five of seven title-tagged formats rose clearly; full game or match and reaction are within noise. No format is shown to differ
 
-Long-form videos tagged from their titles, all sports. Live streams and watchalongs rose +108%; press conferences and interviews +47%; the ranges overlap. Price formats from each creator’s engaged share, not from this chart.
+Long-form videos tagged from their titles, all sports. Live streams and watchalongs rose +108%; press conferences and interviews +47%; the ranges overlap. Use each creator’s engaged share to price formats.
 
 | Group | After ÷ before |
 | --- | --- |

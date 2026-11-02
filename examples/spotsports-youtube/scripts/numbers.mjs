@@ -40,6 +40,7 @@ const trial = readCsv('trial_rank_check');
 const ranking = readCsv('ranking_illustration');
 const sportEvents = readCsv('sport_event_study');
 const catalog = readCsv('sport_catalog');
+const overview = readCsv('explore_overview');
 const chDist = readCsv('channel_lift_distribution');
 const formatLift = readCsv('format_lift');
 const chExamples = readCsv('channel_examples');
@@ -120,6 +121,7 @@ export const N = {
   footballChRose: share(chRow('switch', 'Football').share_rose), footballCh: chRow('switch', 'Football').channels,
   lf2025: x(one(nulls, (r) => r.comparison.startsWith('long-form 2025'), 'lf2025').ratio_of_totals), lf2025Lo: x(one(nulls, (r) => r.comparison.startsWith('long-form 2025'), 'lf2025').rt_lo), lf2025Hi: x(one(nulls, (r) => r.comparison.startsWith('long-form 2025'), 'lf2025').rt_hi),
   catalogFlatPct: `${Math.round(allLf('flat_rate', 'point') * 100)}%`, catalogEvenPct: `${Math.round(allLf('even_spread', 'point') * 100)}%`,
+  allChannels: int(one(overview, (r) => r.item === 'distinct channel_key', 'channel count').value),
   catalogChannels: int(catalog.reduce((a, r) => a + n(r.channels), 0)), catalogSports: String(catalog.length),
   chUnder125: `${chDist.filter((r) => r.comparison.startsWith('switch') && ['under 0.5x', '0.5x to 0.8x', '0.8x to 1.25x'].includes(r.channel_ratio)).reduce((a, r) => a + Math.round(n(r.share) * 100), 0)}%`,
   chOver4: share(one(chDist, (r) => r.comparison.startsWith('switch') && r.channel_ratio === '4x or more', 'over4').share),

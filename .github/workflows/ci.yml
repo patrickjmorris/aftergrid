@@ -66,6 +66,17 @@ jobs:
       - run: node src/cli.ts plugin validate --json
       - run: node scripts/pack-smoke.mjs
 
+  case-study-check:
+    # The YouTube case study: saved results match their hashes, and the deck, PDF, and site page agree with them.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: install pdftotext so the PDF text is checked
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: node examples/spotsports-youtube/scripts/verify.mjs
+
   examples-check:
     # Every Finding committed under examples/ stays valid. Artifact mode only: it verifies the committed
     # evidence and needs no data, which is the point — example data is never committed (examples/README.md).

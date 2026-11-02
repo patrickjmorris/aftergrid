@@ -27,10 +27,10 @@ try {
 const unescape = (s) => s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const flat = unescape(readFileSync(join(root, 'deck', 'spotsports-youtube-case-study.html'), 'utf8').replace(/<[^>]+>/g, ''));
 let pdf = null;
-try { pdf = execFileSync('pdftotext', [join(root, 'deck', 'spotsports-youtube-case-study.pdf'), '-'], { maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\s+/g, ' '); } catch { console.warn('pdftotext unavailable: PDF text not checked'); }
+try { pdf = execFileSync('pdftotext', [join(root, 'deck', 'spotsports-youtube-case-study.pdf'), '-'], { maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\s+/g, ' '); } catch { if (process.env.CI) failures.push('pdftotext is required in CI to check the PDF'); else console.warn('pdftotext unavailable: PDF text not checked'); }
 const strings = (s) => [s.title, s.lead, s.tempting, ...(s.points || []), ...(s.facts || []).flat(), s.chart?.caption,
   ...(s.stats || []).flatMap((t) => [t.value, t.label, t.sub]), ...(s.cards || []).flatMap((c) => [c.stat, c.label, c.body]),
-  ...(s.table?.rows || []).flat(), ...(s.asks || []).flat(), ...(s.offers || []).flat(), ...(s.split ? [s.split.keptLabel, s.split.addedLabel] : []), ...(s.triggers || []).flatMap((t) => [t.when, t.what]), ...(s.steps || []).flatMap(([a, b]) => [a, b])].filter(Boolean);
+  ...(s.table?.rows || []).flat(), ...(s.asks || []).flat(), ...(s.split ? [s.split.keptLabel, s.split.addedLabel] : []), ...(s.triggers || []).flatMap((t) => [t.when, t.what]), ...(s.steps || []).flatMap(([a, b]) => [a, b])].filter(Boolean);
 check(!/\bNaN\b|\bundefined\b/.test(flat), 'deck text contains NaN or undefined');
 check(slides.length === 10, `the deck has ${slides.length} main slides, not 10`);
 for (const s of slides) {

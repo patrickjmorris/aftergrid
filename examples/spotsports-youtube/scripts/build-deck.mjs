@@ -109,8 +109,7 @@ function body(s) {
   if (s.layout === 'title') return `<h1>${esc(s.title)}</h1>${s.facts ? `<div class="facts">${s.facts.map(([k, v]) => `<div><p class="eyebrow">${esc(k)}</p><p>${esc(v)}</p></div>`).join('')}</div>` : `<p class="lead">${esc(s.lead)}</p>`}${list(s.points, 'quiet')}`;
   if (s.layout === 'statement') return `<p class="eyebrow">Recommendation</p><h1>${esc(s.title)}</h1><p class="lead">${esc(s.lead)}</p>${list(s.points, 'quiet')}`;
   if (s.layout === 'closing') {
-    const items = s.offers ? `<ol class="steps offers">${s.offers.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ol>` : `<ol class="steps">${s.steps.map(([skill, what, url]) => `<li><a href="${esc(url)}">${esc(skill)}</a><span>${esc(what)}</span></li>`).join('')}</ol>`;
-    return `<h2>${esc(s.title)}</h2><div class="body">${items}<p class="lead small">${esc(s.lead)}</p><p class="links">${s.links.map(([label, url]) => `<a href="${esc(url)}">${esc(label)}</a>`).join('<span>·</span>')}</p></div>`;
+    return `<h2>${esc(s.title)}</h2><div class="body"><p class="lead small">${esc(s.lead)}</p><p class="links">${s.links.map(([label, url]) => `<a href="${esc(url)}">${esc(label)}</a>`).join('<span>·</span>')}</p></div>`;
   }
   let inner = `<h2>${esc(s.title)}</h2>`;
   if (s.chart?.kind === 'line') {
@@ -241,8 +240,6 @@ table.data.dense td { padding: 3px 10px; font-size: 13px; }
 .steps li { background: ${C.ink2}; border-radius: 10px; padding: 24px; display: grid; gap: 8px; counter-increment: step; }
 .steps a { color: ${C.white}; font-size: 22px; font-weight: 700; text-decoration: none; }
 .steps a::before { content: counter(step) "  "; color: ${C.orange}; }
-.offers b { color: ${C.white}; font-size: 22px; }
-.offers b::before { content: counter(step) "  "; color: ${C.orange}; }
 .dots { display: grid; grid-template-columns: repeat(20, 1fr); gap: 8px; max-width: 900px; }
 .dots i, .legend i { display: block; aspect-ratio: 1; border-radius: 50%; }
 .dots i.kept, .legend i.kept { background: ${C.blue}; }

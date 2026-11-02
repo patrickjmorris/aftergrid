@@ -1,10 +1,10 @@
 interface:
-  display_name: "Grill a Question"
-  short_description: "Interview the Operator until a raw ask is a Question, and write it into a Finding"
-  default_prompt: "Use $grill-question on the question or artifact I provide; use portable analysis unless I request an Engine Finding."
+  display_name: "Grill a question"
+  short_description: "Turn a vague analytics ask into an answerable question: decision, reader, metric, population, window, and comparison"
+  default_prompt: "Use $grill-question on the question or artifact I provide; work from the files and tools I already have, and use the aftergrid CLI only if I ask for it."
 policy:
-  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The interview is the Operator's
-  # decisions, and the skill creates a Finding directory and proposes definition files: a human asks for it.
+  # User-invoked, matching `disable-model-invocation: true` in SKILL.md. The interview needs the asker's
+  # decisions and spends their attention in rounds: a human asks for it.
   # The same procedure reached mid-run is `/analyze`'s clarify stage, which reads the one shared
   # reference file this skill reads — no user-invoked skill calls another.
   allow_implicit_invocation: false

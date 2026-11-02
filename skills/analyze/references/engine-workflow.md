@@ -110,7 +110,7 @@ Act on the counts, not on the individual warnings:
 - **A review superseded by a later review of the same kind at the current digest is history, not staleness.**
   It is not a reason to review anything again. `review status` counts it as `superseded`, and `aftergrid review record`
   dedupes on (kind, reviewer, digest), so a re-review ordered on account of one would write nothing and spend
-  a run for no artifact. (This happened: `examples/nyc-open-data/docs/run-log.md`, Citi Bike runs 2 and 3.)
+  a run for no artifact.
 
 Done when `aftergrid check <finding-dir>` reports no errors and `aftergrid review status <finding-dir>` exits
 0, or the run has halted.

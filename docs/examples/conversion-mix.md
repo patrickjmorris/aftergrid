@@ -1,6 +1,6 @@
 ---
-title: Conversion fell. Both channels improved.
-description: The rollback meeting. Total down, both channels up.
+title: Conversion fell while both channels improved
+description: A synthetic case where overall conversion falls, both channels improve, and someone proposes a rollback.
 kicker: Worked example · Synthetic data
 ---
 
