@@ -70,7 +70,7 @@ Tested 2026-11-02 in scratch projects. It worked in Claude Code. In Codex it fai
 /plugin install aftergrid@aftergrid
 ```
 
-Plugin skills are namespaced: `/aftergrid:diagnose-change`.
+This installs all fourteen skills. [What was checked](docs/guides/what-runs-where.md#claude-code-plugin).
 
 ## Pick the skill for the work
 

@@ -4,6 +4,9 @@
     "name": "Patrick Morris",
     "url": "https://github.com/patrickjmorris"
   },
+  "metadata": {
+    "description": "Analytics judgment for the agent you already use: open-source skills, with an optional Engine for checked Findings."
+  },
   "plugins": [
     {
       "name": "aftergrid",

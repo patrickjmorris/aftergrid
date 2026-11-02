@@ -51,4 +51,6 @@ If your agent's sandbox blocks the write, run the command yourself in a terminal
 /plugin install aftergrid@aftergrid
 ```
 
-This installs all fourteen skills. Plugin skills are namespaced, so `/diagnose-change` becomes `/aftergrid:diagnose-change`.
+This installs all fourteen skills. Checked on 2026-11-02 with the matching `claude plugin marketplace add` and `claude plugin install` commands, from GitHub, in a clean config directory; the interactive `/plugin` menu wasn't run. Claude Code reported the plugin enabled with 14 skills. Loaded with `--plugin-dir`, `/diagnose-change` and `/aftergrid:diagnose-change` both worked in headless mode.
+
+The plugin doesn't install the Engine's packages, so the Engine CLI still needs a checkout.
