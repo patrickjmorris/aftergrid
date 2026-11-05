@@ -673,6 +673,7 @@ const SHARED_REFERENCES: Record<string, string> = {
   "data-issues.md": "analyze",
   "clarification.md": "analyze",
   "narrative-criteria.md": "write-finding",
+  "outside-context.md": "analysis-review",
 };
 // Same file name in several skills, different content by design: each skill's own Engine procedure.
 const PER_SKILL_REFERENCES = new Set(["engine-workflow.md"]);
