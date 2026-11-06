@@ -37,6 +37,8 @@ A move matters when it is large against three references:
 
 A threshold the owner states for the total applies to the total. Compare each part with it to show which parts could open or close the gap on their own. Sampling error within one period is not normal variation; report it when useful, and still label materiality against history unjudged when there is no history.
 
+When the owner or the analysis uses an outside benchmark as a reference (an industry rate, a competitor's figure), [check outside context](references/outside-context.md) before relying on it; it is optional, and an unchecked benchmark is labeled unchecked.
+
 Label the result material, immaterial, or unjudged, with the reference that decided it.
 
 Completion: every result that will appear in the recommendation carries a materiality label and its reference.
