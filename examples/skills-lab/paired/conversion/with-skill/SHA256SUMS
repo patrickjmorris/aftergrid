@@ -1,0 +1,10 @@
+2e35a3d1a74d9ab04dbf5fa591f2c1bb9202934207eccc568a19a9282760d472  ./analysis/calculate.py
+1b59d9ce26516a765c1667d3c09d8f330ecee809ba09fdd8158de2e147dc1f5e  ./analysis/calculations.json
+d92348dc3550ebd77834fca39b5c033047f4feca89b6cd3a0e38e28429d3dd6e  ./analysis/command-log.md
+3728335a7ad64ef8a3ee75eb264232f1c721812ff9daeec2796e009a4501d429  ./analysis/journal.md
+0b165a1af2fc26bd992707b61fd7ce84d8fc6c98586cf24b671b6672e5f5c440  ./analysis/report.md
+4cdec5bdb07e5b75fa51b0213c5763247a2100d41de287b9fd4ba83007a914e2  ./case.md
+200c05879fdfc0d8a8175c64332d79b517c6e0d81acd790bb0d2c806949f573b  ./data/conversion.csv
+aca25dc48caab22e4a0e3b059ac72a2f97351d303d41570c70524d55b4aa5c3a  ./skills/diagnose-change/SKILL.md
+4259a6de09f08631c10f6bb1dba6b8dfee30c80cae2abedde340547e4f0317a4  ./skills/diagnose-change/agents/openai.yaml
+c847feb9d7d5a7a458fb1551957ed5b9009002e65725891b6842d9285297f47f  ./skills/diagnose-change/references/rigor.md

@@ -24,6 +24,30 @@ This ordering assigns the interaction to the mix term. A segment missing in one 
 
 The [conversion example](../examples/conversion-mix.md) is the teaching case: overall conversion falls while every channel improves.
 
+## What the skill changed
+
+One recorded pair on the [conversion case](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/cases/conversion.md): the same model (Codex `gpt-6.1-sol`, high effort), the same prompt, separate directories, no answer key, 2026-11-11. One run per side. This is not a benchmark.
+
+Both runs got the arithmetic right: 8.8% to 6.2%, both channels up 1 pp, −3.6 pp from mix and +1.0 pp within channels. Both said not to roll back. The gap was small, and it was in how each run handled the evidence.
+
+**Without the skill** ([raw output](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/baseline/analysis/report.md)):
+
+> **Do not roll back the signup experience on this evidence.** The aggregate decline is explained arithmetically by acquisition-channel mix; both measured channel conversion rates increased.
+
+> These are descriptive reweightings, not causal estimates or forecasts.
+
+It decomposed the drop correctly and stated the causal limits in prose. It did not keep a list of rival explanations or say what would reverse the call.
+
+**With the skill** ([raw output](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/with-skill/analysis/report.md)):
+
+> This is an **exploratory** test chosen after inspecting the supplied counts, not a preregistered comparison.
+
+> Evidence of harm under that design, or a verified release-linked measurement/product defect, would change the rollback recommendation. Stop here because the available aggregates cannot distinguish causal rivals further.
+
+It reached the same answer and added a hypothesis ledger that kept a measurement artifact open as unresolved. It also listed the checks it could not run and named what would reverse the recommendation.
+
+[Setup, prompts, hashes and limitations](https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/README.md).
+
 ## Common questions
 
 **Does a mix shift mean the product is fine?** No. It means the aggregate movement is not evidence that every group got worse. Intent, device mix, or a product change can still move inside a channel.
