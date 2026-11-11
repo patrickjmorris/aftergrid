@@ -1,0 +1,14 @@
+Validated: four unique period/channel rows; positive session counts; integer signups within sessions; matched channels.
+period	sessions	signups	conversion_pct
+baseline	10000	880	8.8000
+current	10000	620	6.2000
+channel	baseline_weight_pct	current_weight_pct	baseline_rate_pct	current_rate_pct	rate_change_pp	mix_contribution_pp	within_contribution_pp
+paid	20.0000	80.0000	4.0000	5.0000	1.0000	2.4000	0.8000
+direct	80.0000	20.0000	10.0000	11.0000	1.0000	-6.0000	0.2000
+Observed change: -2.6000 percentage points; -29.5455 percent relative; -260 signups.
+Baseline weights, current rates: 9.8000%.
+Current weights, baseline rates: 5.2000%; 520 counterfactual signups at current volume.
+Exact decomposition (baseline rates for mix; current weights for within): mix -3.6000 pp, within +1.0000 pp, sum -2.6000 pp.
+Interaction term: 0.0000 pp.
+At equal 10000-session volumes: mix -360 signups; within +100 signups.
+PASS: decomposition reconciles with observed change.

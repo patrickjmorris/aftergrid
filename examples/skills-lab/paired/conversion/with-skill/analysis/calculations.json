@@ -1,0 +1,81 @@
+{
+  "source": "data/conversion.csv",
+  "source_sha256": "200c05879fdfc0d8a8175c64332d79b517c6e0d81acd790bb0d2c806949f573b",
+  "validity_checks": {
+    "rows": 4,
+    "unique_period_channel_keys": true,
+    "same_channels_both_periods": true,
+    "positive_sessions_and_bounded_signups": true,
+    "joins": "none",
+    "exclusions": "none"
+  },
+  "by_period_channel": {
+    "baseline": {
+      "direct": {
+        "sessions": 8000,
+        "signups": 800,
+        "rate": "0.1",
+        "share": "0.8"
+      },
+      "paid": {
+        "sessions": 2000,
+        "signups": 80,
+        "rate": "0.04",
+        "share": "0.2"
+      }
+    },
+    "current": {
+      "direct": {
+        "sessions": 2000,
+        "signups": 220,
+        "rate": "0.11",
+        "share": "0.2"
+      },
+      "paid": {
+        "sessions": 8000,
+        "signups": 400,
+        "rate": "0.05",
+        "share": "0.8"
+      }
+    }
+  },
+  "totals": {
+    "baseline": {
+      "sessions": 10000,
+      "signups": 880,
+      "rate": "0.088"
+    },
+    "current": {
+      "sessions": 10000,
+      "signups": 620,
+      "rate": "0.062"
+    }
+  },
+  "change": {
+    "rate_difference": "-0.026",
+    "rate_relative_to_baseline": "-0.2954545454545454545454545455",
+    "sessions": 0,
+    "signups": -260
+  },
+  "baseline_weighted_current_rate": "0.098",
+  "current_weights_baseline_rates": "0.052",
+  "decomposition_rate_units": {
+    "within": {
+      "direct": "0.008",
+      "paid": "0.002"
+    },
+    "mix": {
+      "direct": "-0.066",
+      "paid": "0.030"
+    },
+    "within_total": "0.010",
+    "mix_total": "-0.036",
+    "interaction": "0.000",
+    "sum": "-0.026"
+  },
+  "signup_difference_at_common_10000_sessions": {
+    "within": "100.000",
+    "mix": "-360.000",
+    "total": "-260.000"
+  }
+}

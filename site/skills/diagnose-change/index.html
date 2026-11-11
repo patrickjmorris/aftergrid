@@ -12,6 +12,26 @@
 <p><code>total change = sum(w_before × (r_after − r_before)) + sum((w_after − w_before) × r_after)</code></p>
 <p>This ordering assigns the interaction to the mix term. A segment missing in one period has no observed rate: do not fill it with zero to force the formula.</p>
 <p>The <a href="../../examples/conversion-mix/">conversion example</a> is the teaching case: overall conversion falls while every channel improves.</p>
+<h2 id="what-the-skill-changed">What the skill changed</h2>
+<p>One recorded pair on the <a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/cases/conversion.md">conversion case</a>: the same model (Codex <code>gpt-6.1-sol</code>, high effort), the same prompt, separate directories, no answer key, 2026-11-11. One run per side. This is not a benchmark.</p>
+<p>Both runs got the arithmetic right: 8.8% to 6.2%, both channels up 1 pp, −3.6 pp from mix and +1.0 pp within channels. Both said not to roll back. The gap was small, and it was in how each run handled the evidence.</p>
+<p><strong>Without the skill</strong> (<a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/baseline/analysis/report.md">raw output</a>):</p>
+<blockquote>
+<p><strong>Do not roll back the signup experience on this evidence.</strong> The aggregate decline is explained arithmetically by acquisition-channel mix; both measured channel conversion rates increased.</p>
+</blockquote>
+<blockquote>
+<p>These are descriptive reweightings, not causal estimates or forecasts.</p>
+</blockquote>
+<p>It decomposed the drop correctly and stated the causal limits in prose. It did not keep a list of rival explanations or say what would reverse the call.</p>
+<p><strong>With the skill</strong> (<a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/with-skill/analysis/report.md">raw output</a>):</p>
+<blockquote>
+<p>This is an <strong>exploratory</strong> test chosen after inspecting the supplied counts, not a preregistered comparison.</p>
+</blockquote>
+<blockquote>
+<p>Evidence of harm under that design, or a verified release-linked measurement/product defect, would change the rollback recommendation. Stop here because the available aggregates cannot distinguish causal rivals further.</p>
+</blockquote>
+<p>It reached the same answer and added a hypothesis ledger that kept a measurement artifact open as unresolved. It also listed the checks it could not run and named what would reverse the recommendation.</p>
+<p><a href="https://github.com/patrickjmorris/aftergrid/blob/main/examples/skills-lab/paired/conversion/README.md">Setup, prompts, hashes and limitations</a>.</p>
 <h2 id="common-questions">Common questions</h2>
 <p><strong>Does a mix shift mean the product is fine?</strong> No. It means the aggregate movement is not evidence that every group got worse. Intent, device mix, or a product change can still move inside a channel.</p>
 <p><strong>Should I keep slicing until the story is obvious?</strong> No. Stop when the supported explanation is enough for the decision, remaining explanations predict the same available observations, or the next test needs data you do not have. New cuts after seeing a result are exploratory.</p>
